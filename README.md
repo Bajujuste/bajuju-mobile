@@ -1,0 +1,2 @@
+# bajuju-mobile
+Applicazione Installabile

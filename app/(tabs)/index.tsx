@@ -1,98 +1,206 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import { supabase } from '../../src/lib/supabase';
 
-export default function HomeScreen() {
+export default function LoginScreen() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  async function handleLogin() {
+    const cleanEmail = email.trim();
+
+    if (!cleanEmail || !password) {
+      Alert.alert('Dati mancanti', 'Inserisci email e password.');
+      return;
+    }
+
+    setLoading(true);
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email: cleanEmail,
+      password,
+    });
+
+    setLoading(false);
+
+    if (error) {
+      Alert.alert('Accesso non riuscito', error.message);
+      return;
+    }
+
+    Alert.alert('Login riuscito', 'Collegamento a Supabase funzionante.');
+  }
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+    <SafeAreaView style={styles.safeArea}>
+      <KeyboardAvoidingView
+        style={styles.keyboardView}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView
+          contentContainerStyle={styles.container}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.logoBox}>
+            <Text style={styles.logoText}>Bajuju</Text>
+            <Text style={styles.subtitle}>Di persona è meglio</Text>
+          </View>
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+          <View style={styles.card}>
+            <Text style={styles.title}>Accedi</Text>
+            <Text style={styles.description}>
+              Entra con lo stesso account che usi su bajuju.it.
+            </Text>
+
+            <Text style={styles.label}>Email</Text>
+            <TextInput
+              value={email}
+              onChangeText={setEmail}
+              placeholder="La tua email"
+              placeholderTextColor="#9b8b7b"
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="email-address"
+              style={styles.input}
+            />
+
+            <Text style={styles.label}>Password</Text>
+            <TextInput
+              value={password}
+              onChangeText={setPassword}
+              placeholder="La tua password"
+              placeholderTextColor="#9b8b7b"
+              secureTextEntry
+              style={styles.input}
+            />
+
+            <Pressable
+              style={[styles.button, loading && styles.buttonDisabled]}
+              onPress={handleLogin}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color="#ffffff" />
+              ) : (
+                <Text style={styles.buttonText}>Accedi</Text>
+              )}
+            </Pressable>
+
+            <Text style={styles.smallText}>
+              Prima schermata test Bajuju Mobile.
+            </Text>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#fbf7ef',
   },
-  stepContainer: {
-    gap: 8,
+  keyboardView: {
+    flex: 1,
+  },
+  container: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    padding: 24,
+  },
+  logoBox: {
+    alignItems: 'center',
+    marginBottom: 32,
+  },
+  logoText: {
+    fontSize: 46,
+    fontWeight: '900',
+    color: '#8b5a2b',
+    letterSpacing: 0.5,
+  },
+  subtitle: {
+    marginTop: 8,
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#b58a4a',
+  },
+  card: {
+    width: '100%',
+    borderRadius: 28,
+    padding: 24,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#eadcc9',
+    shadowColor: '#000000',
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 4,
+  },
+  title: {
+    fontSize: 30,
+    fontWeight: '900',
+    color: '#3a2415',
     marginBottom: 8,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  description: {
+    fontSize: 15,
+    lineHeight: 22,
+    color: '#7b6653',
+    marginBottom: 24,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#5a3821',
+    marginBottom: 8,
+  },
+  input: {
+    height: 52,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#dfcbb2',
+    backgroundColor: '#fffaf3',
+    paddingHorizontal: 16,
+    fontSize: 16,
+    color: '#2d1c11',
+    marginBottom: 16,
+  },
+  button: {
+    height: 54,
+    borderRadius: 18,
+    backgroundColor: '#8b5a2b',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+  },
+  buttonDisabled: {
+    opacity: 0.65,
+  },
+  buttonText: {
+    color: '#ffffff',
+    fontSize: 17,
+    fontWeight: '900',
+  },
+  smallText: {
+    marginTop: 18,
+    textAlign: 'center',
+    fontSize: 13,
+    color: '#9b8b7b',
   },
 });

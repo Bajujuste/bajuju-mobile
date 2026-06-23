@@ -1,13 +1,13 @@
-import { router } from 'expo-router';
 import React from 'react';
 import {
-    Pressable,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
+  Pressable,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
+import { router } from 'expo-router';
 
 import { supabase } from '../src/lib/supabase';
 
@@ -56,6 +56,14 @@ export default function HomeScreen() {
               <Text style={styles.homeTitle}>Crea esperienza</Text>
               <Text style={styles.homeText}>
                 Organizza qualcosa da vivere insieme.
+              </Text>
+            </Pressable>
+
+            <Pressable style={styles.homeCard} onPress={() => router.push('/profile')}>
+              <Text style={styles.homeIcon}>👤</Text>
+              <Text style={styles.homeTitle}>Profilo</Text>
+              <Text style={styles.homeText}>
+                Vedi il tuo account e i dati collegati a Supabase.
               </Text>
             </Pressable>
           </View>

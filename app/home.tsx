@@ -32,7 +32,7 @@ export default function HomeScreen() {
           </Text>
 
           <View style={styles.homeGrid}>
-            <Pressable style={styles.homeCard}>
+            <Pressable style={styles.homeCard} onPress={() => router.push('/flash')}>
               <Text style={styles.homeIcon}>⚡</Text>
               <Text style={styles.homeTitle}>Bajuju Flash</Text>
               <Text style={styles.homeText}>
@@ -40,7 +40,7 @@ export default function HomeScreen() {
               </Text>
             </Pressable>
 
-            <Pressable style={styles.homeCard}>
+            <Pressable style={styles.homeCard} onPress={() => router.push('/experiences')}>
               <Text style={styles.homeIcon}>🔎</Text>
               <Text style={styles.homeTitle}>Trova esperienza</Text>
               <Text style={styles.homeText}>

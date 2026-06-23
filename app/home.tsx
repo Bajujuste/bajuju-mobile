@@ -48,7 +48,10 @@ export default function HomeScreen() {
               </Text>
             </Pressable>
 
-            <Pressable style={styles.homeCard}>
+            <Pressable
+              style={styles.homeCard}
+              onPress={() => router.push('/create-experience')}
+            >
               <Text style={styles.homeIcon}>➕</Text>
               <Text style={styles.homeTitle}>Crea esperienza</Text>
               <Text style={styles.homeText}>

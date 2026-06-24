@@ -870,10 +870,10 @@ export default function ProfileScreen() {
 
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>Privacy e regole</Text>
-        <Pressable style={styles.linkButton} onPress={() => Linking.openURL('https://www.bajuju.it/privacy')}>
+        <Pressable style={styles.linkButton} onPress={() => router.push('/privacy')}>
           <Text style={styles.linkButtonText}>Apri Privacy Policy</Text>
         </Pressable>
-        <Pressable style={styles.linkButton} onPress={() => Linking.openURL('https://www.bajuju.it/regole')}>
+        <Pressable style={styles.linkButton} onPress={() => router.push('/rules')}>
           <Text style={styles.linkButtonText}>Apri Regole community</Text>
         </Pressable>
         <Pressable style={styles.deleteButton} onPress={requestProfileDeletion}>

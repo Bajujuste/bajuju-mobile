@@ -615,6 +615,7 @@ export default function ProfileScreen() {
       [cityField]: city.trim(),
       [ageField]: ageRange,
       [genderField]: gender,
+      allow_direct_contacts: directContactsEnabled,
     };
 
     if (profile && Object.prototype.hasOwnProperty.call(profile, directContactsField)) {

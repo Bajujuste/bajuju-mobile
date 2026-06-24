@@ -664,45 +664,51 @@ export default function ProfileScreen() {
   const requestProfileDeletion = useCallback(async () => {
     if (!user) return;
 
-    Alert.alert(
-      'Eliminazione profilo',
-      'Vuoi inviare una richiesta di eliminazione del profilo?',
-      [
-        { text: 'Annulla', style: 'cancel' },
-        {
-          text: 'Invia richiesta',
-          style: 'destructive',
-          onPress: async () => {
-            const payload = {
-              user_id: user.id,
-              email: user.email,
-              status: 'pending',
-              created_at: new Date().toISOString(),
-            };
+    const confirmed =
+      typeof window !== 'undefined'
+        ? window.confirm('Vuoi inviare una richiesta di eliminazione del profilo?')
+        : true;
 
-            const attempts = [
-              () => supabase.from('profile_deletion_requests').insert(payload),
-              () => supabase.from('deletion_requests').insert(payload),
-              () => supabase.from(PROFILE_TABLE).update({ deletion_requested_at: new Date().toISOString() }).eq(profileIdField, profileIdValue),
-            ];
+    if (!confirmed) return;
 
-            for (const attempt of attempts) {
-              try {
-                const result = await attempt();
-                if (!result.error) {
-                  Alert.alert('Richiesta inviata', 'La richiesta di eliminazione profilo è stata registrata.');
-                  return;
-                }
-              } catch {
-                // Prova il metodo successivo.
-              }
-            }
+    const payload = {
+      user_id: user.id,
+      email: user.email,
+      status: 'pending',
+      created_at: new Date().toISOString(),
+    };
 
-            Alert.alert('Errore', 'Non sono riuscito a registrare la richiesta di eliminazione.');
-          },
-        },
-      ]
-    );
+    const attempts = [
+      () => supabase.from('profile_deletion_requests').insert(payload),
+      () => supabase.from('deletion_requests').insert(payload),
+      () => supabase.from(PROFILE_TABLE).update({ deletion_requested_at: new Date().toISOString() }).eq(profileIdField, profileIdValue),
+    ];
+
+    for (const attempt of attempts) {
+      try {
+        const result = await attempt();
+
+        if (!result.error) {
+          if (typeof window !== 'undefined') {
+            window.alert('Richiesta di eliminazione profilo registrata.');
+          } else {
+            Alert.alert('Richiesta inviata', 'La richiesta di eliminazione profilo è stata registrata.');
+          }
+
+          return;
+        }
+
+        console.log('Errore richiesta eliminazione:', result.error.message);
+      } catch (error) {
+        console.log('Errore richiesta eliminazione:', error);
+      }
+    }
+
+    if (typeof window !== 'undefined') {
+      window.alert('Non sono riuscito a registrare la richiesta di eliminazione.');
+    } else {
+      Alert.alert('Errore', 'Non sono riuscito a registrare la richiesta di eliminazione.');
+    }
   }, [profileIdField, profileIdValue, user]);
 
   const logout = useCallback(async () => {

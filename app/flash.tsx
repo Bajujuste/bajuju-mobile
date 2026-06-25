@@ -224,6 +224,58 @@ function rowBelongsToUser(row: LooseRow, userId: string | null) {
   return owner ? String(owner) === String(userId) : false;
 }
 
+async function geocodeAddress(address: string, city: string, province: string) {
+  const cleanAddress = address.trim();
+  const cleanCity = city.trim();
+  const cleanProvince = province.trim();
+
+  const queries = [
+    `${cleanAddress}, ${cleanCity}, ${cleanProvince}, Italia`,
+    `${cleanAddress}, ${cleanCity}, Italia`,
+    `${cleanAddress}, ${cleanProvince}, Italia`,
+    `${cleanCity}, ${cleanProvince}, Italia`,
+  ];
+
+  for (const query of queries) {
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=it&q=${encodeURIComponent(query)}`;
+
+      const response = await fetch(url, {
+        headers: {
+          Accept: 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        console.log('Geocoding non riuscito:', response.status, query);
+        continue;
+      }
+
+      const data = await response.json();
+
+      if (!Array.isArray(data) || data.length === 0) {
+        console.log('Nessun risultato geocoding per:', query);
+        continue;
+      }
+
+      const first = data[0];
+      const latitude = Number(first.lat);
+      const longitude = Number(first.lon);
+
+      if (Number.isNaN(latitude) || Number.isNaN(longitude)) {
+        console.log('Coordinate non valide per:', query);
+        continue;
+      }
+
+      return { latitude, longitude };
+    } catch (error) {
+      console.log('Errore geocoding per:', query, error);
+    }
+  }
+
+  return null;
+}
+
 export default function FlashScreen() {
   const [userId, setUserId] = useState<string | null>(null);
   const [rows, setRows] = useState<LooseRow[]>([]);
@@ -348,6 +400,17 @@ export default function FlashScreen() {
       const cleanTime = now.toTimeString().slice(0, 8);
       const expiresAt = new Date(now.getTime() + newDurationHours * 60 * 60 * 1000).toISOString();
 
+      const coordinates = await geocodeAddress(cleanPlace, cleanCity, cleanProvince);
+
+      if (!coordinates) {
+        if (typeof window !== 'undefined') {
+          window.alert(
+            'Indirizzo non trovato. Inserisci un indirizzo reale e completo con via, numero civico, comune corretto e provincia.'
+          );
+        }
+        return;
+      }
+
       const payload = {
         creator_id: creatorId,
         title: cleanTitle,
@@ -362,6 +425,8 @@ export default function FlashScreen() {
         max_participants: 10,
         is_flash: true,
         expires_at: expiresAt,
+        latitude: coordinates?.latitude ?? null,
+        longitude: coordinates?.longitude ?? null,
       };
 
       const result = await supabase.from('activities').insert(payload).select('*').single();

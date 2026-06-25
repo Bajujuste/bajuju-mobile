@@ -6,6 +6,7 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
+  Linking,
   Text,
   TextInput,
   View,
@@ -224,6 +225,36 @@ function rowBelongsToUser(row: LooseRow, userId: string | null) {
   return owner ? String(owner) === String(userId) : false;
 }
 
+function getCoordinates(row: LooseRow) {
+  const latitude = Number(firstValue(row, ['latitude', 'lat']));
+  const longitude = Number(firstValue(row, ['longitude', 'lng', 'lon']));
+
+  if (Number.isNaN(latitude) || Number.isNaN(longitude)) return null;
+
+  return { latitude, longitude };
+}
+
+function openMap(row: LooseRow) {
+  const coordinates = getCoordinates(row);
+
+  if (!coordinates) {
+    if (typeof window !== 'undefined') {
+      window.alert('Coordinate non disponibili per questo Flash.');
+    }
+    return;
+  }
+
+  const { latitude, longitude } = coordinates;
+  const title = encodeURIComponent(flashTitle(row));
+  const url = `https://www.openstreetmap.org/?mlat=${latitude}&mlon=${longitude}#map=18/${latitude}/${longitude}&layers=N&marker=${latitude},${longitude}`;
+
+  Linking.openURL(url).catch(() => {
+    if (typeof window !== 'undefined') {
+      window.alert(`Non riesco ad aprire la mappa per ${decodeURIComponent(title)}.`);
+    }
+  });
+}
+
 async function geocodeAddress(address: string, city: string, province: string) {
   const cleanAddress = address.trim();
   const cleanCity = city.trim();
@@ -279,6 +310,8 @@ async function geocodeAddress(address: string, city: string, province: string) {
 export default function FlashScreen() {
   const [userId, setUserId] = useState<string | null>(null);
   const [rows, setRows] = useState<LooseRow[]>([]);
+  const [joinedActivityIds, setJoinedActivityIds] = useState<Set<string>>(new Set());
+  const [joiningActivityId, setJoiningActivityId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -306,8 +339,48 @@ export default function FlashScreen() {
 
     if (result.error) {
       setRows([]);
+      setJoinedActivityIds(new Set());
       setErrorMessage(result.error.message || 'Non sono riuscito a caricare i Flash.');
       return;
+    }
+
+    if (currentUserId) {
+      const joinedResult = await supabase
+        .from('activity_participants')
+        .select('activity_id,user_id,status')
+        .eq('user_id', currentUserId)
+        .limit(300);
+
+      if (!joinedResult.error && Array.isArray(joinedResult.data)) {
+        const joinedIds = new Set(
+          joinedResult.data
+            .filter((item: LooseRow) => {
+              const status = firstText(item, ['status', 'stato'], '').toLowerCase().trim();
+
+              return ![
+                'rejected',
+                'rifiutato',
+                'declined',
+                'annullato',
+                'annullata',
+                'deleted',
+                'eliminato',
+                'eliminata',
+                'removed',
+                'cancellato',
+                'cancellata',
+              ].includes(status);
+            })
+            .map((item: LooseRow) => String(firstValue(item, ['activity_id', 'event_id', 'experience_id'], '')))
+            .filter(Boolean)
+        );
+
+        setJoinedActivityIds(joinedIds);
+      } else {
+        setJoinedActivityIds(new Set());
+      }
+    } else {
+      setJoinedActivityIds(new Set());
     }
 
     const cleanRows = ((result.data || []) as LooseRow[])
@@ -454,6 +527,61 @@ export default function FlashScreen() {
     }
   }, [loadFlashRows, newCity, newDurationHours, newPlace, newProvince, newTitle, savingFlash]);
 
+  const joinFlash = useCallback(async (row: LooseRow) => {
+    const activityId = String(firstValue(row, ['id', 'activity_id'], ''));
+
+    if (!activityId || joiningActivityId) return;
+
+    if (rowBelongsToUser(row, userId)) {
+      if (typeof window !== 'undefined') {
+        window.alert('Questo Flash lo hai creato tu.');
+      }
+      return;
+    }
+
+    if (joinedActivityIds.has(activityId)) {
+      if (typeof window !== 'undefined') {
+        window.alert('Stai già partecipando a questo Flash.');
+      }
+      return;
+    }
+
+    setJoiningActivityId(activityId);
+
+    try {
+      const authResult = await supabase.auth.getUser();
+      const authUserId = authResult.data.user?.id;
+
+      if (!authUserId) {
+        if (typeof window !== 'undefined') {
+          window.alert('Devi essere collegato per partecipare.');
+        }
+        return;
+      }
+
+      const result = await supabase.from('activity_participants').insert({
+        activity_id: activityId,
+        user_id: authUserId,
+        status: 'accepted',
+      });
+
+      if (result.error) {
+        if (typeof window !== 'undefined') {
+          window.alert(`Errore partecipazione: ${result.error.message}`);
+        }
+        return;
+      }
+
+      await loadFlashRows();
+
+      if (typeof window !== 'undefined') {
+        window.alert('Partecipazione registrata.');
+      }
+    } finally {
+      setJoiningActivityId(null);
+    }
+  }, [joinedActivityIds, joiningActivityId, loadFlashRows, userId]);
+
   const filteredRows = useMemo(() => {
     return rows.filter((row) => {
       if (selectedProvince !== 'Tutte') {
@@ -461,12 +589,14 @@ export default function FlashScreen() {
         if (province !== selectedProvince.toLowerCase().trim()) return false;
       }
 
+      const activityId = String(firstValue(row, ['id', 'activity_id'], ''));
+
       if (selectedTab === 'mine') return rowBelongsToUser(row, userId);
-      if (selectedTab === 'joined') return !rowBelongsToUser(row, userId);
+      if (selectedTab === 'joined') return joinedActivityIds.has(activityId);
 
       return true;
     });
-  }, [rows, selectedProvince, selectedTab, userId]);
+  }, [joinedActivityIds, rows, selectedProvince, selectedTab, userId]);
 
   return (
     <ScrollView
@@ -481,8 +611,12 @@ export default function FlashScreen() {
           Scegli la provincia e guarda i Flash disponibili collegati a Supabase.
         </Text>
 
-        <Pressable style={styles.button} onPress={() => router.push('/home')}>
-          <Text style={styles.buttonText}>Torna alla Home</Text>
+        <Pressable style={styles.button} onPress={() => router.push('/flash-map')}>
+          <Text style={styles.buttonText}>Mappa Flash disponibili</Text>
+        </Pressable>
+
+        <Pressable style={styles.secondaryButton} onPress={() => router.push('/home')}>
+          <Text style={styles.secondaryButtonText}>Torna alla Home</Text>
         </Pressable>
       </View>
 
@@ -644,9 +778,31 @@ export default function FlashScreen() {
 
               {flashPlace(row) ? <Text style={styles.flashPlace}>{flashPlace(row)}</Text> : null}
 
+              {getCoordinates(row) ? (
+                <Pressable style={styles.mapButton} onPress={() => openMap(row)}>
+                  <Text style={styles.mapButtonText}>Apri mappa</Text>
+                </Pressable>
+              ) : (
+                <Text style={styles.noMapText}>Coordinate non disponibili</Text>
+              )}
+
               {rowBelongsToUser(row, userId) ? (
                 <Text style={styles.ownerBadge}>Creato da te</Text>
-              ) : null}
+              ) : joinedActivityIds.has(String(firstValue(row, ['id', 'activity_id'], ''))) ? (
+                <Text style={styles.joinedBadge}>Stai partecipando</Text>
+              ) : (
+                <Pressable
+                  style={styles.joinButton}
+                  onPress={() => joinFlash(row)}
+                  disabled={joiningActivityId === String(firstValue(row, ['id', 'activity_id'], ''))}
+                >
+                  <Text style={styles.joinButtonText}>
+                    {joiningActivityId === String(firstValue(row, ['id', 'activity_id'], ''))
+                      ? 'Partecipazione...'
+                      : 'Partecipa al Flash'}
+                  </Text>
+                </Pressable>
+              )}
             </View>
           ))
         )}
@@ -695,6 +851,20 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  secondaryButton: {
+    backgroundColor: '#fff8fb',
+    borderRadius: 18,
+    paddingVertical: 14,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#ffd3e6',
+    marginTop: 10,
+  },
+  secondaryButtonText: {
+    color: '#ef2d82',
     fontSize: 16,
     fontWeight: '800',
   },
@@ -868,6 +1038,50 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginTop: 8,
     fontWeight: '700',
+  },
+  mapButton: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#ef2d82',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginTop: 12,
+  },
+  mapButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  noMapText: {
+    color: '#a36a86',
+    fontSize: 13,
+    fontWeight: '800',
+    marginTop: 10,
+  },
+  joinButton: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#ef2d82',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginTop: 12,
+  },
+  joinButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  joinedBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#e8fff2',
+    color: '#187a45',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    fontSize: 13,
+    fontWeight: '900',
+    overflow: 'hidden',
+    marginTop: 10,
   },
   ownerBadge: {
     alignSelf: 'flex-start',

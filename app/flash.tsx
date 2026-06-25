@@ -311,6 +311,7 @@ export default function FlashScreen() {
   const [userId, setUserId] = useState<string | null>(null);
   const [rows, setRows] = useState<LooseRow[]>([]);
   const [joinedActivityIds, setJoinedActivityIds] = useState<Set<string>>(new Set());
+  const [participantCounts, setParticipantCounts] = useState<Record<string, number>>({});
   const [joiningActivityId, setJoiningActivityId] = useState<string | null>(null);
   const [leavingActivityId, setLeavingActivityId] = useState<string | null>(null);
   const [cancellingActivityId, setCancellingActivityId] = useState<string | null>(null);
@@ -396,6 +397,31 @@ export default function FlashScreen() {
       });
 
     setRows(cleanRows);
+
+      const flashIds = cleanRows
+        ? cleanRows.map((item: LooseRow) => String(firstValue(item, ['id', 'activity_id'], ''))).filter(Boolean)
+        : [];
+
+      if (flashIds.length > 0) {
+        const participantsResult = await supabase
+          .from('activity_participants')
+          .select('activity_id')
+          .in('activity_id', flashIds);
+
+        if (!participantsResult.error) {
+          const counts: Record<string, number> = {};
+
+          for (const participant of participantsResult.data ?? []) {
+            const participantActivityId = String((participant as LooseRow).activity_id ?? '');
+            if (!participantActivityId) continue;
+            counts[participantActivityId] = (counts[participantActivityId] ?? 0) + 1;
+          }
+
+          setParticipantCounts(counts);
+        }
+      } else {
+        setParticipantCounts({});
+      }
   }, []);
 
   useEffect(() => {
@@ -881,6 +907,10 @@ export default function FlashScreen() {
               ]))}</Text>
 
               {flashPlace(row) ? <Text style={styles.flashPlace}>{flashPlace(row)}</Text> : null}
+
+              <Text style={styles.flashMeta}>
+                Partecipanti: {participantCounts[String(firstValue(row, ['id', 'activity_id'], ''))] ?? 0}
+              </Text>
 
               {getCoordinates(row) ? (
                 <Pressable style={styles.mapButton} onPress={() => openMap(row)}>

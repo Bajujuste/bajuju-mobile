@@ -312,6 +312,7 @@ export default function FlashScreen() {
   const [rows, setRows] = useState<LooseRow[]>([]);
   const [joinedActivityIds, setJoinedActivityIds] = useState<Set<string>>(new Set());
   const [joiningActivityId, setJoiningActivityId] = useState<string | null>(null);
+  const [cancellingActivityId, setCancellingActivityId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -582,6 +583,60 @@ export default function FlashScreen() {
     }
   }, [joinedActivityIds, joiningActivityId, loadFlashRows, userId]);
 
+  const cancelFlash = useCallback(async (row: LooseRow) => {
+    const activityId = String(firstValue(row, ['id', 'activity_id'], ''));
+
+    if (!activityId || cancellingActivityId) return;
+
+    if (!rowBelongsToUser(row, userId)) {
+      if (typeof window !== 'undefined') {
+        window.alert('Puoi annullare solo i Flash creati da te.');
+      }
+      return;
+    }
+
+    const confirmed =
+      typeof window === 'undefined'
+        ? true
+        : window.confirm('Vuoi annullare questo Flash? Non sarà più visibile tra i Flash disponibili.');
+
+    if (!confirmed) return;
+
+    setCancellingActivityId(activityId);
+
+    try {
+      const authResult = await supabase.auth.getUser();
+      const authUserId = authResult.data.user?.id;
+
+      if (!authUserId) {
+        if (typeof window !== 'undefined') {
+          window.alert('Devi essere collegato per annullare il Flash.');
+        }
+        return;
+      }
+
+      const result = await supabase
+        .from('activities')
+        .update({ expires_at: new Date().toISOString() })
+        .eq('id', activityId);
+
+      if (result.error) {
+        if (typeof window !== 'undefined') {
+          window.alert(`Errore annullamento Flash: ${result.error.message}`);
+        }
+        return;
+      }
+
+      await loadFlashRows();
+
+      if (typeof window !== 'undefined') {
+        window.alert('Flash annullato correttamente.');
+      }
+    } finally {
+      setCancellingActivityId(null);
+    }
+  }, [cancellingActivityId, loadFlashRows, userId]);
+
   const filteredRows = useMemo(() => {
     return rows.filter((row) => {
       if (selectedProvince !== 'Tutte') {
@@ -787,7 +842,24 @@ export default function FlashScreen() {
               )}
 
               {rowBelongsToUser(row, userId) ? (
-                <Text style={styles.ownerBadge}>Creato da te</Text>
+                <View style={styles.ownerActions}>
+                  <Text style={styles.ownerBadge}>Creato da te</Text>
+
+                  <Pressable
+                    style={[
+                      styles.cancelButton,
+                      cancellingActivityId === String(firstValue(row, ['id', 'activity_id'], '')) && styles.buttonDisabled,
+                    ]}
+                    onPress={() => cancelFlash(row)}
+                    disabled={cancellingActivityId === String(firstValue(row, ['id', 'activity_id'], ''))}
+                  >
+                    <Text style={styles.cancelButtonText}>
+                      {cancellingActivityId === String(firstValue(row, ['id', 'activity_id'], ''))
+                        ? 'Annullamento...'
+                        : 'Annulla Flash'}
+                    </Text>
+                  </Pressable>
+                </View>
               ) : joinedActivityIds.has(String(firstValue(row, ['id', 'activity_id'], ''))) ? (
                 <Text style={styles.joinedBadge}>Stai partecipando</Text>
               ) : (
@@ -1057,6 +1129,24 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
     marginTop: 10,
+  },
+  ownerActions: {
+    gap: 10,
+    marginTop: 12,
+  },
+  cancelButton: {
+    backgroundColor: '#fff0f7',
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: '#ef2d82',
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    color: '#ef2d82',
+    fontWeight: '900',
+    fontSize: 14,
   },
   joinButton: {
     alignSelf: 'flex-start',

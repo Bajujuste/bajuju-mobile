@@ -7,6 +7,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 
@@ -15,6 +16,7 @@ import { supabase } from '../src/lib/supabase';
 type LooseRow = Record<string, any>;
 
 type FlashTab = 'all' | 'mine' | 'joined';
+type FlashDuration = 1 | 2 | 3;
 
 const ACTIVE_PROVINCES = ['Bergamo', 'Milano', 'Lecco', 'Monza e Brianza', 'Brescia', 'Torino'];
 
@@ -98,6 +100,15 @@ function normalizeDate(value: any) {
 }
 
 function getFlashDate(row: LooseRow) {
+  const activityDate = firstText(row, ['activity_date', 'event_date', 'date', 'data', 'day', 'giorno'], '');
+  const activityTime = firstText(row, ['activity_time', 'event_time', 'time', 'ora'], '');
+
+  if (activityDate && activityTime) {
+    const combined = `${activityDate}T${activityTime}`;
+    const parsed = normalizeDate(combined);
+    if (parsed) return parsed;
+  }
+
   return normalizeDate(
     firstValue(row, [
       'start_at',
@@ -107,13 +118,7 @@ function getFlashDate(row: LooseRow) {
       'activity_start_at',
       'scheduled_at',
       'date_time',
-      'activity_date',
-      'event_date',
       'data_ora',
-      'date',
-      'data',
-      'day',
-      'giorno',
     ])
   );
 }
@@ -198,12 +203,17 @@ function isFlashRow(row: LooseRow) {
   return ['flash', 'bajuju_flash', 'bajuju flash', 'istantaneo', 'veloce'].includes(text);
 }
 
-function isFutureOrToday(row: LooseRow) {
+function isFlashStillAvailable(row: LooseRow) {
+  const expiresAt = normalizeDate(firstValue(row, ['expires_at', 'expire_at', 'expiresAt']));
+
+  if (expiresAt) {
+    return expiresAt.getTime() >= new Date().getTime();
+  }
+
   const date = getFlashDate(row);
   if (!date) return true;
 
-  const now = new Date();
-  return date.getTime() >= now.getTime();
+  return date.getTime() >= new Date().getTime();
 }
 
 function rowBelongsToUser(row: LooseRow, userId: string | null) {
@@ -222,6 +232,13 @@ export default function FlashScreen() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [selectedProvince, setSelectedProvince] = useState<string>('Tutte');
   const [selectedTab, setSelectedTab] = useState<FlashTab>('all');
+
+  const [newTitle, setNewTitle] = useState('');
+  const [newProvince, setNewProvince] = useState('Bergamo');
+  const [newCity, setNewCity] = useState('');
+  const [newPlace, setNewPlace] = useState('');
+  const [newDurationHours, setNewDurationHours] = useState<FlashDuration>(2);
+  const [savingFlash, setSavingFlash] = useState(false);
 
   const loadFlashRows = useCallback(async () => {
     setErrorMessage(null);
@@ -244,7 +261,7 @@ export default function FlashScreen() {
     const cleanRows = ((result.data || []) as LooseRow[])
       .filter((row) => !isDeleted(row))
       .filter(isFlashRow)
-      .filter(isFutureOrToday)
+      .filter(isFlashStillAvailable)
       .sort((a, b) => {
         const dateA = getFlashDate(a)?.getTime() || 0;
         const dateB = getFlashDate(b)?.getTime() || 0;
@@ -275,6 +292,102 @@ export default function FlashScreen() {
     await loadFlashRows();
     setRefreshing(false);
   }, [loadFlashRows]);
+
+  const createFlash = useCallback(async () => {
+    if (savingFlash) return;
+
+    const cleanTitle = newTitle.trim();
+    const cleanProvince = newProvince.trim();
+    const cleanCity = newCity.trim();
+    const cleanPlace = newPlace.trim();
+    if (!cleanTitle || !cleanProvince || !cleanCity || !cleanPlace) {
+      if (typeof window !== 'undefined') {
+        window.alert('Compila titolo, provincia, comune e indirizzo preciso.');
+      }
+      return;
+    }
+
+    const hasStreetNumber = /\d+[a-zA-Z]?/.test(cleanPlace);
+
+    if (!hasStreetNumber) {
+      if (typeof window !== 'undefined') {
+        window.alert('Inserisci un indirizzo preciso con numero civico, esempio: Via Roma 12.');
+      }
+      return;
+    }
+
+    setSavingFlash(true);
+
+    try {
+      const authResult = await supabase.auth.getUser();
+      const authUserId = authResult.data.user?.id;
+
+      if (!authUserId) {
+        if (typeof window !== 'undefined') {
+          window.alert('Devi essere collegato per creare un Flash.');
+        }
+        return;
+      }
+
+      let creatorId = authUserId;
+
+      const byId = await supabase.from('profiles').select('id').eq('id', authUserId).maybeSingle();
+
+      if (!byId.error && byId.data?.id) {
+        creatorId = byId.data.id;
+      } else {
+        const byUserId = await supabase.from('profiles').select('id').eq('user_id', authUserId).maybeSingle();
+
+        if (!byUserId.error && byUserId.data?.id) {
+          creatorId = byUserId.data.id;
+        }
+      }
+
+      const now = new Date();
+      const cleanDate = now.toISOString().slice(0, 10);
+      const cleanTime = now.toTimeString().slice(0, 8);
+      const expiresAt = new Date(now.getTime() + newDurationHours * 60 * 60 * 1000).toISOString();
+
+      const payload = {
+        creator_id: creatorId,
+        title: cleanTitle,
+        category: 'altro',
+        description: `Bajuju Flash creato da mobile app. Disponibile per ${newDurationHours} ore.`,
+        city: cleanCity,
+        province: cleanProvince,
+        meeting_place: cleanPlace,
+        activity_date: cleanDate,
+        activity_time: cleanTime,
+        min_participants: 1,
+        max_participants: 10,
+        is_flash: true,
+        expires_at: expiresAt,
+      };
+
+      const result = await supabase.from('activities').insert(payload).select('*').single();
+
+      if (result.error) {
+        if (typeof window !== 'undefined') {
+          window.alert(`Errore creazione Flash: ${result.error.message}`);
+        }
+        return;
+      }
+
+      setNewTitle('');
+      setNewCity('');
+      setNewPlace('');
+      setSelectedProvince('Tutte');
+      setSelectedTab('all');
+
+      await loadFlashRows();
+
+      if (typeof window !== 'undefined') {
+        window.alert('Flash creato correttamente.');
+      }
+    } finally {
+      setSavingFlash(false);
+    }
+  }, [loadFlashRows, newCity, newDurationHours, newPlace, newProvince, newTitle, savingFlash]);
 
   const filteredRows = useMemo(() => {
     return rows.filter((row) => {
@@ -349,6 +462,74 @@ export default function FlashScreen() {
             <Text style={[styles.tabText, selectedTab === 'joined' && styles.tabTextActive]}>A cui partecipo</Text>
           </Pressable>
         </View>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.sectionTitle}>Crea Flash</Text>
+
+        <Text style={styles.label}>Titolo Flash</Text>
+        <TextInput
+          value={newTitle}
+          onChangeText={setNewTitle}
+          placeholder="Es. Aperitivo tra mezz'ora"
+          placeholderTextColor="#a36a86"
+          style={styles.input}
+        />
+
+        <Text style={styles.label}>Provincia</Text>
+        <TextInput
+          value={newProvince}
+          onChangeText={setNewProvince}
+          placeholder="Es. Bergamo"
+          placeholderTextColor="#a36a86"
+          style={styles.input}
+        />
+
+        <Text style={styles.label}>Comune</Text>
+        <TextInput
+          value={newCity}
+          onChangeText={setNewCity}
+          placeholder="Es. Caprino Bergamasco"
+          placeholderTextColor="#a36a86"
+          style={styles.input}
+        />
+
+        <Text style={styles.label}>Indirizzo preciso e numero civico</Text>
+        <TextInput
+          value={newPlace}
+          onChangeText={setNewPlace}
+          placeholder="Es. Via Roma 12"
+          placeholderTextColor="#a36a86"
+          style={styles.input}
+        />
+
+        <Text style={styles.label}>Disponibilità</Text>
+        <View style={styles.durationRow}>
+          {[1, 2, 3].map((hours) => (
+            <Pressable
+              key={hours}
+              style={[styles.durationButton, newDurationHours === hours && styles.durationButtonActive]}
+              onPress={() => setNewDurationHours(hours as FlashDuration)}
+            >
+              <Text style={[styles.durationText, newDurationHours === hours && styles.durationTextActive]}>
+                {hours} {hours === 1 ? 'ora' : 'ore'}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+
+        <Text style={styles.formNote}>
+          Per i Flash non devi inserire data e ora: partono subito e restano disponibili per il tempo scelto.
+          L'indirizzo deve essere preciso perché poi verrà usato per la mappa.
+        </Text>
+
+        <Pressable style={[styles.button, savingFlash && styles.buttonDisabled]} onPress={createFlash}>
+          <Text style={styles.buttonText}>{savingFlash ? 'Creazione in corso...' : 'Crea Flash'}</Text>
+        </Pressable>
+
+        <Text style={styles.formNote}>
+          Il Flash viene salvato su Supabase nella tabella activities con is_flash attivo e scadenza automatica.
+        </Text>
       </View>
 
       <View style={styles.card}>
@@ -451,6 +632,57 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 16,
     fontWeight: '800',
+  },
+  buttonDisabled: {
+    opacity: 0.65,
+  },
+  label: {
+    color: '#4b1430',
+    fontSize: 14,
+    fontWeight: '900',
+    marginBottom: 7,
+  },
+  input: {
+    minHeight: 52,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#ffd3e6',
+    backgroundColor: '#fff8fb',
+    paddingHorizontal: 14,
+    fontSize: 16,
+    color: '#4b1430',
+    marginBottom: 14,
+  },
+  formNote: {
+    color: '#7b4960',
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: 10,
+  },
+  durationRow: {
+    gap: 10,
+    marginBottom: 14,
+  },
+  durationButton: {
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    backgroundColor: '#fff8fb',
+    borderWidth: 1,
+    borderColor: '#ffd3e6',
+    alignItems: 'center',
+  },
+  durationButtonActive: {
+    backgroundColor: '#ef2d82',
+    borderColor: '#ef2d82',
+  },
+  durationText: {
+    color: '#7b4960',
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  durationTextActive: {
+    color: '#ffffff',
   },
   sectionTitle: {
     color: '#4b1430',

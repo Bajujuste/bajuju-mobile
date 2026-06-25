@@ -312,6 +312,7 @@ export default function FlashScreen() {
   const [rows, setRows] = useState<LooseRow[]>([]);
   const [joinedActivityIds, setJoinedActivityIds] = useState<Set<string>>(new Set());
   const [joiningActivityId, setJoiningActivityId] = useState<string | null>(null);
+  const [leavingActivityId, setLeavingActivityId] = useState<string | null>(null);
   const [cancellingActivityId, setCancellingActivityId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -637,6 +638,54 @@ export default function FlashScreen() {
     }
   }, [cancellingActivityId, loadFlashRows, userId]);
 
+  const leaveFlash = useCallback(async (row: LooseRow) => {
+    const activityId = String(firstValue(row, ['id', 'activity_id'], ''));
+
+    if (!activityId || leavingActivityId) return;
+
+    const confirmed =
+      typeof window === 'undefined'
+        ? true
+        : window.confirm('Vuoi abbandonare questo Flash?');
+
+    if (!confirmed) return;
+
+    setLeavingActivityId(activityId);
+
+    try {
+      const authResult = await supabase.auth.getUser();
+      const authUserId = authResult.data.user?.id;
+
+      if (!authUserId) {
+        if (typeof window !== 'undefined') {
+          window.alert('Devi essere collegato per abbandonare il Flash.');
+        }
+        return;
+      }
+
+      const result = await supabase
+        .from('activity_participants')
+        .delete()
+        .eq('activity_id', activityId)
+        .eq('user_id', authUserId);
+
+      if (result.error) {
+        if (typeof window !== 'undefined') {
+          window.alert(`Errore abbandono Flash: ${result.error.message}`);
+        }
+        return;
+      }
+
+      await loadFlashRows();
+
+      if (typeof window !== 'undefined') {
+        window.alert('Hai abbandonato il Flash.');
+      }
+    } finally {
+      setLeavingActivityId(null);
+    }
+  }, [leavingActivityId, loadFlashRows]);
+
   const filteredRows = useMemo(() => {
     return rows.filter((row) => {
       if (selectedProvince !== 'Tutte') {
@@ -861,7 +910,24 @@ export default function FlashScreen() {
                   </Pressable>
                 </View>
               ) : joinedActivityIds.has(String(firstValue(row, ['id', 'activity_id'], ''))) ? (
-                <Text style={styles.joinedBadge}>Stai partecipando</Text>
+                <View style={styles.joinedActions}>
+                  <Text style={styles.joinedBadge}>Stai partecipando</Text>
+
+                  <Pressable
+                    style={[
+                      styles.leaveButton,
+                      leavingActivityId === String(firstValue(row, ['id', 'activity_id'], '')) && styles.buttonDisabled,
+                    ]}
+                    onPress={() => leaveFlash(row)}
+                    disabled={leavingActivityId === String(firstValue(row, ['id', 'activity_id'], ''))}
+                  >
+                    <Text style={styles.leaveButtonText}>
+                      {leavingActivityId === String(firstValue(row, ['id', 'activity_id'], ''))
+                        ? 'Uscita...'
+                        : 'Abbandona Flash'}
+                    </Text>
+                  </Pressable>
+                </View>
               ) : (
                 <Pressable
                   style={styles.joinButton}
@@ -1145,6 +1211,24 @@ const styles = StyleSheet.create({
   },
   cancelButtonText: {
     color: '#ef2d82',
+    fontWeight: '900',
+    fontSize: 14,
+  },
+  joinedActions: {
+    gap: 10,
+    marginTop: 12,
+  },
+  leaveButton: {
+    backgroundColor: '#fff8fb',
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: '#d6457a',
+    alignItems: 'center',
+  },
+  leaveButtonText: {
+    color: '#d6457a',
     fontWeight: '900',
     fontSize: 14,
   },

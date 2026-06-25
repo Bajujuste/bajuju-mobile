@@ -136,6 +136,43 @@ function flashProvince(row: LooseRow) {
   return firstText(row, ['province', 'provincia', 'location_province'], '');
 }
 
+function flashCreatorId(row: LooseRow) {
+  return String(
+    firstValue(
+      row,
+      [
+        'user_id',
+        'owner_id',
+        'creator_id',
+        'created_by',
+        'organizer_id',
+        'profile_id',
+        'author_id',
+      ],
+      ''
+    )
+  );
+}
+
+function flashCreator(row: LooseRow) {
+  return firstText(
+    row,
+    [
+      'creator_name',
+      'organizer_name',
+      'author_name',
+      'profile_name',
+      'display_name',
+      'full_name',
+      'name',
+      'nome',
+      'created_by_name',
+      'user_name',
+    ],
+    ''
+  );
+}
+
 function flashPlace(row: LooseRow) {
   return firstText(row, ['place', 'luogo', 'address', 'indirizzo', 'meeting_point', 'punto_ritrovo'], '');
 }
@@ -312,6 +349,7 @@ export default function FlashScreen() {
   const [rows, setRows] = useState<LooseRow[]>([]);
   const [joinedActivityIds, setJoinedActivityIds] = useState<Set<string>>(new Set());
   const [participantCounts, setParticipantCounts] = useState<Record<string, number>>({});
+  const [creatorNames, setCreatorNames] = useState<Record<string, string>>({});
   const [joiningActivityId, setJoiningActivityId] = useState<string | null>(null);
   const [leavingActivityId, setLeavingActivityId] = useState<string | null>(null);
   const [cancellingActivityId, setCancellingActivityId] = useState<string | null>(null);
@@ -327,6 +365,7 @@ export default function FlashScreen() {
   const [newPlace, setNewPlace] = useState('');
   const [newDurationHours, setNewDurationHours] = useState<FlashDuration>(2);
   const [savingFlash, setSavingFlash] = useState(false);
+  const [showCreateForm, setShowCreateForm] = useState(false);
 
   const loadFlashRows = useCallback(async () => {
     setErrorMessage(null);
@@ -419,8 +458,46 @@ export default function FlashScreen() {
 
           setParticipantCounts(counts);
         }
+
+        const creatorIds = Array.from(
+          new Set(
+            cleanRows
+              .map((item: LooseRow) => flashCreatorId(item))
+              .filter(Boolean)
+          )
+        );
+
+        if (creatorIds.length > 0) {
+          const profilesResult = await supabase
+            .from('profiles')
+            .select('*')
+            .in('id', creatorIds);
+
+          if (!profilesResult.error) {
+            const names: Record<string, string> = {};
+
+            for (const profile of profilesResult.data ?? []) {
+              const profileRow = profile as LooseRow;
+              const profileId = String(firstValue(profileRow, ['id', 'user_id'], ''));
+              const profileName = firstText(
+                profileRow,
+                ['display_name', 'full_name', 'name', 'nome', 'username', 'email'],
+                ''
+              );
+
+              if (profileId && profileName) {
+                names[profileId] = profileName;
+              }
+            }
+
+            setCreatorNames(names);
+          }
+        } else {
+          setCreatorNames({});
+        }
       } else {
         setParticipantCounts({});
+        setCreatorNames({});
       }
   }, []);
 
@@ -544,6 +621,7 @@ export default function FlashScreen() {
       setNewPlace('');
       setSelectedProvince('Tutte');
       setSelectedTab('all');
+      setShowCreateForm(false);
 
       await loadFlashRows();
 
@@ -713,19 +791,30 @@ export default function FlashScreen() {
   }, [leavingActivityId, loadFlashRows]);
 
   const filteredRows = useMemo(() => {
-    return rows.filter((row) => {
-      if (selectedProvince !== 'Tutte') {
-        const province = flashProvince(row).toLowerCase().trim();
-        if (province !== selectedProvince.toLowerCase().trim()) return false;
-      }
+    return rows
+      .filter((row) => {
+        if (selectedProvince !== 'Tutte') {
+          const province = flashProvince(row).toLowerCase().trim();
+          if (province !== selectedProvince.toLowerCase().trim()) return false;
+        }
 
-      const activityId = String(firstValue(row, ['id', 'activity_id'], ''));
+        const activityId = String(firstValue(row, ['id', 'activity_id'], ''));
 
-      if (selectedTab === 'mine') return rowBelongsToUser(row, userId);
-      if (selectedTab === 'joined') return joinedActivityIds.has(activityId);
+        if (selectedTab === 'mine') return rowBelongsToUser(row, userId);
+        if (selectedTab === 'joined') return rowBelongsToUser(row, userId) || joinedActivityIds.has(activityId);
 
-      return true;
-    });
+        return true;
+      })
+      .sort((a, b) => {
+        const aDate = new Date(String(firstValue(a, ['expires_at', 'expiresAt', 'activity_date', 'created_at'], ''))).getTime();
+        const bDate = new Date(String(firstValue(b, ['expires_at', 'expiresAt', 'activity_date', 'created_at'], ''))).getTime();
+
+        if (Number.isNaN(aDate) && Number.isNaN(bDate)) return 0;
+        if (Number.isNaN(aDate)) return 1;
+        if (Number.isNaN(bDate)) return -1;
+
+        return bDate - aDate;
+      });
   }, [joinedActivityIds, rows, selectedProvince, selectedTab, userId]);
 
   return (
@@ -796,69 +885,111 @@ export default function FlashScreen() {
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>Crea Flash</Text>
 
-        <Text style={styles.label}>Titolo Flash</Text>
-        <TextInput
-          value={newTitle}
-          onChangeText={setNewTitle}
-          placeholder="Es. Aperitivo tra mezz'ora"
-          placeholderTextColor="#a36a86"
-          style={styles.input}
-        />
-
-        <Text style={styles.label}>Provincia</Text>
-        <TextInput
-          value={newProvince}
-          onChangeText={setNewProvince}
-          placeholder="Es. Bergamo"
-          placeholderTextColor="#a36a86"
-          style={styles.input}
-        />
-
-        <Text style={styles.label}>Comune</Text>
-        <TextInput
-          value={newCity}
-          onChangeText={setNewCity}
-          placeholder="Es. Caprino Bergamasco"
-          placeholderTextColor="#a36a86"
-          style={styles.input}
-        />
-
-        <Text style={styles.label}>Indirizzo preciso e numero civico</Text>
-        <TextInput
-          value={newPlace}
-          onChangeText={setNewPlace}
-          placeholder="Es. Via Roma 12"
-          placeholderTextColor="#a36a86"
-          style={styles.input}
-        />
-
-        <Text style={styles.label}>Disponibilità</Text>
-        <View style={styles.durationRow}>
-          {[1, 2, 3].map((hours) => (
-            <Pressable
-              key={hours}
-              style={[styles.durationButton, newDurationHours === hours && styles.durationButtonActive]}
-              onPress={() => setNewDurationHours(hours as FlashDuration)}
-            >
-              <Text style={[styles.durationText, newDurationHours === hours && styles.durationTextActive]}>
-                {hours} {hours === 1 ? 'ora' : 'ore'}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-
-        <Text style={styles.formNote}>
-          Per i Flash non devi inserire data e ora: partono subito e restano disponibili per il tempo scelto.
-          L'indirizzo deve essere preciso perché poi verrà usato per la mappa.
-        </Text>
-
-        <Pressable style={[styles.button, savingFlash && styles.buttonDisabled]} onPress={createFlash}>
-          <Text style={styles.buttonText}>{savingFlash ? 'Creazione in corso...' : 'Crea Flash'}</Text>
+        <Pressable style={styles.secondaryButton} onPress={() => setShowCreateForm((value) => !value)}>
+          <Text style={styles.secondaryButtonText}>
+            {showCreateForm ? 'Nascondi modulo' : 'Apri modulo crea Flash'}
+          </Text>
         </Pressable>
 
-        <Text style={styles.formNote}>
-          Il Flash viene salvato su Supabase nella tabella activities con is_flash attivo e scadenza automatica.
-        </Text>
+        {showCreateForm ? (
+          <>
+            <Text style={styles.label}>Titolo Flash</Text>
+            <TextInput
+              value={newTitle}
+              onChangeText={setNewTitle}
+              placeholder="Es. Aperitivo tra mezz'ora"
+              placeholderTextColor="#a36a86"
+              style={styles.input}
+            />
+
+            <Text style={styles.label}>Provincia</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
+              {ACTIVE_PROVINCES.map((province) => (
+                <Pressable
+                  key={province}
+                  style={[styles.chip, newProvince === province && styles.chipActive]}
+                  onPress={() => {
+                    setNewProvince(province);
+                    setNewCity('');
+                  }}
+                >
+                  <Text style={[styles.chipText, newProvince === province && styles.chipTextActive]}>
+                    {province}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+
+            <Text style={styles.label}>Comune</Text>
+            <TextInput
+              value={newCity}
+              onChangeText={setNewCity}
+              placeholder="Es. Caprino Bergamasco"
+              placeholderTextColor="#a36a86"
+              style={styles.input}
+            />
+
+            <Text style={styles.label}>Indirizzo preciso e numero civico</Text>
+            <TextInput
+              value={newPlace}
+              onChangeText={setNewPlace}
+              placeholder="Es. Via Roma 12"
+              placeholderTextColor="#a36a86"
+              style={styles.input}
+            />
+
+            <Text style={styles.label}>Disponibilità</Text>
+            <View style={styles.durationRow}>
+              {[1, 2, 3].map((hours) => (
+                <Pressable
+                  key={hours}
+                  style={[styles.durationButton, newDurationHours === hours && styles.durationButtonActive]}
+                  onPress={() => setNewDurationHours(hours as FlashDuration)}
+                >
+                  <Text style={[styles.durationText, newDurationHours === hours && styles.durationTextActive]}>
+                    {hours} {hours === 1 ? 'ora' : 'ore'}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+
+            <Text style={styles.formNote}>
+              Per i Flash non devi inserire data e ora: partono subito e restano disponibili per il tempo scelto.
+              L'indirizzo deve essere preciso perché poi verrà usato per la mappa.
+            </Text>
+
+            <Pressable
+              style={[styles.button, savingFlash && styles.buttonDisabled]}
+              onPress={createFlash}
+              disabled={savingFlash}
+            >
+              <Text style={styles.buttonText}>{savingFlash ? 'Creazione in corso...' : 'Crea Flash'}</Text>
+            </Pressable>
+
+            <Pressable
+              style={[styles.secondaryButton, savingFlash && styles.buttonDisabled]}
+              disabled={savingFlash}
+              onPress={() => {
+                setNewTitle('');
+                setNewCity('');
+                setNewPlace('');
+                setNewProvince('Bergamo');
+                setNewDurationHours(2);
+                setShowCreateForm(false);
+              }}
+            >
+              <Text style={styles.secondaryButtonText}>Annulla creazione</Text>
+            </Pressable>
+
+            <Text style={styles.formNote}>
+              Il Flash viene salvato su Supabase nella tabella activities con is_flash attivo e scadenza automatica.
+            </Text>
+          </>
+        ) : (
+          <Text style={styles.formNote}>
+            Apri il modulo solo quando vuoi creare un nuovo Flash.
+          </Text>
+        )}
       </View>
 
       <View style={styles.card}>
@@ -879,9 +1010,19 @@ export default function FlashScreen() {
           </View>
         ) : filteredRows.length === 0 ? (
           <View style={styles.emptyBox}>
-            <Text style={styles.emptyTitle}>Nessun Flash trovato</Text>
+            <Text style={styles.emptyTitle}>
+              {selectedTab === 'mine'
+                ? 'Non hai Flash attivi'
+                : selectedTab === 'joined'
+                  ? 'Non stai partecipando a nessun Flash'
+                  : 'Nessun Flash trovato'}
+            </Text>
             <Text style={styles.mutedText}>
-              Non ci sono ancora Flash disponibili con questi filtri.
+              {selectedTab === 'mine'
+                ? 'Quando crei un Flash, lo vedrai qui finché resta disponibile.'
+                : selectedTab === 'joined'
+                  ? 'Quando partecipi a un Flash, lo ritroverai in questa sezione.'
+                  : 'Non ci sono ancora Flash disponibili con questi filtri.'}
             </Text>
           </View>
         ) : (
@@ -889,6 +1030,11 @@ export default function FlashScreen() {
             <View key={String(firstValue(row, ['id', 'activity_id']) || index)} style={styles.flashBox}>
               <Text style={styles.flashTitle}>{flashTitle(row)}</Text>
               <Text style={styles.flashMeta}>{flashCity(row)}{flashProvince(row) ? ` · ${flashProvince(row)}` : ''}</Text>
+              {flashCreator(row) || creatorNames[flashCreatorId(row)] ? (
+                <Text style={styles.flashMeta}>
+                  Creato da: {flashCreator(row) || creatorNames[flashCreatorId(row)]}
+                </Text>
+              ) : null}
               <Text style={styles.flashMeta}>{formatDate(firstValue(row, [
                 'start_at',
                 'starts_at',
@@ -912,6 +1058,12 @@ export default function FlashScreen() {
                 Partecipanti: {participantCounts[String(firstValue(row, ['id', 'activity_id'], ''))] ?? 0}
               </Text>
 
+              {firstValue(row, ['expires_at', 'expiresAt', 'expiry_at', 'expires']) ? (
+                <Text style={styles.flashMeta}>
+                  Disponibile fino a: {formatDate(firstValue(row, ['expires_at', 'expiresAt', 'expiry_at', 'expires']))}
+                </Text>
+              ) : null}
+
               {getCoordinates(row) ? (
                 <Pressable style={styles.mapButton} onPress={() => openMap(row)}>
                   <Text style={styles.mapButtonText}>Apri mappa</Text>
@@ -920,9 +1072,27 @@ export default function FlashScreen() {
                 <Text style={styles.noMapText}>Coordinate non disponibili</Text>
               )}
 
+              <Text style={styles.flashStatusText}>
+                {rowBelongsToUser(row, userId)
+                  ? 'Tu organizzi questo Flash'
+                  : joinedActivityIds.has(String(firstValue(row, ['id', 'activity_id'], '')))
+                    ? 'Partecipi a questo Flash'
+                    : 'Puoi partecipare a questo Flash'}
+              </Text>
+
+              <Pressable
+                style={styles.smallButton}
+                onPress={() => router.push({
+                  pathname: '/flash-detail',
+                  params: { id: String(firstValue(row, ['id', 'activity_id'], '')) },
+                })}
+              >
+                <Text style={styles.smallButtonText}>Vedi dettaglio</Text>
+              </Pressable>
+
               {rowBelongsToUser(row, userId) ? (
                 <View style={styles.ownerActions}>
-                  <Text style={styles.ownerBadge}>Creato da te</Text>
+                  <Text style={styles.ownerBadge}>Creato da: te</Text>
 
                   <Pressable
                     style={[
@@ -1243,6 +1413,12 @@ const styles = StyleSheet.create({
     color: '#ef2d82',
     fontWeight: '900',
     fontSize: 14,
+  },
+  flashStatusText: {
+    marginTop: 12,
+    color: '#8f3d65',
+    fontWeight: '800',
+    fontSize: 13,
   },
   joinedActions: {
     gap: 10,

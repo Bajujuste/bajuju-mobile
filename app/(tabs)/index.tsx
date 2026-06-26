@@ -2,27 +2,21 @@ import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
+  Image,
   Pressable,
   SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 
 import { supabase } from '../../src/lib/supabase';
 
-export default function LoginScreen() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+const bajujuLogo = require('../../assets/brand/bajuju-logo.png');
 
-  const [loading, setLoading] = useState(false);
+export default function WelcomeScreen() {
   const [checkingSession, setCheckingSession] = useState(true);
-  const [messageTitle, setMessageTitle] = useState('');
-  const [messageText, setMessageText] = useState('');
 
   useEffect(() => {
     checkExistingSession();
@@ -39,69 +33,12 @@ export default function LoginScreen() {
     setCheckingSession(false);
   }
 
-  async function handleLogin() {
-    const cleanEmail = email.trim().toLowerCase();
-
-    setMessageTitle('');
-    setMessageText('');
-
-    if (!cleanEmail || !password) {
-      setMessageTitle('Dati mancanti');
-      setMessageText('Inserisci email e password.');
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      const loginPromise = supabase.auth.signInWithPassword({
-        email: cleanEmail,
-        password,
-      });
-
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => {
-          reject(
-            new Error(
-              'Tempo scaduto. Supabase non ha risposto entro 12 secondi.'
-            )
-          );
-        }, 12000);
-      });
-
-      const result: any = await Promise.race([loginPromise, timeoutPromise]);
-
-      if (result?.error) {
-        setMessageTitle('Accesso non riuscito');
-        setMessageText(result.error.message);
-        return;
-      }
-
-      if (!result?.data?.session) {
-        setMessageTitle('Login non completato');
-        setMessageText(
-          'Supabase ha risposto, ma non ha restituito una sessione.'
-        );
-        return;
-      }
-
-      router.replace('/home');
-    } catch (error: any) {
-      setMessageTitle('Errore collegamento');
-      setMessageText(
-        error?.message || 'Errore sconosciuto durante il login.'
-      );
-    } finally {
-      setLoading(false);
-    }
-  }
-
   if (checkingSession) {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.loadingBox}>
-          <ActivityIndicator color="#8b5a2b" size="large" />
-          <Text style={styles.loadingText}>Apro Bajuju Mobile...</Text>
+          <ActivityIndicator color="#e43f98" size="large" />
+          <Text style={styles.loadingText}>Apro Bajuju...</Text>
         </View>
       </SafeAreaView>
     );
@@ -109,72 +46,46 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <KeyboardAvoidingView
-        style={styles.keyboardView}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <ScrollView
-          contentContainerStyle={styles.container}
-          keyboardShouldPersistTaps="handled"
-        >
-          <View style={styles.logoBox}>
-            <Text style={styles.logoText}>Bajuju</Text>
-            <Text style={styles.subtitle}>Di persona è meglio</Text>
+      <ScrollView contentContainerStyle={styles.container}>
+        <View style={styles.heroCard}>
+          <View style={styles.logoCircle}>
+            <Image source={bajujuLogo} style={styles.logoImage} resizeMode="contain" />
           </View>
 
-          <View style={styles.card}>
-            <Text style={styles.title}>Accedi</Text>
-            <Text style={styles.description}>
-              Entra con lo stesso account che usi su bajuju.it.
-            </Text>
+          <Text style={styles.brand}>Bajuju</Text>
+          <Text style={styles.claim}>Dal Vivo è Meglio</Text>
 
-            <Text style={styles.label}>Email</Text>
-            <TextInput
-              value={email}
-              onChangeText={setEmail}
-              placeholder="La tua email"
-              placeholderTextColor="#9b8b7b"
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="email-address"
-              style={styles.input}
-            />
+          <Text style={styles.description}>
+            Trova esperienze, partecipa e conosci persone reali nella tua zona.
+          </Text>
 
-            <Text style={styles.label}>Password</Text>
-            <TextInput
-              value={password}
-              onChangeText={setPassword}
-              placeholder="La tua password"
-              placeholderTextColor="#9b8b7b"
-              secureTextEntry
-              style={styles.input}
-            />
-
-            <Pressable
-              style={[styles.button, loading && styles.buttonDisabled]}
-              onPress={handleLogin}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color="#ffffff" />
-              ) : (
-                <Text style={styles.buttonText}>Accedi</Text>
-              )}
+          <View style={styles.actions}>
+            <Pressable style={styles.primaryButton} onPress={() => router.push('/login')}>
+              <Text style={styles.primaryButtonText}>Accedi</Text>
             </Pressable>
 
-            {!!messageTitle && (
-              <View style={styles.messageBox}>
-                <Text style={styles.messageTitle}>{messageTitle}</Text>
-                <Text style={styles.messageText}>{messageText}</Text>
-              </View>
-            )}
-
-            <Text style={styles.smallText}>
-              Login Bajuju Mobile collegato a Supabase.
-            </Text>
+            <Pressable style={styles.secondaryButton} onPress={() => router.push('/register')}>
+              <Text style={styles.secondaryButtonText}>Registrati</Text>
+            </Pressable>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+
+          <Text style={styles.footerText}>
+            Gratis per tutti · Community dal vivo · Bajuju Mobile
+          </Text>
+
+          <View style={styles.legalLinks}>
+            <Pressable onPress={() => router.push('/privacy')}>
+              <Text style={styles.legalLinkText}>Privacy Policy</Text>
+            </Pressable>
+
+            <Text style={styles.legalSeparator}>·</Text>
+
+            <Pressable onPress={() => router.push('/rules')}>
+              <Text style={styles.legalLinkText}>Regole Bajuju</Text>
+            </Pressable>
+          </View>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -182,125 +93,134 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#fbf7ef',
-  },
-  keyboardView: {
-    flex: 1,
+    backgroundColor: '#fff8fb',
   },
   loadingBox: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
+    backgroundColor: '#fff8fb',
   },
   loadingText: {
     marginTop: 14,
     fontSize: 16,
-    fontWeight: '800',
-    color: '#8b5a2b',
+    fontWeight: '900',
+    color: '#e43f98',
   },
   container: {
     flexGrow: 1,
     justifyContent: 'center',
-    padding: 24,
+    padding: 22,
+    backgroundColor: '#fff8fb',
   },
-  logoBox: {
-    alignItems: 'center',
-    marginBottom: 32,
-  },
-  logoText: {
-    fontSize: 46,
-    fontWeight: '900',
-    color: '#8b5a2b',
-    letterSpacing: 0.5,
-  },
-  subtitle: {
-    marginTop: 8,
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#b58a4a',
-  },
-  card: {
+  heroCard: {
     width: '100%',
-    borderRadius: 28,
-    padding: 24,
+    alignItems: 'center',
+    borderRadius: 34,
+    paddingVertical: 34,
+    paddingHorizontal: 20,
     backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: '#eadcc9',
-    shadowColor: '#000000',
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
+    borderColor: '#ffd3e7',
+    shadowColor: '#e43f98',
+    shadowOpacity: 0.12,
+    shadowRadius: 18,
     shadowOffset: { width: 0, height: 8 },
-    elevation: 4,
+    elevation: 5,
   },
-  title: {
-    fontSize: 30,
-    fontWeight: '900',
-    color: '#3a2415',
-    marginBottom: 8,
-  },
-  description: {
-    fontSize: 15,
-    lineHeight: 22,
-    color: '#7b6653',
-    marginBottom: 24,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#5a3821',
-    marginBottom: 8,
-  },
-  input: {
-    height: 52,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#dfcbb2',
-    backgroundColor: '#fffaf3',
-    paddingHorizontal: 16,
-    fontSize: 16,
-    color: '#2d1c11',
-    marginBottom: 16,
-  },
-  button: {
-    height: 54,
-    borderRadius: 18,
-    backgroundColor: '#8b5a2b',
+  logoCircle: {
+    width: 230,
+    height: 230,
+    borderRadius: 115,
+    backgroundColor: '#fff0f7',
+    borderWidth: 2,
+    borderColor: '#ffc2df',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 8,
+    marginBottom: 18,
+    overflow: 'hidden',
   },
-  buttonDisabled: {
-    opacity: 0.65,
+  logoImage: {
+    width: 205,
+    height: 205,
   },
-  buttonText: {
+  brand: {
+    fontSize: 48,
+    fontWeight: '900',
+    color: '#e43f98',
+    letterSpacing: -0.8,
+  },
+  claim: {
+    marginTop: 4,
+    fontSize: 20,
+    fontWeight: '900',
+    color: '#e43f98',
+  },
+  description: {
+    marginTop: 16,
+    maxWidth: 310,
+    fontSize: 16,
+    lineHeight: 23,
+    fontWeight: '700',
+    color: '#6b3652',
+    textAlign: 'center',
+  },
+  actions: {
+    width: '100%',
+    marginTop: 28,
+    gap: 12,
+  },
+  primaryButton: {
+    height: 54,
+    borderRadius: 20,
+    backgroundColor: '#e43f98',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  primaryButtonText: {
     color: '#ffffff',
     fontSize: 17,
     fontWeight: '900',
   },
-  smallText: {
-    marginTop: 18,
-    textAlign: 'center',
-    fontSize: 13,
-    color: '#9b8b7b',
-  },
-  messageBox: {
-    marginTop: 18,
-    borderRadius: 16,
-    padding: 14,
+  secondaryButton: {
+    height: 54,
+    borderRadius: 20,
+    backgroundColor: '#fff0f7',
     borderWidth: 1,
-    backgroundColor: '#fff4f1',
-    borderColor: '#f0b8aa',
+    borderColor: '#e43f98',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  messageTitle: {
-    fontSize: 15,
+  secondaryButtonText: {
+    color: '#e43f98',
+    fontSize: 17,
     fontWeight: '900',
-    color: '#3a2415',
-    marginBottom: 4,
   },
-  messageText: {
+  footerText: {
+    marginTop: 18,
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: '800',
+    color: '#9b1f61',
+    textAlign: 'center',
+  },
+  legalLinks: {
+    marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  legalLinkText: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: '#e43f98',
+    textDecorationLine: 'underline',
+  },
+  legalSeparator: {
     fontSize: 13,
-    lineHeight: 19,
-    color: '#6d5847',
+    fontWeight: '900',
+    color: '#9b1f61',
   },
 });

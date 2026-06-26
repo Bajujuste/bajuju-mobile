@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "bajujumobile",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true
@@ -18,8 +18,17 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "edgeToEdgeEnabled": false,
+      "predictiveBackGestureEnabled": false,
+      "statusBar": {
+        "backgroundColor": "#fff8fb",
+        "barStyle": "dark-content",
+        "translucent": false
+      },
+      "navigationBar": {
+        "backgroundColor": "#fff8fb",
+        "barStyle": "dark-content"
+      }
     },
     "web": {
       "output": "static",
@@ -33,9 +42,9 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
+          "backgroundColor": "#fff8fb",
           "dark": {
-            "backgroundColor": "#000000"
+            "backgroundColor": "#fff8fb"
           }
         }
       ]

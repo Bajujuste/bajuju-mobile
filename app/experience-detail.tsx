@@ -1,6 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  Image,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -13,9 +14,15 @@ import {
 import { supabase } from '../src/lib/supabase';
 import { shareBajujuExperience } from '../src/utils/shareBajuju';
 
+const bajujuLogo = require('../assets/brand/bajuju-logo.png');
+
 type ActivityRow = {
   id?: string;
   creator_id?: string | null;
+  organizer_id?: string | null;
+  created_by?: string | null;
+  user_id?: string | null;
+  profile_id?: string | null;
   title?: string | null;
   category?: string | null;
   city?: string | null;
@@ -26,6 +33,10 @@ type ActivityRow = {
   meeting_place?: string | null;
   max_participants?: number | null;
   budget_amount?: number | null;
+  image_url?: string | null;
+  photo_url?: string | null;
+  cover_url?: string | null;
+  activity_image_url?: string | null;
 };
 
 type ParticipantRow = {
@@ -41,7 +52,16 @@ type ProfileRow = {
   display_name?: string | null;
   name?: string | null;
   nome?: string | null;
+  username?: string | null;
+  first_name?: string | null;
+  nickname?: string | null;
   email?: string | null;
+  avatar_url?: string | null;
+  photo_url?: string | null;
+  profile_photo_url?: string | null;
+  profile_image_url?: string | null;
+  image_url?: string | null;
+  foto?: string | null;
 };
 
 type MessageRow = {
@@ -83,16 +103,53 @@ function participantIsActive(row: ParticipantRow) {
   ].includes(status);
 }
 
+function getExperienceCreatorId(experience: ActivityRow | null) {
+  return String(
+    experience?.creator_id ||
+      experience?.organizer_id ||
+      experience?.created_by ||
+      experience?.user_id ||
+      experience?.profile_id ||
+      ''
+  ).trim();
+}
+
 function profileName(profile: ProfileRow | undefined, index: number) {
   if (!profile) return `Partecipante ${index + 1}`;
 
-  return (
+  const value =
     profile.full_name ||
     profile.display_name ||
     profile.name ||
     profile.nome ||
+    profile.username ||
+    profile.first_name ||
+    profile.nickname ||
     profile.email ||
-    `Partecipante ${index + 1}`
+    '';
+
+  return value ? String(value).trim() : `Partecipante ${index + 1}`;
+}
+
+function profilePhotoUrl(profile: ProfileRow | undefined) {
+  return (
+    profile?.avatar_url ||
+    profile?.photo_url ||
+    profile?.profile_photo_url ||
+    profile?.profile_image_url ||
+    profile?.image_url ||
+    profile?.foto ||
+    ''
+  );
+}
+
+function experiencePhotoUrl(experience: ActivityRow | null) {
+  return (
+    experience?.image_url ||
+    experience?.photo_url ||
+    experience?.cover_url ||
+    experience?.activity_image_url ||
+    ''
   );
 }
 
@@ -114,6 +171,18 @@ function formatMessageTime(value: string | null | undefined) {
   });
 }
 
+function canInviteOutAfterExperience(experience: ActivityRow | null) {
+  if (!experience?.activity_date || !experience?.activity_time) return false;
+
+  const activityMoment = new Date(`${experience.activity_date}T${experience.activity_time}`);
+
+  if (Number.isNaN(activityMoment.getTime())) return false;
+
+  const oneMinuteAfter = activityMoment.getTime() + 60 * 1000;
+
+  return Date.now() >= oneMinuteAfter;
+}
+
 export default function ExperienceDetailScreen() {
   const params = useLocalSearchParams<{ id?: string }>();
   const experienceId = params.id;
@@ -131,40 +200,61 @@ export default function ExperienceDetailScreen() {
   const [sendingInviteTo, setSendingInviteTo] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const activeParticipants = useMemo(
-    () => participants.filter(participantIsActive),
-    [participants]
-  );
+  const activeParticipants = useMemo(() => {
+    const seen = new Set<string>();
+    const rows: ParticipantRow[] = [];
+
+    participants.filter(participantIsActive).forEach((participant) => {
+      const userId = String(participant.user_id || '').trim();
+
+      if (!userId || seen.has(userId)) return;
+
+      seen.add(userId);
+      rows.push(participant);
+    });
+
+    return rows;
+  }, [participants]);
 
   const displayedParticipants = useMemo(() => {
-    const creatorId = String(experience?.creator_id || '');
-    const creatorParticipant = creatorId
-      ? [{ activity_id: experience?.id || null, user_id: creatorId, status: 'creator' }]
-      : [];
+    const creatorId = getExperienceCreatorId(experience);
+    const seen = new Set<string>();
+    const rows: ParticipantRow[] = [];
 
-    const normalParticipants = activeParticipants.filter(
-      (item) => String(item.user_id || '') !== creatorId
-    );
+    if (creatorId) {
+      seen.add(creatorId);
+      rows.push({ activity_id: experience?.id || null, user_id: creatorId, status: 'creator' });
+    }
 
-    return [...creatorParticipant, ...normalParticipants];
-  }, [activeParticipants, experience?.creator_id, experience?.id]);
+    activeParticipants.forEach((item) => {
+      const userId = String(item.user_id || '').trim();
+
+      if (!userId || seen.has(userId)) return;
+
+      seen.add(userId);
+      rows.push(item);
+    });
+
+    return rows;
+  }, [activeParticipants, experience]);
 
   const isOrganizer =
     Boolean(currentUserId) &&
-    Boolean(experience?.creator_id) &&
-    String(currentUserId) === String(experience?.creator_id);
+    Boolean(getExperienceCreatorId(experience)) &&
+    String(currentUserId) === getExperienceCreatorId(experience);
 
   const isParticipant = activeParticipants.some(
     (item) => String(item.user_id || '') === String(currentUserId || '')
   );
 
-  const participantCount = activeParticipants.length + (experience?.creator_id ? 1 : 0);
+  const participantCount = displayedParticipants.length;
   const maxParticipants = Number(experience?.max_participants || 0);
   const isFull = maxParticipants > 0 && participantCount >= maxParticipants;
 
   const canUseChat = isOrganizer || isParticipant;
+  const canShowInviteOut = canUseChat && canInviteOutAfterExperience(experience);
 
-  const loadParticipants = useCallback(async (activityId: string) => {
+  const loadParticipants = useCallback(async (activityId: string, loadedExperience?: ActivityRow | null) => {
     const participantsResult = await supabase
       .from('activity_participants')
       .select('activity_id,user_id,status')
@@ -184,35 +274,62 @@ export default function ExperienceDetailScreen() {
       .map((item) => String(item.user_id || ''))
       .filter(Boolean);
 
-    const creatorId = String(experience?.creator_id || '');
+    const sourceExperience = loadedExperience || experience;
+    const creatorId = getExperienceCreatorId(sourceExperience);
+
     if (creatorId && !userIds.includes(creatorId)) {
       userIds.push(creatorId);
     }
 
-    if (userIds.length === 0) {
-      setProfiles({});
-      return;
-    }
+    const uniqueUserIds = [...new Set(userIds)];
 
-    const profilesResult = await supabase
-      .from('profiles')
-      .select('id,user_id,full_name,display_name,name,nome,email')
-      .in('id', userIds);
-
-    if (profilesResult.error) {
+    if (uniqueUserIds.length === 0) {
       setProfiles({});
       return;
     }
 
     const nextProfiles: Record<string, ProfileRow> = {};
 
-    ((profilesResult.data || []) as ProfileRow[]).forEach((profile) => {
-      const id = String(profile.id || profile.user_id || '');
-      if (id) nextProfiles[id] = profile;
-    });
+    for (const userIdToFind of uniqueUserIds) {
+      const byId = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userIdToFind)
+        .maybeSingle();
+
+      const profileById = byId.data as ProfileRow | null;
+
+      if (profileById) {
+        const id = String(profileById.id || '');
+        const userId = String(profileById.user_id || '');
+
+        nextProfiles[userIdToFind] = profileById;
+        if (id) nextProfiles[id] = profileById;
+        if (userId) nextProfiles[userId] = profileById;
+
+        continue;
+      }
+
+      const byUserId = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', userIdToFind)
+        .maybeSingle();
+
+      const profileByUserId = byUserId.data as ProfileRow | null;
+
+      if (profileByUserId) {
+        const id = String(profileByUserId.id || '');
+        const userId = String(profileByUserId.user_id || '');
+
+        nextProfiles[userIdToFind] = profileByUserId;
+        if (id) nextProfiles[id] = profileByUserId;
+        if (userId) nextProfiles[userId] = profileByUserId;
+      }
+    }
 
     setProfiles(nextProfiles);
-  }, [experience?.creator_id]);
+  }, []);
 
   const loadMessages = useCallback(async (activityId: string) => {
     const messagesResult = await supabase
@@ -256,9 +373,11 @@ export default function ExperienceDetailScreen() {
       return;
     }
 
-    setExperience(result.data as ActivityRow);
+    const loadedExperience = result.data as ActivityRow;
 
-    await loadParticipants(experienceId);
+    setExperience(loadedExperience);
+
+    await loadParticipants(experienceId, loadedExperience);
     await loadMessages(experienceId);
 
     setLoading(false);
@@ -305,7 +424,6 @@ export default function ExperienceDetailScreen() {
       const result = await supabase.from('activity_participants').insert({
         activity_id: experienceId,
         user_id: currentUserId,
-        status: 'accepted',
       });
 
       if (result.error) {
@@ -315,7 +433,7 @@ export default function ExperienceDetailScreen() {
         return;
       }
 
-      await loadParticipants(experienceId);
+      await loadParticipants(experienceId, experience);
       await loadMessages(experienceId);
 
       if (typeof window !== 'undefined') {
@@ -345,7 +463,7 @@ export default function ExperienceDetailScreen() {
         return;
       }
 
-      await loadParticipants(experienceId);
+      await loadParticipants(experienceId, experience);
       await loadMessages(experienceId);
 
       if (typeof window !== 'undefined') {
@@ -491,31 +609,47 @@ export default function ExperienceDetailScreen() {
             <Text style={styles.messageText}>{errorMessage}</Text>
           ) : experience ? (
             <>
-              <Text style={styles.category}>{experience.category || 'Esperienza'}</Text>
+              <View style={styles.eventTopRow}>
+                <Image
+                  source={experiencePhotoUrl(experience) ? { uri: experiencePhotoUrl(experience) } : bajujuLogo}
+                  style={styles.eventPhoto}
+                  resizeMode="cover"
+                />
 
-              <Text style={styles.title}>
-                {experience.title || 'Esperienza senza titolo'}
-              </Text>
+                <View style={styles.eventTopText}>
+                  <Text style={styles.category}>{experience.category || 'Esperienza'}</Text>
 
-              <View style={styles.infoBox}>
-                <Text style={styles.label}>Dove</Text>
-                <Text style={styles.value}>
-                  {experience.city || 'Comune'} · {experience.province || 'Provincia'}
-                </Text>
+                  <Text style={styles.title}>
+                    {experience.title || 'Esperienza senza titolo'}
+                  </Text>
+                </View>
               </View>
 
-              <View style={styles.infoBox}>
-                <Text style={styles.label}>Quando</Text>
-                <Text style={styles.value}>
-                  {formatDateItalian(experience.activity_date)} · {experience.activity_time || 'Ora da definire'}
-                </Text>
-              </View>
+              <View style={styles.compactInfoBox}>
+                <View style={styles.compactInfoRow}>
+                  <Text style={styles.compactInfoLabel}>Dove</Text>
+                  <Text style={styles.compactInfoValue}>
+                    {experience.city || 'Comune'} · {experience.province || 'Provincia'}
+                  </Text>
+                </View>
 
-              <View style={styles.infoBox}>
-                <Text style={styles.label}>Punto di ritrovo</Text>
-                <Text style={styles.value}>
-                  {experience.meeting_place || experience.city || 'Non indicato'}
-                </Text>
+                <View style={styles.compactInfoDivider} />
+
+                <View style={styles.compactInfoRow}>
+                  <Text style={styles.compactInfoLabel}>Quando</Text>
+                  <Text style={styles.compactInfoValue}>
+                    {formatDateItalian(experience.activity_date)} · {experience.activity_time || 'Ora da definire'}
+                  </Text>
+                </View>
+
+                <View style={styles.compactInfoDivider} />
+
+                <View style={styles.compactInfoRow}>
+                  <Text style={styles.compactInfoLabel}>Ritrovo</Text>
+                  <Text style={styles.compactInfoValue}>
+                    {experience.meeting_place || experience.city || 'Non indicato'}
+                  </Text>
+                </View>
               </View>
 
               {experience.budget_amount !== null && experience.budget_amount !== undefined ? (
@@ -545,6 +679,7 @@ export default function ExperienceDetailScreen() {
                   })
                 }
               >
+                <Text style={styles.shareExperienceButtonIcon}>📲</Text>
                 <Text style={styles.shareExperienceButtonText}>Condividi esperienza</Text>
               </Pressable>
 
@@ -562,23 +697,39 @@ export default function ExperienceDetailScreen() {
                   <View style={styles.participantsList}>
                     {displayedParticipants.map((participant, index) => {
                       const userId = String(participant.user_id || '');
-                      const isCreator = userId === String(experience.creator_id || '');
-                      const name = isCreator
-                        ? `${profileName(profiles[userId], index)} · Organizzatore`
-                        : profileName(profiles[userId], index);
+                      const isCreator = userId === getExperienceCreatorId(experience);
+                      const profile = profiles[userId];
+                      const name = profileName(profile, index);
+                      const photo = profilePhotoUrl(profile);
 
                       return (
-                        <View key={`${userId}-${index}`} style={styles.participantPill}>
-                          <Text style={styles.participantText}>{name}</Text>
+                        <View key={`${userId}-${index}`} style={styles.participantRow}>
+                          <Image
+                            source={photo ? { uri: photo } : bajujuLogo}
+                            style={styles.participantPhoto}
+                            resizeMode="cover"
+                          />
 
-                          {canUseChat && userId !== String(currentUserId || '') ? (
+                          <View style={styles.participantInfo}>
+                            <Text style={styles.participantName}>{name}</Text>
+                            <Text
+                              style={[
+                                styles.participantRoleBadge,
+                                isCreator ? styles.organizerRoleBadge : styles.normalRoleBadge,
+                              ]}
+                            >
+                              {isCreator ? 'Organizzatore' : 'Partecipante'}
+                            </Text>
+                          </View>
+
+                          {canShowInviteOut && userId !== String(currentUserId || '') ? (
                             <Pressable
                               style={styles.inviteOutButton}
                               onPress={() => sendGoingOutInvite(userId)}
                               disabled={sendingInviteTo === userId}
                             >
                               <Text style={styles.inviteOutButtonText}>
-                                {sendingInviteTo === userId ? 'Invio...' : 'Invita a uscire'}
+                                {sendingInviteTo === userId ? 'Invio...' : 'Invita'}
                               </Text>
                             </Pressable>
                           ) : null}
@@ -588,54 +739,6 @@ export default function ExperienceDetailScreen() {
                   </View>
                 )}
               </View>
-
-              {isOrganizer ? (
-                <View style={[styles.mainButton, styles.mainButtonDisabled]}>
-                  <Text style={styles.mainButtonText}>Esperienza creata da te</Text>
-                </View>
-              ) : isParticipant ? (
-                <View style={styles.participantActionBox}>
-                  <View style={[styles.mainButton, styles.mainButtonDisabled]}>
-                    <Text style={styles.mainButtonText}>Stai partecipando</Text>
-                  </View>
-
-                  <Pressable
-                    style={[
-                      styles.leaveButton,
-                      leaving && styles.mainButtonDisabled,
-                    ]}
-                    onPress={leaveExperience}
-                    disabled={leaving}
-                  >
-                    <Text style={styles.leaveButtonText}>
-                      {leaving ? 'Abbandono...' : 'Abbandona esperienza'}
-                    </Text>
-                  </Pressable>
-                </View>
-              ) : isFull ? (
-                <View style={[styles.mainButton, styles.mainButtonDisabled]}>
-                  <Text style={styles.mainButtonText}>Esperienza al completo</Text>
-                </View>
-              ) : (
-                <Pressable
-                  style={[
-                    styles.mainButton,
-                    joining && styles.mainButtonDisabled,
-                  ]}
-                  onPress={joinExperience}
-                  disabled={joining}
-                >
-                  <Text style={styles.mainButtonText}>
-                    {joining ? 'Partecipazione...' : 'Partecipa'}
-                  </Text>
-                </Pressable>
-              )}
-
-              {isOrganizer ? (
-                <Pressable style={styles.cancelButton} onPress={cancelExperience}>
-                  <Text style={styles.cancelButtonText}>Annulla esperienza</Text>
-                </Pressable>
-              ) : null}
 
               <View style={styles.chatBox}>
                 <Text style={styles.sectionTitle}>Chat esperienza</Text>
@@ -704,6 +807,56 @@ export default function ExperienceDetailScreen() {
                   </>
                 )}
               </View>
+
+              <View style={styles.bottomActionsBox}>
+                {isOrganizer ? (
+                  <>
+                    <View style={styles.smallStatusButton}>
+                      <Text style={styles.smallStatusButtonText}>Creata da te</Text>
+                    </View>
+
+                    <Pressable style={styles.smallCancelButton} onPress={cancelExperience}>
+                      <Text style={styles.smallCancelButtonText}>Annulla</Text>
+                    </Pressable>
+                  </>
+                ) : isParticipant ? (
+                  <>
+                    <View style={styles.smallStatusButton}>
+                      <Text style={styles.smallStatusButtonText}>Stai partecipando</Text>
+                    </View>
+
+                    <Pressable
+                      style={[
+                        styles.smallLeaveButton,
+                        leaving && styles.mainButtonDisabled,
+                      ]}
+                      onPress={leaveExperience}
+                      disabled={leaving}
+                    >
+                      <Text style={styles.smallLeaveButtonText}>
+                        {leaving ? 'Abbandono...' : 'Abbandona'}
+                      </Text>
+                    </Pressable>
+                  </>
+                ) : isFull ? (
+                  <View style={styles.smallStatusButton}>
+                    <Text style={styles.smallStatusButtonText}>Al completo</Text>
+                  </View>
+                ) : (
+                  <Pressable
+                    style={[
+                      styles.smallJoinButton,
+                      joining && styles.mainButtonDisabled,
+                    ]}
+                    onPress={joinExperience}
+                    disabled={joining}
+                  >
+                    <Text style={styles.smallJoinButtonText}>
+                      {joining ? 'Partecipazione...' : 'Partecipa'}
+                    </Text>
+                  </Pressable>
+                )}
+              </View>
             </>
           ) : (
             <Text style={styles.messageText}>Esperienza non trovata.</Text>
@@ -768,12 +921,63 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     marginBottom: 12,
   },
+  eventTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 14,
+  },
+  eventPhoto: {
+    width: 76,
+    height: 76,
+    borderRadius: 18,
+    backgroundColor: '#fff0f7',
+    borderWidth: 1,
+    borderColor: '#ffd3e7',
+  },
+  eventTopText: {
+    flex: 1,
+  },
   title: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '900',
     color: '#e43f98',
-    marginBottom: 16,
+    marginBottom: 0,
     letterSpacing: -0.5,
+  },
+  compactInfoBox: {
+    borderRadius: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 13,
+    backgroundColor: '#fff8fb',
+    borderWidth: 1,
+    borderColor: '#ffd3e7',
+    marginBottom: 14,
+  },
+  compactInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    paddingVertical: 6,
+  },
+  compactInfoLabel: {
+    width: 66,
+    color: '#9b1f61',
+    fontSize: 11,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  compactInfoValue: {
+    flex: 1,
+    color: '#6b3652',
+    fontSize: 14,
+    fontWeight: '800',
+    lineHeight: 19,
+  },
+  compactInfoDivider: {
+    height: 1,
+    backgroundColor: '#ffe2ef',
   },
   infoBox: {
     borderRadius: 20,
@@ -813,16 +1017,27 @@ const styles = StyleSheet.create({
   },
   shareExperienceButton: {
     borderRadius: 999,
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#ffd3e7',
-    paddingVertical: 12,
+    backgroundColor: '#e43f98',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    alignSelf: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 7,
     marginBottom: 14,
+    shadowColor: '#e43f98',
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+  },
+  shareExperienceButtonIcon: {
+    fontSize: 15,
   },
   shareExperienceButtonText: {
-    color: '#e43f98',
-    fontSize: 14,
+    color: '#ffffff',
+    fontSize: 13,
     fontWeight: '900',
   },
   participantsBox: {
@@ -846,34 +1061,63 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   participantsList: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+    gap: 9,
   },
-  participantPill: {
+  participantRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
     backgroundColor: '#ffffff',
     borderWidth: 1,
     borderColor: '#ffd3e7',
-    borderRadius: 999,
-    paddingVertical: 7,
-    paddingHorizontal: 10,
+    borderRadius: 18,
+    paddingVertical: 8,
+    paddingHorizontal: 9,
   },
-  participantText: {
-    color: '#9b1f61',
-    fontSize: 12,
+  participantPhoto: {
+    width: 38,
+    height: 38,
+    borderRadius: 999,
+    backgroundColor: '#fff0f7',
+    borderWidth: 1,
+    borderColor: '#ffd3e7',
+  },
+  participantInfo: {
+    flex: 1,
+  },
+  participantName: {
+    color: '#6b3652',
+    fontSize: 13,
     fontWeight: '900',
   },
+  participantRoleBadge: {
+    alignSelf: 'flex-start',
+    marginTop: 4,
+    borderRadius: 999,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    overflow: 'hidden',
+    fontSize: 10,
+    fontWeight: '900',
+  },
+  organizerRoleBadge: {
+    backgroundColor: '#fff6ce',
+    color: '#8a6700',
+  },
+  normalRoleBadge: {
+    backgroundColor: '#fff0f7',
+    color: '#9b1f61',
+  },
   inviteOutButton: {
-    marginTop: 7,
     borderRadius: 999,
     backgroundColor: '#e43f98',
     paddingVertical: 7,
     paddingHorizontal: 11,
-    alignSelf: 'flex-start',
+    alignSelf: 'center',
   },
   inviteOutButtonText: {
     color: '#ffffff',
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '900',
   },
   mainButton: {
@@ -922,6 +1166,63 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     color: '#d92b2b',
     fontSize: 14,
+    fontWeight: '900',
+  },
+  bottomActionsBox: {
+    marginTop: 14,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  smallStatusButton: {
+    borderRadius: 999,
+    backgroundColor: '#fff0f7',
+    borderWidth: 1,
+    borderColor: '#ffd3e7',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  smallStatusButtonText: {
+    color: '#9b1f61',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  smallLeaveButton: {
+    borderRadius: 999,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e43f98',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  smallLeaveButtonText: {
+    color: '#e43f98',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  smallJoinButton: {
+    borderRadius: 999,
+    backgroundColor: '#e43f98',
+    paddingVertical: 9,
+    paddingHorizontal: 18,
+  },
+  smallJoinButtonText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  smallCancelButton: {
+    borderRadius: 999,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#9b1f61',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  smallCancelButtonText: {
+    color: '#9b1f61',
+    fontSize: 12,
     fontWeight: '900',
   },
   chatBox: {

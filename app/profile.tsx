@@ -752,13 +752,44 @@ export default function ProfileScreen() {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
       <View style={styles.headerCard}>
-        <View style={styles.photoBox}>
+        <View
+          style={[
+            styles.photoBox,
+            organizedActivities.length > 20
+              ? styles.photoBoxGold
+              : organizedActivities.length > 10
+                ? styles.photoBoxStrong
+                : organizedActivities.length > 5
+                  ? styles.photoBoxGreen
+                  : styles.photoBoxBase,
+          ]}
+        >
           {photoUrl ? <Image source={{ uri: photoUrl }} style={styles.photo} /> : <Image source={bajujuLogo} style={styles.photo} />}
         </View>
         <View style={styles.headerText}>
           <Text style={styles.name}>{name}</Text>
           <Text style={styles.email}>{user?.email}</Text>
           {isAdmin ? <Text style={styles.adminBadge}>Admin</Text> : null}
+          <Text
+            style={[
+              styles.organizerBadge,
+              organizedActivities.length > 20
+                ? styles.organizerBadgeGold
+                : organizedActivities.length > 10
+                  ? styles.organizerBadgeStrong
+                  : organizedActivities.length > 5
+                    ? styles.organizerBadgeGreen
+                    : styles.organizerBadgeBase,
+            ]}
+          >
+            {organizedActivities.length > 20
+              ? 'Organizzatore top'
+              : organizedActivities.length > 10
+                ? 'Organizzatore esperto'
+                : organizedActivities.length > 5
+                  ? 'Organizzatore attivo'
+                  : 'Organizzatore base'}
+          </Text>
           {photoLoadError ? (
             <Text style={styles.photoErrorText}>
               Non sono riuscito a caricare la tua foto profilo. Controlla il link o ricarica la foto.
@@ -976,8 +1007,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
-    borderWidth: 2,
-    borderColor: '#ff7ab8',
+    borderWidth: 3,
+  },
+  photoBoxBase: {
+    borderColor: '#ffffff',
+  },
+  photoBoxGreen: {
+    borderColor: '#4fb86b',
+  },
+  photoBoxStrong: {
+    borderColor: '#ef2d82',
+  },
+  photoBoxGold: {
+    borderColor: '#d8a600',
   },
   photo: {
     width: '100%',
@@ -1006,6 +1048,40 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     lineHeight: 17,
     marginTop: 6,
+  },
+  organizerBadge: {
+    marginTop: 8,
+    alignSelf: 'flex-start',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    overflow: 'hidden',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  organizerBadgeBase: {
+    backgroundColor: '#ffffff',
+    color: '#9b1f61',
+    borderWidth: 1,
+    borderColor: '#ffd3e7',
+  },
+  organizerBadgeGreen: {
+    backgroundColor: '#e9f8ee',
+    color: '#287a3e',
+    borderWidth: 1,
+    borderColor: '#9bd8aa',
+  },
+  organizerBadgeStrong: {
+    backgroundColor: '#fff0f7',
+    color: '#ef2d82',
+    borderWidth: 1,
+    borderColor: '#ef2d82',
+  },
+  organizerBadgeGold: {
+    backgroundColor: '#fff6ce',
+    color: '#8a6700',
+    borderWidth: 1,
+    borderColor: '#d8a600',
   },
   adminBadge: {
     marginTop: 8,

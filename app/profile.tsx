@@ -46,9 +46,8 @@ type ActivityItem = {
 
 const AGE_OPTIONS = ['18-24', '25-34', '35-44', '45-54', '55-64', '65+'];
 const GENDER_OPTIONS = [
-  { value: 'M', label: 'Uomo' },
-  { value: 'F', label: 'Donna' },
-  { value: 'NS', label: 'Preferisco non specificarlo' },
+  { value: 'maschio', label: 'Uomo' },
+  { value: 'femmina', label: 'Donna' },
 ];
 
 const PROFILE_TABLE = 'profiles';
@@ -257,7 +256,7 @@ function contactTitle(row: LooseRow) {
 }
 
 function inviteTitle(row: LooseRow) {
-  return firstText(row, ['activity_title', 'title', 'titolo', 'name', 'nome'], 'Invito a una esperienza');
+  return firstText(row, ['activity_title', 'title', 'titolo', 'name', 'nome'], 'Invito a uscire');
 }
 
 function getRowId(row: LooseRow) {
@@ -415,8 +414,8 @@ export default function ProfileScreen() {
             row,
             ['message', 'messaggio', 'note'],
             result.table === 'direct_contact_requests'
-              ? 'Una persona che partecipa alla tua stessa esperienza vuole invitarti a uscire.'
-              : 'Vuole condividere un contatto diretto.'
+              ? 'Una persona conosciuta in una esperienza Bajuju vorrebbe invitarti a vedervi fuori dall’evento.'
+              : 'Una persona conosciuta in una esperienza Bajuju vuole restare in contatto con te.'
           ),
           status: firstText(row, ['status', 'stato', 'request_status'], 'pending'),
         }));
@@ -445,7 +444,7 @@ export default function ProfileScreen() {
           table: result.table,
           raw: row,
           title: inviteTitle(row),
-          subtitle: firstText(row, ['message', 'messaggio', 'note'], 'Hai ricevuto un invito.'),
+          subtitle: firstText(row, ['message', 'messaggio', 'note'], 'Vorrebbe invitarti a uscire fuori dall’esperienza.'),
           status: firstText(row, ['status', 'stato', 'invite_status'], 'pending'),
         }));
       collected.push(...mapped);
@@ -816,31 +815,36 @@ export default function ProfileScreen() {
           autoCapitalize="words"
         />
 
-        <Text style={styles.label}>Fascia d’età</Text>
-        <View style={styles.optionsGrid}>
-          {AGE_OPTIONS.map((option) => (
-            <Pressable
-              key={option}
-              style={[styles.option, ageRange === option && styles.optionActive]}
-              onPress={() => setAgeRange(option)}
-            >
-              <Text style={[styles.optionText, ageRange === option && styles.optionTextActive]}>{option}</Text>
-            </Pressable>
-          ))}
-        </View>
+        <Text style={styles.label}>Età</Text>
+        <TextInput
+          value={ageRange}
+          onChangeText={(value) => setAgeRange(value.replace(/[^0-9]/g, '').slice(0, 2))}
+          placeholder="Scrivi la tua età"
+          style={styles.input}
+          keyboardType="numeric"
+        />
 
         <Text style={styles.label}>Genere</Text>
-        <View style={styles.optionsColumn}>
+        <View style={styles.genderGrid}>
           {GENDER_OPTIONS.map((option) => (
             <Pressable
               key={option.value}
-              style={[styles.optionWide, gender === option.value && styles.optionActive]}
+              style={[styles.genderOption, gender === option.value && styles.optionActive]}
               onPress={() => setGender(option.value)}
             >
               <Text style={[styles.optionText, gender === option.value && styles.optionTextActive]}>{option.label}</Text>
             </Pressable>
           ))}
         </View>
+
+        <Pressable
+          style={[styles.genderOptionSmall, gender === 'preferisco_non_specificarlo' && styles.optionActive]}
+          onPress={() => setGender('preferisco_non_specificarlo')}
+        >
+          <Text style={[styles.genderOptionSmallText, gender === 'preferisco_non_specificarlo' && styles.optionTextActive]}>
+            Preferisco non specificarlo
+          </Text>
+        </Pressable>
 
         <Pressable
           style={[styles.toggleRow, directContactsEnabled && styles.toggleRowActive]}
@@ -858,10 +862,18 @@ export default function ProfileScreen() {
         </Pressable>
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Richieste contatto</Text>
+      <View style={[styles.card, styles.contactCard]}>
+        <View style={styles.sectionHeaderRow}>
+          <View style={[styles.sectionIconBubble, styles.contactIconBubble]}>
+            <Text style={styles.sectionIconText}>📞</Text>
+          </View>
+          <View style={styles.sectionHeaderText}>
+            <Text style={styles.sectionTitle}>Contatti diretti</Text>
+            <Text style={styles.sectionHint}>Persone conosciute in una esperienza Bajuju che vogliono restare in contatto con te.</Text>
+          </View>
+        </View>
         {contactRequests.length === 0 ? (
-          <Text style={styles.emptyText}>Nessuna richiesta contatto.</Text>
+          <Text style={styles.emptyText}>Nessuna richiesta di contatto diretto.</Text>
         ) : (
           contactRequests.map((item) => (
             <View key={`${item.table}-${item.id}`} style={styles.itemBox}>
@@ -880,10 +892,18 @@ export default function ProfileScreen() {
         )}
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Inviti</Text>
+      <View style={[styles.card, styles.dateInviteCard]}>
+        <View style={styles.sectionHeaderRow}>
+          <View style={[styles.sectionIconBubble, styles.dateInviteIconBubble]}>
+            <Text style={styles.sectionIconText}>💗</Text>
+          </View>
+          <View style={styles.sectionHeaderText}>
+            <Text style={styles.sectionTitle}>Inviti a uscire</Text>
+            <Text style={styles.sectionHint}>Persone conosciute in una esperienza Bajuju che vorrebbero invitarti a vedervi fuori dall’evento.</Text>
+          </View>
+        </View>
         {invites.length === 0 ? (
-          <Text style={styles.emptyText}>Nessun invito ricevuto.</Text>
+          <Text style={styles.emptyText}>Nessun invito a uscire.</Text>
         ) : (
           invites.map((item) => (
             <View key={`${item.table}-${item.id}`} style={styles.itemBox}>
@@ -1114,11 +1134,83 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#ffd6ea',
   },
+  contactCard: {
+    borderColor: '#d38bb4',
+    backgroundColor: '#fffafd',
+  },
+  dateInviteCard: {
+    borderColor: '#e43f98',
+    backgroundColor: '#fff3f9',
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    marginBottom: 8,
+  },
+  sectionHeaderText: {
+    flex: 1,
+  },
+  sectionIconBubble: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  contactIconBubble: {
+    backgroundColor: '#fff4fa',
+    borderColor: '#9b5b7f',
+  },
+  dateInviteIconBubble: {
+    backgroundColor: '#ffe3f1',
+    borderColor: '#e43f98',
+  },
+  sectionIconText: {
+    fontSize: 20,
+  },
+  genderGrid: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 8,
+  },
+  genderOption: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#ffd6ea',
+    backgroundColor: '#fff8fb',
+    borderRadius: 16,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  genderOptionSmall: {
+    marginTop: 8,
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderColor: '#ffd6ea',
+    backgroundColor: '#fff8fb',
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  genderOptionSmallText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#7a4267',
+  },
   sectionTitle: {
     fontSize: 19,
     fontWeight: '900',
     color: '#311028',
     marginBottom: 6,
+  },
+  sectionHint: {
+    marginTop: 4,
+    color: '#7a4267',
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 18,
   },
   sectionCounter: {
     color: '#9b1f61',

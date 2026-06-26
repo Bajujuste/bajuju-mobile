@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 
 import { supabase } from '../src/lib/supabase';
+import { shareBajujuExperience } from '../src/utils/shareBajuju';
 
 type ActivityRow = {
   id?: string;
@@ -531,6 +532,22 @@ export default function ExperienceDetailScreen() {
                 </Text>
               </View>
 
+              <Pressable
+                style={styles.shareExperienceButton}
+                onPress={() =>
+                  shareBajujuExperience({
+                    title: experience.title,
+                    category: experience.category,
+                    city: experience.city,
+                    province: experience.province,
+                    date: experience.activity_date,
+                    time: experience.activity_time,
+                  })
+                }
+              >
+                <Text style={styles.shareExperienceButtonText}>Condividi esperienza</Text>
+              </Pressable>
+
               <View style={styles.participantsBox}>
                 <Text style={styles.sectionTitle}>Partecipanti</Text>
                 <Text style={styles.participantsCount}>
@@ -793,6 +810,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     lineHeight: 21,
+  },
+  shareExperienceButton: {
+    borderRadius: 999,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#ffd3e7',
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  shareExperienceButtonText: {
+    color: '#e43f98',
+    fontSize: 14,
+    fontWeight: '900',
   },
   participantsBox: {
     borderRadius: 20,

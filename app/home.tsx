@@ -11,6 +11,7 @@ import {
 import { router } from 'expo-router';
 
 import { supabase } from '../src/lib/supabase';
+import { shareBajujuHome } from '../src/utils/shareBajuju';
 
 const bajujuLogo = require('../assets/brand/bajuju-logo.png');
 

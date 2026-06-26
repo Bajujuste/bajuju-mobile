@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 
 import { supabase } from '../src/lib/supabase';
+import { shareBajujuFlash } from '../src/utils/shareBajuju';
 
 type LooseRow = Record<string, any>;
 
@@ -1080,15 +1081,32 @@ export default function FlashScreen() {
                     : 'Puoi partecipare a questo Flash'}
               </Text>
 
-              <Pressable
-                style={styles.smallButton}
-                onPress={() => router.push({
-                  pathname: '/flash-detail',
-                  params: { id: String(firstValue(row, ['id', 'activity_id'], '')) },
-                })}
-              >
-                <Text style={styles.smallButtonText}>Vedi dettaglio</Text>
-              </Pressable>
+              <View style={styles.flashActionsRow}>
+                <Pressable
+                  style={[styles.smallButton, styles.flashActionButton]}
+                  onPress={() => router.push({
+                    pathname: '/flash-detail',
+                    params: { id: String(firstValue(row, ['id', 'activity_id'], '')) },
+                  })}
+                >
+                  <Text style={styles.smallButtonText}>Vedi dettaglio</Text>
+                </Pressable>
+
+                <Pressable
+                  style={[styles.shareFlashButton, styles.flashActionButton]}
+                  onPress={() =>
+                    shareBajujuFlash({
+                      title: flashTitle(row),
+                      city: flashCity(row),
+                      province: flashProvince(row),
+                      date: String(firstValue(row, ['activity_date', 'date', 'data', 'day', 'giorno'], '') || ''),
+                      time: String(firstValue(row, ['activity_time', 'time', 'ora'], '') || ''),
+                    })
+                  }
+                >
+                  <Text style={styles.shareFlashButtonText}>Condividi</Text>
+                </Pressable>
+              </View>
 
               {rowBelongsToUser(row, userId) ? (
                 <View style={styles.ownerActions}>
@@ -1345,6 +1363,28 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     alignItems: 'center',
     marginTop: 6,
+  },
+  flashActionsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  flashActionButton: {
+    flex: 1,
+  },
+  shareFlashButton: {
+    borderRadius: 999,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#ffd3e7',
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  shareFlashButtonText: {
+    color: '#e43f98',
+    fontSize: 13,
+    fontWeight: '900',
   },
   smallButtonText: {
     color: '#ffffff',

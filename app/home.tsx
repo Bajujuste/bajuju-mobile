@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Image,
   Pressable,
@@ -15,7 +15,57 @@ import { shareBajujuHome } from '../src/utils/shareBajuju';
 
 const bajujuLogo = require('../assets/brand/bajuju-logo.png');
 
+type ProfileRow = Record<string, unknown>;
+
+function firstText(row: ProfileRow | null, keys: string[], fallback = '') {
+  if (!row) return fallback;
+
+  for (const key of keys) {
+    const value = row[key];
+
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim();
+    }
+  }
+
+  return fallback;
+}
+
 export default function HomeScreen() {
+  const [profilePhotoUrl, setProfilePhotoUrl] = useState('');
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadProfilePhoto() {
+      const { data: userData } = await supabase.auth.getUser();
+      const userId = userData.user?.id;
+
+      if (!userId) return;
+
+      const { data } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (!isMounted) return;
+
+      setProfilePhotoUrl(
+        firstText(
+          data as ProfileRow | null,
+          ['avatar_url', 'photo_url', 'profile_photo_url', 'profile_image_url', 'image_url', 'foto'],
+          ''
+        )
+      );
+    }
+
+    loadProfilePhoto();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
   async function handleLogout() {
     await supabase.auth.signOut();
     router.replace('/');
@@ -26,7 +76,15 @@ export default function HomeScreen() {
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.header}>
           <Pressable style={styles.topProfileButton} onPress={() => router.push('/profile')}>
-            <Text style={styles.topProfileIcon}>👤</Text>
+            {profilePhotoUrl ? (
+              <Image source={{ uri: profilePhotoUrl }} style={styles.topProfilePhoto} />
+            ) : (
+              <View style={styles.topProfileFallback}>
+                <Text style={styles.topProfileFallbackText}>👤</Text>
+              </View>
+            )}
+
+            <Text style={styles.topProfileLabel}>Profilo</Text>
           </Pressable>
 
           <View style={styles.logoCard}>
@@ -36,14 +94,14 @@ export default function HomeScreen() {
           <Text style={styles.claim}>Dal Vivo è Meglio</Text>
 
           <Text style={styles.introText}>
-            Trova o crea esperienze dal vivo con persone vicino a te.
+            Esperienze dal vivo con persone vicino a te.
           </Text>
         </View>
 
         <View style={styles.mainCard}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionEyebrow}>Cosa vuoi fare oggi?</Text>
-            <Text style={styles.sectionTitle}>Trova o crea esperienze dal vivo</Text>
+
           </View>
 
           <View style={styles.primaryActions}>
@@ -108,6 +166,11 @@ export default function HomeScreen() {
           </View>
 
           <View style={styles.footerBox}>
+            <Pressable style={styles.shareFooterButton} onPress={shareBajujuHome}>
+              <Text style={styles.shareFooterIcon}>📲</Text>
+              <Text style={styles.shareFooterText}>Condividi Bajuju</Text>
+            </Pressable>
+
             <View style={styles.legalLinksRow}>
               <Pressable
                 style={styles.legalButton}
@@ -156,7 +219,7 @@ const styles = StyleSheet.create({
     top: 4,
     right: 2,
     zIndex: 10,
-    width: 42,
+    minWidth: 82,
     height: 42,
     borderRadius: 999,
     backgroundColor: '#ffffff',
@@ -164,14 +227,38 @@ const styles = StyleSheet.create({
     borderColor: '#ffd3e7',
     alignItems: 'center',
     justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 6,
+    paddingHorizontal: 8,
     shadowColor: '#e43f98',
     shadowOpacity: 0.10,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
     elevation: 3,
   },
-  topProfileIcon: {
-    fontSize: 21,
+  topProfilePhoto: {
+    width: 28,
+    height: 28,
+    borderRadius: 999,
+    backgroundColor: '#fff0f7',
+  },
+  topProfileFallback: {
+    width: 28,
+    height: 28,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff0f7',
+    borderWidth: 1,
+    borderColor: '#ffd3e7',
+  },
+  topProfileFallbackText: {
+    fontSize: 15,
+  },
+  topProfileLabel: {
+    color: '#9b1f61',
+    fontSize: 12,
+    fontWeight: '900',
   },
 
   logoCard: {
@@ -203,8 +290,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   introText: {
+    width: '100%',
     marginTop: 10,
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
     fontSize: 15,
     lineHeight: 22,
     fontWeight: '700',
@@ -237,6 +325,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   sectionTitle: {
+    width: '100%',
     color: '#e43f98',
     fontSize: 22,
     fontWeight: '900',
@@ -387,13 +476,38 @@ const styles = StyleSheet.create({
     paddingTop: 14,
     borderTopWidth: 1,
     borderTopColor: '#ffe2ef',
+    alignItems: 'center',
+  },
+  shareFooterButton: {
+    borderRadius: 999,
+    backgroundColor: '#e43f98',
+    paddingVertical: 9,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    alignSelf: 'center',
+    shadowColor: '#e43f98',
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+  },
+  shareFooterIcon: {
+    fontSize: 15,
+  },
+  shareFooterText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '900',
   },
 
   legalLinksRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     gap: 10,
-    marginTop: 22,
+    marginTop: 14,
     marginBottom: 4,
     flexWrap: 'wrap',
   },

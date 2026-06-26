@@ -44,7 +44,6 @@ type ActivityItem = {
   raw: LooseRow;
 };
 
-const AGE_OPTIONS = ['18-24', '25-34', '35-44', '45-54', '55-64', '65+'];
 const GENDER_OPTIONS = [
   { value: 'maschio', label: 'Uomo' },
   { value: 'femmina', label: 'Donna' },

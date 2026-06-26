@@ -749,6 +749,10 @@ export default function ProfileScreen() {
       contentContainerStyle={styles.content}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
+      <Pressable style={styles.profileBackButton} onPress={() => router.push('/home')}>
+        <Text style={styles.profileBackText}>← Home</Text>
+      </Pressable>
+
       <View style={styles.headerCard}>
         <View
           style={[
@@ -986,11 +990,28 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
+  profileBackButton: {
+    alignSelf: 'flex-start',
+    marginBottom: 14,
+    paddingVertical: 9,
+    paddingHorizontal: 13,
+    borderRadius: 999,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#ffd3e7',
+  },
+  profileBackText: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: '#9b1f61',
+  },
+
   page: {
     flex: 1,
     backgroundColor: '#fff7fb',
   },
   content: {
+    paddingTop: 64,
     padding: 18,
     paddingBottom: 40,
   },

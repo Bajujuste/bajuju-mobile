@@ -172,13 +172,12 @@ export default function FlashMapScreen() {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
       <View style={styles.heroCard}>
+        <Pressable style={styles.backButton} onPress={() => router.push('/flash')}>
+          <Text style={styles.backButtonText}>← Flash</Text>
+        </Pressable>
+
         <Text style={styles.kicker}>Bajuju Flash</Text>
         <Text style={styles.title}>Flash sulla mappa</Text>
-
-        <Text style={styles.text}>
-          La mappa integrata verrà collegata nella versione mobile nativa. Per ora vedi solo i Flash disponibili
-          con indirizzo verificato e puoi aprirli sulla mappa esterna.
-        </Text>
 
         <View style={styles.previewBox}>
           <View style={styles.pinCircle}>
@@ -191,9 +190,6 @@ export default function FlashMapScreen() {
           </Text>
         </View>
 
-        <Pressable style={styles.button} onPress={() => router.push('/flash')}>
-          <Text style={styles.buttonText}>Torna a Bajuju Flash</Text>
-        </Pressable>
       </View>
 
       {loading ? (
@@ -260,6 +256,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     backgroundColor: '#fff8fb',
     padding: 20,
+    paddingTop: 64,
     gap: 16,
   },
   heroCard: {
@@ -269,6 +266,22 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#ffd3e6',
   },
+  backButton: {
+    alignSelf: 'flex-start',
+    marginBottom: 14,
+    paddingVertical: 9,
+    paddingHorizontal: 13,
+    borderRadius: 999,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#ffd3e7',
+  },
+  backButtonText: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: '#9b1f61',
+  },
+
   card: {
     backgroundColor: '#ffffff',
     borderRadius: 24,

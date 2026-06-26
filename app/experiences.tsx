@@ -272,7 +272,7 @@ const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
     padding: 20,
-    paddingTop: 18,
+    paddingTop: 64,
     paddingBottom: 32,
     backgroundColor: '#fff8fb',
   },

@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -15,10 +16,13 @@ import {
 import { supabase } from '../src/lib/supabase';
 import { shareBajujuFlash } from '../src/utils/shareBajuju';
 
+const bajujuLogo = require('../assets/brand/bajuju-logo.png');
+
 type LooseRow = Record<string, any>;
 
 type FlashTab = 'all' | 'mine' | 'joined';
 type FlashDuration = 1 | 2 | 3;
+type FlashSection = 'create' | 'find' | null;
 
 const ACTIVE_PROVINCES = ['Bergamo', 'Milano', 'Lecco', 'Monza e Brianza', 'Brescia', 'Torino'];
 
@@ -359,6 +363,7 @@ export default function FlashScreen() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [selectedProvince, setSelectedProvince] = useState<string>('Tutte');
   const [selectedTab, setSelectedTab] = useState<FlashTab>('all');
+  const [selectedSection, setSelectedSection] = useState<FlashSection>(null);
 
   const [newTitle, setNewTitle] = useState('');
   const [newProvince, setNewProvince] = useState('Bergamo');
@@ -823,25 +828,63 @@ export default function FlashScreen() {
       contentContainerStyle={styles.page}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
-      <View style={styles.card}>
-        <Text style={styles.kicker}>Bajuju Flash</Text>
-        <Text style={styles.title}>Tutto può iniziare in pochi minuti</Text>
+      <View style={styles.flashHeroCard}>
+        <Pressable style={styles.flashBackButton} onPress={() => router.push('/home')}>
+          <Text style={styles.flashBackText}>← Home</Text>
+        </Pressable>
 
-        <Text style={styles.text}>
-          Scegli la provincia e guarda i Flash disponibili collegati a Supabase.
+        <Text style={styles.kicker}>Bajuju Flash</Text>
+
+        <View style={styles.flashLogoCircle}>
+          <Image source={bajujuLogo} style={styles.flashLogoImage} resizeMode="contain" />
+        </View>
+
+        <Text style={styles.flashHeroPhrase}>
+          Un’idea semplice. Qualcuno disponibile. Si parte.
         </Text>
 
-        <Pressable style={styles.button} onPress={() => router.push('/flash-map')}>
-          <Text style={styles.buttonText}>Mappa Flash disponibili</Text>
-        </Pressable>
+        <Text style={styles.flashHeroText}>
+          Vuoi fare qualcosa adesso? Crea un Flash o trova persone disponibili nella tua zona.
+        </Text>
 
-        <Pressable style={styles.secondaryButton} onPress={() => router.push('/home')}>
-          <Text style={styles.secondaryButtonText}>Torna alla Home</Text>
-        </Pressable>
+        <View style={styles.flashChoiceRow}>
+          <Pressable
+            style={[styles.flashChoiceButton, styles.flashCreateChoiceButton]}
+            onPress={() => {
+              setSelectedSection('create');
+              setShowCreateForm(true);
+            }}
+          >
+            <Text style={styles.flashChoiceIcon}>⚡</Text>
+            <Text style={styles.flashChoiceText}>Crea Flash</Text>
+          </Pressable>
+
+          <Pressable
+            style={[styles.flashChoiceButton, styles.flashFindChoiceButton]}
+            onPress={() => setSelectedSection('find')}
+          >
+            <Text style={styles.flashChoiceIcon}>🔎</Text>
+            <Text style={styles.flashChoiceText}>Trova Flash</Text>
+          </Pressable>
+        </View>
+
+        <Text style={styles.flashHeroNote}>
+          I Flash durano poco: sono pensati per organizzarsi subito.
+        </Text>
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Provincia</Text>
+      <View style={[styles.card, selectedSection !== 'find' && styles.hiddenSection]}>
+        <Text style={styles.sectionTitle}>Trova Flash</Text>
+
+        <Pressable style={styles.mapHighlightButton} onPress={() => router.push('/flash-map')}>
+          <Text style={styles.mapHighlightIcon}>🗺️</Text>
+          <View style={styles.mapHighlightTextBox}>
+            <Text style={styles.mapHighlightTitle}>Apri mappa Flash</Text>
+            <Text style={styles.mapHighlightSubtitle}>Guarda subito dove sono i Flash disponibili</Text>
+          </View>
+        </Pressable>
+
+        <Text style={styles.sectionTitleSmall}>Provincia</Text>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
           {['Tutte', ...ACTIVE_PROVINCES].map((province) => (
@@ -857,7 +900,7 @@ export default function FlashScreen() {
           ))}
         </ScrollView>
 
-        <Text style={styles.sectionTitle}>Filtro</Text>
+        <Text style={styles.sectionTitleSmall}>Filtri</Text>
 
         <View style={styles.tabsRow}>
           <Pressable
@@ -883,7 +926,7 @@ export default function FlashScreen() {
         </View>
       </View>
 
-      <View style={styles.card}>
+      <View style={[styles.card, selectedSection !== 'create' && styles.hiddenSection]}>
         <Text style={styles.sectionTitle}>Crea Flash</Text>
 
         <Pressable style={styles.secondaryButton} onPress={() => setShowCreateForm((value) => !value)}>
@@ -892,8 +935,7 @@ export default function FlashScreen() {
           </Text>
         </Pressable>
 
-        {showCreateForm ? (
-          <>
+        <>
             <Text style={styles.label}>Titolo Flash</Text>
             <TextInput
               value={newTitle}
@@ -982,18 +1024,10 @@ export default function FlashScreen() {
               <Text style={styles.secondaryButtonText}>Annulla creazione</Text>
             </Pressable>
 
-            <Text style={styles.formNote}>
-              Il Flash viene salvato su Supabase nella tabella activities con is_flash attivo e scadenza automatica.
-            </Text>
           </>
-        ) : (
-          <Text style={styles.formNote}>
-            Apri il modulo solo quando vuoi creare un nuovo Flash.
-          </Text>
-        )}
       </View>
 
-      <View style={styles.card}>
+      <View style={[styles.card, selectedSection !== 'find' && styles.hiddenSection]}>
         <Text style={styles.sectionTitle}>Flash disponibili</Text>
 
         {loading ? (
@@ -1174,6 +1208,169 @@ const styles = StyleSheet.create({
     padding: 20,
     gap: 16,
   },
+  hiddenSection: {
+    display: 'none',
+  },
+  flashBackButton: {
+    alignSelf: 'flex-start',
+    marginBottom: 12,
+    paddingVertical: 9,
+    paddingHorizontal: 13,
+    borderRadius: 999,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#ffd3e7',
+  },
+  flashBackText: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: '#9b1f61',
+  },
+  flashHeroCard: {
+    borderRadius: 32,
+    padding: 20,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#ffd3e7',
+    alignItems: 'center',
+    shadowColor: '#e43f98',
+    shadowOpacity: 0.12,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 5,
+  },
+  flashLogoCircle: {
+    width: 178,
+    height: 178,
+    borderRadius: 89,
+    backgroundColor: '#fff0f7',
+    borderWidth: 2,
+    borderColor: '#ffc2df',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 18,
+    marginBottom: 16,
+    overflow: 'hidden',
+  },
+  flashLogoImage: {
+    width: 158,
+    height: 158,
+  },
+  flashHeroPhrase: {
+    color: '#e43f98',
+    fontSize: 19,
+    lineHeight: 25,
+    fontWeight: '900',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  flashHeroText: {
+    color: '#6b3652',
+    fontSize: 14,
+    lineHeight: 21,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginBottom: 18,
+  },
+  flashChoiceRow: {
+    width: '100%',
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 4,
+  },
+  flashChoiceButton: {
+    flex: 1,
+    minHeight: 104,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 14,
+    borderWidth: 2,
+  },
+  flashCreateChoiceButton: {
+    backgroundColor: '#c2185b',
+    borderColor: '#a8144d',
+  },
+  flashFindChoiceButton: {
+    backgroundColor: '#e43f98',
+    borderColor: '#c72d7d',
+  },
+  flashChoiceIcon: {
+    fontSize: 28,
+    marginBottom: 8,
+  },
+  flashChoiceText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '900',
+    textAlign: 'center',
+  },
+  flashHeroNote: {
+    marginTop: 14,
+    color: '#9b1f61',
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  flashSectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 10,
+  },
+  sectionTitleSmall: {
+    color: '#9b1f61',
+    fontSize: 14,
+    fontWeight: '900',
+    marginBottom: 10,
+  },
+  mapHighlightButton: {
+    width: '100%',
+    borderRadius: 24,
+    backgroundColor: '#fff0f7',
+    borderWidth: 2,
+    borderColor: '#e43f98',
+    paddingVertical: 15,
+    paddingHorizontal: 14,
+    marginTop: 12,
+    marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  mapHighlightIcon: {
+    fontSize: 30,
+  },
+  mapHighlightTextBox: {
+    flex: 1,
+  },
+  mapHighlightTitle: {
+    color: '#e43f98',
+    fontSize: 16,
+    fontWeight: '900',
+    marginBottom: 3,
+  },
+  mapHighlightSubtitle: {
+    color: '#6b3652',
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: '700',
+  },
+
+  mapSmallButton: {
+    borderRadius: 999,
+    backgroundColor: '#e43f98',
+    paddingVertical: 8,
+    paddingHorizontal: 13,
+  },
+  mapSmallButtonText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+
   card: {
     backgroundColor: '#ffffff',
     borderRadius: 24,
@@ -1306,24 +1503,30 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
   tabsRow: {
-    gap: 10,
+    flexDirection: 'row',
+    gap: 7,
+    marginBottom: 10,
   },
   tabButton: {
-    borderRadius: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    backgroundColor: '#fff8fb',
+    flex: 1,
+    minHeight: 36,
+    borderRadius: 999,
     borderWidth: 1,
-    borderColor: '#ffd3e6',
+    borderColor: '#ffd3e7',
+    backgroundColor: '#fff8fb',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 7,
+    paddingHorizontal: 8,
   },
   tabButtonActive: {
     backgroundColor: '#ffe3f0',
     borderColor: '#ef2d82',
   },
   tabText: {
-    color: '#7b4960',
-    fontSize: 15,
-    fontWeight: '800',
+    color: '#9b1f61',
+    fontSize: 11,
+    fontWeight: '900',
     textAlign: 'center',
   },
   tabTextActive: {

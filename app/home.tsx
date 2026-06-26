@@ -174,7 +174,7 @@ export default function HomeScreen() {
             <View style={styles.legalLinksRow}>
               <Pressable
                 style={styles.legalButton}
-                onPress={() => router.push('/community-rules' as any)}
+                onPress={() => router.push('/rules' as any)}
               >
                 <Text style={styles.legalButtonText}>Regole community</Text>
               </Pressable>

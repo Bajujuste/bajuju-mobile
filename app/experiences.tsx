@@ -245,6 +245,10 @@ export default function ExperiencesScreen() {
                     <Text style={styles.experienceMeta}>
                       {formatDateItalian(item.activity_date)} · {item.activity_time || 'Ora da definire'}
                     </Text>
+
+                    <View style={styles.experienceFooter}>
+                      <Text style={styles.openDetailText}>Apri esperienza</Text>
+                    </View>
                   </View>
                 </Pressable>
               ))}
@@ -444,6 +448,19 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#6b3652',
     marginTop: 2,
+  },
+  experienceFooter: {
+    marginTop: 10,
+    alignSelf: 'flex-start',
+    borderRadius: 999,
+    backgroundColor: '#e43f98',
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+  },
+  openDetailText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '900',
   },
   refreshButton: {
     marginTop: 16,

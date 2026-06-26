@@ -15,6 +15,8 @@ import {
 } from 'react-native';
 import { supabase } from '../src/lib/supabase';
 
+const bajujuLogo = require('../assets/brand/bajuju-logo.png');
+
 type LooseRow = Record<string, any>;
 
 type ContactItem = {
@@ -335,6 +337,7 @@ export default function ProfileScreen() {
   const [ageRange, setAgeRange] = useState('');
   const [gender, setGender] = useState('');
   const [directContactsEnabled, setDirectContactsEnabled] = useState(true);
+  const [photoLoadError, setPhotoLoadError] = useState(false);
 
   const [contactRequests, setContactRequests] = useState<ContactItem[]>([]);
   const [invites, setInvites] = useState<InviteItem[]>([]);
@@ -348,6 +351,8 @@ export default function ProfileScreen() {
   const photoUrl = useMemo(() => {
     return firstText(profile, ['avatar_url', 'photo_url', 'profile_photo_url', 'profile_image_url', 'image_url', 'foto'], '');
   }, [profile]);
+
+  const shouldShowProfilePhoto = Boolean(photoUrl) && !photoLoadError;
 
   const profileIdField = useMemo(() => {
     if (profile?.id && user?.id && String(profile.id) === String(user.id)) return 'id';
@@ -405,8 +410,14 @@ export default function ProfileScreen() {
           id: getRowId(row),
           table: result.table,
           raw: row,
-          title: contactTitle(row),
-          subtitle: firstText(row, ['message', 'messaggio', 'note'], 'Vuole condividere un contatto diretto.'),
+          title: result.table === 'direct_contact_requests' ? 'Invito a uscire' : contactTitle(row),
+          subtitle: firstText(
+            row,
+            ['message', 'messaggio', 'note'],
+            result.table === 'direct_contact_requests'
+              ? 'Una persona che partecipa alla tua stessa esperienza vuole invitarti a uscire.'
+              : 'Vuole condividere un contatto diretto.'
+          ),
           status: firstText(row, ['status', 'stato', 'request_status'], 'pending'),
         }));
       collected.push(...mapped);
@@ -455,6 +466,8 @@ export default function ProfileScreen() {
           .from('activities')
           .select('*')
           .eq(column, userId)
+          .neq('is_flash', true)
+          .is('deleted_at', null)
           .limit(80);
 
         if (!result.error && Array.isArray(result.data)) {
@@ -520,7 +533,13 @@ export default function ProfileScreen() {
     }
 
     try {
-      const result = await supabase.from('activities').select('*').in('id', activityIds).limit(80);
+      const result = await supabase
+        .from('activities')
+        .select('*')
+        .in('id', activityIds)
+        .neq('is_flash', true)
+        .is('deleted_at', null)
+        .limit(80);
 
       if (!result.error && Array.isArray(result.data)) {
         const visibleParticipatedRows = sortMobileProfileActivities(result.data as LooseRow[]).filter(
@@ -563,6 +582,7 @@ export default function ProfileScreen() {
 
     const currentProfile = await tryReadOneProfile(String(currentUser.id));
     setProfile(currentProfile);
+    setPhotoLoadError(false);
 
     setCity(firstText(currentProfile, ['city', 'citta', 'comune', 'location_city'], ''));
     setAgeRange(firstText(currentProfile, ['age_range', 'fascia_eta', 'age_band', 'eta_range'], ''));
@@ -733,12 +753,17 @@ export default function ProfileScreen() {
     >
       <View style={styles.headerCard}>
         <View style={styles.photoBox}>
-          {photoUrl ? <Image source={{ uri: photoUrl }} style={styles.photo} /> : <Text style={styles.photoFallback}>🐼</Text>}
+          {photoUrl ? <Image source={{ uri: photoUrl }} style={styles.photo} /> : <Image source={bajujuLogo} style={styles.photo} />}
         </View>
         <View style={styles.headerText}>
           <Text style={styles.name}>{name}</Text>
           <Text style={styles.email}>{user?.email}</Text>
           {isAdmin ? <Text style={styles.adminBadge}>Admin</Text> : null}
+          {photoLoadError ? (
+            <Text style={styles.photoErrorText}>
+              Non sono riuscito a caricare la tua foto profilo. Controlla il link o ricarica la foto.
+            </Text>
+          ) : null}
         </View>
       </View>
 
@@ -847,29 +872,45 @@ export default function ProfileScreen() {
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Attività organizzate</Text>
+        <Text style={styles.sectionTitle}>Esperienze create da me</Text>
+        <Text style={styles.sectionCounter}>
+          {organizedActivities.length} {organizedActivities.length === 1 ? 'esperienza' : 'esperienze'}
+        </Text>
         {organizedActivities.length === 0 ? (
-          <Text style={styles.emptyText}>Non hai ancora organizzato attività.</Text>
+          <Text style={styles.emptyText}>Non hai ancora creato esperienze.</Text>
         ) : (
           organizedActivities.map((activity) => (
-            <View key={activity.id} style={styles.activityRow}>
+            <Pressable
+              key={activity.id}
+              style={styles.activityRow}
+              onPress={() => router.push(`/experience-detail?id=${activity.id}`)}
+            >
               <Text style={styles.itemTitle}>{activity.title}</Text>
               <Text style={styles.itemSubtitle}>{activity.subtitle}</Text>
-            </View>
+              <Text style={styles.openDetailText}>Apri dettaglio →</Text>
+            </Pressable>
           ))
         )}
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Attività a cui partecipi</Text>
+        <Text style={styles.sectionTitle}>Esperienze a cui partecipo</Text>
+        <Text style={styles.sectionCounter}>
+          {participatedActivities.length} {participatedActivities.length === 1 ? 'esperienza' : 'esperienze'}
+        </Text>
         {participatedActivities.length === 0 ? (
-          <Text style={styles.emptyText}>Non stai partecipando ad attività.</Text>
+          <Text style={styles.emptyText}>Non stai partecipando a esperienze.</Text>
         ) : (
           participatedActivities.map((activity) => (
-            <View key={activity.id} style={styles.activityRow}>
+            <Pressable
+              key={activity.id}
+              style={styles.activityRow}
+              onPress={() => router.push(`/experience-detail?id=${activity.id}`)}
+            >
               <Text style={styles.itemTitle}>{activity.title}</Text>
               <Text style={styles.itemSubtitle}>{activity.subtitle}</Text>
-            </View>
+              <Text style={styles.openDetailText}>Apri dettaglio →</Text>
+            </Pressable>
           ))
         )}
       </View>
@@ -959,6 +1000,13 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#7a4267',
   },
+  photoErrorText: {
+    color: '#9b1f61',
+    fontSize: 12,
+    fontWeight: '800',
+    lineHeight: 17,
+    marginTop: 6,
+  },
   adminBadge: {
     marginTop: 8,
     alignSelf: 'flex-start',
@@ -994,6 +1042,12 @@ const styles = StyleSheet.create({
     fontSize: 19,
     fontWeight: '900',
     color: '#311028',
+    marginBottom: 6,
+  },
+  sectionCounter: {
+    color: '#9b1f61',
+    fontSize: 13,
+    fontWeight: '800',
     marginBottom: 12,
   },
   label: {
@@ -1106,6 +1160,12 @@ const styles = StyleSheet.create({
   itemSubtitle: {
     color: '#7a4267',
     marginTop: 4,
+  },
+  openDetailText: {
+    color: '#e43f98',
+    fontSize: 12,
+    fontWeight: '900',
+    marginTop: 6,
   },
   rowButtons: {
     flexDirection: 'row',

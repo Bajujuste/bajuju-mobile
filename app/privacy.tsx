@@ -17,7 +17,7 @@ const PRIVACY_SECTIONS = [
   },
   {
     "title": "4. Dati personali trattati",
-    "body": "Bajuju può trattare le seguenti categorie di dati personali:\n\na) Dati di registrazione e account: email, credenziali tecniche di accesso, identificativo utente, data di registrazione, stato dell’account, eventuali informazioni collegate al recupero password.\n\nb) Dati del profilo: nickname, foto profilo, città, zona o località indicata, fascia d’età, genere se indicato volontariamente, descrizione personale, preferenze, interessi selezionati, contenuti inseriti nei campi liberi.\n\nc) Dati relativi a eventi, attività e Flash: eventi creati, eventi a cui l’utente partecipa, titolo, descrizione, categoria, provincia, comune, luogo di partenza o indirizzo indicato, data e ora, numero partecipanti, partecipazioni, eventuali cronologie collegate agli eventi conclusi.\n\nd) Dati relativi alle comunicazioni: messaggi nelle chat evento, richieste di contatto, eventuali risposte, segnalazioni, comunicazioni con l’assistenza o con l’amministratore.\n\ne) Foto e contenuti caricati: foto profilo, immagini evento, fotografie inserite in eventuali gallerie evento, contenuti testuali pubblicati dall’utente.\n\nf) Dati di moderazione e sicurezza: segnalazioni inviate o ricevute, blocchi, sospensioni, eliminazioni account, log tecnici, informazioni necessarie a prevenire abusi, accessi non autorizzati, spam, comportamenti illeciti o violazioni delle regole.\n\ng) Dati tecnici: indirizzo IP, informazioni sul browser, dispositivo, sistema operativo, log di accesso, dati di sessione, dati necessari al funzionamento tecnico, alla sicurezza e alla manutenzione del servizio.\n\nh) Dati relativi alle notifiche: preferenze di notifica, iscrizione o disiscrizione alle notifiche push, token tecnici necessari all’invio delle notifiche, log tecnici di invio."
+    "body": "Bajuju può trattare le seguenti categorie di dati personali:\n\na) Dati di registrazione e account: email, credenziali tecniche di accesso, identificativo utente, data di registrazione, stato dell’account, eventuali informazioni collegate al recupero password.\n\nb) Dati del profilo: nickname, foto profilo, città, zona o località indicata, età, genere se indicato volontariamente, descrizione personale, preferenze, interessi selezionati, contenuti inseriti nei campi liberi.\n\nc) Dati relativi a eventi, attività e Flash: eventi creati, eventi a cui l’utente partecipa, titolo, descrizione, categoria, provincia, comune, luogo di partenza o indirizzo indicato, data e ora, numero partecipanti, partecipazioni, eventuali cronologie collegate agli eventi conclusi.\n\nd) Dati relativi alle comunicazioni: messaggi nelle chat evento, richieste di contatto, eventuali risposte, segnalazioni, comunicazioni con l’assistenza o con l’amministratore.\n\ne) Foto e contenuti caricati: foto profilo, immagini evento, fotografie inserite in eventuali gallerie evento, contenuti testuali pubblicati dall’utente.\n\nf) Dati di moderazione e sicurezza: segnalazioni inviate o ricevute, blocchi, sospensioni, eliminazioni account, log tecnici, informazioni necessarie a prevenire abusi, accessi non autorizzati, spam, comportamenti illeciti o violazioni delle regole.\n\ng) Dati tecnici: indirizzo IP, informazioni sul browser, dispositivo, sistema operativo, log di accesso, dati di sessione, dati necessari al funzionamento tecnico, alla sicurezza e alla manutenzione del servizio.\n\nh) Dati relativi alle notifiche: preferenze di notifica, iscrizione o disiscrizione alle notifiche push, token tecnici necessari all’invio delle notifiche, log tecnici di invio."
   },
   {
     "title": "5. Dati particolari o sensibili",
@@ -37,7 +37,7 @@ const PRIVACY_SECTIONS = [
   },
   {
     "title": "9. Profilo pubblico e visibilità dei dati",
-    "body": "Alcune informazioni inserite dall’utente possono essere visibili ad altri utenti, ad esempio nickname, foto profilo, città o zona, fascia d’età, descrizione, interessi, eventi organizzati, partecipazioni visibili e altre informazioni previste dal funzionamento della piattaforma.\n\nL’utente deve evitare di inserire informazioni riservate, dati sensibili o dati di terzi nei campi visibili agli altri utenti."
+    "body": "Alcune informazioni inserite dall’utente possono essere visibili ad altri utenti, ad esempio nickname, foto profilo, città o zona, età, descrizione, interessi, eventi organizzati, partecipazioni visibili e altre informazioni previste dal funzionamento della piattaforma.\n\nL’utente deve evitare di inserire informazioni riservate, dati sensibili o dati di terzi nei campi visibili agli altri utenti."
   },
   {
     "title": "10. Chat evento e messaggi",
@@ -112,6 +112,10 @@ const PRIVACY_SECTIONS = [
 export default function PrivacyScreen() {
   return (
     <ScrollView contentContainerStyle={styles.page}>
+      <TouchableOpacity style={styles.topBackButton} onPress={() => router.back()}>
+        <Text style={styles.topBackButtonText}>← Indietro</Text>
+      </TouchableOpacity>
+
       <View style={styles.card}>
         <Text style={styles.kicker}>Bajuju</Text>
         <Text style={styles.title}>Privacy Policy Bajuju</Text>
@@ -134,6 +138,21 @@ export default function PrivacyScreen() {
 }
 
 const styles = StyleSheet.create({
+  topBackButton: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#ffffff',
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#ffd3e6',
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    marginBottom: 12,
+  },
+  topBackButtonText: {
+    color: '#e43f98',
+    fontSize: 15,
+    fontWeight: '800',
+  },
   page: {
     flexGrow: 1,
     backgroundColor: '#fff8fb',

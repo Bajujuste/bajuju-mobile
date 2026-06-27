@@ -21,6 +21,7 @@ const bajujuLogo = require('../assets/brand/bajuju-logo.png');
 export default function RegisterScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [messageTitle, setMessageTitle] = useState('');
@@ -59,12 +60,12 @@ export default function RegisterScreen() {
       }
 
       if (result.data.session) {
-        router.replace('/home');
+        router.replace('/profile');
         return;
       }
 
       setMessageTitle('Controlla la tua email');
-      setMessageText('Abbiamo inviato il link di conferma. Dopo la conferma potrai accedere.');
+      setMessageText('Abbiamo inviato il link di conferma. Dopo la conferma accedi e completa subito il profilo.');
     } catch (error: any) {
       setMessageTitle('Errore collegamento');
       setMessageText(error?.message || 'Errore sconosciuto durante la registrazione.');
@@ -108,14 +109,24 @@ export default function RegisterScreen() {
             />
 
             <Text style={styles.label}>Password</Text>
-            <TextInput
-              value={password}
-              onChangeText={setPassword}
-              placeholder="Minimo 6 caratteri"
-              placeholderTextColor="#b26a91"
-              secureTextEntry
-              style={styles.input}
-            />
+            <View style={styles.passwordRow}>
+              <TextInput
+                value={password}
+                onChangeText={setPassword}
+                placeholder="Minimo 6 caratteri"
+                placeholderTextColor="#b26a91"
+                secureTextEntry={!showPassword}
+                style={styles.passwordInput}
+              />
+              <Pressable
+                style={styles.passwordToggle}
+                onPress={() => setShowPassword((value) => !value)}
+              >
+                <Text style={styles.passwordToggleText}>
+                  {showPassword ? 'Nascondi' : 'Mostra'}
+                </Text>
+              </Pressable>
+            </View>
 
             <Pressable
               style={[styles.button, loading && styles.buttonDisabled]}
@@ -217,6 +228,39 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     marginBottom: 16,
+  },
+  passwordRow: {
+    minHeight: 52,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#ffd3e7',
+    backgroundColor: '#fff8fb',
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    overflow: 'hidden',
+  },
+  passwordInput: {
+    flex: 1,
+    minHeight: 52,
+    paddingHorizontal: 16,
+    color: '#5f2445',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  passwordToggle: {
+    minHeight: 52,
+    paddingHorizontal: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderLeftWidth: 1,
+    borderLeftColor: '#ffd3e7',
+    backgroundColor: '#fff0f7',
+  },
+  passwordToggleText: {
+    color: '#e43f98',
+    fontSize: 13,
+    fontWeight: '900',
   },
   button: {
     height: 54,

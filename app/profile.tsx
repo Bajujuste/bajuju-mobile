@@ -331,6 +331,7 @@ export default function ProfileScreen() {
   const [profile, setProfile] = useState<LooseRow | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
 
+  const [profileName, setProfileName] = useState('');
   const [city, setCity] = useState('');
   const [ageRange, setAgeRange] = useState('');
   const [gender, setGender] = useState('');
@@ -582,8 +583,9 @@ export default function ProfileScreen() {
     setProfile(currentProfile);
     setPhotoLoadError(false);
 
+    setProfileName(firstText(currentProfile, ['nickname', 'username', 'display_name', 'full_name', 'name', 'nome'], ''));
     setCity(firstText(currentProfile, ['city', 'citta', 'comune', 'location_city'], ''));
-    setAgeRange(firstText(currentProfile, ['age_range', 'fascia_eta', 'age_band', 'eta_range'], ''));
+    setAgeRange(firstText(currentProfile, ['age', 'eta', 'età', 'user_age', 'age_range', 'fascia_eta', 'age_band', 'eta_range'], ''));
     setGender(firstText(currentProfile, ['gender', 'genere', 'sex'], ''));
     setDirectContactsEnabled(
       booleanFromRow(
@@ -618,10 +620,27 @@ export default function ProfileScreen() {
   const saveProfile = useCallback(async () => {
     if (!user) return;
 
+    const cleanProfileName = profileName.trim();
+    const cleanCity = city.trim();
+    const cleanAge = ageRange.trim();
+
+    if (!cleanProfileName || !cleanCity || !cleanAge) {
+      Alert.alert('Dati mancanti', 'Inserisci nome utente, città ed età.');
+      return;
+    }
+
+    const numericAge = Number(cleanAge);
+
+    if (!Number.isInteger(numericAge) || numericAge < 18 || numericAge > 99) {
+      Alert.alert('Età non valida', 'Inserisci un’età reale. Bajuju è riservato a utenti maggiorenni.');
+      return;
+    }
+
     setSaving(true);
 
+    const nameField = firstKey(profile, ['nickname', 'username', 'display_name', 'full_name', 'name', 'nome'], 'username');
     const cityField = firstKey(profile, ['city', 'citta', 'comune', 'location_city'], 'city');
-    const ageField = firstKey(profile, ['age_range', 'fascia_eta', 'age_band', 'eta_range'], 'age_range');
+    const ageField = firstKey(profile, ['age', 'eta', 'età', 'user_age', 'age_range', 'fascia_eta', 'age_band', 'eta_range'], 'age');
     const genderField = firstKey(profile, ['gender', 'genere', 'sex'], 'gender');
     const directContactsField = firstKey(
       profile,
@@ -630,8 +649,9 @@ export default function ProfileScreen() {
     );
 
     const payload: LooseRow = {
-      [cityField]: city.trim(),
-      [ageField]: ageRange,
+      [nameField]: cleanProfileName,
+      [cityField]: cleanCity,
+      [ageField]: numericAge,
       [genderField]: gender,
       allow_direct_contacts: directContactsEnabled,
     };
@@ -651,6 +671,7 @@ export default function ProfileScreen() {
       } else {
         const insertPayload: LooseRow = {
           id: user.id,
+          user_id: user.id,
           email: user.email,
           ...payload,
         };
@@ -665,7 +686,7 @@ export default function ProfileScreen() {
     } finally {
       setSaving(false);
     }
-  }, [ageRange, city, directContactsEnabled, gender, loadAll, profile, profileIdField, profileIdValue, user]);
+  }, [ageRange, city, directContactsEnabled, gender, loadAll, profile, profileIdField, profileIdValue, profileName, user]);
 
   const answerItem = useCallback(
     async (item: ContactItem | InviteItem, status: 'accepted' | 'rejected') => {
@@ -808,6 +829,15 @@ export default function ProfileScreen() {
 
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>Dati profilo</Text>
+
+        <Text style={styles.label}>Nome utente</Text>
+        <TextInput
+          value={profileName}
+          onChangeText={setProfileName}
+          placeholder="Scegli il tuo nome utente"
+          style={styles.input}
+          autoCapitalize="words"
+        />
 
         <Text style={styles.label}>Città</Text>
         <TextInput

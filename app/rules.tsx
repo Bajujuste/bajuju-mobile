@@ -5,6 +5,10 @@ import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-nati
 export default function RulesScreen() {
   return (
     <ScrollView contentContainerStyle={styles.page}>
+      <TouchableOpacity style={styles.topBackButton} onPress={() => router.back()}>
+        <Text style={styles.topBackButtonText}>← Indietro</Text>
+      </TouchableOpacity>
+
       <View style={styles.card}>
         <Text style={styles.kicker}>Bajuju</Text>
         <Text style={styles.title}>Regole community</Text>
@@ -24,6 +28,21 @@ export default function RulesScreen() {
 }
 
 const styles = StyleSheet.create({
+  topBackButton: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#ffffff',
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#ffd3e6',
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    marginBottom: 12,
+  },
+  topBackButtonText: {
+    color: '#e43f98',
+    fontSize: 15,
+    fontWeight: '800',
+  },
   page: {
     flexGrow: 1,
     backgroundColor: '#fff8fb',

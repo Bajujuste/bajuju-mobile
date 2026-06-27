@@ -297,12 +297,17 @@ function openMap(row: LooseRow) {
   });
 }
 
-async function geocodeAddress(address: string, city: string, province: string) {
+async function geocodeAddress(address: string, streetNumber: string, city: string, province: string) {
   const cleanAddress = address.trim();
+  const cleanStreetNumber = streetNumber.trim();
   const cleanCity = city.trim();
   const cleanProvince = province.trim();
 
+  const fullAddress = cleanStreetNumber ? `${cleanAddress} ${cleanStreetNumber}` : cleanAddress;
+
   const queries = [
+    `${fullAddress}, ${cleanCity}, ${cleanProvince}, Italia`,
+    `${fullAddress}, ${cleanCity}, Italia`,
     `${cleanAddress}, ${cleanCity}, ${cleanProvince}, Italia`,
     `${cleanAddress}, ${cleanCity}, Italia`,
     `${cleanAddress}, ${cleanProvince}, Italia`,
@@ -316,6 +321,7 @@ async function geocodeAddress(address: string, city: string, province: string) {
       const response = await fetch(url, {
         headers: {
           Accept: 'application/json',
+          'User-Agent': 'BajujuMobileApp/1.0',
         },
       });
 
@@ -369,6 +375,7 @@ export default function FlashScreen() {
   const [newProvince, setNewProvince] = useState('Bergamo');
   const [newCity, setNewCity] = useState('');
   const [newPlace, setNewPlace] = useState('');
+  const [newStreetNumber, setNewStreetNumber] = useState('');
   const [newDurationHours, setNewDurationHours] = useState<FlashDuration>(2);
   const [savingFlash, setSavingFlash] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -536,9 +543,10 @@ export default function FlashScreen() {
     const cleanProvince = newProvince.trim();
     const cleanCity = newCity.trim();
     const cleanPlace = newPlace.trim();
+    const cleanStreetNumber = newStreetNumber.trim();
     if (!cleanTitle || !cleanProvince || !cleanCity || !cleanPlace) {
       if (typeof window !== 'undefined') {
-        window.alert('Compila titolo, provincia, comune e indirizzo preciso.');
+        window.alert('Compila titolo, provincia, comune e indirizzo. Il numero civico è separato e consigliato.');
       }
       return;
     }
@@ -584,12 +592,12 @@ export default function FlashScreen() {
       const cleanTime = now.toTimeString().slice(0, 8);
       const expiresAt = new Date(now.getTime() + newDurationHours * 60 * 60 * 1000).toISOString();
 
-      const coordinates = await geocodeAddress(cleanPlace, cleanCity, cleanProvince);
+      const coordinates = await geocodeAddress(cleanPlace, cleanStreetNumber, cleanCity, cleanProvince);
 
       if (!coordinates) {
         if (typeof window !== 'undefined') {
           window.alert(
-            'Indirizzo non trovato. Inserisci un indirizzo reale e completo con via, numero civico, comune corretto e provincia.'
+            'Indirizzo non trovato. Controlla via e comune, oppure prova a togliere o correggere il numero civico.'
           );
         }
         return;
@@ -602,7 +610,7 @@ export default function FlashScreen() {
         description: `Bajuju Flash creato da mobile app. Disponibile per ${newDurationHours} ore.`,
         city: cleanCity,
         province: cleanProvince,
-        meeting_place: cleanPlace,
+        meeting_place: cleanStreetNumber ? `${cleanPlace} ${cleanStreetNumber}` : cleanPlace,
         activity_date: cleanDate,
         activity_time: cleanTime,
         min_participants: 1,
@@ -625,6 +633,7 @@ export default function FlashScreen() {
       setNewTitle('');
       setNewCity('');
       setNewPlace('');
+      setNewStreetNumber('');
       setSelectedProvince('Tutte');
       setSelectedTab('all');
       setShowCreateForm(false);
@@ -637,7 +646,7 @@ export default function FlashScreen() {
     } finally {
       setSavingFlash(false);
     }
-  }, [loadFlashRows, newCity, newDurationHours, newPlace, newProvince, newTitle, savingFlash]);
+  }, [loadFlashRows, newCity, newDurationHours, newPlace, newProvince, newStreetNumber, newTitle, savingFlash]);
 
   const joinFlash = useCallback(async (row: LooseRow) => {
     const activityId = String(firstValue(row, ['id', 'activity_id'], ''));
@@ -967,16 +976,25 @@ export default function FlashScreen() {
             <TextInput
               value={newCity}
               onChangeText={setNewCity}
-              placeholder="Es. Caprino Bergamasco"
+              placeholder="Es. Bergamo"
               placeholderTextColor="#a36a86"
               style={styles.input}
             />
 
-            <Text style={styles.label}>Indirizzo preciso e numero civico</Text>
+            <Text style={styles.label}>Indirizzo</Text>
             <TextInput
               value={newPlace}
               onChangeText={setNewPlace}
-              placeholder="Es. Via Roma 12"
+              placeholder="Es. Via Roma"
+              placeholderTextColor="#a36a86"
+              style={styles.input}
+            />
+
+            <Text style={styles.label}>Numero civico</Text>
+            <TextInput
+              value={newStreetNumber}
+              onChangeText={(value) => setNewStreetNumber(value.replace(/[^0-9a-zA-Z\/\-]/g, '').slice(0, 8))}
+              placeholder="Es. 12"
               placeholderTextColor="#a36a86"
               style={styles.input}
             />
@@ -998,7 +1016,7 @@ export default function FlashScreen() {
 
             <Text style={styles.formNote}>
               Per i Flash non devi inserire data e ora: partono subito e restano disponibili per il tempo scelto.
-              L'indirizzo deve essere preciso perché poi verrà usato per la mappa.
+              Inserisci via e numero civico separati: se il civico non viene trovato, Bajuju prova comunque a cercare la via.
             </Text>
 
             <Pressable
@@ -1016,6 +1034,7 @@ export default function FlashScreen() {
                 setNewTitle('');
                 setNewCity('');
                 setNewPlace('');
+                setNewStreetNumber('');
                 setNewProvince('Bergamo');
                 setNewDurationHours(2);
                 setShowCreateForm(false);

@@ -51,6 +51,9 @@ export default function RegisterScreen() {
       const result = await supabase.auth.signUp({
         email: cleanEmail,
         password,
+        options: {
+          emailRedirectTo: 'bajujumobile://auth/callback',
+        },
       });
 
       if (result.error) {

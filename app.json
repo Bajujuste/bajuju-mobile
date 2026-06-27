@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "bajuju-mobile",
+    "name": "Bajuju",
     "slug": "bajuju-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -28,7 +28,8 @@
       "navigationBar": {
         "backgroundColor": "#fff8fb",
         "barStyle": "dark-content"
-      }
+      },
+      "package": "it.bajuju.mobile"
     },
     "web": {
       "output": "static",
@@ -52,6 +53,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "56e5c74b-9d60-49d5-bec0-70ea0bb2704a"
+      }
     }
   }
 }

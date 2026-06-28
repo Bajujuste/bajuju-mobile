@@ -75,27 +75,39 @@ function getOrganizerId(row: LooseRow | null | undefined) {
 }
 
 async function tryDeleteActivity(activityId: string) {
-  const now = new Date().toISOString();
+  const cleanActivityId = String(activityId || '').trim();
 
-  const attempts = [
-    { deleted_at: now, status: 'deleted' },
-    { deleted_at: now },
-    { is_deleted: true, status: 'deleted' },
-    { hidden: true, status: 'deleted' },
-    { status: 'deleted' },
-    { stato: 'eliminato' },
-  ];
-
-  for (const payload of attempts) {
-    try {
-      const result = await supabase.from('activities').update(payload).eq('id', activityId);
-      if (!result.error) return { ok: true, message: '' };
-    } catch {
-      // Prova prossimo payload.
-    }
+  if (!cleanActivityId) {
+    return {
+      ok: false,
+      message: 'ID evento non disponibile.',
+    };
   }
 
-  return { ok: false, message: 'Non sono riuscito a eliminare l’evento. Probabile policy Supabase o colonna mancante.' };
+  const now = new Date().toISOString();
+
+  const result = await supabase
+    .from('activities')
+    .update({ deleted_at: now })
+    .eq('id', cleanActivityId)
+    .select('id,deleted_at')
+    .maybeSingle();
+
+  if (result.error) {
+    return {
+      ok: false,
+      message: result.error.message || 'Errore Supabase durante eliminazione evento.',
+    };
+  }
+
+  if (result.data?.deleted_at) {
+    return { ok: true, message: '' };
+  }
+
+  return {
+    ok: false,
+    message: 'La riga evento è stata trovata, ma deleted_at non è stato compilato.',
+  };
 }
 
 export default function AdminEventDetailScreen() {

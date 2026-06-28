@@ -14,6 +14,9 @@ import { supabase } from '../src/lib/supabase';
 
 const bajujuLogo = require('../assets/brand/bajuju-logo.png');
 
+const BAJUJU_CREATOR_EMAIL = 'royaleventi@gmail.com';
+const BAJUJU_PINK = '#e43f98';
+
 type LooseRow = Record<string, any>;
 
 function firstText(row: LooseRow | null | undefined, keys: string[], fallback = '') {
@@ -40,6 +43,37 @@ function organizerGrade(count: number) {
   if (count > 10) return 'Organizzatore esperto';
   if (count > 5) return 'Organizzatore attivo';
   return 'Organizzatore base';
+}
+
+
+function booleanFromRow(row: LooseRow | null | undefined, keys: string[], fallback = false) {
+  if (!row) return fallback;
+
+  for (const key of keys) {
+    const value = row[key];
+
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'string') {
+      const normalized = value.trim().toLowerCase();
+      if (['true', '1', 'yes', 'si', 'sì'].includes(normalized)) return true;
+      if (['false', '0', 'no'].includes(normalized)) return false;
+    }
+    if (typeof value === 'number') return value === 1;
+  }
+
+  return fallback;
+}
+
+function isCreatorProfile(profile: LooseRow | null) {
+  const email = firstText(profile, ['email'], '').trim().toLowerCase();
+  return email === BAJUJU_CREATOR_EMAIL;
+}
+
+function isAdminProfile(profile: LooseRow | null) {
+  return (
+    booleanFromRow(profile, ['is_admin', 'admin', 'is_master', 'master'], false) ||
+    ['admin', 'master', 'superadmin'].includes(firstText(profile, ['role', 'ruolo', 'user_role'], '').toLowerCase())
+  );
 }
 
 function organizerGradeHint(count: number) {
@@ -173,7 +207,10 @@ export default function UserProfileScreen() {
   const age = firstText(profile, ['age', 'eta', 'età', 'user_age', 'age_range', 'fascia_eta', 'age_band', 'eta_range'], '');
   const gender = firstText(profile, ['gender', 'genere'], '');
   const photo = firstPhoto(profile);
-  const grade = organizerGrade(organizedCount);
+  const isCreator = isCreatorProfile(profile);
+  const isAdmin = isAdminProfile(profile);
+  const isAdminOrCreator = isCreator || isAdmin;
+  const grade = isCreator ? 'Creatore app' : isAdmin ? 'Admin' : organizerGrade(organizedCount);
 
   return (
     <ScrollView style={styles.page} contentContainerStyle={styles.content}>
@@ -214,19 +251,21 @@ export default function UserProfileScreen() {
             <View
               style={[
                 styles.gradeBadge,
-                organizedCount > 20
-                  ? styles.gradeBadgeGold
-                  : organizedCount > 10
-                    ? styles.gradeBadgeStrong
-                    : organizedCount > 5
-                      ? styles.gradeBadgeGreen
-                      : styles.gradeBadgeBase,
+                  isAdminOrCreator
+                    ? styles.gradeBadgeAdmin
+                    : organizedCount > 20
+                      ? styles.gradeBadgeGold
+                      : organizedCount > 10
+                        ? styles.gradeBadgeStrong
+                        : organizedCount > 5
+                          ? styles.gradeBadgeGreen
+                          : styles.gradeBadgeBase,
               ]}
             >
               <Text style={styles.gradeText}>{grade}</Text>
             </View>
 
-            <Text style={styles.gradeHint}>{organizerGradeHint(organizedCount)}</Text>
+            <Text style={styles.gradeHint}>{isAdminOrCreator ? 'Profilo ufficiale Bajuju' : organizerGradeHint(organizedCount)}</Text>
           </View>
 
           <View style={styles.statsGrid}>
@@ -310,6 +349,7 @@ const styles = StyleSheet.create({
   photoFrameBase: { borderWidth: 3, borderColor: '#ffffff' },
   photoFrameGreen: { borderWidth: 3, borderColor: '#2fb36d' },
   photoFrameStrong: { borderWidth: 3, borderColor: '#e44848' },
+  photoFrameAdmin: { borderWidth: 3, borderColor: BAJUJU_PINK },
   photoFrameGold: { borderWidth: 3, borderColor: '#d9a441' },
   photo: {
     width: '100%',
@@ -333,6 +373,7 @@ const styles = StyleSheet.create({
   gradeBadgeBase: { backgroundColor: '#fff0f7' },
   gradeBadgeGreen: { backgroundColor: '#e8fff2' },
   gradeBadgeStrong: { backgroundColor: '#fff1f1' },
+  gradeBadgeAdmin: { backgroundColor: '#ffe3f0' },
   gradeBadgeGold: { backgroundColor: '#fff7db' },
   gradeText: {
     fontSize: 14,

@@ -16,6 +16,9 @@ import { supabase } from '../src/lib/supabase';
 
 const bajujuLogo = require('../assets/brand/bajuju-logo.png');
 
+const BAJUJU_CREATOR_EMAIL = 'royaleventi@gmail.com';
+const BAJUJU_PINK = '#e43f98';
+
 type LooseRow = Record<string, any>;
 
 type ContactItem = {
@@ -333,6 +336,10 @@ export default function ProfileScreen() {
   const [user, setUser] = useState<LooseRow | null>(null);
   const [profile, setProfile] = useState<LooseRow | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+
+  const cleanUserEmail = (user?.email || '').trim().toLowerCase();
+  const isCreatorApp = cleanUserEmail === BAJUJU_CREATOR_EMAIL;
+  const isAdminOrCreator = isAdmin || isCreatorApp;
 
   const [profileName, setProfileName] = useState('');
   const [city, setCity] = useState('');
@@ -782,13 +789,15 @@ export default function ProfileScreen() {
         <View
           style={[
             styles.photoBox,
-            organizedActivities.length > 20
-              ? styles.photoBoxGold
-              : organizedActivities.length > 10
-                ? styles.photoBoxStrong
-                : organizedActivities.length > 5
-                  ? styles.photoBoxGreen
-                  : styles.photoBoxBase,
+            isAdminOrCreator
+              ? styles.photoBoxAdmin
+              : organizedActivities.length > 20
+                ? styles.photoBoxGold
+                : organizedActivities.length > 10
+                  ? styles.photoBoxStrong
+                  : organizedActivities.length > 5
+                    ? styles.photoBoxGreen
+                    : styles.photoBoxBase,
           ]}
         >
           {shouldShowProfilePhoto ? (
@@ -800,26 +809,31 @@ export default function ProfileScreen() {
         <View style={styles.headerText}>
           <Text style={styles.name}>{name}</Text>
           <Text style={styles.email}>{user?.email}</Text>
-          {isAdmin ? <Text style={styles.adminBadge}>Admin</Text> : null}
           <Text
             style={[
               styles.organizerBadge,
-              organizedActivities.length > 20
-                ? styles.organizerBadgeGold
-                : organizedActivities.length > 10
-                  ? styles.organizerBadgeStrong
-                  : organizedActivities.length > 5
-                    ? styles.organizerBadgeGreen
-                    : styles.organizerBadgeBase,
+              isAdminOrCreator
+                ? styles.organizerBadgeAdmin
+                : organizedActivities.length > 20
+                  ? styles.organizerBadgeGold
+                  : organizedActivities.length > 10
+                    ? styles.organizerBadgeStrong
+                    : organizedActivities.length > 5
+                      ? styles.organizerBadgeGreen
+                      : styles.organizerBadgeBase,
             ]}
           >
-            {organizedActivities.length > 20
-              ? 'Organizzatore top'
-              : organizedActivities.length > 10
-                ? 'Organizzatore esperto'
-                : organizedActivities.length > 5
-                  ? 'Organizzatore attivo'
-                  : 'Organizzatore base'}
+            {isCreatorApp
+              ? 'Creatore app'
+              : isAdmin
+                ? 'Admin'
+                : organizedActivities.length > 20
+                  ? 'Organizzatore top'
+                  : organizedActivities.length > 10
+                    ? 'Organizzatore esperto'
+                    : organizedActivities.length > 5
+                      ? 'Organizzatore attivo'
+                      : 'Organizzatore base'}
           </Text>
           {photoLoadError ? (
             <Text style={styles.photoErrorText}>
@@ -1096,6 +1110,9 @@ const styles = StyleSheet.create({
   photoBoxStrong: {
     borderColor: '#ef2d82',
   },
+  photoBoxAdmin: {
+    borderColor: BAJUJU_PINK,
+  },
   photoBoxGold: {
     borderColor: '#d8a600',
   },
@@ -1154,6 +1171,10 @@ const styles = StyleSheet.create({
     color: '#ef2d82',
     borderWidth: 1,
     borderColor: '#ef2d82',
+  },
+  organizerBadgeAdmin: {
+    backgroundColor: '#ffe3f0',
+    borderColor: BAJUJU_PINK,
   },
   organizerBadgeGold: {
     backgroundColor: '#fff6ce',

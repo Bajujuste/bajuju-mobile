@@ -21,6 +21,12 @@ type ParticipantItem = {
   email: string;
 };
 
+type OrganizerItem = {
+  id: string;
+  name: string;
+  email: string;
+};
+
 function firstText(row: LooseRow | null | undefined, keys: string[], fallback = '') {
   if (!row) return fallback;
   for (const key of keys) {
@@ -64,6 +70,10 @@ function profileName(row: LooseRow | null | undefined, fallback: string) {
   return firstText(row, ['nickname', 'username', 'display_name', 'full_name', 'name', 'nome', 'email'], fallback);
 }
 
+function getOrganizerId(row: LooseRow | null | undefined) {
+  return String(firstValue(row, ['creator_id', 'organizer_id', 'created_by', 'user_id', 'profile_id']) || '').trim();
+}
+
 async function tryDeleteActivity(activityId: string) {
   const now = new Date().toISOString();
 
@@ -95,6 +105,7 @@ export default function AdminEventDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activity, setActivity] = useState<LooseRow | null>(null);
+  const [organizer, setOrganizer] = useState<OrganizerItem | null>(null);
   const [participants, setParticipants] = useState<ParticipantItem[]>([]);
 
   const loadActivity = useCallback(async () => {
@@ -110,6 +121,37 @@ export default function AdminEventDetailScreen() {
     } else {
       setActivity(null);
     }
+  }, [activityId]);
+
+  const loadOrganizer = useCallback(async () => {
+    setOrganizer(null);
+
+    if (!activityId) return;
+
+    const activityResult = await supabase.from('activities').select('*').eq('id', activityId).maybeSingle();
+
+    if (activityResult.error || !activityResult.data) return;
+
+    const row = activityResult.data as LooseRow;
+    const organizerId = getOrganizerId(row);
+
+    if (!organizerId) return;
+
+    let profile: LooseRow | null = null;
+
+    const byId = await supabase.from('profiles').select('*').eq('id', organizerId).maybeSingle();
+    if (!byId.error && byId.data) profile = byId.data as LooseRow;
+
+    if (!profile) {
+      const byUserId = await supabase.from('profiles').select('*').eq('user_id', organizerId).maybeSingle();
+      if (!byUserId.error && byUserId.data) profile = byUserId.data as LooseRow;
+    }
+
+    setOrganizer({
+      id: String(firstValue(profile, ['id', 'user_id']) || organizerId),
+      name: profileName(profile, 'Organizzatore non trovato'),
+      email: firstText(profile, ['email'], 'Email non disponibile'),
+    });
   }, [activityId]);
 
   const loadParticipants = useCallback(async () => {
@@ -153,8 +195,8 @@ export default function AdminEventDetailScreen() {
   }, [activityId]);
 
   const loadAll = useCallback(async () => {
-    await Promise.all([loadActivity(), loadParticipants()]);
-  }, [loadActivity, loadParticipants]);
+    await Promise.all([loadActivity(), loadOrganizer(), loadParticipants()]);
+  }, [loadActivity, loadOrganizer, loadParticipants]);
 
   useEffect(() => {
     let mounted = true;
@@ -247,10 +289,19 @@ export default function AdminEventDetailScreen() {
             </View>
 
             <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Organizzatore ID</Text>
-              <Text style={styles.detailValue}>
-                {String(firstValue(activity, ['creator_id', 'organizer_id', 'created_by', 'user_id', 'profile_id']) || 'Non disponibile')}
-              </Text>
+              <Text style={styles.detailLabel}>Organizzatore</Text>
+
+              {organizer ? (
+                <Pressable
+                  style={styles.organizerButton}
+                  onPress={() => router.push(`/admin-user-detail?id=${organizer.id}`)}
+                >
+                  <Text style={styles.organizerName}>{organizer.name}</Text>
+                  <Text style={styles.organizerEmail}>{organizer.email}</Text>
+                </Pressable>
+              ) : (
+                <Text style={styles.detailValue}>Organizzatore non disponibile</Text>
+              )}
             </View>
           </View>
 
@@ -349,6 +400,25 @@ const styles = StyleSheet.create({
     color: '#4b1430',
     fontSize: 24,
     fontWeight: '900',
+  },
+  organizerButton: {
+    backgroundColor: '#fff0f7',
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: '#ffd3e6',
+  },
+  organizerName: {
+    color: '#e43f98',
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  organizerEmail: {
+    color: '#7b4960',
+    fontSize: 13,
+    fontWeight: '800',
+    marginTop: 3,
   },
   sectionTitle: {
     color: '#4b1430',

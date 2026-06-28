@@ -190,10 +190,16 @@ export default function CreateExperienceScreen() {
         </Pressable>
 
         <View style={styles.header}>
-          <Text style={styles.logoText}>Crea esperienza</Text>
+          <Text style={styles.logoText}>Crea esperienza ✨</Text>
           <Text style={styles.subtitle}>
-            Proponi qualcosa da fare dal vivo e lascia che altre persone si uniscano.
+            Prepara una nuova esperienza Bajuju: titolo, luogo, orario e anteprima finale.
           </Text>
+
+          <View style={styles.createHeroTips}>
+            <Text style={styles.createHeroTip}>📝 Compila i dati principali</Text>
+            <Text style={styles.createHeroTip}>📍 Indica dove trovarsi</Text>
+            <Text style={styles.createHeroTip}>🚀 Pubblica e invita persone</Text>
+          </View>
         </View>
 
         <View style={styles.card}>
@@ -205,34 +211,34 @@ export default function CreateExperienceScreen() {
             value={title}
             onChangeText={setTitle}
             placeholder="Es. Aperitivo, museo, trekking..."
-            placeholderTextColor="#b36a91"
+            placeholderTextColor="#a95d86"
             style={styles.input}
           />
 
-          <Text style={styles.label}>Provincia</Text>
+          <Text style={styles.label}>📍 Provincia</Text>
           <TextInput
             value={province}
             onChangeText={setProvince}
             placeholder="Es. Bergamo"
-            placeholderTextColor="#b36a91"
+            placeholderTextColor="#a95d86"
             style={styles.input}
           />
 
-          <Text style={styles.label}>Comune</Text>
+          <Text style={styles.label}>🏙️ Comune</Text>
           <TextInput
             value={city}
             onChangeText={setCity}
             placeholder="Es. Caprino Bergamasco"
-            placeholderTextColor="#b36a91"
+            placeholderTextColor="#a95d86"
             style={styles.input}
           />
 
-          <Text style={styles.label}>Punto di ritrovo</Text>
+          <Text style={styles.label}>📌 Punto di ritrovo</Text>
           <TextInput
             value={meetingPlace}
             onChangeText={setMeetingPlace}
             placeholder="Es. Piazza principale, ingresso bar, parcheggio..."
-            placeholderTextColor="#b36a91"
+            placeholderTextColor="#a95d86"
             style={styles.input}
             maxLength={120}
           />
@@ -242,7 +248,7 @@ export default function CreateExperienceScreen() {
             value={description}
             onChangeText={setDescription}
             placeholder="Spiega cosa si farà, per chi è adatta e cosa portare."
-            placeholderTextColor="#b36a91"
+            placeholderTextColor="#a95d86"
             style={[styles.input, styles.textArea]}
             multiline
             maxLength={500}
@@ -251,7 +257,7 @@ export default function CreateExperienceScreen() {
             Massimo 500 caratteri.
           </Text>
 
-          <Text style={styles.label}>Data</Text>
+          <Text style={styles.label}>🗓️ Data</Text>
           <Text style={styles.helperText}>Formato europeo: GG/MM/AAAA — esempio 26/06/2026</Text>
 
           <View style={styles.datePartsRow}>
@@ -259,7 +265,7 @@ export default function CreateExperienceScreen() {
               value={day}
               onChangeText={(value) => setDay(onlyDigits(value, 2))}
               placeholder="GG"
-              placeholderTextColor="#b36a91"
+              placeholderTextColor="#a95d86"
               style={styles.smallInput}
               keyboardType="number-pad"
               maxLength={2}
@@ -269,7 +275,7 @@ export default function CreateExperienceScreen() {
               value={month}
               onChangeText={(value) => setMonth(onlyDigits(value, 2))}
               placeholder="MM"
-              placeholderTextColor="#b36a91"
+              placeholderTextColor="#a95d86"
               style={styles.smallInput}
               keyboardType="number-pad"
               maxLength={2}
@@ -279,14 +285,14 @@ export default function CreateExperienceScreen() {
               value={year}
               onChangeText={(value) => setYear(onlyDigits(value, 4))}
               placeholder="AAAA"
-              placeholderTextColor="#b36a91"
+              placeholderTextColor="#a95d86"
               style={styles.yearInput}
               keyboardType="number-pad"
               maxLength={4}
             />
           </View>
 
-          <Text style={styles.label}>Ora</Text>
+          <Text style={styles.label}>⏰ Ora</Text>
           <Text style={styles.helperText}>Formato 24 ore: HH:MM — esempio 18:30</Text>
 
           <View style={styles.datePartsRow}>
@@ -294,7 +300,7 @@ export default function CreateExperienceScreen() {
               value={hour}
               onChangeText={(value) => setHour(onlyDigits(value, 2))}
               placeholder="HH"
-              placeholderTextColor="#b36a91"
+              placeholderTextColor="#a95d86"
               style={styles.smallInput}
               keyboardType="number-pad"
               maxLength={2}
@@ -304,7 +310,7 @@ export default function CreateExperienceScreen() {
               value={minute}
               onChangeText={(value) => setMinute(onlyDigits(value, 2))}
               placeholder="MM"
-              placeholderTextColor="#b36a91"
+              placeholderTextColor="#a95d86"
               style={styles.smallInput}
               keyboardType="number-pad"
               maxLength={2}
@@ -340,12 +346,12 @@ export default function CreateExperienceScreen() {
             ))}
           </View>
 
-          <Text style={styles.label}>Numero massimo partecipanti</Text>
+          <Text style={styles.label}>👥 Numero massimo partecipanti</Text>
           <TextInput
             value={maxParticipants}
             onChangeText={(value) => setMaxParticipants(onlyDigits(value, 2))}
             placeholder="Es. 10"
-            placeholderTextColor="#b36a91"
+            placeholderTextColor="#a95d86"
             style={styles.input}
             keyboardType="number-pad"
             maxLength={2}
@@ -356,12 +362,12 @@ export default function CreateExperienceScreen() {
 
           {needsBudget ? (
             <>
-              <Text style={styles.label}>Budget indicativo €</Text>
+              <Text style={styles.label}>💶 Budget indicativo €</Text>
               <TextInput
                 value={budgetAmount}
                 onChangeText={(value) => setBudgetAmount(onlyDigits(value, 4))}
                 placeholder="Es. 50"
-                placeholderTextColor="#b36a91"
+                placeholderTextColor="#a95d86"
                 style={styles.input}
                 keyboardType="number-pad"
                 maxLength={4}
@@ -373,7 +379,7 @@ export default function CreateExperienceScreen() {
           ) : null}
 
           <View style={styles.previewBox}>
-            <Text style={styles.previewTitle}>Anteprima esperienza</Text>
+            <Text style={styles.previewTitle}>Come apparirà la tua esperienza</Text>
             <Text style={styles.previewText}>
               {title.trim() || 'Titolo esperienza'}
             </Text>
@@ -410,7 +416,7 @@ export default function CreateExperienceScreen() {
           </Pressable>
 
           <Text style={styles.note}>
-            Il pulsante si attiva solo quando data, ora e dati principali sono corretti.
+            Completa tutti i dati richiesti: poi potrai pubblicare la tua esperienza.
           </Text>
         </View>
       </ScrollView>
@@ -421,35 +427,35 @@ export default function CreateExperienceScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#fffafd',
   },
   container: {
     flexGrow: 1,
     padding: 20,
-    paddingTop: 64,
+    paddingTop: 44,
     paddingBottom: 32,
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#fffafd',
   },
   backButton: {
     alignSelf: 'flex-start',
-    marginBottom: 18,
+    marginBottom: 14,
     paddingVertical: 9,
     paddingHorizontal: 13,
     borderRadius: 999,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#fffafd',
     borderWidth: 1,
-    borderColor: '#ffd3e7',
+    borderColor: '#f2a8cc',
   },
   backText: {
     fontSize: 14,
     fontWeight: '800',
-    color: '#9b1f61',
+    color: '#8f1658',
   },
   header: {
-    marginBottom: 18,
+    marginBottom: 14,
   },
   logoText: {
-    fontSize: 34,
+    fontSize: 36,
     fontWeight: '900',
     color: '#e43f98',
     letterSpacing: -0.6,
@@ -459,23 +465,23 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22,
     fontWeight: '700',
-    color: '#6b3652',
+    color: '#4c1835',
   },
   card: {
     width: '100%',
-    borderRadius: 28,
-    padding: 16,
-    backgroundColor: '#ffffff',
+    borderRadius: 34,
+    padding: 20,
+    backgroundColor: '#fffafd',
     borderWidth: 1,
-    borderColor: '#ffd3e7',
+    borderColor: '#f2a8cc',
     shadowColor: '#e43f98',
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.18,
+    shadowRadius: 28,
+    shadowOffset: { width: 0, height: 14 },
     elevation: 3,
   },
   sectionEyebrow: {
-    color: '#9b1f61',
+    color: '#8f1658',
     fontSize: 12,
     fontWeight: '900',
     textTransform: 'uppercase',
@@ -483,35 +489,35 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   title: {
-    fontSize: 25,
+    fontSize: 27,
     fontWeight: '900',
     color: '#e43f98',
-    marginBottom: 18,
+    marginBottom: 14,
     letterSpacing: -0.4,
   },
   label: {
     fontSize: 14,
     fontWeight: '900',
-    color: '#9b1f61',
+    color: '#8f1658',
     marginBottom: 6,
   },
   helperText: {
     marginBottom: 8,
-    color: '#b36a91',
+    color: '#a95d86',
     fontSize: 12,
     fontWeight: '700',
   },
   input: {
-    minHeight: 52,
-    borderRadius: 18,
+    minHeight: 54,
+    borderRadius: 999,
     borderWidth: 1,
-    borderColor: '#ffd3e7',
-    backgroundColor: '#fff8fb',
+    borderColor: '#f2a8cc',
+    backgroundColor: '#fffafd',
     paddingHorizontal: 16,
-    fontSize: 16,
-    color: '#6b3652',
+    fontSize: 18,
+    color: '#4c1835',
     marginBottom: 16,
-    fontWeight: '600',
+    fontWeight: '800',
   },
   datePartsRow: {
     flexDirection: 'row',
@@ -521,26 +527,26 @@ const styles = StyleSheet.create({
   },
   smallInput: {
     width: 64,
-    height: 52,
-    borderRadius: 18,
+    height: 58,
+    borderRadius: 999,
     borderWidth: 1,
-    borderColor: '#ffd3e7',
-    backgroundColor: '#fff8fb',
+    borderColor: '#f2a8cc',
+    backgroundColor: '#fffafd',
     textAlign: 'center',
-    fontSize: 16,
-    color: '#6b3652',
+    fontSize: 18,
+    color: '#4c1835',
     fontWeight: '900',
   },
   yearInput: {
     width: 92,
-    height: 52,
-    borderRadius: 18,
+    height: 58,
+    borderRadius: 999,
     borderWidth: 1,
-    borderColor: '#ffd3e7',
-    backgroundColor: '#fff8fb',
+    borderColor: '#f2a8cc',
+    backgroundColor: '#fffafd',
     textAlign: 'center',
-    fontSize: 16,
-    color: '#6b3652',
+    fontSize: 18,
+    color: '#4c1835',
     fontWeight: '900',
   },
   separator: {
@@ -549,7 +555,7 @@ const styles = StyleSheet.create({
     color: '#e43f98',
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '900',
     color: '#e43f98',
     marginBottom: 12,
@@ -558,24 +564,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 9,
-    marginBottom: 18,
+    marginBottom: 14,
   },
   categoryButton: {
     borderRadius: 999,
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#fffafd',
     borderWidth: 1,
-    borderColor: '#ffd3e7',
+    borderColor: '#f2a8cc',
     paddingVertical: 9,
     paddingHorizontal: 13,
   },
   categoryButtonActive: {
     backgroundColor: '#e43f98',
     borderColor: '#e43f98',
+    shadowColor: '#e43f98',
+    shadowOpacity: 0.28,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 7 },
+    elevation: 5,
   },
   categoryText: {
     fontSize: 14,
     fontWeight: '900',
-    color: '#9b1f61',
+    color: '#8f1658',
   },
   categoryTextActive: {
     color: '#ffffff',
@@ -588,9 +599,9 @@ const styles = StyleSheet.create({
   previewBox: {
     borderRadius: 22,
     padding: 15,
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#fffafd',
     borderWidth: 1,
-    borderColor: '#ffd3e7',
+    borderColor: '#f2a8cc',
     marginBottom: 16,
   },
   previewTitle: {
@@ -602,18 +613,18 @@ const styles = StyleSheet.create({
   previewText: {
     fontSize: 18,
     fontWeight: '900',
-    color: '#9b1f61',
+    color: '#8f1658',
     marginBottom: 4,
   },
   previewSmall: {
     fontSize: 13,
-    color: '#6b3652',
+    color: '#4c1835',
     fontWeight: '700',
     marginTop: 2,
   },
   mainButton: {
-    height: 52,
-    borderRadius: 18,
+    height: 58,
+    borderRadius: 999,
     backgroundColor: '#e43f98',
     alignItems: 'center',
     justifyContent: 'center',
@@ -623,15 +634,34 @@ const styles = StyleSheet.create({
   },
   mainButtonText: {
     color: '#ffffff',
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '900',
   },
   note: {
     marginTop: 14,
     fontSize: 12,
     lineHeight: 18,
-    color: '#9b1f61',
+    color: '#8f1658',
     textAlign: 'center',
     fontWeight: '700',
   },
+  createHeroTips: {
+    marginTop: 16,
+    borderRadius: 26,
+    backgroundColor: '#e43f98',
+    padding: 15,
+    gap: 8,
+    shadowColor: '#e43f98',
+    shadowOpacity: 0.22,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 5,
+  },
+  createHeroTip: {
+    color: '#ffffff',
+    fontSize: 14,
+    lineHeight: 19,
+    fontWeight: '900',
+  },
+
 });

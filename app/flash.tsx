@@ -853,7 +853,7 @@ export default function FlashScreen() {
         </Text>
 
         <Text style={styles.flashHeroText}>
-          Vuoi fare qualcosa adesso? Crea un Flash o trova persone disponibili nella tua zona.
+          Fatti vedere per 1, 2 o 3 ore. Organizza subito qualcosa o fatti invitare da chi è disponibile ora.
         </Text>
 
         <View style={styles.flashChoiceRow}>
@@ -865,7 +865,7 @@ export default function FlashScreen() {
             }}
           >
             <Text style={styles.flashChoiceIcon}>⚡</Text>
-            <Text style={styles.flashChoiceText}>Crea Flash</Text>
+            <Text style={styles.flashChoiceText}>⚡ ⚡ Crea un Flash</Text>
           </Pressable>
 
           <Pressable
@@ -873,17 +873,17 @@ export default function FlashScreen() {
             onPress={() => setSelectedSection('find')}
           >
             <Text style={styles.flashChoiceIcon}>🔎</Text>
-            <Text style={styles.flashChoiceText}>Trova Flash</Text>
+            <Text style={styles.flashChoiceText}>👀 👀 Trova chi c’è ora</Text>
           </Pressable>
         </View>
 
         <Text style={styles.flashHeroNote}>
-          I Flash durano poco: sono pensati per organizzarsi subito.
+          Flash è pensato per decidere adesso: poche ore, persone disponibili, zero perdite di tempo.
         </Text>
       </View>
 
       <View style={[styles.card, selectedSection !== 'find' && styles.hiddenSection]}>
-        <Text style={styles.sectionTitle}>Trova Flash</Text>
+        <Text style={styles.sectionTitle}>👀 👀 Trova chi c’è ora</Text>
 
         <Pressable style={styles.mapHighlightButton} onPress={() => router.push('/flash-map')}>
           <Text style={styles.mapHighlightIcon}>🗺️</Text>
@@ -936,7 +936,7 @@ export default function FlashScreen() {
       </View>
 
       <View style={[styles.card, selectedSection !== 'create' && styles.hiddenSection]}>
-        <Text style={styles.sectionTitle}>Crea Flash</Text>
+        <Text style={styles.sectionTitle}>⚡ ⚡ Crea un Flash</Text>
 
         <Pressable style={styles.secondaryButton} onPress={() => setShowCreateForm((value) => !value)}>
           <Text style={styles.secondaryButtonText}>
@@ -1024,7 +1024,7 @@ export default function FlashScreen() {
               onPress={createFlash}
               disabled={savingFlash}
             >
-              <Text style={styles.buttonText}>{savingFlash ? 'Creazione in corso...' : 'Crea Flash'}</Text>
+              <Text style={styles.buttonText}>{savingFlash ? 'Creazione in corso...' : '⚡ ⚡ Crea un Flash'}</Text>
             </Pressable>
 
             <Pressable
@@ -1223,7 +1223,7 @@ export default function FlashScreen() {
 const styles = StyleSheet.create({
   page: {
     flexGrow: 1,
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#fff0f7',
     padding: 20,
     gap: 16,
   },
@@ -1236,27 +1236,27 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     paddingHorizontal: 13,
     borderRadius: 999,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#fffafd',
     borderWidth: 1,
-    borderColor: '#ffd3e7',
+    borderColor: '#ef8fbe',
   },
   flashBackText: {
     fontSize: 14,
     fontWeight: '900',
-    color: '#9b1f61',
+    color: '#86104f',
   },
   flashHeroCard: {
-    borderRadius: 32,
+    borderRadius: 36,
     padding: 20,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#fffafd',
     borderWidth: 1,
-    borderColor: '#ffd3e7',
+    borderColor: '#ef8fbe',
     alignItems: 'center',
     shadowColor: '#e43f98',
-    shadowOpacity: 0.12,
-    shadowRadius: 18,
+    shadowOpacity: 0.26,
+    shadowRadius: 32,
     shadowOffset: { width: 0, height: 8 },
-    elevation: 5,
+    elevation: 9,
   },
   flashLogoCircle: {
     width: 178,
@@ -1284,7 +1284,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   flashHeroText: {
-    color: '#6b3652',
+    color: '#43152f',
     fontSize: 14,
     lineHeight: 21,
     fontWeight: '700',
@@ -1312,10 +1312,15 @@ const styles = StyleSheet.create({
   },
   flashFindChoiceButton: {
     backgroundColor: '#e43f98',
+    shadowColor: '#e43f98',
+    shadowOpacity: 0.30,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 9 },
+    elevation: 8,
     borderColor: '#c72d7d',
   },
   flashChoiceIcon: {
-    fontSize: 28,
+    fontSize: 33,
     marginBottom: 8,
   },
   flashChoiceText: {
@@ -1326,10 +1331,10 @@ const styles = StyleSheet.create({
   },
   flashHeroNote: {
     marginTop: 14,
-    color: '#9b1f61',
+    color: '#86104f',
     fontSize: 12,
     lineHeight: 18,
-    fontWeight: '800',
+    fontWeight: '900',
     textAlign: 'center',
   },
   flashSectionHeader: {
@@ -1340,7 +1345,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   sectionTitleSmall: {
-    color: '#9b1f61',
+    color: '#86104f',
     fontSize: 14,
     fontWeight: '900',
     marginBottom: 10,
@@ -1372,7 +1377,7 @@ const styles = StyleSheet.create({
     marginBottom: 3,
   },
   mapHighlightSubtitle: {
-    color: '#6b3652',
+    color: '#43152f',
     fontSize: 12,
     lineHeight: 17,
     fontWeight: '700',
@@ -1381,6 +1386,11 @@ const styles = StyleSheet.create({
   mapSmallButton: {
     borderRadius: 999,
     backgroundColor: '#e43f98',
+    shadowColor: '#e43f98',
+    shadowOpacity: 0.30,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 9 },
+    elevation: 8,
     paddingVertical: 8,
     paddingHorizontal: 13,
   },
@@ -1391,7 +1401,7 @@ const styles = StyleSheet.create({
   },
 
   card: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#fffafd',
     borderRadius: 24,
     padding: 22,
     borderWidth: 1,
@@ -1405,7 +1415,7 @@ const styles = StyleSheet.create({
   },
   title: {
     color: '#e43f98',
-    fontSize: 28,
+    fontSize: 33,
     fontWeight: '900',
     marginBottom: 14,
   },
@@ -1417,18 +1427,18 @@ const styles = StyleSheet.create({
   },
   button: {
     backgroundColor: '#ef2d82',
-    borderRadius: 18,
+    borderRadius: 24,
     paddingVertical: 14,
     alignItems: 'center',
   },
   buttonText: {
     color: '#ffffff',
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: '900',
   },
   secondaryButton: {
-    backgroundColor: '#fff8fb',
-    borderRadius: 18,
+    backgroundColor: '#fff0f7',
+    borderRadius: 24,
     paddingVertical: 14,
     alignItems: 'center',
     borderWidth: 1,
@@ -1438,7 +1448,7 @@ const styles = StyleSheet.create({
   secondaryButtonText: {
     color: '#ef2d82',
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: '900',
   },
   buttonDisabled: {
     opacity: 0.65,
@@ -1450,11 +1460,11 @@ const styles = StyleSheet.create({
     marginBottom: 7,
   },
   input: {
-    minHeight: 52,
+    minHeight: 58,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: '#ffd3e6',
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#fff0f7',
     paddingHorizontal: 14,
     fontSize: 16,
     color: '#4b1430',
@@ -1474,7 +1484,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     paddingVertical: 12,
     paddingHorizontal: 14,
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#fff0f7',
     borderWidth: 1,
     borderColor: '#ffd3e6',
     alignItems: 'center',
@@ -1505,7 +1515,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingHorizontal: 14,
     paddingVertical: 9,
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#fff0f7',
     borderWidth: 1,
     borderColor: '#ffd3e6',
   },
@@ -1516,7 +1526,7 @@ const styles = StyleSheet.create({
   chipText: {
     color: '#7b4960',
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '900',
   },
   chipTextActive: {
     color: '#ffffff',
@@ -1531,8 +1541,8 @@ const styles = StyleSheet.create({
     minHeight: 36,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: '#ffd3e7',
-    backgroundColor: '#fff8fb',
+    borderColor: '#ef8fbe',
+    backgroundColor: '#fff0f7',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 7,
@@ -1543,7 +1553,7 @@ const styles = StyleSheet.create({
     borderColor: '#ef2d82',
   },
   tabText: {
-    color: '#9b1f61',
+    color: '#86104f',
     fontSize: 11,
     fontWeight: '900',
     textAlign: 'center',
@@ -1552,9 +1562,9 @@ const styles = StyleSheet.create({
     color: '#ef2d82',
   },
   emptyBox: {
-    backgroundColor: '#fff8fb',
-    borderRadius: 18,
-    padding: 16,
+    backgroundColor: '#fff0f7',
+    borderRadius: 24,
+    padding: 20,
     borderWidth: 1,
     borderColor: '#ffd3e6',
     gap: 8,
@@ -1597,9 +1607,9 @@ const styles = StyleSheet.create({
   },
   shareFlashButton: {
     borderRadius: 999,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#fffafd',
     borderWidth: 1,
-    borderColor: '#ffd3e7',
+    borderColor: '#ef8fbe',
     paddingVertical: 10,
     alignItems: 'center',
   },
@@ -1611,12 +1621,12 @@ const styles = StyleSheet.create({
   smallButtonText: {
     color: '#ffffff',
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '900',
   },
   flashBox: {
-    backgroundColor: '#fff8fb',
-    borderRadius: 18,
-    padding: 16,
+    backgroundColor: '#fff0f7',
+    borderRadius: 24,
+    padding: 20,
     borderWidth: 1,
     borderColor: '#ffd3e6',
     marginBottom: 12,
@@ -1655,7 +1665,7 @@ const styles = StyleSheet.create({
   noMapText: {
     color: '#a36a86',
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '900',
     marginTop: 10,
   },
   ownerActions: {
@@ -1679,7 +1689,7 @@ const styles = StyleSheet.create({
   flashStatusText: {
     marginTop: 12,
     color: '#8f3d65',
-    fontWeight: '800',
+    fontWeight: '900',
     fontSize: 13,
   },
   joinedActions: {
@@ -1687,7 +1697,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   leaveButton: {
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#fff0f7',
     borderRadius: 16,
     paddingVertical: 12,
     paddingHorizontal: 14,

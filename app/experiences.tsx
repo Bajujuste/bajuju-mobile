@@ -239,15 +239,15 @@ export default function ExperiencesScreen() {
                     </Text>
 
                     <Text style={styles.experienceMeta}>
-                      {item.city || 'Comune'} · {item.province || 'Provincia'}
+                      📍 {item.city || 'Comune'} · {item.province || 'Provincia'}
                     </Text>
 
                     <Text style={styles.experienceMeta}>
-                      {formatDateItalian(item.activity_date)} · {item.activity_time || 'Ora da definire'}
+                      🗓️ {formatDateItalian(item.activity_date)} · {item.activity_time ? String(item.activity_time).slice(0, 5) : 'Ora da definire'}
                     </Text>
 
                     <View style={styles.experienceFooter}>
-                      <Text style={styles.openDetailText}>Apri esperienza</Text>
+                      <Text style={styles.openDetailText}>Apri</Text>
                     </View>
                   </View>
                 </Pressable>
@@ -282,7 +282,7 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     paddingHorizontal: 13,
     borderRadius: 999,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#fff2f8',
     borderWidth: 1,
     borderColor: '#ffd3e7',
   },
@@ -311,7 +311,7 @@ const styles = StyleSheet.create({
     width: '100%',
     borderRadius: 28,
     padding: 16,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#fff2f8',
     borderWidth: 1,
     borderColor: '#ffd3e7',
     shadowColor: '#e43f98',
@@ -383,6 +383,11 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 14,
     alignItems: 'center',
+    shadowColor: '#e43f98',
+    shadowOpacity: 0.10,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 7 },
+    elevation: 3,
   },
   emptyText: {
     color: '#9b1f61',
@@ -394,7 +399,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   experienceCard: {
-    borderRadius: 22,
+    borderRadius: 26,
     backgroundColor: '#fff8fb',
     borderWidth: 1,
     borderColor: '#ffd3e7',
@@ -402,16 +407,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
     alignItems: 'center',
+    shadowColor: '#e43f98',
+    shadowOpacity: 0.10,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 7 },
+    elevation: 3,
   },
   experienceImageBox: {
     width: 82,
     height: 82,
     borderRadius: 18,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#fff2f8',
     borderWidth: 1,
     borderColor: '#ffd3e7',
     overflow: 'hidden',
     alignItems: 'center',
+    shadowColor: '#e43f98',
+    shadowOpacity: 0.10,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 7 },
+    elevation: 3,
     justifyContent: 'center',
   },
   experienceImage: {
@@ -429,19 +444,21 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#ffd3e7',
     color: '#9b1f61',
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '900',
-    paddingVertical: 5,
-    paddingHorizontal: 10,
+    paddingVertical: 4,
+    paddingHorizontal: 9,
     borderRadius: 999,
     overflow: 'hidden',
     marginBottom: 8,
   },
   experienceTitle: {
-    fontSize: 18,
+    fontSize: 19,
+    lineHeight: 23,
     fontWeight: '900',
     color: '#e43f98',
     marginBottom: 5,
+    letterSpacing: -0.3,
   },
   experienceMeta: {
     fontSize: 13,
@@ -450,12 +467,17 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   experienceFooter: {
-    marginTop: 10,
+    marginTop: 9,
     alignSelf: 'flex-start',
     borderRadius: 999,
     backgroundColor: '#e43f98',
     paddingVertical: 7,
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
+    shadowColor: '#e43f98',
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 3,
   },
   openDetailText: {
     color: '#ffffff',
@@ -468,6 +490,11 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     backgroundColor: '#e43f98',
     alignItems: 'center',
+    shadowColor: '#e43f98',
+    shadowOpacity: 0.10,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 7 },
+    elevation: 3,
     justifyContent: 'center',
   },
   refreshButtonText: {

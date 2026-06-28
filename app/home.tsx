@@ -66,6 +66,7 @@ export default function HomeScreen() {
       isMounted = false;
     };
   }, []);
+
   async function handleLogout() {
     await supabase.auth.signOut();
     router.replace('/');
@@ -74,466 +75,545 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container}>
-        <View style={styles.header}>
-          <Pressable style={styles.topProfileButton} onPress={() => router.push('/profile')}>
+        <View style={styles.topBar}>
+          <View style={styles.brandBlock}>
+            <Image source={bajujuLogo} style={styles.brandLogo} resizeMode="contain" />
+
+            <View>
+              <Text style={styles.brandTitle}>Bajuju</Text>
+              <Text style={styles.brandClaim}>Dal Vivo è Meglio</Text>
+            </View>
+          </View>
+
+          <Pressable style={styles.profileButton} onPress={() => router.push('/profile')}>
             {profilePhotoUrl ? (
-              <Image source={{ uri: profilePhotoUrl }} style={styles.topProfilePhoto} />
+              <Image source={{ uri: profilePhotoUrl }} style={styles.profilePhoto} />
             ) : (
-              <View style={styles.topProfileFallback}>
-                <Text style={styles.topProfileFallbackText}>👤</Text>
+              <View style={styles.profileFallback}>
+                <Text style={styles.profileFallbackText}>👤</Text>
               </View>
             )}
 
-            <Text style={styles.topProfileLabel}>Profilo</Text>
+            <Text style={styles.profileLabel}>Profilo</Text>
           </Pressable>
+        </View>
 
-          <View style={styles.logoCard}>
-            <Image source={bajujuLogo} style={styles.logoImage} resizeMode="contain" />
-          </View>
+        <View style={styles.heroCard}>
+          <Image source={bajujuLogo} style={styles.heroLogo} resizeMode="contain" />
 
-          <Text style={styles.claim}>Dal Vivo è Meglio</Text>
+          <Text style={styles.heroTitle}>Dal Vivo è Meglio</Text>
 
-          <Text style={styles.introText}>
-            Esperienze dal vivo con persone vicino a te.
+          <Text style={styles.heroText}>
+            Trova persone, crea esperienze e organizza qualcosa subito vicino a te.
           </Text>
         </View>
 
-        <View style={styles.mainCard}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionEyebrow}>Cosa vuoi fare oggi?</Text>
+        <View style={styles.mainPanel}>
+          <Text style={styles.panelEyebrow}>Cosa vuoi fare oggi?</Text>
 
-          </View>
-
-          <View style={styles.primaryActions}>
+          <View style={styles.actionsRow}>
             <Pressable
-              style={[styles.homeCard, styles.primaryCard]}
+              style={styles.actionCard}
               onPress={() => router.push('/experiences')}
             >
-              <Text style={styles.homeIcon}>🔎</Text>
-              <Text style={styles.primaryLabel}>Voglio partecipare</Text>
-              <Text style={styles.primaryTitle}>Trova</Text>
-              <Text style={styles.homeText}>
-                Scopri esperienze, uscite e attività dal vivo nella tua zona.
+              <View style={styles.actionIconCircle}>
+                <Text style={styles.actionIcon}>🔎</Text>
+              </View>
+
+              <Text style={styles.actionSmall}>Partecipa</Text>
+              <Text style={styles.actionTitle}>Trova</Text>
+              <Text style={styles.actionText}>
+                Guarda le esperienze disponibili e unisciti.
               </Text>
             </Pressable>
 
             <Pressable
-              style={[styles.homeCard, styles.primaryCard]}
+              style={styles.actionCard}
               onPress={() => router.push('/create-experience')}
             >
-              <Text style={styles.homeIcon}>➕</Text>
-              <Text style={styles.primaryLabel}>Voglio proporre</Text>
-              <Text style={styles.primaryTitle}>Crea</Text>
-              <Text style={styles.homeText}>
-                Proponi qualcosa da fare e lascia che altre persone si uniscano.
+              <View style={styles.actionIconCircle}>
+                <Text style={styles.actionIcon}>➕</Text>
+              </View>
+
+              <Text style={styles.actionSmall}>Organizza</Text>
+              <Text style={styles.actionTitle}>Crea</Text>
+              <Text style={styles.actionText}>
+                Proponi qualcosa e invita altre persone.
               </Text>
             </Pressable>
           </View>
 
-          <Pressable
-            style={[styles.homeCard, styles.flashMainCard]}
-            onPress={() => router.push('/flash')}
-          >
-            <View style={styles.flashTopRow}>
-              <Text style={styles.homeIcon}>⚡</Text>
-              <Text style={styles.flashBadge}>Extra</Text>
+          <Pressable style={styles.flashCard} onPress={() => router.push('/flash')}>
+            <View style={styles.flashIconBox}>
+              <Text style={styles.flashIcon}>⚡</Text>
             </View>
 
-            <Text style={styles.flashMainTitle}>Flash</Text>
-            <Text style={styles.homeText}>
-              Per organizzare qualcosa subito, in modo veloce.
-            </Text>
+            <View style={styles.flashContent}>
+              <View style={styles.flashBadge}>
+                <Text style={styles.flashBadgeText}>Subito</Text>
+              </View>
+
+              <Text style={styles.flashTitle}>Bajuju Flash</Text>
+              <Text style={styles.flashDescription}>
+                Fatti vedere per 1, 2 o 3 ore, organizza al volo o fatti invitare.
+              </Text>
+            </View>
+
+            <Text style={styles.flashArrow}>›</Text>
+          </Pressable>
+        </View>
+
+        <View style={styles.infoCard}>
+          <Text style={styles.infoTitle}>Con Bajuju puoi</Text>
+
+          <View style={styles.infoItem}>
+            <Text style={styles.infoIcon}>🤝</Text>
+            <Text style={styles.infoText}>Conoscere persone facendo qualcosa dal vivo.</Text>
+          </View>
+
+          <View style={styles.infoItem}>
+            <Text style={styles.infoIcon}>📍</Text>
+            <Text style={styles.infoText}>Trovare esperienze vicino alla tua zona.</Text>
+          </View>
+
+          <View style={styles.infoItem}>
+            <Text style={styles.infoIcon}>⚡</Text>
+            <Text style={styles.infoText}>Organizzare subito con Bajuju Flash.</Text>
+          </View>
+        </View>
+
+        <View style={styles.ideasCard}>
+          <Text style={styles.infoTitle}>Idee per iniziare</Text>
+
+          <View style={styles.pillsRow}>
+            <Text style={styles.pill}>🚶 Passeggiate</Text>
+            <Text style={styles.pill}>🍕 Pizza</Text>
+            <Text style={styles.pill}>🍹 Aperitivo</Text>
+            <Text style={styles.pill}>⚽ Sport</Text>
+            <Text style={styles.pill}>🎉 Eventi</Text>
+            <Text style={styles.pill}>🖼️ Musei</Text>
+          </View>
+        </View>
+
+        <View style={styles.footerBox}>
+          <Pressable style={styles.shareButton} onPress={shareBajujuHome}>
+            <Text style={styles.shareIcon}>📲</Text>
+            <Text style={styles.shareText}>Condividi Bajuju</Text>
           </Pressable>
 
-          <View style={styles.infoBox}>
-            <Text style={styles.infoTitle}>Bajuju ti fa fare esperienze dal vivo</Text>
-            <Text style={styles.infoText}>
-              Bajuju serve per creare e trovare cose da fare dal vivo: una passeggiata, una pizza, sport, musei, eventi e nuove persone da conoscere in modo semplice.
-            </Text>
-          </View>
-
-          <View style={styles.pillsBox}>
-            <Text style={styles.infoTitle}>Idee per iniziare</Text>
-
-            <View style={styles.pillsRow}>
-              <Text style={styles.pill}>Passeggiate</Text>
-              <Text style={styles.pill}>Pizza</Text>
-              <Text style={styles.pill}>Aperitivo</Text>
-              <Text style={styles.pill}>Sport</Text>
-              <Text style={styles.pill}>Eventi</Text>
-              <Text style={styles.pill}>Musei</Text>
-            </View>
-          </View>
-
-          <View style={styles.footerBox}>
-            <Pressable style={styles.shareFooterButton} onPress={shareBajujuHome}>
-              <Text style={styles.shareFooterIcon}>📲</Text>
-              <Text style={styles.shareFooterText}>Condividi Bajuju</Text>
+          <View style={styles.legalLinksRow}>
+            <Pressable
+              style={styles.legalButton}
+              onPress={() => router.push('/rules' as any)}
+            >
+              <Text style={styles.legalButtonText}>Regole community</Text>
             </Pressable>
 
-            <View style={styles.legalLinksRow}>
-              <Pressable
-                style={styles.legalButton}
-                onPress={() => router.push('/rules' as any)}
-              >
-                <Text style={styles.legalButtonText}>Regole community</Text>
-              </Pressable>
-
-              <Pressable
-                style={styles.legalButton}
-                onPress={() => router.push('/privacy' as any)}
-              >
-                <Text style={styles.legalButtonText}>Privacy Policy</Text>
-              </Pressable>
-            </View>
-
-            <Pressable style={styles.logoutButton} onPress={handleLogout}>
-              <Text style={styles.logoutText}>Esci dall’account</Text>
+            <Pressable
+              style={styles.legalButton}
+              onPress={() => router.push('/privacy' as any)}
+            >
+              <Text style={styles.legalButtonText}>Privacy Policy</Text>
             </Pressable>
           </View>
+
+          <Pressable style={styles.logoutButton} onPress={handleLogout}>
+            <Text style={styles.logoutText}>Esci dall’account</Text>
+          </Pressable>
         </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
+const PINK = '#e43f98';
+const PINK_DARK = '#8f1658';
+const TEXT = '#5a2842';
+const MUTED = '#a95d86';
+const BG = '#fff7fb';
+const SOFT = '#fff2f8';
+const BORDER = '#f6c6dc';
+const WHITE = '#ffffff';
+
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#fff8fb',
+    backgroundColor: BG,
   },
   container: {
     flexGrow: 1,
-    padding: 20,
-    paddingTop: 18,
-    paddingBottom: 32,
-    backgroundColor: '#fff8fb',
+    padding: 15,
+    paddingTop: 34,
+    paddingBottom: 34,
+    backgroundColor: BG,
   },
-  header: {
+  topBar: {
+    minHeight: 54,
+    marginBottom: 10,
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 18,
-    paddingTop: 4,
+    justifyContent: 'space-between',
   },
-  topProfileButton: {
-    position: 'absolute',
-    top: 4,
-    right: 2,
-    zIndex: 10,
-    minWidth: 82,
+  brandBlock: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+    flex: 1,
+  },
+  brandLogo: {
+    width: 44,
+    height: 44,
+  },
+  brandTitle: {
+    fontSize: 24,
+    lineHeight: 26,
+    fontWeight: '900',
+    color: PINK,
+    letterSpacing: -0.5,
+  },
+  brandClaim: {
+    marginTop: 1,
+    fontSize: 12,
+    fontWeight: '900',
+    color: PINK_DARK,
+  },
+  profileButton: {
     height: 42,
     borderRadius: 999,
-    backgroundColor: '#ffffff',
+    paddingHorizontal: 9,
+    backgroundColor: WHITE,
     borderWidth: 1,
-    borderColor: '#ffd3e7',
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderColor: BORDER,
     flexDirection: 'row',
+    alignItems: 'center',
     gap: 6,
-    paddingHorizontal: 8,
-    shadowColor: '#e43f98',
-    shadowOpacity: 0.10,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
-  },
-  topProfilePhoto: {
-    width: 28,
-    height: 28,
-    borderRadius: 999,
-    backgroundColor: '#fff0f7',
-  },
-  topProfileFallback: {
-    width: 28,
-    height: 28,
-    borderRadius: 999,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#fff0f7',
-    borderWidth: 1,
-    borderColor: '#ffd3e7',
-  },
-  topProfileFallbackText: {
-    fontSize: 15,
-  },
-  topProfileLabel: {
-    color: '#9b1f61',
-    fontSize: 12,
-    fontWeight: '900',
-  },
-
-  logoCard: {
-    width: '100%',
-    minHeight: 170,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#ffffff',
-    borderRadius: 30,
-    paddingVertical: 20,
-    paddingHorizontal: 18,
-    borderWidth: 2,
-    borderColor: '#e43f98',
-    shadowColor: '#e43f98',
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 4,
-  },
-  logoImage: {
-    width: 280,
-    height: 140,
-  },
-  claim: {
-    marginTop: 14,
-    fontSize: 22,
-    fontWeight: '900',
-    color: '#e43f98',
-    textAlign: 'center',
-  },
-  introText: {
-    width: '100%',
-    marginTop: 10,
-    paddingHorizontal: 8,
-    fontSize: 15,
-    lineHeight: 22,
-    fontWeight: '700',
-    color: '#6b3652',
-    textAlign: 'center',
-  },
-  mainCard: {
-    width: '100%',
-    backgroundColor: '#ffffff',
-    borderRadius: 30,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#ffd3e7',
-    shadowColor: '#e43f98',
-    shadowOpacity: 0.08,
+    shadowColor: PINK,
+    shadowOpacity: 0.09,
     shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
+    shadowOffset: { width: 0, height: 7 },
     elevation: 3,
   },
-  sectionHeader: {
-    marginBottom: 14,
-    paddingHorizontal: 2,
+  profilePhoto: {
+    width: 27,
+    height: 27,
+    borderRadius: 999,
+    backgroundColor: SOFT,
   },
-  sectionEyebrow: {
-    color: '#9b1f61',
+  profileFallback: {
+    width: 27,
+    height: 27,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: SOFT,
+  },
+  profileFallbackText: {
+    fontSize: 13,
+  },
+  profileLabel: {
     fontSize: 12,
     fontWeight: '900',
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
+    color: PINK_DARK,
+  },
+  heroCard: {
+    borderRadius: 34,
+    backgroundColor: WHITE,
+    padding: 15,
+    marginBottom: 8,
+    alignItems: 'center',
+    shadowColor: PINK,
+    shadowOpacity: 0.12,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 12 },
+    elevation: 5,
+  },
+  heroBadge: {
+    alignSelf: 'center',
+    borderRadius: 999,
+    backgroundColor: SOFT,
+    borderWidth: 1,
+    borderColor: BORDER,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
     marginBottom: 4,
   },
-  sectionTitle: {
-    width: '100%',
-    color: '#e43f98',
-    fontSize: 22,
-    fontWeight: '900',
-    letterSpacing: -0.4,
-  },
-
-  primaryActions: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 12,
-  },
-  primaryCard: {
-    flex: 1,
-    minHeight: 150,
-    backgroundColor: '#ffffff',
-    borderColor: '#ef2d82',
-    borderWidth: 2,
-    padding: 16,
-    justifyContent: 'flex-start',
-  },
-  primaryLabel: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#fff0f7',
-    borderWidth: 1,
-    borderColor: '#ffd3e7',
-    color: '#9b1f61',
+  heroBadgeText: {
     fontSize: 12,
     fontWeight: '900',
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    borderRadius: 999,
-    marginTop: 8,
-    overflow: 'hidden',
+    color: PINK_DARK,
   },
-
-  primaryTitle: {
-    marginTop: 6,
-    marginBottom: 6,
-    fontSize: 25,
+  heroLogo: {
+    width: 128,
+    height: 92,
+    marginTop: 2,
+    marginBottom: 2,
+  },
+  heroTitle: {
+    fontSize: 28,
+    lineHeight: 32,
     fontWeight: '900',
-    color: '#e43f98',
-    letterSpacing: -0.4,
+    color: PINK,
+    textAlign: 'center',
+    letterSpacing: -0.8,
   },
-
-  flashMainCard: {
-    backgroundColor: '#fff0f7',
-    borderColor: '#ef2d82',
-    borderWidth: 2,
-    marginBottom: 12,
-    padding: 18,
+  heroText: {
+    maxWidth: 320,
+    marginTop: 6,
+    fontSize: 15,
+    lineHeight: 21,
+    fontWeight: '800',
+    color: TEXT,
+    textAlign: 'center',
   },
-  flashTopRow: {
+  mainPanel: {
+    borderRadius: 32,
+    backgroundColor: WHITE,
+    padding: 14,
+    marginBottom: 8,
+    shadowColor: PINK,
+    shadowOpacity: 0.10,
+    shadowRadius: 22,
+    shadowOffset: { width: 0, height: 11 },
+    elevation: 4,
+  },
+  panelEyebrow: {
+    marginBottom: 10,
+    fontSize: 13,
+    fontWeight: '900',
+    color: PINK_DARK,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 8,
+  },
+  actionCard: {
+    flex: 1,
+    minHeight: 176,
+    borderRadius: 28,
+    padding: 14,
+    backgroundColor: WHITE,
+    borderWidth: 1,
+    borderColor: BORDER,
+    shadowColor: PINK,
+    shadowOpacity: 0.08,
+    shadowRadius: 15,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 3,
+  },
+  actionIconCircle: {
+    width: 42,
+    height: 42,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: SOFT,
+    marginBottom: 8,
+  },
+  actionIcon: {
+    fontSize: 25,
+  },
+  actionSmall: {
+    alignSelf: 'flex-start',
+    overflow: 'hidden',
+    borderRadius: 999,
+    backgroundColor: SOFT,
+    color: PINK_DARK,
+    fontSize: 12,
+    fontWeight: '900',
+    paddingHorizontal: 11,
+    paddingVertical: 6,
+    marginBottom: 9,
+  },
+  actionTitle: {
+    fontSize: 30,
+    lineHeight: 32,
+    fontWeight: '900',
+    color: PINK,
+    letterSpacing: -0.7,
+    marginBottom: 7,
+  },
+  actionText: {
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '800',
+    color: TEXT,
+  },
+  flashCard: {
+    minHeight: 116,
+    borderRadius: 30,
+    padding: 15,
+    backgroundColor: SOFT,
+    borderWidth: 1,
+    borderColor: BORDER,
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  flashIconBox: {
+    width: 48,
+    height: 48,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: WHITE,
+    marginRight: 13,
+  },
+  flashIcon: {
+    fontSize: 28,
+  },
+  flashContent: {
+    flex: 1,
+  },
+  flashBadge: {
+    alignSelf: 'flex-start',
+    borderRadius: 999,
+    backgroundColor: PINK,
+    paddingHorizontal: 11,
+    paddingVertical: 5,
+    marginBottom: 5,
+  },
+  flashBadgeText: {
+    color: WHITE,
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  flashTitle: {
+    fontSize: 26,
+    lineHeight: 29,
+    fontWeight: '900',
+    color: PINK,
+    letterSpacing: -0.5,
+  },
+  flashDescription: {
+    marginTop: 4,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '800',
+    color: TEXT,
+  },
+  flashArrow: {
+    marginLeft: 8,
+    fontSize: 36,
+    fontWeight: '900',
+    color: PINK,
+  },
+  infoCard: {
+    borderRadius: 30,
+    backgroundColor: WHITE,
+    padding: 17,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: BORDER,
+  },
+  ideasCard: {
+    borderRadius: 30,
+    backgroundColor: WHITE,
+    padding: 17,
+    marginBottom: 18,
+    borderWidth: 1,
+    borderColor: BORDER,
+  },
+  infoTitle: {
+    marginBottom: 8,
+    fontSize: 23,
+    lineHeight: 28,
+    fontWeight: '900',
+    color: PINK,
+    letterSpacing: -0.3,
+  },
+  infoItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
     gap: 10,
     marginBottom: 10,
   },
-  flashBadge: {
-    backgroundColor: '#e43f98',
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: '900',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 999,
-    overflow: 'hidden',
-  },
-  flashMainTitle: {
-    color: '#ef2d82',
-    fontSize: 25,
-    fontWeight: '900',
-    marginBottom: 7,
-  },
-  grid: {
-    gap: 10,
-  },
-  homeCard: {
-    borderRadius: 22,
-    padding: 15,
-    backgroundColor: '#fff8fb',
-    borderWidth: 1,
-    borderColor: '#ffd3e7',
-  },
-  homeIcon: {
-    fontSize: 25,
-  },
-  homeTitle: {
-    marginTop: 5,
-    marginBottom: 4,
-    fontSize: 16,
-    fontWeight: '900',
-    color: '#e43f98',
-  },
-  homeText: {
-    fontSize: 13,
-    color: '#6b3652',
-    lineHeight: 18,
-    fontWeight: '600',
-  },
-  infoBox: {
-    marginTop: 14,
-    borderRadius: 24,
-    padding: 16,
-    backgroundColor: '#fff8fb',
-    borderWidth: 1,
-    borderColor: '#ffd3e7',
-  },
-  infoTitle: {
-    fontSize: 17,
-    fontWeight: '900',
-    color: '#e43f98',
-    marginBottom: 7,
+  infoIcon: {
+    width: 28,
+    fontSize: 20,
   },
   infoText: {
-    fontSize: 14,
-    lineHeight: 21,
-    fontWeight: '600',
-    color: '#6b3652',
-  },
-  pillsBox: {
-    marginTop: 14,
-    borderRadius: 24,
-    padding: 16,
-    backgroundColor: '#fff8fb',
-    borderWidth: 1,
-    borderColor: '#ffd3e7',
+    flex: 1,
+    fontSize: 15,
+    lineHeight: 22,
+    fontWeight: '800',
+    color: TEXT,
   },
   pillsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 8,
+    gap: 9,
   },
   pill: {
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#f7b8d6',
-    color: '#9b1f61',
-    fontSize: 13,
-    fontWeight: '800',
-    paddingVertical: 8,
-    paddingHorizontal: 11,
-    borderRadius: 999,
     overflow: 'hidden',
+    borderRadius: 999,
+    backgroundColor: SOFT,
+    borderWidth: 1,
+    borderColor: BORDER,
+    color: PINK_DARK,
+    fontSize: 13,
+    fontWeight: '900',
+    paddingHorizontal: 13,
+    paddingVertical: 9,
   },
   footerBox: {
-    marginTop: 20,
-    paddingTop: 14,
-    borderTopWidth: 1,
-    borderTopColor: '#ffe2ef',
     alignItems: 'center',
+    paddingTop: 2,
+    paddingBottom: 8,
   },
-  shareFooterButton: {
+  shareButton: {
+    minHeight: 52,
     borderRadius: 999,
-    backgroundColor: '#e43f98',
-    paddingVertical: 9,
-    paddingHorizontal: 14,
-    flexDirection: 'row',
+    backgroundColor: PINK,
+    paddingHorizontal: 24,
+    paddingVertical: 13,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    alignSelf: 'center',
-    shadowColor: '#e43f98',
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 8,
+    shadowColor: PINK,
+    shadowOpacity: 0.22,
+    shadowRadius: 15,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 5,
   },
-  shareFooterIcon: {
+  shareIcon: {
+    fontSize: 18,
+  },
+  shareText: {
+    color: WHITE,
     fontSize: 15,
-  },
-  shareFooterText: {
-    color: '#ffffff',
-    fontSize: 12,
     fontWeight: '900',
   },
-
   legalLinksRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     gap: 10,
-    marginTop: 14,
-    marginBottom: 4,
     flexWrap: 'wrap',
+    marginBottom: 18,
   },
   legalButton: {
-    borderWidth: 1,
-    borderColor: '#ffd3e7',
     borderRadius: 999,
-    paddingVertical: 8,
-    paddingHorizontal: 13,
-    backgroundColor: '#ffffff',
+    backgroundColor: WHITE,
+    borderWidth: 1,
+    borderColor: BORDER,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
   },
   legalButtonText: {
-    color: '#9b1f61',
-    fontSize: 12,
-    fontWeight: '700',
+    color: PINK_DARK,
+    fontSize: 13,
+    fontWeight: '900',
   },
   logoutButton: {
-    alignSelf: 'center',
-    marginTop: 18,
     paddingVertical: 8,
-    paddingHorizontal: 12,
   },
   logoutText: {
-    color: '#b36a91',
-    fontSize: 12,
-    fontWeight: '700',
+    color: MUTED,
+    fontSize: 13,
+    fontWeight: '900',
     textDecorationLine: 'underline',
   },
 });

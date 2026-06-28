@@ -30,6 +30,38 @@ async function countRows(table: string) {
   return 0;
 }
 
+async function countReports() {
+  const tables = ['reports', 'user_reports', 'activity_reports'];
+
+  for (const table of tables) {
+    const count = await countRows(table);
+    if (count > 0) return count;
+  }
+
+  return 0;
+}
+
+async function countChatReports() {
+  const attempts = [
+    async () => supabase.from('activity_messages').select('*', { count: 'exact', head: true }).eq('reported', true),
+    async () => supabase.from('activity_messages').select('*', { count: 'exact', head: true }).eq('is_reported', true),
+    async () => supabase.from('activity_messages').select('*', { count: 'exact', head: true }).not('reported_at', 'is', null),
+    async () => supabase.from('chat_reports').select('*', { count: 'exact', head: true }),
+    async () => supabase.from('message_reports').select('*', { count: 'exact', head: true }),
+  ];
+
+  for (const attempt of attempts) {
+    try {
+      const result = await attempt();
+      if (!result.error && typeof result.count === 'number') return result.count;
+    } catch {
+      // Prova successiva.
+    }
+  }
+
+  return 0;
+}
+
 export default function AdminScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -44,8 +76,8 @@ export default function AdminScreen() {
     const [users, activities, reports, chatReports] = await Promise.all([
       countRows('profiles'),
       countRows('activities'),
-      countRows('reports'),
-      countRows('activity_messages'),
+      countReports(),
+      countChatReports(),
     ]);
 
     setStats({
@@ -87,7 +119,7 @@ export default function AdminScreen() {
         <Text style={styles.kicker}>Bajuju</Text>
         <Text style={styles.title}>Area Admin</Text>
         <Text style={styles.text}>
-          Pannello rapido per controllare utenti, eventi, segnalazioni e chat.
+          Pannello rapido per controllare utenti, eventi, segnalazioni e chat segnalate.
         </Text>
 
         <Pressable style={styles.backButton} onPress={() => router.push('/profile')}>
@@ -111,7 +143,7 @@ export default function AdminScreen() {
           </View>
           <View style={styles.menuTextBox}>
             <Text style={styles.menuTitle}>Iscritti totali</Text>
-            <Text style={styles.menuSubtitle}>Apri elenco utenti, filtra e gestisci blocchi.</Text>
+            <Text style={styles.menuSubtitle}>Elenco utenti, filtri e gestione profili.</Text>
           </View>
           <View style={styles.countPill}>
             <Text style={styles.countText}>{stats.users}</Text>
@@ -124,38 +156,38 @@ export default function AdminScreen() {
           </View>
           <View style={styles.menuTextBox}>
             <Text style={styles.menuTitle}>Eventi totali</Text>
-            <Text style={styles.menuSubtitle}>Apri elenco eventi, filtra per data e vedi partecipanti.</Text>
+            <Text style={styles.menuSubtitle}>Elenco eventi, filtro data e partecipanti.</Text>
           </View>
           <View style={styles.countPill}>
             <Text style={styles.countText}>{stats.activities}</Text>
           </View>
         </Pressable>
 
-        <View style={styles.menuRowDisabled}>
+        <Pressable style={styles.menuRow} onPress={() => router.push('/admin-reports')}>
           <View style={styles.menuIconBox}>
             <Text style={styles.menuIcon}>🚩</Text>
           </View>
           <View style={styles.menuTextBox}>
             <Text style={styles.menuTitle}>Segnalazioni</Text>
-            <Text style={styles.menuSubtitle}>Prossimo step: pagina dedicata alle segnalazioni.</Text>
+            <Text style={styles.menuSubtitle}>Apri l’elenco delle segnalazioni ricevute.</Text>
           </View>
           <View style={styles.countPill}>
             <Text style={styles.countText}>{stats.reports}</Text>
           </View>
-        </View>
+        </Pressable>
 
-        <View style={styles.menuRowDisabled}>
+        <Pressable style={styles.menuRow} onPress={() => router.push('/admin-chat-reports')}>
           <View style={styles.menuIconBox}>
             <Text style={styles.menuIcon}>💬</Text>
           </View>
           <View style={styles.menuTextBox}>
             <Text style={styles.menuTitle}>Chat segnalate</Text>
-            <Text style={styles.menuSubtitle}>Prossimo step: pagina dedicata alle chat segnalate.</Text>
+            <Text style={styles.menuSubtitle}>Mostra solo i messaggi realmente segnalati.</Text>
           </View>
           <View style={styles.countPill}>
             <Text style={styles.countText}>{stats.chatReports}</Text>
           </View>
-        </View>
+        </Pressable>
       </View>
     </ScrollView>
   );
@@ -245,18 +277,6 @@ const styles = StyleSheet.create({
     borderColor: '#ffd3e6',
     marginBottom: 10,
     gap: 12,
-  },
-  menuRowDisabled: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff8fb',
-    borderRadius: 18,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#f3dce8',
-    marginBottom: 10,
-    gap: 12,
-    opacity: 0.75,
   },
   menuIconBox: {
     width: 44,

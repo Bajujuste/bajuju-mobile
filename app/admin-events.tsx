@@ -365,60 +365,6 @@ export default function AdminEventsScreen() {
         </View>
       ) : null}
 
-      {selectedActivity ? (
-        <View style={[styles.card, styles.detailCard]}>
-          <Text style={styles.sectionTitle}>Dettaglio evento</Text>
-
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Titolo</Text>
-            <Text style={styles.detailValue}>{selectedActivity.title}</Text>
-          </View>
-
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Comune / Data</Text>
-            <Text style={styles.detailValue}>{selectedActivity.city} · {selectedActivity.date}</Text>
-          </View>
-
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Organizzatore ID</Text>
-            <Text style={styles.detailValue}>{selectedActivity.organizerId || 'Non disponibile'}</Text>
-          </View>
-
-          <Text style={styles.participantsTitle}>Partecipanti evento</Text>
-
-          {participants.length === 0 ? (
-            <Text style={styles.emptyText}>Nessun partecipante visibile.</Text>
-          ) : (
-            participants.map((item) => (
-              <View key={item.id} style={styles.participantRow}>
-                <Text style={styles.listTitle}>{item.name}</Text>
-                <Text style={styles.listSubtitle}>{item.email}</Text>
-              </View>
-            ))
-          )}
-
-          <View style={styles.actionGrid}>
-            <Pressable style={styles.button} onPress={() => router.push(`/experience-detail?id=${selectedActivity.id}`)}>
-              <Text style={styles.buttonText}>Apri evento</Text>
-            </Pressable>
-
-            <Pressable style={styles.dangerButton} onPress={() => deleteActivity(selectedActivity)}>
-              <Text style={styles.actionButtonText}>Elimina evento</Text>
-            </Pressable>
-
-            <Pressable
-              style={styles.ghostButton}
-              onPress={() => {
-                setSelectedActivity(null);
-                setParticipants([]);
-              }}
-            >
-              <Text style={styles.ghostButtonText}>Chiudi dettaglio</Text>
-            </Pressable>
-          </View>
-        </View>
-      ) : null}
-
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>Elenco eventi</Text>
 
@@ -426,7 +372,7 @@ export default function AdminEventsScreen() {
           <Text style={styles.emptyText}>Nessun evento trovato con questo filtro.</Text>
         ) : (
           filteredActivities.map((item) => (
-            <Pressable key={item.id} style={styles.listRow} onPress={() => openActivity(item)}>
+            <Pressable key={item.id} style={styles.listRow} onPress={() => router.push(`/admin-event-detail?id=${item.id}`)}>
               <View style={styles.listTextBox}>
                 <Text style={styles.listTitle}>{item.title}</Text>
                 <Text style={styles.listSubtitle}>{item.city} · {item.date}</Text>

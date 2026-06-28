@@ -620,12 +620,11 @@ export default function ProfileScreen() {
   const saveProfile = useCallback(async () => {
     if (!user) return;
 
-    const cleanProfileName = profileName.trim();
     const cleanCity = city.trim();
     const cleanAge = ageRange.trim();
 
-    if (!cleanProfileName || !cleanCity || !cleanAge) {
-      Alert.alert('Dati mancanti', 'Inserisci nome utente, città ed età.');
+    if (!cleanCity || !cleanAge) {
+      Alert.alert('Dati mancanti', 'Inserisci città ed età.');
       return;
     }
 
@@ -638,7 +637,6 @@ export default function ProfileScreen() {
 
     setSaving(true);
 
-    const nameField = firstKey(profile, ['nickname', 'username', 'display_name', 'full_name', 'name', 'nome'], 'username');
     const cityField = firstKey(profile, ['city', 'citta', 'comune', 'location_city'], 'city');
     const ageField = firstKey(profile, ['age', 'eta', 'età', 'user_age', 'age_range', 'fascia_eta', 'age_band', 'eta_range'], 'age');
     const genderField = firstKey(profile, ['gender', 'genere', 'sex'], 'gender');
@@ -649,7 +647,6 @@ export default function ProfileScreen() {
     );
 
     const payload: LooseRow = {
-      [nameField]: cleanProfileName,
       [cityField]: cleanCity,
       [ageField]: numericAge,
       [genderField]: gender,
@@ -686,7 +683,7 @@ export default function ProfileScreen() {
     } finally {
       setSaving(false);
     }
-  }, [ageRange, city, directContactsEnabled, gender, loadAll, profile, profileIdField, profileIdValue, profileName, user]);
+  }, [ageRange, city, directContactsEnabled, gender, loadAll, profile, profileIdField, profileIdValue, user]);
 
   const answerItem = useCallback(
     async (item: ContactItem | InviteItem, status: 'accepted' | 'rejected') => {
@@ -832,10 +829,10 @@ export default function ProfileScreen() {
 
         <Text style={styles.label}>Nome utente</Text>
         <TextInput
-          value={profileName}
-          onChangeText={setProfileName}
-          placeholder="Scegli il tuo nome utente"
-          style={styles.input}
+          value={profileName || 'Nuovo utente'}
+          editable={false}
+          placeholder="Nome scelto in registrazione"
+          style={[styles.input, styles.inputDisabled]}
           autoCapitalize="words"
         />
 
@@ -1273,6 +1270,9 @@ const styles = StyleSheet.create({
     marginBottom: 7,
     color: '#5f2148',
     fontWeight: '800',
+  },
+  inputDisabled: {
+    opacity: 0.65,
   },
   input: {
     borderWidth: 1,

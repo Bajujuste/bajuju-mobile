@@ -703,7 +703,11 @@ export default function ExperienceDetailScreen() {
                       const photo = profilePhotoUrl(profile);
 
                       return (
-                        <View key={`${userId}-${index}`} style={styles.participantRow}>
+                        <Pressable
+                          key={`${userId}-${index}`}
+                          style={styles.participantRow}
+                          onPress={() => router.push(`/user-profile?userId=${userId}`)}
+                        >
                           <Image
                             source={photo ? { uri: photo } : bajujuLogo}
                             style={styles.participantPhoto}
@@ -733,7 +737,7 @@ export default function ExperienceDetailScreen() {
                               </Text>
                             </Pressable>
                           ) : null}
-                        </View>
+                        </Pressable>
                       );
                     })}
                   </View>

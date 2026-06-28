@@ -67,6 +67,58 @@ export default function LoginScreen() {
         return;
       }
 
+      const loggedUserId = result.data.user?.id || result.data.session?.user?.id;
+      let profile: any = null;
+
+      if (loggedUserId) {
+        const byUserId = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('user_id', loggedUserId)
+          .maybeSingle();
+
+        if (!byUserId.error && byUserId.data) {
+          profile = byUserId.data;
+        }
+
+        if (!profile) {
+          const byId = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', loggedUserId)
+            .maybeSingle();
+
+          if (!byId.error && byId.data) {
+            profile = byId.data;
+          }
+        }
+      }
+
+      const profileCity = String(
+        profile?.city ||
+          profile?.citta ||
+          profile?.comune ||
+          profile?.location_city ||
+          ''
+      ).trim();
+
+      const profileAge = String(
+        profile?.age ||
+          profile?.eta ||
+          profile?.['età'] ||
+          profile?.user_age ||
+          profile?.age_range ||
+          profile?.fascia_eta ||
+          profile?.age_band ||
+          profile?.eta_range ||
+          ''
+      ).trim();
+
+      if (profile && profileCity && profileAge) {
+        router.replace('/home');
+        return;
+      }
+
       router.replace('/profile');
     } catch (error: any) {
       setMessageTitle('Errore collegamento');

@@ -102,6 +102,92 @@ function activityOrganizerId(row: LooseRow) {
   return String(firstValue(row, ['creator_id', 'organizer_id', 'created_by', 'user_id', 'profile_id']) || '');
 }
 
+function booleanFromRow(row: LooseRow | null | undefined, keys: string[], fallback = false) {
+  const value = firstValue(row, keys);
+
+  if (typeof value === 'boolean') return value;
+
+  if (typeof value === 'number') return value === 1;
+
+  if (typeof value === 'string') {
+    const normalized = value.toLowerCase().trim();
+
+    if (['true', '1', 'yes', 'si', 'sì', 'deleted', 'eliminato', 'hidden', 'archived'].includes(normalized)) return true;
+    if (['false', '0', 'no', 'active', 'attivo'].includes(normalized)) return false;
+  }
+
+  return fallback;
+}
+
+function isDeletedActivity(row: LooseRow) {
+  const deletedValue = firstValue(row, [
+    'deleted_at',
+    'removed_at',
+    'cancelled_at',
+    'canceled_at',
+    'archived_at',
+    'eliminato_il',
+  ]);
+
+  if (deletedValue) return true;
+
+  if (
+    booleanFromRow(
+      row,
+      [
+        'is_deleted',
+        'deleted',
+        'is_removed',
+        'removed',
+        'is_cancelled',
+        'is_canceled',
+        'cancelled',
+        'canceled',
+        'archived',
+        'hidden',
+      ],
+      false
+    )
+  ) {
+    return true;
+  }
+
+  const status = firstText(row, ['status', 'stato', 'state', 'activity_status', 'event_status'], '').toLowerCase().trim();
+
+  return [
+    'deleted',
+    'eliminato',
+    'eliminata',
+    'removed',
+    'cancellato',
+    'cancellata',
+    'cancelled',
+    'canceled',
+    'annullato',
+    'annullata',
+    'archived',
+    'archiviato',
+    'archiviata',
+    'closed',
+    'chiuso',
+    'chiusa',
+  ].includes(status);
+}
+
+function isPastVisibleForTenDays(date: Date | null, now: Date) {
+  if (!date) return false;
+
+  const tenDaysAfterEnd = date.getTime() + 10 * 24 * 60 * 60 * 1000;
+
+  return date.getTime() < now.getTime() && tenDaysAfterEnd >= now.getTime();
+}
+
+function isAvailableActivity(date: Date | null, now: Date) {
+  if (!date) return true;
+
+  return date.getTime() >= now.getTime();
+}
+
 function profileName(row: LooseRow | null | undefined, fallback: string) {
   return firstText(row, ['nickname', 'username', 'display_name', 'full_name', 'name', 'nome', 'email'], fallback);
 }
@@ -137,30 +223,35 @@ export default function AdminEventsScreen() {
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [selectedActivity, setSelectedActivity] = useState<ActivityItem | null>(null);
   const [participants, setParticipants] = useState<ParticipantItem[]>([]);
-  const [dateFilter, setDateFilter] = useState('tutti');
+  const [dateFilter, setDateFilter] = useState('disponibili');
 
   const filteredActivities = useMemo(() => {
     const now = new Date();
 
     return activities.filter((item) => {
-      if (dateFilter === 'tutti') return true;
+      if (isDeletedActivity(item.raw)) return false;
 
       const date = item.dateObject;
-      if (!date) return false;
 
-      if (dateFilter === 'futuri') return date.getTime() >= now.getTime();
-      if (dateFilter === 'passati') return date.getTime() < now.getTime();
+      if (dateFilter === 'passati') {
+        return isPastVisibleForTenDays(date, now);
+      }
+
+      if (!isAvailableActivity(date, now)) return false;
 
       if (dateFilter === 'oggi') {
+        if (!date) return false;
         return date.toDateString() === now.toDateString();
       }
 
       if (dateFilter === '7giorni') {
+        if (!date) return false;
         const sevenDays = now.getTime() + 7 * 24 * 60 * 60 * 1000;
         return date.getTime() >= now.getTime() && date.getTime() <= sevenDays;
       }
 
       if (dateFilter === '30giorni') {
+        if (!date) return false;
         const thirtyDays = now.getTime() + 30 * 24 * 60 * 60 * 1000;
         return date.getTime() >= now.getTime() && date.getTime() <= thirtyDays;
       }
@@ -327,8 +418,8 @@ export default function AdminEventsScreen() {
     >
       <View style={styles.headerCard}>
         <Text style={styles.kicker}>Area Admin</Text>
-        <Text style={styles.title}>Eventi totali</Text>
-        <Text style={styles.text}>Eventi visibili: {filteredActivities.length} / {activities.length}</Text>
+        <Text style={styles.title}>Eventi disponibili</Text>
+        <Text style={styles.text}>Eventi mostrati: {filteredActivities.length}</Text>
 
         <Pressable style={styles.backButton} onPress={() => router.push('/admin')}>
           <Text style={styles.backButtonText}>← Torna ad Admin</Text>
@@ -336,16 +427,15 @@ export default function AdminEventsScreen() {
       </View>
 
       <View style={styles.filtersCard}>
-        <Text style={styles.sectionTitle}>Filtro data</Text>
+        <Text style={styles.sectionTitle}>Scegli cosa vedere</Text>
 
         <View style={styles.filterRow}>
           {[
-            ['tutti', 'Tutti'],
+            ['disponibili', 'Disponibili'],
             ['oggi', 'Oggi'],
             ['7giorni', 'Prossimi 7 giorni'],
             ['30giorni', 'Prossimi 30 giorni'],
-            ['futuri', 'Futuri'],
-            ['passati', 'Passati'],
+            ['passati', 'Eventi passati'],
           ].map(([value, label]) => (
             <Pressable
               key={value}
@@ -369,7 +459,7 @@ export default function AdminEventsScreen() {
         <Text style={styles.sectionTitle}>Elenco eventi</Text>
 
         {filteredActivities.length === 0 ? (
-          <Text style={styles.emptyText}>Nessun evento trovato con questo filtro.</Text>
+          <Text style={styles.emptyText}>Nessun evento da mostrare in questa sezione.</Text>
         ) : (
           filteredActivities.map((item) => (
             <Pressable key={item.id} style={styles.listRow} onPress={() => router.push(`/admin-event-detail?id=${item.id}`)}>

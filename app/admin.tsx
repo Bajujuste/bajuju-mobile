@@ -30,6 +30,143 @@ async function countRows(table: string) {
   return 0;
 }
 
+function firstAdminValue(row: Record<string, any> | null | undefined, keys: string[]) {
+  if (!row) return undefined;
+
+  for (const key of keys) {
+    if (row[key] !== undefined && row[key] !== null && row[key] !== '') return row[key];
+  }
+
+  return undefined;
+}
+
+function firstAdminText(row: Record<string, any> | null | undefined, keys: string[], fallback = '') {
+  const value = firstAdminValue(row, keys);
+
+  if (value === undefined || value === null) return fallback;
+
+  return String(value);
+}
+
+function booleanAdminValue(row: Record<string, any> | null | undefined, keys: string[], fallback = false) {
+  const value = firstAdminValue(row, keys);
+
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value === 1;
+
+  if (typeof value === 'string') {
+    const normalized = value.toLowerCase().trim();
+
+    if (['true', '1', 'yes', 'si', 'sì', 'deleted', 'eliminato', 'hidden', 'archived'].includes(normalized)) return true;
+    if (['false', '0', 'no', 'active', 'attivo'].includes(normalized)) return false;
+  }
+
+  return fallback;
+}
+
+function adminActivityDateValue(row: Record<string, any>) {
+  return firstAdminValue(row, [
+    'start_at',
+    'starts_at',
+    'start_time',
+    'activity_date',
+    'date',
+    'data',
+    'data_ora',
+    'scheduled_at',
+  ]);
+}
+
+function parseAdminDate(value: any) {
+  if (!value) return null;
+
+  const date = new Date(value);
+
+  if (!Number.isNaN(date.getTime())) return date;
+
+  return null;
+}
+
+function isAdminDeletedActivity(row: Record<string, any>) {
+  const deletedValue = firstAdminValue(row, [
+    'deleted_at',
+    'removed_at',
+    'cancelled_at',
+    'canceled_at',
+    'archived_at',
+    'eliminato_il',
+  ]);
+
+  if (deletedValue) return true;
+
+  if (
+    booleanAdminValue(
+      row,
+      [
+        'is_deleted',
+        'deleted',
+        'is_removed',
+        'removed',
+        'is_cancelled',
+        'is_canceled',
+        'cancelled',
+        'canceled',
+        'archived',
+        'hidden',
+      ],
+      false
+    )
+  ) {
+    return true;
+  }
+
+  const status = firstAdminText(row, ['status', 'stato', 'state', 'activity_status', 'event_status'], '').toLowerCase().trim();
+
+  return [
+    'deleted',
+    'eliminato',
+    'eliminata',
+    'removed',
+    'cancellato',
+    'cancellata',
+    'cancelled',
+    'canceled',
+    'annullato',
+    'annullata',
+    'archived',
+    'archiviato',
+    'archiviata',
+    'closed',
+    'chiuso',
+    'chiusa',
+  ].includes(status);
+}
+
+function isAdminAvailableActivity(row: Record<string, any>) {
+  if (isAdminDeletedActivity(row)) return false;
+
+  const date = parseAdminDate(adminActivityDateValue(row));
+
+  if (!date) return true;
+
+  return date.getTime() >= new Date().getTime();
+}
+
+async function countAvailableActivities() {
+  try {
+    const result = await supabase
+      .from('activities')
+      .select('*')
+      .limit(1000);
+
+    if (result.error || !Array.isArray(result.data)) return 0;
+
+    return result.data.filter((row) => isAdminAvailableActivity(row as Record<string, any>)).length;
+  } catch {
+    return 0;
+  }
+}
+
 async function countReports() {
   const tables = ['reports', 'user_reports', 'activity_reports'];
 
@@ -75,7 +212,7 @@ export default function AdminScreen() {
   const loadStats = useCallback(async () => {
     const [users, activities, reports, chatReports] = await Promise.all([
       countRows('profiles'),
-      countRows('activities'),
+      countAvailableActivities(),
       countReports(),
       countChatReports(),
     ]);
@@ -155,7 +292,7 @@ export default function AdminScreen() {
             <Text style={styles.menuIcon}>📅</Text>
           </View>
           <View style={styles.menuTextBox}>
-            <Text style={styles.menuTitle}>Eventi totali</Text>
+            <Text style={styles.menuTitle}>Eventi disponibili</Text>
             <Text style={styles.menuSubtitle}>Elenco eventi, filtro data e partecipanti.</Text>
           </View>
           <View style={styles.countPill}>

@@ -21,6 +21,7 @@ const bajujuLogo = require('../assets/brand/bajuju-logo.png');
 export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
   const [messageTitle, setMessageTitle] = useState('');
   const [messageText, setMessageText] = useState('');
 
@@ -29,6 +30,7 @@ export default function ForgotPasswordScreen() {
 
     setMessageTitle('');
     setMessageText('');
+    setResetSent(false);
 
     if (!cleanEmail) {
       setMessageTitle('Email mancante');
@@ -49,8 +51,9 @@ export default function ForgotPasswordScreen() {
         return;
       }
 
-      setMessageTitle('Controlla la tua email');
-      setMessageText('Ti abbiamo inviato il link per recuperare la password.');
+      setResetSent(true);
+      setMessageTitle('Operazione riuscita');
+      setMessageText('Ti abbiamo inviato il link per impostare una nuova password. Apri la mail, completa il cambio password e poi torna su Accedi.');
     } catch (error: any) {
       setMessageTitle('Errore collegamento');
       setMessageText(error?.message || 'Errore sconosciuto durante il recupero password.');
@@ -111,6 +114,12 @@ export default function ForgotPasswordScreen() {
                 <Text style={styles.messageText}>{messageText}</Text>
               </View>
             )}
+
+            {resetSent ? (
+              <Pressable style={styles.loginButton} onPress={() => router.replace('/login')}>
+                <Text style={styles.loginButtonText}>Torna ad Accedi</Text>
+              </Pressable>
+            ) : null}
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -203,6 +212,21 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: { opacity: 0.65 },
   buttonText: { color: '#ffffff', fontSize: 17, fontWeight: '900' },
+  loginButton: {
+    height: 52,
+    borderRadius: 18,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e43f98',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 14,
+  },
+  loginButtonText: {
+    color: '#e43f98',
+    fontSize: 16,
+    fontWeight: '900',
+  },
   messageBox: {
     marginTop: 16,
     borderRadius: 18,

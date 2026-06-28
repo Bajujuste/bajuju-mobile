@@ -4,7 +4,6 @@ import {
     ActivityIndicator,
     Alert,
     Image,
-    Linking,
     Pressable,
     RefreshControl,
     ScrollView,
@@ -50,6 +49,7 @@ const GENDER_OPTIONS = [
 ];
 
 const PROFILE_TABLE = 'profiles';
+const MOBILE_PROFILE_PAST_ACTIVITY_VISIBILITY_MS = 10 * 24 * 60 * 60 * 1000;
 
 function firstText(row: LooseRow | null | undefined, keys: string[], fallback = '') {
   if (!row) return fallback;
@@ -229,9 +229,12 @@ function isActivityVisibleInMobileProfile(row: LooseRow) {
   const activityDate = getMobileProfileActivityDate(row);
   if (!activityDate) return false;
 
-  const now = new Date();
+  const nowTime = Date.now();
+  const activityTime = activityDate.getTime();
 
-  return activityDate.getTime() >= now.getTime();
+  if (activityTime >= nowTime) return true;
+
+  return nowTime - activityTime <= MOBILE_PROFILE_PAST_ACTIVITY_VISIBILITY_MS;
 }
 
 function sortMobileProfileActivities(rows: LooseRow[]) {
@@ -697,54 +700,58 @@ export default function ProfileScreen() {
     [loadAll]
   );
 
-  const requestProfileDeletion = useCallback(async () => {
+  const requestProfileDeletion = useCallback(() => {
     if (!user) return;
 
-    const confirmed =
-      typeof window !== 'undefined'
-        ? window.confirm('Vuoi inviare una richiesta di eliminazione del profilo?')
-        : true;
+    Alert.alert(
+      'Eliminazione profilo',
+      'Vuoi inviare una richiesta di eliminazione del profilo? L’admin la vedrà nell’Area Admin.',
+      [
+        {
+          text: 'Annulla',
+          style: 'cancel',
+        },
+        {
+          text: 'Invia richiesta',
+          style: 'destructive',
+          onPress: async () => {
+            const payload = {
+              user_id: user.id,
+              email: user.email,
+              status: 'pending',
+              created_at: new Date().toISOString(),
+            };
 
-    if (!confirmed) return;
+            const attempts = [
+              () => supabase.from('profile_deletion_requests').insert(payload),
+              () => supabase.from('deletion_requests').insert(payload),
+              () =>
+                supabase
+                  .from(PROFILE_TABLE)
+                  .update({ deletion_requested_at: new Date().toISOString() })
+                  .eq(profileIdField, profileIdValue),
+            ];
 
-    const payload = {
-      user_id: user.id,
-      email: user.email,
-      status: 'pending',
-      created_at: new Date().toISOString(),
-    };
+            for (const attempt of attempts) {
+              try {
+                const result = await attempt();
 
-    const attempts = [
-      () => supabase.from('profile_deletion_requests').insert(payload),
-      () => supabase.from('deletion_requests').insert(payload),
-      () => supabase.from(PROFILE_TABLE).update({ deletion_requested_at: new Date().toISOString() }).eq(profileIdField, profileIdValue),
-    ];
+                if (!result.error) {
+                  Alert.alert('Richiesta inviata', 'La richiesta di eliminazione profilo è stata registrata.');
+                  return;
+                }
 
-    for (const attempt of attempts) {
-      try {
-        const result = await attempt();
+                console.log('Errore richiesta eliminazione:', result.error.message);
+              } catch (error) {
+                console.log('Errore richiesta eliminazione:', error);
+              }
+            }
 
-        if (!result.error) {
-          if (typeof window !== 'undefined') {
-            window.alert('Richiesta di eliminazione profilo registrata.');
-          } else {
-            Alert.alert('Richiesta inviata', 'La richiesta di eliminazione profilo è stata registrata.');
-          }
-
-          return;
-        }
-
-        console.log('Errore richiesta eliminazione:', result.error.message);
-      } catch (error) {
-        console.log('Errore richiesta eliminazione:', error);
-      }
-    }
-
-    if (typeof window !== 'undefined') {
-      window.alert('Non sono riuscito a registrare la richiesta di eliminazione.');
-    } else {
-      Alert.alert('Errore', 'Non sono riuscito a registrare la richiesta di eliminazione.');
-    }
+            Alert.alert('Errore', 'Non sono riuscito a registrare la richiesta di eliminazione.');
+          },
+        },
+      ]
+    );
   }, [profileIdField, profileIdValue, user]);
 
   const logout = useCallback(async () => {
@@ -784,7 +791,11 @@ export default function ProfileScreen() {
                   : styles.photoBoxBase,
           ]}
         >
-          {photoUrl ? <Image source={{ uri: photoUrl }} style={styles.photo} /> : <Image source={bajujuLogo} style={styles.photo} />}
+          {shouldShowProfilePhoto ? (
+            <Image source={{ uri: photoUrl }} style={styles.photo} onError={() => setPhotoLoadError(true)} />
+          ) : (
+            <Image source={bajujuLogo} style={styles.photo} />
+          )}
         </View>
         <View style={styles.headerText}>
           <Text style={styles.name}>{name}</Text>

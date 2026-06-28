@@ -19,6 +19,7 @@ import { supabase } from '../src/lib/supabase';
 const bajujuLogo = require('../assets/brand/bajuju-logo.png');
 
 export default function RegisterScreen() {
+  const [profileName, setProfileName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -28,14 +29,21 @@ export default function RegisterScreen() {
   const [messageText, setMessageText] = useState('');
 
   async function handleRegister() {
+    const cleanProfileName = profileName.trim();
     const cleanEmail = email.trim().toLowerCase();
 
     setMessageTitle('');
     setMessageText('');
 
-    if (!cleanEmail || !password) {
+    if (!cleanProfileName || !cleanEmail || !password) {
       setMessageTitle('Dati mancanti');
-      setMessageText('Inserisci email e password.');
+      setMessageText('Inserisci nome utente, email e password.');
+      return;
+    }
+
+    if (cleanProfileName.length < 3) {
+      setMessageTitle('Nome troppo corto');
+      setMessageText('Il nome utente deve avere almeno 3 caratteri.');
       return;
     }
 
@@ -48,17 +56,49 @@ export default function RegisterScreen() {
     setLoading(true);
 
     try {
+      const existingProfile = await supabase
+        .from('profiles')
+        .select('id,email')
+        .eq('email', cleanEmail)
+        .maybeSingle();
+
+      if (!existingProfile.error && existingProfile.data) {
+        setMessageTitle('Email già utilizzata');
+        setMessageText('Questa email è già registrata. Accedi oppure usa un’altra email.');
+        return;
+      }
+
       const result = await supabase.auth.signUp({
         email: cleanEmail,
         password,
         options: {
-          emailRedirectTo: 'bajujumobile://auth/callback',
+          data: {
+            username: cleanProfileName,
+            nickname: cleanProfileName,
+            display_name: cleanProfileName,
+            full_name: cleanProfileName,
+            name: cleanProfileName,
+          },
         },
       });
 
       if (result.error) {
+        const message = String(result.error.message || '');
+
         setMessageTitle('Registrazione non riuscita');
-        setMessageText(result.error.message);
+        setMessageText(
+          message.toLowerCase().includes('already') || message.toLowerCase().includes('registered')
+            ? 'Questa email è già registrata. Accedi oppure usa un’altra email.'
+            : 'Non sono riuscito a completare la registrazione. Riprova tra poco.'
+        );
+        return;
+      }
+
+      const identities = result.data.user?.identities || [];
+
+      if (result.data.user && identities.length === 0) {
+        setMessageTitle('Email già utilizzata');
+        setMessageText('Questa email è già registrata. Accedi oppure usa un’altra email.');
         return;
       }
 
@@ -98,6 +138,17 @@ export default function RegisterScreen() {
             <Text style={styles.description}>
               Crea il tuo account per partecipare alle esperienze e usare Bajuju Mobile.
             </Text>
+
+            <Text style={styles.label}>Nome utente</Text>
+            <TextInput
+              value={profileName}
+              onChangeText={setProfileName}
+              placeholder="Scegli il tuo nome utente"
+              placeholderTextColor="#b26a91"
+              autoCapitalize="words"
+              autoCorrect={false}
+              style={styles.input}
+            />
 
             <Text style={styles.label}>Email</Text>
             <TextInput

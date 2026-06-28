@@ -67,7 +67,7 @@ export default function LoginScreen() {
         return;
       }
 
-      router.replace('/home');
+      router.replace('/profile');
     } catch (error: any) {
       setMessageTitle('Errore collegamento');
       setMessageText(error?.message || 'Errore sconosciuto durante il login.');

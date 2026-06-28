@@ -92,13 +92,32 @@ function userGender(row: LooseRow) {
   return firstText(row, ['gender', 'genere', 'sex'], 'non indicato').toLowerCase();
 }
 
+function isDeletedUser(row: LooseRow) {
+  const deletedAt = firstText(row, ['deleted_at', 'eliminato_il', 'removed_at', 'archived_at'], '');
+
+  if (deletedAt) return true;
+
+  const rawStatus = firstText(row, ['status', 'stato', 'account_status'], '').toLowerCase().trim();
+
+  if (['deleted', 'eliminato', 'eliminata', 'removed', 'archived', 'disattivato', 'disattivata'].includes(rawStatus)) {
+    return true;
+  }
+
+  const deletedFlag = firstValue(row, ['is_deleted', 'deleted', 'is_removed', 'removed']);
+
+  if (deletedFlag === true) return true;
+  if (typeof deletedFlag === 'number' && deletedFlag === 1) return true;
+  if (typeof deletedFlag === 'string' && ['true', '1', 'yes', 'si', 'sì'].includes(deletedFlag.toLowerCase().trim())) return true;
+
+  return false;
+}
+
 function userStatus(row: LooseRow) {
   const suspendedUntil = firstText(row, ['suspended_until', 'sospeso_fino'], '');
   const blockedUntil = firstText(row, ['blocked_until', 'bloccato_fino'], '');
-  const deletedAt = firstText(row, ['deleted_at', 'eliminato_il'], '');
   const rawStatus = firstText(row, ['status', 'stato', 'account_status'], '');
 
-  if (deletedAt) return 'Eliminato / disattivato';
+  if (isDeletedUser(row)) return 'Eliminato / disattivato';
   if (suspendedUntil) return `Sospeso fino a ${formatDate(suspendedUntil)}`;
   if (blockedUntil) return `Bloccato fino a ${formatDate(blockedUntil)}`;
   if (rawStatus) return rawStatus;
@@ -118,6 +137,41 @@ async function tryUpdateById(table: string, id: string, payloads: LooseRow[]) {
   }
 
   return { ok: false, message: 'Aggiornamento non riuscito. Probabile policy Supabase o colonne mancanti.' };
+}
+
+
+async function trySoftDeleteUser(item: UserItem) {
+  const realProfileId = String(firstValue(item.raw, ['id']) || item.id).trim();
+
+  if (!realProfileId) {
+    return {
+      ok: false,
+      message: 'ID profilo non disponibile.',
+    };
+  }
+
+  const result = await supabase
+    .from('profiles')
+    .update({ is_deleted: true })
+    .eq('id', realProfileId)
+    .select('id,is_deleted')
+    .maybeSingle();
+
+  if (result.error) {
+    return {
+      ok: false,
+      message: result.error.message || 'Errore Supabase durante eliminazione utente.',
+    };
+  }
+
+  if (result.data?.is_deleted === true) {
+    return { ok: true, message: '' };
+  }
+
+  return {
+    ok: false,
+    message: 'La riga è stata trovata, ma is_deleted non è diventato TRUE.',
+  };
 }
 
 export default function AdminUsersScreen() {
@@ -161,6 +215,7 @@ export default function AdminUsersScreen() {
     }
 
     const mapped = ((result.data || []) as LooseRow[])
+      .filter((row) => !isDeletedUser(row))
       .map((row) => ({
         id: userId(row),
         email: userEmail(row),
@@ -269,13 +324,7 @@ export default function AdminUsersScreen() {
             text: 'Elimina',
             style: 'destructive',
             onPress: async () => {
-              const now = new Date().toISOString();
-              const result = await tryUpdateById('profiles', item.id, [
-                { deleted_at: now, status: 'deleted' },
-                { deleted_at: now, account_status: 'deleted' },
-                { is_deleted: true, status: 'deleted' },
-                { stato: 'eliminato' },
-              ]);
+              const result = await trySoftDeleteUser(item);
 
               if (!result.ok) {
                 Alert.alert('Errore', result.message);
@@ -283,6 +332,7 @@ export default function AdminUsersScreen() {
               }
 
               Alert.alert('Fatto', 'Utente eliminato/disattivato.');
+              setUsers((current) => current.filter((user) => user.id !== item.id));
               await loadUsers();
             },
           },
@@ -299,8 +349,8 @@ export default function AdminUsersScreen() {
     >
       <View style={styles.headerCard}>
         <Text style={styles.kicker}>Area Admin</Text>
-        <Text style={styles.title}>Iscritti totali</Text>
-        <Text style={styles.text}>Utenti visibili: {filteredUsers.length} / {users.length}</Text>
+        <Text style={styles.title}>Iscritti attivi</Text>
+        <Text style={styles.text}>Utenti attivi visibili: {filteredUsers.length}</Text>
 
         <Pressable style={styles.backButton} onPress={() => router.push('/admin')}>
           <Text style={styles.backButtonText}>← Torna ad Admin</Text>
@@ -347,10 +397,10 @@ export default function AdminUsersScreen() {
       ) : null}
 
       <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Elenco iscritti</Text>
+        <Text style={styles.sectionTitle}>Elenco iscritti attivi</Text>
 
         {filteredUsers.length === 0 ? (
-          <Text style={styles.emptyText}>Nessun utente trovato con questi filtri.</Text>
+          <Text style={styles.emptyText}>Nessun utente attivo trovato con questi filtri.</Text>
         ) : (
           filteredUsers.map((item) => (
             <Pressable key={item.id} style={styles.listRow} onPress={() => router.push(`/admin-user-detail?id=${encodeURIComponent(item.id)}`)}>

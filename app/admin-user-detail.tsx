@@ -75,6 +75,41 @@ async function tryUpdateProfile(id: string, payloads: LooseRow[]) {
   return { ok: false, message: 'Aggiornamento non riuscito. Probabile policy Supabase o colonne mancanti.' };
 }
 
+
+async function trySoftDeleteProfile(profileId: string, profile: LooseRow | null) {
+  const realProfileId = String(firstValue(profile, ['id']) || profileId).trim();
+
+  if (!realProfileId) {
+    return {
+      ok: false,
+      message: 'ID profilo non disponibile.',
+    };
+  }
+
+  const result = await supabase
+    .from('profiles')
+    .update({ is_deleted: true })
+    .eq('id', realProfileId)
+    .select('id,is_deleted')
+    .maybeSingle();
+
+  if (result.error) {
+    return {
+      ok: false,
+      message: result.error.message || 'Errore Supabase durante eliminazione utente.',
+    };
+  }
+
+  if (result.data?.is_deleted === true) {
+    return { ok: true, message: '' };
+  }
+
+  return {
+    ok: false,
+    message: 'La riga è stata trovata, ma is_deleted non è diventato TRUE.',
+  };
+}
+
 export default function AdminUserDetailScreen() {
   const params = useLocalSearchParams<{ id?: string }>();
   const userId = String(params.id || '');
@@ -232,15 +267,7 @@ export default function AdminUserDetailScreen() {
         text: 'Elimina',
         style: 'destructive',
         onPress: async () => {
-          const now = new Date().toISOString();
-
-          const result = await tryUpdateProfile(currentProfileId, [
-            { deleted_at: now, status: 'deleted' },
-            { deleted_at: now },
-            { is_deleted: true, status: 'deleted' },
-            { is_deleted: true },
-            { stato: 'eliminato' },
-          ]);
+          const result = await trySoftDeleteProfile(currentProfileId, profile);
 
           if (!result.ok) {
             Alert.alert('Errore', result.message);

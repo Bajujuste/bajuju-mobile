@@ -30,6 +30,59 @@ async function countRows(table: string) {
   return 0;
 }
 
+function adminUserValue(row: Record<string, any> | null | undefined, keys: string[]) {
+  if (!row) return undefined;
+
+  for (const key of keys) {
+    if (row[key] !== undefined && row[key] !== null && row[key] !== '') return row[key];
+  }
+
+  return undefined;
+}
+
+function adminUserText(row: Record<string, any> | null | undefined, keys: string[], fallback = '') {
+  const value = adminUserValue(row, keys);
+
+  if (value === undefined || value === null) return fallback;
+
+  return String(value);
+}
+
+function isAdminDeletedUser(row: Record<string, any>) {
+  const deletedAt = adminUserText(row, ['deleted_at', 'eliminato_il', 'removed_at', 'archived_at'], '');
+
+  if (deletedAt) return true;
+
+  const rawStatus = adminUserText(row, ['status', 'stato', 'account_status'], '').toLowerCase().trim();
+
+  if (['deleted', 'eliminato', 'eliminata', 'removed', 'archived', 'disattivato', 'disattivata'].includes(rawStatus)) {
+    return true;
+  }
+
+  const deletedFlag = adminUserValue(row, ['is_deleted', 'deleted', 'is_removed', 'removed']);
+
+  if (deletedFlag === true) return true;
+  if (typeof deletedFlag === 'number' && deletedFlag === 1) return true;
+  if (typeof deletedFlag === 'string' && ['true', '1', 'yes', 'si', 'sì'].includes(deletedFlag.toLowerCase().trim())) return true;
+
+  return false;
+}
+
+async function countActiveUsers() {
+  try {
+    const result = await supabase
+      .from('profiles')
+      .select('*')
+      .limit(1000);
+
+    if (result.error || !Array.isArray(result.data)) return 0;
+
+    return result.data.filter((row) => !isAdminDeletedUser(row as Record<string, any>)).length;
+  } catch {
+    return 0;
+  }
+}
+
 function firstAdminValue(row: Record<string, any> | null | undefined, keys: string[]) {
   if (!row) return undefined;
 
@@ -211,7 +264,7 @@ export default function AdminScreen() {
 
   const loadStats = useCallback(async () => {
     const [users, activities, reports, chatReports] = await Promise.all([
-      countRows('profiles'),
+      countActiveUsers(),
       countAvailableActivities(),
       countReports(),
       countChatReports(),
@@ -279,8 +332,8 @@ export default function AdminScreen() {
             <Text style={styles.menuIcon}>👥</Text>
           </View>
           <View style={styles.menuTextBox}>
-            <Text style={styles.menuTitle}>Iscritti totali</Text>
-            <Text style={styles.menuSubtitle}>Elenco utenti, filtri e gestione profili.</Text>
+            <Text style={styles.menuTitle}>Iscritti attivi</Text>
+            <Text style={styles.menuSubtitle}>Elenco utenti attivi, filtri e gestione profili.</Text>
           </View>
           <View style={styles.countPill}>
             <Text style={styles.countText}>{stats.users}</Text>

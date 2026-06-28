@@ -86,10 +86,12 @@ function organizerGradeHint(count: number) {
 async function safeFetchRows(table: string, column: string, userId: string) {
   const result = await supabase
     .from(table)
-    .select('id,activity_id')
-    .eq(column, userId);
+    .select('id,activity_id,deleted_at')
+    .eq(column, userId)
+    .is('deleted_at', null);
 
   if (result.error || !result.data) return [];
+
   return result.data as LooseRow[];
 }
 
@@ -129,26 +131,14 @@ export default function UserProfileScreen() {
 
       let loadedProfile: LooseRow | null = null;
 
-      const byUserId = await supabase
+      const byId = await supabase
         .from('profiles')
         .select('*')
-        .eq('user_id', userId)
+        .eq('id', userId)
         .maybeSingle();
 
-      if (!byUserId.error && byUserId.data) {
-        loadedProfile = byUserId.data;
-      }
-
-      if (!loadedProfile) {
-        const byId = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', userId)
-          .maybeSingle();
-
-        if (!byId.error && byId.data) {
-          loadedProfile = byId.data;
-        }
+      if (!byId.error && byId.data) {
+        loadedProfile = byId.data;
       }
 
       if (!loadedProfile) {
@@ -158,23 +148,13 @@ export default function UserProfileScreen() {
 
       setProfile(loadedProfile);
 
-      const profileId = String(loadedProfile.id || '').trim();
-      const profileUserId = String(loadedProfile.user_id || userId).trim();
+      const profileId = String(loadedProfile.id || userId).trim();
+      const profileUserId = profileId;
 
       const organizedIds = new Set<string>();
 
-      const organizedByUserId = await safeFetchRows('activities', 'user_id', profileUserId);
-      organizedByUserId.forEach((row) => {
-        if (row.id) organizedIds.add(String(row.id));
-      });
-
-      const organizedByProfileId = await safeFetchRows('activities', 'profile_id', profileId || profileUserId);
-      organizedByProfileId.forEach((row) => {
-        if (row.id) organizedIds.add(String(row.id));
-      });
-
-      const organizedByCreatedBy = await safeFetchRows('activities', 'created_by', profileUserId);
-      organizedByCreatedBy.forEach((row) => {
+      const organizedByCreatorId = await safeFetchRows('activities', 'creator_id', profileId || profileUserId);
+      organizedByCreatorId.forEach((row) => {
         if (row.id) organizedIds.add(String(row.id));
       });
 

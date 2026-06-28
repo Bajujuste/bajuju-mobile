@@ -124,7 +124,6 @@ export default function AdminUsersScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [users, setUsers] = useState<UserItem[]>([]);
-  const [selectedUser, setSelectedUser] = useState<UserItem | null>(null);
   const [genderFilter, setGenderFilter] = useState('tutti');
   const [ageFilter, setAgeFilter] = useState('tutte');
 
@@ -284,7 +283,6 @@ export default function AdminUsersScreen() {
               }
 
               Alert.alert('Fatto', 'Utente eliminato/disattivato.');
-              setSelectedUser(null);
               await loadUsers();
             },
           },
@@ -348,49 +346,6 @@ export default function AdminUsersScreen() {
         </View>
       ) : null}
 
-      {selectedUser ? (
-        <View style={[styles.card, styles.detailCard]}>
-          <Text style={styles.sectionTitle}>Dettaglio utente</Text>
-
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Nome</Text>
-            <Text style={styles.detailValue}>{selectedUser.name}</Text>
-          </View>
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Email</Text>
-            <Text style={styles.detailValue}>{selectedUser.email}</Text>
-          </View>
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Città / Età / Genere</Text>
-            <Text style={styles.detailValue}>
-              {selectedUser.city} · {selectedUser.age || 'età non indicata'} · {selectedUser.gender}
-            </Text>
-          </View>
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Stato</Text>
-            <Text style={styles.detailValue}>{selectedUser.status}</Text>
-          </View>
-
-          <View style={styles.actionGrid}>
-            <Pressable style={styles.warningButton} onPress={() => suspendUser(selectedUser)}>
-              <Text style={styles.actionButtonText}>Sospendi utente</Text>
-            </Pressable>
-
-            <Pressable style={styles.warningButton} onPress={() => blockUserSevenDays(selectedUser)}>
-              <Text style={styles.actionButtonText}>Blocca 7 giorni</Text>
-            </Pressable>
-
-            <Pressable style={styles.dangerButton} onPress={() => deleteUser(selectedUser)}>
-              <Text style={styles.actionButtonText}>Elimina utente</Text>
-            </Pressable>
-
-            <Pressable style={styles.ghostButton} onPress={() => setSelectedUser(null)}>
-              <Text style={styles.ghostButtonText}>Chiudi dettaglio</Text>
-            </Pressable>
-          </View>
-        </View>
-      ) : null}
-
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>Elenco iscritti</Text>
 
@@ -398,7 +353,7 @@ export default function AdminUsersScreen() {
           <Text style={styles.emptyText}>Nessun utente trovato con questi filtri.</Text>
         ) : (
           filteredUsers.map((item) => (
-            <Pressable key={item.id} style={styles.listRow} onPress={() => setSelectedUser(item)}>
+            <Pressable key={item.id} style={styles.listRow} onPress={() => router.push(`/admin-user-detail?id=${encodeURIComponent(item.id)}`)}>
               <View style={styles.listTextBox}>
                 <Text style={styles.listTitle}>{item.name}</Text>
                 <Text style={styles.listSubtitle}>{item.email}</Text>

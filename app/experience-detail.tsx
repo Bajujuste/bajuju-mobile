@@ -1,6 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  Alert,
   Image,
   Pressable,
   SafeAreaView,
@@ -477,31 +478,47 @@ export default function ExperienceDetailScreen() {
   async function cancelExperience() {
     if (!experienceId || !currentUserId || !isOrganizer) return;
 
-    const confirmCancel =
-      typeof window === 'undefined'
-        ? true
-        : window.confirm('Vuoi davvero annullare questa esperienza?');
+    Alert.alert(
+      'Annullare esperienza',
+      'Vuoi davvero annullare questa esperienza?',
+      [
+        { text: 'No', style: 'cancel' },
+        {
+          text: 'Sì, annulla',
+          style: 'destructive',
+          onPress: async () => {
+            const now = new Date().toISOString();
 
-    if (!confirmCancel) return;
+            const attempts = [
+              { deleted_at: now, status: 'deleted' },
+              { deleted_at: now },
+              { is_deleted: true, status: 'deleted' },
+              { hidden: true, status: 'deleted' },
+              { status: 'deleted' },
+              { stato: 'eliminato' },
+            ];
 
-    const result = await supabase
-      .from('activities')
-      .update({ deleted_at: new Date().toISOString() })
-      .eq('id', experienceId)
-      .eq('creator_id', currentUserId);
+            for (const payload of attempts) {
+              const result = await supabase
+                .from('activities')
+                .update(payload)
+                .eq('id', experienceId);
 
-    if (result.error) {
-      if (typeof window !== 'undefined') {
-        window.alert(`Errore annullamento esperienza: ${result.error.message}`);
-      }
-      return;
-    }
+              if (!result.error) {
+                Alert.alert('Esperienza annullata', 'L’esperienza è stata rimossa.');
+                router.replace('/experiences');
+                return;
+              }
+            }
 
-    if (typeof window !== 'undefined') {
-      window.alert('Esperienza annullata.');
-    }
-
-    router.replace('/experiences');
+            Alert.alert(
+              'Errore annullamento',
+              'Non sono riuscito ad annullare questa esperienza. Probabile policy Supabase o colonna mancante.'
+            );
+          },
+        },
+      ]
+    );
   }
 
   async function sendGoingOutInvite(targetUserId: string) {

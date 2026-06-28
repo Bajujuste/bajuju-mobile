@@ -843,6 +843,7 @@ export default function FlashScreen() {
         </Pressable>
 
         <Text style={styles.kicker}>Bajuju Flash</Text>
+        <Text style={styles.flashInstructions}>Qui puoi scegliere se farti vedere dagli altri per 1, 2 o 3 ore, organizzare subito qualcosa o essere invitato in un Flash.</Text>
 
         <View style={styles.flashLogoCircle}>
           <Image source={bajujuLogo} style={styles.flashLogoImage} resizeMode="contain" />
@@ -1406,6 +1407,20 @@ const styles = StyleSheet.create({
     padding: 22,
     borderWidth: 1,
     borderColor: '#ffd3e6',
+  },
+  flashInstructions: {
+    backgroundColor: '#fff0f7',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#ffd3e6',
+    color: '#7b4960',
+    fontSize: 14,
+    fontWeight: '800',
+    lineHeight: 21,
+    marginBottom: 12,
+    marginTop: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
   },
   kicker: {
     color: '#ef2d82',

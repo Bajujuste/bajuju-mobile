@@ -235,7 +235,7 @@ export default function AdminEventDetailScreen() {
   const deleteActivity = useCallback(() => {
     if (!activityId || !activity) return;
 
-    Alert.alert('Eliminare evento', `Vuoi eliminare "${activityTitle(activity)}"?`, [
+    Alert.alert('Rimuovere evento', `Vuoi eliminare "${activityTitle(activity)}"?`, [
       { text: 'Annulla', style: 'cancel' },
       {
         text: 'Elimina',
@@ -248,7 +248,7 @@ export default function AdminEventDetailScreen() {
             return;
           }
 
-          Alert.alert('Fatto', 'Evento eliminato.');
+          Alert.alert('Fatto', 'Evento rimosso.');
           router.replace('/admin-events');
         },
       },
@@ -340,7 +340,7 @@ export default function AdminEventDetailScreen() {
             </Pressable>
 
             <Pressable style={styles.dangerButton} onPress={deleteActivity}>
-              <Text style={styles.actionButtonText}>Elimina evento</Text>
+              <Text style={styles.actionButtonText}>Rimuovi evento</Text>
             </Pressable>
           </View>
         </>

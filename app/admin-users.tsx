@@ -316,7 +316,7 @@ export default function AdminUsersScreen() {
   const deleteUser = useCallback(
     async (item: UserItem) => {
       Alert.alert(
-        'Eliminare utente',
+        'Disattivare utente',
         `Vuoi eliminare/disattivare ${item.name}?`,
         [
           { text: 'Annulla', style: 'cancel' },
@@ -331,7 +331,7 @@ export default function AdminUsersScreen() {
                 return;
               }
 
-              Alert.alert('Fatto', 'Utente eliminato/disattivato.');
+              Alert.alert('Fatto', 'Utente disattivato.');
               setUsers((current) => current.filter((user) => user.id !== item.id));
               await loadUsers();
             },
@@ -400,7 +400,7 @@ export default function AdminUsersScreen() {
         <Text style={styles.sectionTitle}>Elenco iscritti attivi</Text>
 
         {filteredUsers.length === 0 ? (
-          <Text style={styles.emptyText}>Nessun utente attivo trovato con questi filtri.</Text>
+          <Text style={styles.emptyText}>Nessun utente trovato con questi filtri.</Text>
         ) : (
           filteredUsers.map((item) => (
             <Pressable key={item.id} style={styles.listRow} onPress={() => router.push(`/admin-user-detail?id=${encodeURIComponent(item.id)}`)}>

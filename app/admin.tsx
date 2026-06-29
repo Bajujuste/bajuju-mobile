@@ -309,7 +309,7 @@ export default function AdminScreen() {
         <Text style={styles.kicker}>Bajuju</Text>
         <Text style={styles.title}>Area Admin</Text>
         <Text style={styles.text}>
-          Pannello rapido per controllare utenti, eventi, segnalazioni e chat segnalate.
+          Pannello rapido per controllare community, eventi, segnalazioni e sicurezza.
         </Text>
 
         <Pressable style={styles.backButton} onPress={() => router.push('/profile')}>
@@ -333,7 +333,7 @@ export default function AdminScreen() {
           </View>
           <View style={styles.menuTextBox}>
             <Text style={styles.menuTitle}>Iscritti attivi</Text>
-            <Text style={styles.menuSubtitle}>Elenco utenti attivi, filtri e gestione profili.</Text>
+            <Text style={styles.menuSubtitle}>Controlla utenti attivi, stati profilo e azioni di sicurezza.</Text>
           </View>
           <View style={styles.countPill}>
             <Text style={styles.countText}>{stats.users}</Text>
@@ -346,7 +346,7 @@ export default function AdminScreen() {
           </View>
           <View style={styles.menuTextBox}>
             <Text style={styles.menuTitle}>Eventi disponibili</Text>
-            <Text style={styles.menuSubtitle}>Elenco eventi, filtro data e partecipanti.</Text>
+            <Text style={styles.menuSubtitle}>Controlla eventi disponibili, partecipanti e cancellazioni sicure.</Text>
           </View>
           <View style={styles.countPill}>
             <Text style={styles.countText}>{stats.activities}</Text>

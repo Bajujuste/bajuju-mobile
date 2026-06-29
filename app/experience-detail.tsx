@@ -14,6 +14,7 @@ import {
 
 import { supabase } from '../src/lib/supabase';
 import { shareBajujuExperience } from '../src/utils/shareBajuju';
+import { getExperienceCategoryIcon, normalizeExperienceCategory } from '@/src/constants/experienceCategories';
 
 const bajujuLogo = require('../assets/brand/bajuju-logo.png');
 
@@ -116,7 +117,7 @@ function getExperienceCreatorId(experience: ActivityRow | null) {
 }
 
 function profileName(profile: ProfileRow | undefined, index: number) {
-  if (!profile) return `Partecipante ${index + 1}`;
+  if (!profile) return `Partecipa orante ${index + 1}`;
 
   const value =
     profile.full_name ||
@@ -129,7 +130,7 @@ function profileName(profile: ProfileRow | undefined, index: number) {
     profile.email ||
     '';
 
-  return value ? String(value).trim() : `Partecipante ${index + 1}`;
+  return value ? String(value).trim() : `Partecipa orante ${index + 1}`;
 }
 
 function profilePhotoUrl(profile: ProfileRow | undefined) {
@@ -438,7 +439,7 @@ export default function ExperienceDetailScreen() {
       await loadMessages(experienceId);
 
       if (typeof window !== 'undefined') {
-        window.alert('Partecipazione registrata.');
+        window.alert('Partecipa orazione registrata.');
       }
     } finally {
       setJoining(false);
@@ -634,7 +635,7 @@ export default function ExperienceDetailScreen() {
                 />
 
                 <View style={styles.eventTopText}>
-                  <Text style={styles.category}>{experience.category || 'Esperienza'}</Text>
+                  <Text style={styles.category}>{getExperienceCategoryIcon(experience.category)} {normalizeExperienceCategory(experience.category)}</Text>
 
                   <Text style={styles.title}>
                     {experience.title || 'Esperienza senza titolo'}
@@ -701,14 +702,14 @@ export default function ExperienceDetailScreen() {
               </Pressable>
 
               <View style={styles.participantsBox}>
-                <Text style={styles.sectionTitle}>Partecipanti</Text>
+                <Text style={styles.sectionTitle}>Persone nell’esperienza</Text>
                 <Text style={styles.participantsCount}>
                   {participantCount}{maxParticipants > 0 ? ` / ${maxParticipants}` : ''} partecipanti
                 </Text>
 
                 {displayedParticipants.length === 0 ? (
                   <Text style={styles.emptySmallText}>
-                    Ancora nessun partecipante.
+                    Ancora nessun partecipante. Puoi essere tu il primo.
                   </Text>
                 ) : (
                   <View style={styles.participantsList}>
@@ -739,7 +740,7 @@ export default function ExperienceDetailScreen() {
                                 isCreator ? styles.organizerRoleBadge : styles.normalRoleBadge,
                               ]}
                             >
-                              {isCreator ? 'Organizzatore' : 'Partecipante'}
+                              {isCreator ? 'Organizzatore' : 'Partecipa orante'}
                             </Text>
                           </View>
 
@@ -762,11 +763,11 @@ export default function ExperienceDetailScreen() {
               </View>
 
               <View style={styles.chatBox}>
-                <Text style={styles.sectionTitle}>Chat esperienza</Text>
+                <Text style={styles.sectionTitle}>Chat dell’esperienza</Text>
 
                 {!canUseChat ? (
                   <Text style={styles.emptySmallText}>
-                    Partecipa all’esperienza per leggere e scrivere nella chat.
+                    La chat si sblocca quando partecipi all’esperienza.
                   </Text>
                 ) : (
                   <>
@@ -843,7 +844,7 @@ export default function ExperienceDetailScreen() {
                 ) : isParticipant ? (
                   <>
                     <View style={styles.smallStatusButton}>
-                      <Text style={styles.smallStatusButtonText}>Stai partecipando</Text>
+                      <Text style={styles.smallStatusButtonText}>Ci sei anche tu</Text>
                     </View>
 
                     <Pressable
@@ -855,7 +856,7 @@ export default function ExperienceDetailScreen() {
                       disabled={leaving}
                     >
                       <Text style={styles.smallLeaveButtonText}>
-                        {leaving ? 'Abbandono...' : 'Abbandona'}
+                        {leaving ? 'Abbandono...' : 'Non partecipo più'}
                       </Text>
                     </Pressable>
                   </>
@@ -873,7 +874,7 @@ export default function ExperienceDetailScreen() {
                     disabled={joining}
                   >
                     <Text style={styles.smallJoinButtonText}>
-                      {joining ? 'Partecipazione...' : 'Partecipa'}
+                      {joining ? 'Partecipa orazione...' : 'Partecipa ora'}
                     </Text>
                   </Pressable>
                 )}
@@ -929,18 +930,18 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   category: {
+
     alignSelf: 'flex-start',
     backgroundColor: '#fff0f7',
-    borderWidth: 1,
-    borderColor: '#ffd3e7',
-    color: '#9b1f61',
-    fontSize: 12,
-    fontWeight: '900',
-    paddingVertical: 6,
-    paddingHorizontal: 11,
     borderRadius: 999,
-    overflow: 'hidden',
-    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#ffd1e6',
+    color: '#e43f98',
+    fontSize: 13,
+    fontWeight: '900',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    marginBottom: 10,
   },
   eventTopRow: {
     flexDirection: 'row',
@@ -1062,12 +1063,18 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   participantsBox: {
-    borderRadius: 20,
-    padding: 14,
+
     backgroundColor: '#fff8fb',
+    borderRadius: 24,
     borderWidth: 1,
-    borderColor: '#ffd3e7',
-    marginBottom: 14,
+    borderColor: '#ffd6e8',
+    padding: 16,
+    marginTop: 16,
+    shadowColor: '#e43f98',
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 2,
   },
   sectionTitle: {
     color: '#e43f98',
@@ -1076,50 +1083,59 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   participantsCount: {
-    color: '#9b1f61',
+
+    color: '#8d315f',
     fontSize: 13,
     fontWeight: '800',
-    marginBottom: 10,
+    marginTop: 4,
+    marginBottom: 12,
   },
   participantsList: {
-    gap: 9,
+
+    gap: 10,
+    marginTop: 4,
   },
   participantRow: {
-    flexDirection: 'row',
+
     alignItems: 'center',
-    gap: 10,
     backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#ffd3e7',
     borderRadius: 18,
-    paddingVertical: 8,
-    paddingHorizontal: 9,
+    borderWidth: 1,
+    borderColor: '#ffe1ee',
+    flexDirection: 'row',
+    gap: 12,
+    padding: 12,
   },
   participantPhoto: {
-    width: 38,
-    height: 38,
-    borderRadius: 999,
+
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: '#fff0f7',
-    borderWidth: 1,
-    borderColor: '#ffd3e7',
+    borderWidth: 2,
+    borderColor: '#f0328b',
   },
   participantInfo: {
     flex: 1,
   },
   participantName: {
-    color: '#6b3652',
-    fontSize: 13,
+
+    color: '#48172f',
+    fontSize: 15,
     fontWeight: '900',
   },
   participantRoleBadge: {
+
     alignSelf: 'flex-start',
-    marginTop: 4,
+    backgroundColor: '#f0328b',
     borderRadius: 999,
-    paddingVertical: 3,
-    paddingHorizontal: 8,
-    overflow: 'hidden',
-    fontSize: 10,
+    color: '#ffffff',
+    fontSize: 11,
     fontWeight: '900',
+    marginTop: 4,
+    overflow: 'hidden',
+    paddingHorizontal: 9,
+    paddingVertical: 3,
   },
   organizerRoleBadge: {
     backgroundColor: '#fff6ce',
@@ -1247,76 +1263,95 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   chatBox: {
-    borderRadius: 22,
-    padding: 14,
+
     backgroundColor: '#fff8fb',
+    borderRadius: 24,
     borderWidth: 1,
-    borderColor: '#ffd3e7',
+    borderColor: '#ffd6e8',
+    padding: 16,
+    marginTop: 16,
+    shadowColor: '#e43f98',
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 2,
   },
   emptySmallText: {
-    color: '#9b1f61',
-    fontSize: 13,
+
+    backgroundColor: '#ffffff',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#ffe1ee',
+    color: '#8d315f',
+    fontSize: 14,
     fontWeight: '700',
-    lineHeight: 19,
+    lineHeight: 20,
+    padding: 14,
+    textAlign: 'center',
   },
   messagesList: {
+
     gap: 10,
-    marginTop: 6,
-    marginBottom: 12,
+    marginTop: 10,
   },
   messageBubble: {
+
     alignSelf: 'flex-start',
-    maxWidth: '92%',
-    borderRadius: 18,
     backgroundColor: '#ffffff',
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#ffd3e7',
-    paddingVertical: 9,
-    paddingHorizontal: 11,
+    borderColor: '#ffe1ee',
+    maxWidth: '88%',
+    paddingHorizontal: 13,
+    paddingVertical: 10,
   },
   messageBubbleMine: {
+
     alignSelf: 'flex-end',
-    backgroundColor: '#fff0f7',
-    borderColor: '#f7b8d6',
+    backgroundColor: '#f0328b',
+    borderColor: '#f0328b',
   },
   messageAuthor: {
+
     color: '#e43f98',
     fontSize: 12,
     fontWeight: '900',
     marginBottom: 3,
   },
   messageBody: {
-    color: '#6b3652',
+
+    color: '#48172f',
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
     lineHeight: 20,
   },
   messageTime: {
-    color: '#b36a91',
+
+    color: '#a95d86',
     fontSize: 11,
     fontWeight: '700',
-    marginTop: 4,
-    textAlign: 'right',
+    marginTop: 5,
   },
   chatInputRow: {
+
+    alignItems: 'center',
     flexDirection: 'row',
-    gap: 8,
-    alignItems: 'flex-end',
-    marginTop: 10,
+    gap: 10,
+    marginTop: 14,
   },
   chatInput: {
-    flex: 1,
-    minHeight: 46,
-    maxHeight: 110,
+
+    backgroundColor: '#ffffff',
+    borderColor: '#ffd1e6',
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#ffd3e7',
-    backgroundColor: '#ffffff',
-    paddingHorizontal: 13,
-    paddingVertical: 10,
-    color: '#6b3652',
+    color: '#48172f',
+    flex: 1,
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
+    minHeight: 46,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
   },
   sendButton: {
     minHeight: 46,

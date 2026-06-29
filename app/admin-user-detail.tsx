@@ -261,7 +261,7 @@ export default function AdminUserDetailScreen() {
   const deleteUser = useCallback(() => {
     if (!profile) return;
 
-    Alert.alert('Eliminare utente', `Vuoi eliminare/disattivare ${profileName(profile)}?`, [
+    Alert.alert('Disattivare utente', `Vuoi eliminare/disattivare ${profileName(profile)}?`, [
       { text: 'Annulla', style: 'cancel' },
       {
         text: 'Elimina',
@@ -274,7 +274,7 @@ export default function AdminUserDetailScreen() {
             return;
           }
 
-          Alert.alert('Fatto', 'Utente eliminato/disattivato.');
+          Alert.alert('Fatto', 'Utente disattivato.');
           router.replace('/admin-users');
         },
       },
@@ -350,7 +350,7 @@ export default function AdminUserDetailScreen() {
             </Pressable>
 
             <Pressable style={styles.dangerButton} onPress={deleteUser}>
-              <Text style={styles.actionButtonText}>Elimina utente</Text>
+              <Text style={styles.actionButtonText}>Disattiva utente</Text>
             </Pressable>
           </View>
         </>

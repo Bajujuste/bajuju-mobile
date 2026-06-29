@@ -782,7 +782,7 @@ export default function ProfileScreen() {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
       <Pressable style={styles.profileBackButton} onPress={() => router.push('/home')}>
-        <Text style={styles.profileBackText}>← Home</Text>
+        <Text style={styles.profileBackText}>← Torna alla Home</Text>
       </Pressable>
 
       <View style={styles.headerCard}>
@@ -924,11 +924,11 @@ export default function ProfileScreen() {
           </View>
           <View style={styles.sectionHeaderText}>
             <Text style={styles.sectionTitle}>Contatti diretti</Text>
-            <Text style={styles.sectionHint}>Persone conosciute in una esperienza Bajuju che vogliono restare in contatto con te.</Text>
+            <Text style={styles.sectionHint}>Qui trovi le persone conosciute nelle esperienze Bajuju che vogliono restare in contatto con te.</Text>
           </View>
         </View>
         {contactRequests.length === 0 ? (
-          <Text style={styles.emptyText}>Nessuna richiesta di contatto diretto.</Text>
+          <Text style={styles.emptyText}>Nessuna richiesta di contatto al momento.</Text>
         ) : (
           contactRequests.map((item) => (
             <View key={`${item.table}-${item.id}`} style={styles.itemBox}>
@@ -958,7 +958,7 @@ export default function ProfileScreen() {
           </View>
         </View>
         {invites.length === 0 ? (
-          <Text style={styles.emptyText}>Nessun invito a uscire.</Text>
+          <Text style={styles.emptyText}>Nessun invito a uscire per ora.</Text>
         ) : (
           invites.map((item) => (
             <View key={`${item.table}-${item.id}`} style={styles.itemBox}>
@@ -983,7 +983,7 @@ export default function ProfileScreen() {
           {organizedActivities.length} {organizedActivities.length === 1 ? 'esperienza' : 'esperienze'}
         </Text>
         {organizedActivities.length === 0 ? (
-          <Text style={styles.emptyText}>Non hai ancora creato esperienze.</Text>
+          <Text style={styles.emptyText}>Non hai ancora creato esperienze. Quando organizzi qualcosa, lo ritrovi qui.</Text>
         ) : (
           organizedActivities.map((activity) => (
             <Pressable
@@ -1005,7 +1005,7 @@ export default function ProfileScreen() {
           {participatedActivities.length} {participatedActivities.length === 1 ? 'esperienza' : 'esperienze'}
         </Text>
         {participatedActivities.length === 0 ? (
-          <Text style={styles.emptyText}>Non stai partecipando a esperienze.</Text>
+          <Text style={styles.emptyText}>Non stai partecipando a esperienze. Quando ti unisci a qualcosa, lo ritrovi qui.</Text>
         ) : (
           participatedActivities.map((activity) => (
             <Pressable
@@ -1043,19 +1043,21 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   profileBackButton: {
+
     alignSelf: 'flex-start',
-    marginBottom: 14,
-    paddingVertical: 9,
-    paddingHorizontal: 13,
+    backgroundColor: '#fff0f7',
     borderRadius: 999,
-    backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: '#ffd3e7',
+    borderColor: '#ffd1e6',
+    marginBottom: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
   },
   profileBackText: {
+
+    color: '#e43f98',
     fontSize: 14,
     fontWeight: '900',
-    color: '#9b1f61',
   },
 
   page: {
@@ -1092,14 +1094,20 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   photoBox: {
-    width: 82,
-    height: 82,
-    borderRadius: 41,
-    backgroundColor: '#ffe3f0',
+
+    alignSelf: 'center',
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'hidden',
-    borderWidth: 3,
+    width: 132,
+    height: 132,
+    borderRadius: 66,
+    backgroundColor: '#fff0f7',
+    borderWidth: 5,
+    shadowColor: '#e43f98',
+    shadowOpacity: 0.18,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 4,
   },
   photoBoxBase: {
     borderColor: '#ffffff',
@@ -1117,8 +1125,11 @@ const styles = StyleSheet.create({
     borderColor: '#d8a600',
   },
   photo: {
-    width: '100%',
-    height: '100%',
+
+    width: 118,
+    height: 118,
+    borderRadius: 59,
+    resizeMode: 'cover',
   },
   photoFallback: {
     fontSize: 34,
@@ -1128,9 +1139,12 @@ const styles = StyleSheet.create({
     marginLeft: 14,
   },
   name: {
-    fontSize: 24,
+
+    color: '#48172f',
+    fontSize: 27,
     fontWeight: '900',
-    color: '#311028',
+    marginTop: 14,
+    textAlign: 'center',
   },
   email: {
     marginTop: 4,
@@ -1138,11 +1152,18 @@ const styles = StyleSheet.create({
     color: '#7a4267',
   },
   photoErrorText: {
-    color: '#9b1f61',
+
+    alignSelf: 'center',
+    backgroundColor: '#fff0f7',
+    borderRadius: 16,
+    color: '#8d315f',
     fontSize: 12,
     fontWeight: '800',
     lineHeight: 17,
-    marginTop: 6,
+    marginTop: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    textAlign: 'center',
   },
   organizerBadge: {
     marginTop: 8,
@@ -1206,16 +1227,23 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   card: {
-    marginTop: 16,
+
     backgroundColor: '#ffffff',
-    borderRadius: 22,
-    padding: 16,
+    borderRadius: 26,
     borderWidth: 1,
-    borderColor: '#ffd6ea',
+    borderColor: '#ffd6e8',
+    marginTop: 16,
+    padding: 17,
+    shadowColor: '#e43f98',
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 9 },
+    elevation: 2,
   },
   contactCard: {
-    borderColor: '#d38bb4',
-    backgroundColor: '#fffafd',
+
+    backgroundColor: '#fff8fb',
+    borderColor: '#ffc7df',
   },
   dateInviteCard: {
     borderColor: '#e43f98',
@@ -1239,8 +1267,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   contactIconBubble: {
-    backgroundColor: '#fff4fa',
-    borderColor: '#9b5b7f',
+
+    backgroundColor: '#f0328b',
+    borderRadius: 18,
+    width: 38,
+    height: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   dateInviteIconBubble: {
     backgroundColor: '#ffe3f1',
@@ -1391,8 +1424,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   emptyText: {
-    color: '#7a4267',
-    fontWeight: '600',
+
+    backgroundColor: '#fff8fb',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#ffe1ee',
+    color: '#8d315f',
+    fontSize: 14,
+    fontWeight: '700',
+    lineHeight: 20,
+    marginTop: 10,
+    padding: 14,
+    textAlign: 'center',
   },
   itemBox: {
     borderWidth: 1,
@@ -1403,12 +1446,18 @@ const styles = StyleSheet.create({
     backgroundColor: '#fffaff',
   },
   itemTitle: {
-    color: '#311028',
+
+    color: '#48172f',
+    fontSize: 15,
     fontWeight: '900',
-    fontSize: 16,
+    lineHeight: 20,
   },
   itemSubtitle: {
-    color: '#7a4267',
+
+    color: '#8d315f',
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 18,
     marginTop: 4,
   },
   openDetailText: {
@@ -1447,9 +1496,13 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   activityRow: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#f8d8e8',
-    paddingVertical: 12,
+
+    backgroundColor: '#fff8fb',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#ffe1ee',
+    marginTop: 10,
+    padding: 14,
   },
   linkButton: {
     borderWidth: 1,

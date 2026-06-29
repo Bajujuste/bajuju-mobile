@@ -10,7 +10,7 @@ import {
   View,
 } from 'react-native';
 
-import { EXPERIENCE_CATEGORIES } from '../src/constants/experienceCategories';
+import { EXPERIENCE_CATEGORIES, getExperienceCategoryIcon, normalizeExperienceCategory } from '@/src/constants/experienceCategories';
 import { supabase } from '../src/lib/supabase';
 
 const bajujuLogo = require('../assets/brand/bajuju-logo.png');
@@ -34,7 +34,7 @@ type ActivityRow = {
 };
 
 function normalizeCategory(value: string | null | undefined) {
-  return String(value || '').trim().toLowerCase();
+  return normalizeExperienceCategory(value).toLowerCase();
 }
 
 function activityImageSource(row: ActivityRow) {
@@ -153,7 +153,7 @@ export default function ExperiencesScreen() {
         <View style={styles.header}>
           <Text style={styles.logoText}>Trova esperienza</Text>
           <Text style={styles.subtitle}>
-            Scegli una categoria e scopri cosa puoi fare dal vivo.
+            Scopri esperienze vere vicino a te: cena, sport, camminate, musica e momenti dal vivo.
           </Text>
         </View>
 
@@ -189,7 +189,7 @@ export default function ExperiencesScreen() {
 
           <View style={styles.resultHeader}>
             <Text style={styles.resultTitle}>
-              {selectedCategory === 'Tutti' ? 'Tutte le esperienze' : selectedCategory}
+              {selectedCategory === 'Tutti' ? 'Esperienze disponibili' : selectedCategory}
             </Text>
             <Text style={styles.resultCount}>
               {filteredActivities.length} risultati
@@ -207,7 +207,7 @@ export default function ExperiencesScreen() {
           ) : filteredActivities.length === 0 ? (
             <View style={styles.emptyBox}>
               <Text style={styles.emptyText}>
-                Nessuna esperienza disponibile per questa categoria.
+                Qui non c’è ancora nulla. Crea tu la prima esperienza e fai partire qualcosa dal vivo.
               </Text>
             </View>
           ) : (
@@ -231,7 +231,7 @@ export default function ExperiencesScreen() {
 
                   <View style={styles.experienceContent}>
                     <Text style={styles.experienceCategory}>
-                      {item.category || 'Esperienza'}
+                      {getExperienceCategoryIcon(item.category)} {normalizeExperienceCategory(item.category)}
                     </Text>
 
                     <Text style={styles.experienceTitle}>

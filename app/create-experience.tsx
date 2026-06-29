@@ -133,7 +133,7 @@ export default function CreateExperienceScreen() {
       const payload = {
         creator_id: creatorId,
         title: cleanTitle,
-        category: cleanCategory.toLowerCase(),
+        category: cleanCategory,
         description: cleanDescription,
         city: cleanCity,
         province: cleanProvince,
@@ -210,7 +210,7 @@ export default function CreateExperienceScreen() {
           <TextInput
             value={title}
             onChangeText={setTitle}
-            placeholder="Es. Aperitivo, museo, trekking..."
+            placeholder="Es. Cena tra amici, camminata, aperitivo..."
             placeholderTextColor="#a95d86"
             style={styles.input}
           />

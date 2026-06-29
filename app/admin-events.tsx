@@ -398,7 +398,7 @@ export default function AdminEventsScreen() {
 
   const deleteActivity = useCallback(
     async (item: ActivityItem) => {
-      Alert.alert('Eliminare evento', `Vuoi eliminare "${item.title}"?`, [
+      Alert.alert('Rimuovere evento', `Vuoi eliminare "${item.title}"?`, [
         { text: 'Annulla', style: 'cancel' },
         {
           text: 'Elimina',
@@ -411,7 +411,7 @@ export default function AdminEventsScreen() {
               return;
             }
 
-            Alert.alert('Fatto', 'Evento eliminato.');
+            Alert.alert('Fatto', 'Evento rimosso.');
             setSelectedActivity(null);
             setParticipants([]);
             await loadActivities();
@@ -470,7 +470,7 @@ export default function AdminEventsScreen() {
         <Text style={styles.sectionTitle}>Elenco eventi</Text>
 
         {filteredActivities.length === 0 ? (
-          <Text style={styles.emptyText}>Nessun evento da mostrare in questa sezione.</Text>
+          <Text style={styles.emptyText}>Nessun evento da mostrare qui.</Text>
         ) : (
           filteredActivities.map((item) => (
             <Pressable key={item.id} style={styles.listRow} onPress={() => router.push(`/admin-event-detail?id=${item.id}`)}>

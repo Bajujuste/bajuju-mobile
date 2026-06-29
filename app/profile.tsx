@@ -1,5 +1,6 @@
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import * as ImagePicker from 'expo-image-picker';
 import {
     ActivityIndicator,
     Alert,
@@ -347,6 +348,7 @@ export default function ProfileScreen() {
   const [gender, setGender] = useState('');
   const [directContactsEnabled, setDirectContactsEnabled] = useState(true);
   const [photoLoadError, setPhotoLoadError] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   const [contactRequests, setContactRequests] = useState<ContactItem[]>([]);
   const [invites, setInvites] = useState<InviteItem[]>([]);
@@ -627,11 +629,116 @@ export default function ProfileScreen() {
     setRefreshing(false);
   }, [loadAll]);
 
+  const uploadProfilePhoto = useCallback(async () => {
+    if (!user) {
+      Alert.alert('Accesso richiesto', 'Devi fare login per caricare la foto profilo.');
+      return;
+    }
+
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (!permission.granted) {
+        Alert.alert('Permesso necessario', 'Per scegliere la foto profilo devi autorizzare l’accesso alle immagini.');
+        return;
+      }
+
+      const picked = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.78,
+      });
+
+      if (picked.canceled || !picked.assets?.[0]?.uri) return;
+
+      setUploadingPhoto(true);
+
+      const asset = picked.assets[0];
+      const response = await fetch(asset.uri);
+      const arrayBuffer = await response.arrayBuffer();
+
+      const extensionFromUri = asset.uri.split('.').pop()?.split('?')[0]?.toLowerCase();
+      const extension = extensionFromUri && extensionFromUri.length <= 5 ? extensionFromUri : 'jpg';
+      const contentType = extension === 'png' ? 'image/png' : 'image/jpeg';
+      const filePath = `${user.id}/profile-${Date.now()}.${extension}`;
+
+      const uploadResult = await supabase.storage
+        .from('avatars')
+        .upload(filePath, arrayBuffer, {
+          contentType,
+          upsert: true,
+        });
+
+      if (uploadResult.error) {
+        throw uploadResult.error;
+      }
+
+      const publicUrlResult = supabase.storage.from('avatars').getPublicUrl(filePath);
+      const publicUrl = publicUrlResult.data.publicUrl;
+
+      if (!publicUrl) {
+        throw new Error('URL foto non disponibile.');
+      }
+
+      const photoField = firstKey(
+        profile,
+        ['avatar_url', 'photo_url', 'profile_photo_url', 'profile_image_url', 'image_url', 'foto'],
+        'avatar_url'
+      );
+
+      const payload: LooseRow = {
+        [photoField]: publicUrl,
+        avatar_url: publicUrl,
+      };
+
+      if (profile && Object.prototype.hasOwnProperty.call(profile, 'updated_at')) {
+        payload.updated_at = new Date().toISOString();
+      }
+
+      if (profile) {
+        const updateResult = await supabase
+          .from(PROFILE_TABLE)
+          .update(payload)
+          .eq(profileIdField, profileIdValue);
+
+        if (updateResult.error) throw updateResult.error;
+      } else {
+        const insertPayload: LooseRow = {
+          id: user.id,
+          user_id: user.id,
+          email: user.email,
+          ...payload,
+        };
+
+        const upsertResult = await supabase.from(PROFILE_TABLE).upsert(insertPayload);
+        if (upsertResult.error) throw upsertResult.error;
+      }
+
+      setPhotoLoadError(false);
+      Alert.alert('Foto aggiornata', 'La foto profilo è stata caricata correttamente.');
+      await loadAll();
+    } catch (error: any) {
+      Alert.alert(
+        'Errore foto profilo',
+        error?.message ||
+          'Non sono riuscito a caricare la foto. Controlla che in Supabase esista il bucket Storage chiamato avatars.'
+      );
+    } finally {
+      setUploadingPhoto(false);
+    }
+  }, [loadAll, profile, profileIdField, profileIdValue, user]);
+
   const saveProfile = useCallback(async () => {
     if (!user) return;
 
     const cleanCity = city.trim();
     const cleanAge = ageRange.trim();
+
+    if (!photoUrl) {
+      Alert.alert('Foto obbligatoria', 'Per usare Bajuju devi caricare una foto profilo reale.');
+      return;
+    }
 
     if (!cleanCity || !cleanAge) {
       Alert.alert('Dati mancanti', 'Inserisci città ed età.');
@@ -693,7 +800,7 @@ export default function ProfileScreen() {
     } finally {
       setSaving(false);
     }
-  }, [ageRange, city, directContactsEnabled, gender, loadAll, profile, profileIdField, profileIdValue, user]);
+  }, [ageRange, city, directContactsEnabled, gender, loadAll, photoUrl, profile, profileIdField, profileIdValue, user]);
 
   const answerItem = useCallback(
     async (item: ContactItem | InviteItem, status: 'accepted' | 'rejected') => {
@@ -806,6 +913,23 @@ export default function ProfileScreen() {
             <Image source={bajujuLogo} style={styles.photo} />
           )}
         </View>
+
+        <Pressable
+          style={[styles.changePhotoButton, uploadingPhoto && styles.changePhotoButtonDisabled]}
+          onPress={uploadProfilePhoto}
+          disabled={uploadingPhoto}
+        >
+          <Text style={styles.changePhotoButtonText}>
+            {uploadingPhoto ? 'Caricamento foto...' : photoUrl ? 'Cambia foto profilo' : 'Carica foto obbligatoria'}
+          </Text>
+        </Pressable>
+
+        {!photoUrl ? (
+          <Text style={styles.photoRequiredText}>
+            La foto profilo è obbligatoria per completare il profilo Bajuju.
+          </Text>
+        ) : null}
+
         <View style={styles.headerText}>
           <Text style={styles.name}>{name}</Text>
           <Text style={styles.email}>{user?.email}</Text>
@@ -1150,6 +1274,30 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontSize: 13,
     color: '#7a4267',
+  },
+  changePhotoButton: {
+    marginTop: 12,
+    alignSelf: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 999,
+    backgroundColor: '#e43f98',
+  },
+  changePhotoButtonDisabled: {
+    opacity: 0.65,
+  },
+  changePhotoButtonText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '900',
+    textAlign: 'center',
+  },
+  photoRequiredText: {
+    marginTop: 8,
+    color: '#9b1f61',
+    fontSize: 12,
+    fontWeight: '800',
+    textAlign: 'center',
   },
   photoErrorText: {
 

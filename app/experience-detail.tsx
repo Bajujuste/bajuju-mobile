@@ -1,5 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import * as ImagePicker from 'expo-image-picker';
 import {
   Alert,
   Image,
@@ -64,6 +65,18 @@ type ProfileRow = {
   profile_image_url?: string | null;
   image_url?: string | null;
   foto?: string | null;
+};
+
+type AlbumPhotoRow = {
+  id?: string | number;
+  activity_id?: string | null;
+  event_id?: string | null;
+  user_id?: string | null;
+  profile_id?: string | null;
+  photo_url?: string | null;
+  image_url?: string | null;
+  url?: string | null;
+  created_at?: string | null;
 };
 
 type MessageRow = {
@@ -155,6 +168,15 @@ function experiencePhotoUrl(experience: ActivityRow | null) {
   );
 }
 
+
+function albumPhotoUrl(row: AlbumPhotoRow) {
+  return String(row.photo_url || row.image_url || row.url || '').trim();
+}
+
+function albumPhotoOwnerId(row: AlbumPhotoRow) {
+  return String(row.user_id || row.profile_id || '').trim();
+}
+
 function messageText(row: MessageRow) {
   return row.message || row.content || row.body || '';
 }
@@ -194,6 +216,8 @@ export default function ExperienceDetailScreen() {
   const [participants, setParticipants] = useState<ParticipantRow[]>([]);
   const [profiles, setProfiles] = useState<Record<string, ProfileRow>>({});
   const [messages, setMessages] = useState<MessageRow[]>([]);
+  const [albumPhotos, setAlbumPhotos] = useState<AlbumPhotoRow[]>([]);
+  const [uploadingAlbumPhoto, setUploadingAlbumPhoto] = useState(false);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState(false);
@@ -250,6 +274,11 @@ export default function ExperienceDetailScreen() {
   );
 
   const participantCount = displayedParticipants.length;
+  const userAlbumPhotoCount = albumPhotos.filter((photo) => albumPhotoOwnerId(photo) === String(currentUserId || '')).length;
+  const canUseAlbum = Boolean(currentUserId && (isOrganizer || isParticipant));
+  const albumIsFull = albumPhotos.length >= 15;
+  const userAlbumLimitReached = userAlbumPhotoCount >= 3;
+
   const maxParticipants = Number(experience?.max_participants || 0);
   const isFull = maxParticipants > 0 && participantCount >= maxParticipants;
 
@@ -613,6 +642,136 @@ export default function ExperienceDetailScreen() {
     }
   }
 
+
+
+  const loadAlbumPhotos = useCallback(async () => {
+    if (!experienceId) {
+      setAlbumPhotos([]);
+      return;
+    }
+
+    try {
+      const result = await supabase
+        .from('event_album_photos')
+        .select('*')
+        .eq('activity_id', experienceId)
+        .order('created_at', { ascending: false })
+        .limit(15);
+
+      if (!result.error && Array.isArray(result.data)) {
+        setAlbumPhotos(result.data as AlbumPhotoRow[]);
+        return;
+      }
+
+      const fallback = await supabase
+        .from('event_album_photos')
+        .select('*')
+        .eq('event_id', experienceId)
+        .order('created_at', { ascending: false })
+        .limit(15);
+
+      if (!fallback.error && Array.isArray(fallback.data)) {
+        setAlbumPhotos(fallback.data as AlbumPhotoRow[]);
+        return;
+      }
+
+      setAlbumPhotos([]);
+    } catch {
+      setAlbumPhotos([]);
+    }
+  }, [experienceId]);
+
+  const uploadAlbumPhoto = useCallback(async () => {
+    if (!experienceId || !currentUserId || uploadingAlbumPhoto) return;
+
+    if (!canUseAlbum) {
+      window.alert('Solo organizzatore e partecipanti possono caricare foto nella galleria evento.');
+      return;
+    }
+
+    if (albumIsFull) {
+      window.alert('La galleria è piena: massimo 15 foto totali per evento.');
+      return;
+    }
+
+    if (userAlbumLimitReached) {
+      window.alert('Hai già caricato 3 foto per questo evento.');
+      return;
+    }
+
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (!permission.granted) {
+        window.alert('Autorizza l’accesso alle immagini per caricare una foto.');
+        return;
+      }
+
+      const picked = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.78,
+      });
+
+      if (picked.canceled || !picked.assets?.[0]?.uri) return;
+
+      setUploadingAlbumPhoto(true);
+
+      const asset = picked.assets[0];
+      const response = await fetch(asset.uri);
+      const arrayBuffer = await response.arrayBuffer();
+
+      const extensionFromUri = asset.uri.split('.').pop()?.split('?')[0]?.toLowerCase();
+      const extension = extensionFromUri && extensionFromUri.length <= 5 ? extensionFromUri : 'jpg';
+      const contentType = extension === 'png' ? 'image/png' : 'image/jpeg';
+      const filePath = `${experienceId}/${currentUserId}-${Date.now()}.${extension}`;
+
+      const uploadResult = await supabase.storage
+        .from('event-photos')
+        .upload(filePath, arrayBuffer, {
+          contentType,
+          upsert: true,
+        });
+
+      if (uploadResult.error) throw uploadResult.error;
+
+      const publicUrlResult = supabase.storage.from('event-photos').getPublicUrl(filePath);
+      const publicUrl = publicUrlResult.data.publicUrl;
+
+      if (!publicUrl) throw new Error('URL foto non disponibile.');
+
+      const insertResult = await supabase.from('event_album_photos').insert({
+        activity_id: experienceId,
+        event_id: experienceId,
+        user_id: currentUserId,
+        profile_id: currentUserId,
+        photo_url: publicUrl,
+        image_url: publicUrl,
+        created_at: new Date().toISOString(),
+      });
+
+      if (insertResult.error) throw insertResult.error;
+
+      window.alert('Foto caricata nella galleria.');
+      await loadAlbumPhotos();
+    } catch (error: any) {
+      window.alert(
+        error?.message ||
+          'Non sono riuscito a caricare la foto. Controlla che esistano tabella event_album_photos e bucket event-photos.'
+      );
+    } finally {
+      setUploadingAlbumPhoto(false);
+    }
+  }, [
+    albumIsFull,
+    canUseAlbum,
+    currentUserId,
+    experienceId,
+    loadAlbumPhotos,
+    uploadingAlbumPhoto,
+    userAlbumLimitReached,
+  ]);
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container}>
@@ -759,6 +918,68 @@ export default function ExperienceDetailScreen() {
                       );
                     })}
                   </View>
+                )}
+              </View>
+
+
+              <View style={styles.albumBox}>
+                <View style={styles.albumHeaderRow}>
+                  <View>
+                    <Text style={styles.albumTitle}>Galleria evento</Text>
+                    <Text style={styles.albumSubtitle}>
+                      {albumPhotos.length}/15 foto · massimo 3 foto per partecipante
+                    </Text>
+                  </View>
+
+                  {canUseAlbum ? (
+                    <Pressable
+                      style={[
+                        styles.albumUploadButton,
+                        (uploadingAlbumPhoto || albumIsFull || userAlbumLimitReached) && styles.albumUploadButtonDisabled,
+                      ]}
+                      onPress={uploadAlbumPhoto}
+                      disabled={uploadingAlbumPhoto || albumIsFull || userAlbumLimitReached}
+                    >
+                      <Text style={styles.albumUploadButtonText}>
+                        {uploadingAlbumPhoto ? 'Carico...' : 'Aggiungi foto'}
+                      </Text>
+                    </Pressable>
+                  ) : null}
+                </View>
+
+                {!canUseAlbum ? (
+                  <Text style={styles.albumHint}>
+                    La galleria si sblocca per organizzatore e partecipanti.
+                  </Text>
+                ) : userAlbumLimitReached ? (
+                  <Text style={styles.albumHint}>
+                    Hai raggiunto il limite di 3 foto per questo evento.
+                  </Text>
+                ) : albumIsFull ? (
+                  <Text style={styles.albumHint}>
+                    La galleria ha raggiunto il limite di 15 foto.
+                  </Text>
+                ) : null}
+
+                {albumPhotos.length === 0 ? (
+                  <View style={styles.albumEmptyBox}>
+                    <Text style={styles.albumEmptyTitle}>Nessuna foto ancora</Text>
+                    <Text style={styles.albumHint}>Le foto dei partecipanti appariranno qui.</Text>
+                  </View>
+                ) : (
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.albumPhotosRow}>
+                    {albumPhotos.map((photo, index) => {
+                      const url = albumPhotoUrl(photo);
+
+                      if (!url) return null;
+
+                      return (
+                        <View key={String(photo.id || `${url}-${index}`)} style={styles.albumPhotoCard}>
+                          <Image source={{ uri: url }} style={styles.albumPhoto} resizeMode="cover" />
+                        </View>
+                      );
+                    })}
+                  </ScrollView>
                 )}
               </View>
 
@@ -1261,6 +1482,82 @@ const styles = StyleSheet.create({
     color: '#9b1f61',
     fontSize: 12,
     fontWeight: '900',
+  },
+  albumBox: {
+    marginTop: 18,
+    padding: 16,
+    borderRadius: 24,
+    backgroundColor: '#fff8fb',
+    borderWidth: 1,
+    borderColor: '#ffd3e7',
+  },
+  albumHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  albumTitle: {
+    color: '#4a1230',
+    fontSize: 18,
+    fontWeight: '900',
+  },
+  albumSubtitle: {
+    marginTop: 3,
+    color: '#9b1f61',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  albumUploadButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 13,
+    borderRadius: 999,
+    backgroundColor: '#e43f98',
+  },
+  albumUploadButtonDisabled: {
+    opacity: 0.6,
+  },
+  albumUploadButtonText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  albumHint: {
+    color: '#9b1f61',
+    fontSize: 12,
+    fontWeight: '800',
+    marginTop: 6,
+  },
+  albumEmptyBox: {
+    marginTop: 10,
+    padding: 14,
+    borderRadius: 18,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#ffe0ef',
+  },
+  albumEmptyTitle: {
+    color: '#4a1230',
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  albumPhotosRow: {
+    gap: 10,
+    paddingVertical: 8,
+  },
+  albumPhotoCard: {
+    width: 116,
+    height: 116,
+    borderRadius: 18,
+    overflow: 'hidden',
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#ffd3e7',
+  },
+  albumPhoto: {
+    width: '100%',
+    height: '100%',
   },
   chatBox: {
 

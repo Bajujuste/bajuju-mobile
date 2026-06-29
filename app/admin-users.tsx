@@ -8,6 +8,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 
@@ -175,6 +176,7 @@ async function trySoftDeleteUser(item: UserItem) {
 }
 
 export default function AdminUsersScreen() {
+  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [users, setUsers] = useState<UserItem[]>([]);
@@ -221,6 +223,13 @@ export default function AdminUsersScreen() {
         email: userEmail(row),
         name: userName(row),
         city: firstText(row, ['city', 'citta', 'comune', 'location_city'], 'Città non indicata'),
+        searchText: [
+          firstText(row, ['nickname', 'username', 'display_name', 'full_name', 'name', 'nome'], ''),
+          firstText(row, ['email'], ''),
+          firstText(row, ['city', 'citta', 'comune', 'location_city'], ''),
+          firstText(row, ['age', 'eta', 'età', 'age_range'], ''),
+          firstText(row, ['gender', 'genere', 'sex'], ''),
+        ].join(' ').toLowerCase(),
         age: userAge(row),
         gender: userGender(row),
         status: userStatus(row),
@@ -362,6 +371,22 @@ export default function AdminUsersScreen() {
 
         <Text style={styles.filterLabel}>Genere</Text>
         <View style={styles.filterRow}>
+
+          <View style={styles.searchBox}>
+            <Text style={styles.searchLabel}>Cerca utente</Text>
+            <TextInput
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Cerca per nome profilo, email o città"
+              placeholderTextColor="#a95d86"
+              style={styles.searchInput}
+              autoCapitalize="none"
+            />
+          </View>
+
+
+          
+
           {['tutti', 'maschio', 'femmina', 'preferisco_non_specificarlo', 'non indicato'].map((item) => (
             <Pressable
               key={item}
@@ -421,6 +446,32 @@ export default function AdminUsersScreen() {
 }
 
 const styles = StyleSheet.create({
+  searchBox: {
+    marginTop: 14,
+    marginBottom: 12,
+    padding: 14,
+    borderRadius: 20,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#ffd3e7',
+  },
+  searchLabel: {
+    marginBottom: 8,
+    color: '#9b1f61',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  searchInput: {
+    borderWidth: 1,
+    borderColor: '#ffd3e7',
+    borderRadius: 16,
+    paddingVertical: 11,
+    paddingHorizontal: 13,
+    backgroundColor: '#fff8fb',
+    color: '#4a1230',
+    fontSize: 15,
+    fontWeight: '800',
+  },
   page: {
     flexGrow: 1,
     backgroundColor: '#fff8fb',

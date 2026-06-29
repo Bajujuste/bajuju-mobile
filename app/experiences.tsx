@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Image,
+  Linking,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -35,6 +36,62 @@ type ActivityRow = {
 
 function normalizeCategory(value: string | null | undefined) {
   return normalizeExperienceCategory(value).toLowerCase();
+}
+
+
+function getExperienceCoordinates(row: ActivityRow) {
+  const latitude = Number(
+    (row as any).latitude ??
+      (row as any).lat ??
+      (row as any).location_latitude ??
+      (row as any).meeting_latitude
+  );
+
+  const longitude = Number(
+    (row as any).longitude ??
+      (row as any).lng ??
+      (row as any).lon ??
+      (row as any).location_longitude ??
+      (row as any).meeting_longitude
+  );
+
+  if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+    return { latitude, longitude };
+  }
+
+  return null;
+}
+
+function getExperienceAddress(row: ActivityRow) {
+  return String(
+    (row as any).meeting_place ||
+      (row as any).place ||
+      (row as any).luogo ||
+      (row as any).address ||
+      (row as any).indirizzo ||
+      ''
+  ).trim();
+}
+
+function openExperienceMap(row: ActivityRow) {
+  const coordinates = getExperienceCoordinates(row);
+
+  if (coordinates) {
+    const { latitude, longitude } = coordinates;
+    const url = `https://www.openstreetmap.org/?mlat=${latitude}&mlon=${longitude}#map=18/${latitude}/${longitude}&layers=N&marker=${latitude}/${longitude}`;
+
+    Linking.openURL(url);
+    return;
+  }
+
+  const address = getExperienceAddress(row);
+  const city = String((row as any).city || (row as any).citta || (row as any).comune || '').trim();
+  const province = String((row as any).province || (row as any).provincia || '').trim();
+  const query = [address, city, province, 'Italia'].filter(Boolean).join(', ');
+
+  if (!query.trim()) return;
+
+  Linking.openURL(`https://www.openstreetmap.org/search?query=${encodeURIComponent(query)}`);
 }
 
 function activityImageSource(row: ActivityRow) {
@@ -234,6 +291,10 @@ export default function ExperiencesScreen() {
                       {getExperienceCategoryIcon(item.category)} {normalizeExperienceCategory(item.category)}
                     </Text>
 
+                    <Pressable style={styles.mapButton} onPress={() => openExperienceMap(item)}>
+                      <Text style={styles.mapButtonText}>🗺️ Apri mappa</Text>
+                    </Pressable>
+
                     <Text style={styles.experienceTitle}>
                       {item.title || 'Esperienza senza titolo'}
                     </Text>
@@ -265,6 +326,21 @@ export default function ExperiencesScreen() {
 }
 
 const styles = StyleSheet.create({
+  mapButton: {
+    alignSelf: 'flex-start',
+    marginTop: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    backgroundColor: '#fff0f7',
+    borderWidth: 1,
+    borderColor: '#ffd3e7',
+  },
+  mapButtonText: {
+    color: '#9b1f61',
+    fontSize: 12,
+    fontWeight: '900',
+  },
   safeArea: {
     flex: 1,
     backgroundColor: '#fff8fb',

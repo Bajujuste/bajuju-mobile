@@ -8,12 +8,31 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 
 import { supabase } from '../src/lib/supabase';
 
 type LooseRow = Record<string, any>;
+
+
+function booleanFromRow(row: LooseRow | null | undefined, keys: string[], fallback = false) {
+  const value = firstValue(row, keys);
+
+  if (typeof value === 'boolean') return value;
+
+  if (typeof value === 'string') {
+    const normalized = value.toLowerCase().trim();
+
+    if (['true', '1', 'yes', 'si', 'sì', 'attivo', 'active'].includes(normalized)) return true;
+    if (['false', '0', 'no', 'non attivo', 'inactive'].includes(normalized)) return false;
+  }
+
+  if (typeof value === 'number') return value === 1;
+
+  return fallback;
+}
 
 function firstText(row: LooseRow | null | undefined, keys: string[], fallback = '') {
   if (!row) return fallback;
@@ -117,6 +136,9 @@ export default function AdminUserDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [profile, setProfile] = useState<LooseRow | null>(null);
+  const [gradeValue, setGradeValue] = useState('');
+  const [locationText, setLocationText] = useState('');
+  const [savingRole, setSavingRole] = useState(false);
 
   const loadProfile = useCallback(async () => {
     if (!userId) {
@@ -129,6 +151,8 @@ export default function AdminUserDetailScreen() {
 
     if (!byId.error && byId.data) {
       setProfile(byId.data as LooseRow);
+      setGradeValue(firstText(byId.data as LooseRow, ['user_grade', 'grade', 'grado', 'organizer_grade'], ''));
+      setLocationText(firstText(byId.data as LooseRow, ['location_description', 'location_text', 'descrizione_location'], ''));
       return;
     }
 
@@ -136,6 +160,8 @@ export default function AdminUserDetailScreen() {
 
     if (!byUserId.error && byUserId.data) {
       setProfile(byUserId.data as LooseRow);
+      setGradeValue(firstText(byUserId.data as LooseRow, ['user_grade', 'grade', 'grado', 'organizer_grade'], ''));
+      setLocationText(firstText(byUserId.data as LooseRow, ['location_description', 'location_text', 'descrizione_location'], ''));
       return;
     }
 
@@ -153,7 +179,7 @@ export default function AdminUserDetailScreen() {
 
     start();
 
-    return () => {
+  return () => {
       mounted = false;
     };
   }, [loadProfile]);
@@ -165,6 +191,132 @@ export default function AdminUserDetailScreen() {
   }, [loadProfile]);
 
   const currentProfileId = String(firstValue(profile, ['id', 'user_id']) || userId);
+
+
+  const reactivateUser = useCallback(async () => {
+    if (!profile) return;
+
+    Alert.alert('Riattivare utente', `Vuoi riattivare ${profileName(profile)}?`, [
+      { text: 'Annulla', style: 'cancel' },
+      {
+        text: 'Riattiva',
+        onPress: async () => {
+          const result = await tryUpdateProfile(currentProfileId, [
+            {
+              deleted_at: null,
+              removed_at: null,
+              archived_at: null,
+              blocked_until: null,
+              suspended_until: null,
+              is_deleted: false,
+              deleted: false,
+              is_removed: false,
+              removed: false,
+              archived: false,
+              blocked: false,
+              suspended: false,
+              status: 'active',
+              stato: 'active',
+              account_status: 'active',
+              updated_at: new Date().toISOString(),
+            },
+            {
+              deleted_at: null,
+              is_deleted: false,
+              status: 'active',
+              updated_at: new Date().toISOString(),
+            },
+            {
+              status: 'active',
+              updated_at: new Date().toISOString(),
+            },
+          ]);
+
+          if (!result.ok) {
+            Alert.alert('Errore riattivazione', result.message || 'Non sono riuscito a riattivare questo utente.');
+            return;
+          }
+
+          Alert.alert('Utente riattivato', 'Il profilo è di nuovo attivo.');
+          await loadProfile();
+        },
+      },
+    ]);
+  }, [currentProfileId, loadProfile, profile]);
+
+  const updateAdminRoleFields = useCallback(async (payload: LooseRow, successMessage: string) => {
+    if (!profile) return;
+
+    setSavingRole(true);
+
+    try {
+      const result = await tryUpdateProfile(currentProfileId, [
+        payload,
+        {
+          ...payload,
+          updated_at: new Date().toISOString(),
+        },
+      ]);
+
+      if (!result.ok) {
+        Alert.alert('Errore aggiornamento', result.message || 'Non sono riuscito ad aggiornare il profilo.');
+        return;
+      }
+
+      Alert.alert('Aggiornato', successMessage);
+      await loadProfile();
+    } catch (error: any) {
+      Alert.alert('Errore aggiornamento', error?.message || 'Non sono riuscito ad aggiornare il profilo.');
+    } finally {
+      setSavingRole(false);
+    }
+  }, [currentProfileId, loadProfile, profile]);
+
+  const togglePremium = useCallback(() => {
+    const active = booleanFromRow(profile, ['is_premium', 'premium', 'premium_user'], false);
+
+    updateAdminRoleFields(
+      {
+        is_premium: !active,
+        premium: !active,
+      },
+      !active ? 'Premium attivato.' : 'Premium disattivato.'
+    );
+  }, [profile, updateAdminRoleFields]);
+
+  const toggleLocation = useCallback(() => {
+    const active = booleanFromRow(profile, ['is_location', 'location', 'location_user'], false);
+
+    updateAdminRoleFields(
+      {
+        is_location: !active,
+        location: !active,
+      },
+      !active ? 'Location attivato.' : 'Location disattivato.'
+    );
+  }, [profile, updateAdminRoleFields]);
+
+  const saveGrade = useCallback(() => {
+    updateAdminRoleFields(
+      {
+        user_grade: gradeValue.trim(),
+        grade: gradeValue.trim(),
+        grado: gradeValue.trim(),
+      },
+      'Grado utente aggiornato.'
+    );
+  }, [gradeValue, updateAdminRoleFields]);
+
+  const saveLocationText = useCallback(() => {
+    updateAdminRoleFields(
+      {
+        location_description: locationText.trim().slice(0, 200),
+        location_text: locationText.trim().slice(0, 200),
+      },
+      'Testo Location aggiornato.'
+    );
+  }, [locationText, updateAdminRoleFields]);
+
 
   const suspendUser = useCallback(() => {
     if (!profile) return;
@@ -332,6 +484,71 @@ export default function AdminUserDetailScreen() {
               <Text style={styles.detailLabel}>ID</Text>
               <Text style={styles.detailValue}>{currentProfileId}</Text>
             </View>
+
+            <Pressable style={styles.reactivateButton} onPress={reactivateUser}>
+              <Text style={styles.reactivateButtonText}>Riattiva utente</Text>
+            </Pressable>
+
+            <View style={styles.roleCard}>
+              <Text style={styles.roleTitle}>Gestione Premium / Location / Grado</Text>
+
+              <View style={styles.roleButtonsRow}>
+                <Pressable
+                  style={[
+                    styles.roleButton,
+                    booleanFromRow(profile, ['is_premium', 'premium', 'premium_user'], false) && styles.roleButtonActive,
+                    savingRole && styles.roleButtonDisabled,
+                  ]}
+                  onPress={togglePremium}
+                  disabled={savingRole}
+                >
+                  <Text style={styles.roleButtonText}>
+                    {booleanFromRow(profile, ['is_premium', 'premium', 'premium_user'], false) ? 'Premium ON' : 'Premium OFF'}
+                  </Text>
+                </Pressable>
+
+                <Pressable
+                  style={[
+                    styles.roleButton,
+                    booleanFromRow(profile, ['is_location', 'location', 'location_user'], false) && styles.roleButtonActive,
+                    savingRole && styles.roleButtonDisabled,
+                  ]}
+                  onPress={toggleLocation}
+                  disabled={savingRole}
+                >
+                  <Text style={styles.roleButtonText}>
+                    {booleanFromRow(profile, ['is_location', 'location', 'location_user'], false) ? 'Location ON' : 'Location OFF'}
+                  </Text>
+                </Pressable>
+              </View>
+
+              <Text style={styles.roleLabel}>Grado utente</Text>
+              <TextInput
+                value={gradeValue}
+                onChangeText={setGradeValue}
+                placeholder="Es. Organizzatore top, Partner, Staff"
+                placeholderTextColor="#a95d86"
+                style={styles.roleInput}
+              />
+              <Pressable style={[styles.roleSaveButton, savingRole && styles.roleButtonDisabled]} onPress={saveGrade} disabled={savingRole}>
+                <Text style={styles.roleSaveButtonText}>Salva grado</Text>
+              </Pressable>
+
+              <Text style={styles.roleLabel}>Testo Location max 200 caratteri</Text>
+              <TextInput
+                value={locationText}
+                onChangeText={(value) => setLocationText(value.slice(0, 200))}
+                placeholder="Descrizione breve Location"
+                placeholderTextColor="#a95d86"
+                style={[styles.roleInput, styles.roleTextArea]}
+                multiline
+              />
+              <Text style={styles.roleCounter}>{locationText.length}/200</Text>
+              <Pressable style={[styles.roleSaveButton, savingRole && styles.roleButtonDisabled]} onPress={saveLocationText} disabled={savingRole}>
+                <Text style={styles.roleSaveButtonText}>Salva testo Location</Text>
+              </Pressable>
+            </View>
+
           </View>
 
           <View style={styles.card}>
@@ -360,6 +577,104 @@ export default function AdminUserDetailScreen() {
 }
 
 const styles = StyleSheet.create({
+  reactivateButton: {
+    marginTop: 14,
+    marginBottom: 4,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#2fb36d',
+    alignItems: 'center',
+  },
+  reactivateButtonText: {
+    color: '#197a45',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  roleCard: {
+    marginTop: 18,
+    padding: 16,
+    borderRadius: 22,
+    backgroundColor: '#fff8fb',
+    borderWidth: 1,
+    borderColor: '#ffd3e7',
+    gap: 10,
+  },
+  roleTitle: {
+    color: '#9b1f61',
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  roleButtonsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    flexWrap: 'wrap',
+  },
+  roleButton: {
+    flexGrow: 1,
+    minWidth: 130,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#ffd3e7',
+    alignItems: 'center',
+  },
+  roleButtonActive: {
+    backgroundColor: '#e43f98',
+    borderColor: '#e43f98',
+  },
+  roleButtonDisabled: {
+    opacity: 0.65,
+  },
+  roleButtonText: {
+    color: '#9b1f61',
+    fontSize: 13,
+    fontWeight: '900',
+    textAlign: 'center',
+  },
+  roleLabel: {
+    marginTop: 8,
+    color: '#9b1f61',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  roleInput: {
+    borderWidth: 1,
+    borderColor: '#ffd3e7',
+    borderRadius: 16,
+    paddingVertical: 11,
+    paddingHorizontal: 13,
+    backgroundColor: '#ffffff',
+    color: '#4a1230',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  roleTextArea: {
+    minHeight: 86,
+    textAlignVertical: 'top',
+  },
+  roleCounter: {
+    alignSelf: 'flex-end',
+    color: '#a95d86',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  roleSaveButton: {
+    alignSelf: 'flex-start',
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderRadius: 999,
+    backgroundColor: '#e43f98',
+  },
+  roleSaveButtonText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '900',
+  },
   page: {
     flexGrow: 1,
     backgroundColor: '#fff8fb',

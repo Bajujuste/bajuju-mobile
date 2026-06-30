@@ -12,6 +12,7 @@ import { router } from 'expo-router';
 
 import { supabase } from '../src/lib/supabase';
 import { shareBajujuHome } from '../src/utils/shareBajuju';
+import { registerForBajujuPushNotifications } from '../src/utils/bajujuNotifications';
 
 const bajujuLogo = require('../assets/brand/bajuju-logo.png');
 
@@ -32,6 +33,27 @@ function firstText(row: ProfileRow | null, keys: string[], fallback = '') {
 }
 
 export default function HomeScreen() {
+  React.useEffect(() => {
+    let active = true;
+
+    async function setupBajujuNotifications() {
+      try {
+        const { data } = await supabase.auth.getUser();
+        if (!active) return;
+
+        await registerForBajujuPushNotifications(data.user?.id);
+      } catch (error) {
+        console.log('Errore registrazione notifiche Bajuju:', error);
+      }
+    }
+
+    setupBajujuNotifications();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const [profilePhotoUrl, setProfilePhotoUrl] = useState('');
 
   useEffect(() => {

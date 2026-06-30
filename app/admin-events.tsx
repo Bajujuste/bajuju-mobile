@@ -348,12 +348,6 @@ export default function AdminEventsScreen() {
         profile = byId.data as LooseRow;
       }
 
-      if (!profile) {
-        const byUserId = await supabase.from('profiles').select('*').eq('user_id', userId).maybeSingle();
-        if (!byUserId.error && byUserId.data) {
-          profile = byUserId.data as LooseRow;
-        }
-      }
 
       nextParticipants.push({
         id: userId,

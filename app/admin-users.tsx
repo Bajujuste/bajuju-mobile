@@ -21,6 +21,7 @@ type UserItem = {
   email: string;
   name: string;
   city: string;
+  searchText: string;
   age: number | null;
   gender: string;
   status: string;
@@ -184,7 +185,13 @@ export default function AdminUsersScreen() {
   const [ageFilter, setAgeFilter] = useState('tutte');
 
   const filteredUsers = useMemo(() => {
+    const normalizedSearchQuery = searchQuery.trim().toLowerCase();
+
     return users.filter((item) => {
+      const searchOk =
+        !normalizedSearchQuery ||
+        item.searchText.includes(normalizedSearchQuery);
+
       const genderOk =
         genderFilter === 'tutti' ||
         item.gender === genderFilter ||
@@ -199,9 +206,9 @@ export default function AdminUsersScreen() {
         (ageFilter === '36-50' && age >= 36 && age <= 50) ||
         (ageFilter === '51+' && age >= 51);
 
-      return genderOk && ageOk;
+      return searchOk && genderOk && ageOk;
     });
-  }, [ageFilter, genderFilter, users]);
+  }, [ageFilter, genderFilter, searchQuery, users]);
 
   const loadUsers = useCallback(async () => {
     const result = await supabase
@@ -369,24 +376,20 @@ export default function AdminUsersScreen() {
       <View style={styles.filtersCard}>
         <Text style={styles.sectionTitle}>Filtri</Text>
 
+        <View style={styles.searchBox}>
+          <Text style={styles.searchLabel}>Cerca utente</Text>
+          <TextInput
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Cerca per nome profilo, email o città"
+            placeholderTextColor="#a95d86"
+            style={styles.searchInput}
+            autoCapitalize="none"
+          />
+        </View>
+
         <Text style={styles.filterLabel}>Genere</Text>
         <View style={styles.filterRow}>
-
-          <View style={styles.searchBox}>
-            <Text style={styles.searchLabel}>Cerca utente</Text>
-            <TextInput
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              placeholder="Cerca per nome profilo, email o città"
-              placeholderTextColor="#a95d86"
-              style={styles.searchInput}
-              autoCapitalize="none"
-            />
-          </View>
-
-
-          
-
           {['tutti', 'maschio', 'femmina', 'preferisco_non_specificarlo', 'non indicato'].map((item) => (
             <Pressable
               key={item}
@@ -447,13 +450,14 @@ export default function AdminUsersScreen() {
 
 const styles = StyleSheet.create({
   searchBox: {
-    marginTop: 14,
-    marginBottom: 12,
-    padding: 14,
-    borderRadius: 20,
+    marginTop: 10,
+    marginBottom: 14,
+    padding: 12,
+    borderRadius: 18,
     backgroundColor: '#ffffff',
     borderWidth: 1,
     borderColor: '#ffd3e7',
+    width: '100%',
   },
   searchLabel: {
     marginBottom: 8,
@@ -554,14 +558,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
+    alignItems: 'center',
   },
   filterChip: {
+    minHeight: 34,
     backgroundColor: '#fff8fb',
     borderWidth: 1,
     borderColor: '#ffd3e6',
     borderRadius: 999,
     paddingVertical: 8,
     paddingHorizontal: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   filterChipActive: {
     backgroundColor: '#ef2d82',
@@ -569,8 +577,9 @@ const styles = StyleSheet.create({
   },
   filterChipText: {
     color: '#7b4960',
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '900',
+    textAlign: 'center',
   },
   filterChipTextActive: {
     color: '#ffffff',

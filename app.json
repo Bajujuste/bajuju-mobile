@@ -20,15 +20,6 @@
       },
       "edgeToEdgeEnabled": false,
       "predictiveBackGestureEnabled": false,
-      "statusBar": {
-        "backgroundColor": "#fff8fb",
-        "barStyle": "dark-content",
-        "translucent": false
-      },
-      "navigationBar": {
-        "backgroundColor": "#fff8fb",
-        "barStyle": "dark-content"
-      },
       "package": "it.bajuju.mobile"
     },
     "web": {
@@ -47,6 +38,13 @@
           "dark": {
             "backgroundColor": "#fff8fb"
           }
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#e43f98"
         }
       ]
     ],

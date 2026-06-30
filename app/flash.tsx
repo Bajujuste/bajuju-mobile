@@ -15,6 +15,7 @@ import {
 
 import { supabase } from '../src/lib/supabase';
 import { shareBajujuFlash } from '../src/utils/shareBajuju';
+import { sendBajujuPushNotification, buildFlashNotificationTitle } from '../src/utils/bajujuNotifications';
 
 const bajujuLogo = require('../assets/brand/bajuju-logo.png');
 
@@ -355,7 +356,11 @@ async function geocodeAddress(address: string, streetNumber: string, city: strin
   return null;
 }
 
-export default function FlashScreen() {
+type FlashScreenProps = {
+  forcedSection?: FlashSection;
+};
+
+export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
   const [userId, setUserId] = useState<string | null>(null);
   const [rows, setRows] = useState<LooseRow[]>([]);
   const [joinedActivityIds, setJoinedActivityIds] = useState<Set<string>>(new Set());
@@ -369,7 +374,7 @@ export default function FlashScreen() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [selectedProvince, setSelectedProvince] = useState<string>('Tutte');
   const [selectedTab, setSelectedTab] = useState<FlashTab>('all');
-  const [selectedSection, setSelectedSection] = useState<FlashSection>(null);
+  const [selectedSection, setSelectedSection] = useState<FlashSection>(forcedSection ?? null);
 
   const [newTitle, setNewTitle] = useState('');
   const [newProvince, setNewProvince] = useState('Bergamo');
@@ -379,6 +384,16 @@ export default function FlashScreen() {
   const [newDurationHours, setNewDurationHours] = useState<FlashDuration>(2);
   const [savingFlash, setSavingFlash] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
+
+  useEffect(() => {
+    if (forcedSection) {
+      setSelectedSection(forcedSection);
+      if (forcedSection === 'create') {
+        setShowCreateForm(true);
+      }
+    }
+  }, [forcedSection]);
+
 
   const loadFlashRows = useCallback(async () => {
     setErrorMessage(null);
@@ -579,12 +594,6 @@ export default function FlashScreen() {
 
       if (!byId.error && byId.data?.id) {
         creatorId = byId.data.id;
-      } else {
-        const byUserId = await supabase.from('profiles').select('id').eq('user_id', authUserId).maybeSingle();
-
-        if (!byUserId.error && byUserId.data?.id) {
-          creatorId = byUserId.data.id;
-        }
       }
 
       const now = new Date();
@@ -629,6 +638,22 @@ export default function FlashScreen() {
         }
         return;
       }
+
+      await sendBajujuPushNotification({
+        type: 'new_flash',
+        actorUserId: String(payload.creator_id || ''),
+        title: buildFlashNotificationTitle(payload.title),
+        body: `${payload.city}: qualcuno ha creato un Flash Bajuju.`,
+        province: payload.province,
+        city: payload.city,
+        data: {
+          screen: 'flash',
+          activityId: result.data?.id,
+          title: payload.title,
+        },
+      }).catch((error) => {
+        console.log('Errore notifica nuovo Flash:', error);
+      });
 
       setNewTitle('');
       setNewCity('');
@@ -832,14 +857,19 @@ export default function FlashScreen() {
       });
   }, [joinedActivityIds, rows, selectedProvince, selectedTab, userId]);
 
+  const isCreatePage = forcedSection === 'create';
+  const isFindPage = forcedSection === 'find';
+  const isMenuPage = !forcedSection;
+
   return (
     <ScrollView
       contentContainerStyle={styles.page}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
-      <View style={styles.flashHeroCard}>
-        <Pressable style={styles.flashBackButton} onPress={() => router.push('/home')}>
-          <Text style={styles.flashBackText}>← Home</Text>
+      {isMenuPage ? (
+        <View style={styles.flashHeroCard}>
+        <Pressable style={styles.flashBackButton} onPress={() => router.push(forcedSection ? '/flash' : '/home')}>
+          <Text style={styles.flashBackText}>{forcedSection ? '← Bajuju Flash' : '← Home'}</Text>
         </Pressable>
 
         <Text style={styles.kicker}>Bajuju Flash</Text>
@@ -860,31 +890,51 @@ export default function FlashScreen() {
         <View style={styles.flashChoiceRow}>
           <Pressable
             style={[styles.flashChoiceButton, styles.flashCreateChoiceButton]}
-            onPress={() => {
-              setSelectedSection('create');
-              setShowCreateForm(true);
-            }}
+            onPress={() => router.push('/flash-create')}
           >
             <Text style={styles.flashChoiceIcon}>⚡</Text>
-            <Text style={styles.flashChoiceText}>⚡ ⚡ Crea un Flash</Text>
+            <Text style={styles.flashChoiceText}>Crea un Flash</Text>
           </Pressable>
 
           <Pressable
             style={[styles.flashChoiceButton, styles.flashFindChoiceButton]}
-            onPress={() => setSelectedSection('find')}
+            onPress={() => router.push('/flash-find')}
           >
-            <Text style={styles.flashChoiceIcon}>🔎</Text>
-            <Text style={styles.flashChoiceText}>👀 👀 Trova chi c’è ora</Text>
+            <Text style={styles.flashChoiceIcon}>👀</Text>
+            <Text style={styles.flashChoiceText}>Trova chi c’è ora</Text>
           </Pressable>
         </View>
 
         <Text style={styles.flashHeroNote}>
           Flash è pensato per decidere adesso: poche ore, persone disponibili, zero perdite di tempo.
         </Text>
-      </View>
+        </View>
+      ) : null}
 
-      <View style={[styles.card, selectedSection !== 'find' && styles.hiddenSection]}>
-        <Text style={styles.sectionTitle}>👀 👀 Trova chi c’è ora</Text>
+      {!isMenuPage ? (
+        <View style={styles.flashDedicatedHeroCard}>
+          <Pressable style={styles.flashBackButton} onPress={() => router.push('/flash')}>
+            <Text style={styles.flashBackText}>← Bajuju Flash</Text>
+          </Pressable>
+
+          <View style={styles.flashDedicatedLogoCircle}>
+            <Image source={bajujuLogo} style={styles.flashLogoImage} resizeMode="contain" />
+          </View>
+
+          <Text style={styles.kicker}>Bajuju Flash</Text>
+          <Text style={styles.flashDedicatedTitle}>
+            {isCreatePage ? 'Crea un Flash' : 'Trova chi c’è ora'}
+          </Text>
+          <Text style={styles.flashDedicatedText}>
+            {isCreatePage
+              ? 'Compila pochi dati e pubblica subito il tuo Flash.'
+              : 'Guarda i Flash disponibili adesso e scegli a quale partecipare.'}
+          </Text>
+        </View>
+      ) : null}
+
+      <View style={[styles.card, !(selectedSection === 'find' || isFindPage) && styles.hiddenSection]}>
+        <Text style={styles.sectionTitle}>Trova chi c’è ora</Text>
 
         <Pressable style={styles.mapHighlightButton} onPress={() => router.push('/flash-map')}>
           <Text style={styles.mapHighlightIcon}>🗺️</Text>
@@ -936,14 +986,16 @@ export default function FlashScreen() {
         </View>
       </View>
 
-      <View style={[styles.card, selectedSection !== 'create' && styles.hiddenSection]}>
-        <Text style={styles.sectionTitle}>⚡ ⚡ Crea un Flash</Text>
+      <View style={[styles.card, !(selectedSection === 'create' || isCreatePage) && styles.hiddenSection]}>
+        <Text style={styles.sectionTitle}>Crea un Flash</Text>
 
-        <Pressable style={styles.secondaryButton} onPress={() => setShowCreateForm((value) => !value)}>
-          <Text style={styles.secondaryButtonText}>
-            {showCreateForm ? 'Nascondi modulo' : 'Apri modulo crea Flash'}
-          </Text>
-        </Pressable>
+        {!isCreatePage ? (
+          <Pressable style={styles.secondaryButton} onPress={() => setShowCreateForm((value) => !value)}>
+            <Text style={styles.secondaryButtonText}>
+              {showCreateForm ? 'Nascondi modulo' : 'Apri modulo crea Flash'}
+            </Text>
+          </Pressable>
+        ) : null}
 
         <>
             <Text style={styles.label}>Titolo Flash</Text>
@@ -1025,7 +1077,7 @@ export default function FlashScreen() {
               onPress={createFlash}
               disabled={savingFlash}
             >
-              <Text style={styles.buttonText}>{savingFlash ? 'Creazione in corso...' : '⚡ ⚡ Crea un Flash'}</Text>
+              <Text style={styles.buttonText}>{savingFlash ? 'Creazione in corso...' : 'Crea un Flash'}</Text>
             </Pressable>
 
             <Pressable
@@ -1047,7 +1099,7 @@ export default function FlashScreen() {
           </>
       </View>
 
-      <View style={[styles.card, selectedSection !== 'find' && styles.hiddenSection]}>
+      <View style={[styles.card, !(selectedSection === 'find' || isFindPage) && styles.hiddenSection]}>
         <Text style={styles.sectionTitle}>Flash disponibili</Text>
 
         {loading ? (
@@ -1222,29 +1274,72 @@ export default function FlashScreen() {
 }
 
 const styles = StyleSheet.create({
+  flashDedicatedText: {
+    color: '#7b4960',
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '800',
+    textAlign: 'center',
+    paddingHorizontal: 4,
+  },
+  flashDedicatedTitle: {
+    color: '#4b1430',
+    fontSize: 25,
+    lineHeight: 30,
+    fontWeight: '900',
+    textAlign: 'center',
+  },
+  flashDedicatedLogoCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: '#fff0f7',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 8,
+    borderWidth: 1,
+    borderColor: '#ffd3e6',
+    overflow: 'hidden',
+  },
+  flashDedicatedHeroCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 24,
+    paddingTop: 14,
+    paddingHorizontal: 16,
+    paddingBottom: 18,
+    borderWidth: 1,
+    borderColor: '#ffd3e6',
+    alignItems: 'center',
+    gap: 10,
+    overflow: 'hidden',
+    width: '100%',
+  },
   page: {
     flexGrow: 1,
-    backgroundColor: '#fff0f7',
-    padding: 20,
-    gap: 16,
+    backgroundColor: '#fff8fb',
+    paddingTop: 52,
+    paddingHorizontal: 16,
+    paddingBottom: 36,
+    gap: 14,
   },
   hiddenSection: {
     display: 'none',
   },
   flashBackButton: {
     alignSelf: 'flex-start',
-    marginBottom: 12,
-    paddingVertical: 9,
-    paddingHorizontal: 13,
+    backgroundColor: '#fff0f7',
     borderRadius: 999,
-    backgroundColor: '#fffafd',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     borderWidth: 1,
-    borderColor: '#ef8fbe',
+    borderColor: '#ffd3e6',
+    marginTop: 0,
+    marginBottom: 4,
   },
   flashBackText: {
-    fontSize: 14,
+    color: '#9b1f61',
+    fontSize: 13,
     fontWeight: '900',
-    color: '#86104f',
   },
   flashHeroCard: {
     borderRadius: 36,
@@ -1273,8 +1368,10 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   flashLogoImage: {
-    width: 158,
-    height: 158,
+    width: '100%',
+    height: '100%',
+    resizeMode: 'contain',
+    borderRadius: 999,
   },
   flashHeroPhrase: {
     color: '#e43f98',

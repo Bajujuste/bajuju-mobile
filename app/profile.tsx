@@ -14,6 +14,7 @@ import {
     View,
 } from 'react-native';
 import { supabase } from '../src/lib/supabase';
+import { sendBajujuPushNotification } from '../src/utils/bajujuNotifications';
 
 const bajujuLogo = require('../assets/brand/bajuju-logo.png');
 
@@ -274,9 +275,6 @@ async function tryReadOneProfile(userId: string) {
   const byId = await supabase.from(PROFILE_TABLE).select('*').eq('id', userId).maybeSingle();
   if (!byId.error && byId.data) return byId.data as LooseRow;
 
-  const byUserId = await supabase.from(PROFILE_TABLE).select('*').eq('user_id', userId).maybeSingle();
-  if (!byUserId.error && byUserId.data) return byUserId.data as LooseRow;
-
   return null;
 }
 
@@ -366,15 +364,12 @@ export default function ProfileScreen() {
   const shouldShowProfilePhoto = Boolean(photoUrl) && !photoLoadError;
 
   const profileIdField = useMemo(() => {
-    if (profile?.id && user?.id && String(profile.id) === String(user.id)) return 'id';
-    if (profile?.user_id && user?.id && String(profile.user_id) === String(user.id)) return 'user_id';
     return 'id';
-  }, [profile, user]);
+  }, []);
 
   const profileIdValue = useMemo(() => {
-    if (profileIdField === 'user_id') return user?.id;
     return profile?.id || user?.id;
-  }, [profileIdField, profile, user]);
+  }, [profile, user]);
 
   const checkAdmin = useCallback(async (currentUser: LooseRow, currentProfile: LooseRow | null) => {
     const directAdmin =
@@ -706,7 +701,6 @@ export default function ProfileScreen() {
       } else {
         const insertPayload: LooseRow = {
           id: user.id,
-          user_id: user.id,
           email: user.email,
           ...payload,
         };
@@ -785,7 +779,6 @@ export default function ProfileScreen() {
       } else {
         const insertPayload: LooseRow = {
           id: user.id,
-          user_id: user.id,
           email: user.email,
           ...payload,
         };
@@ -809,9 +802,34 @@ export default function ProfileScreen() {
         Alert.alert('Errore', 'Non sono riuscito ad aggiornare questa richiesta.');
         return;
       }
+
+      if (status === 'accepted') {
+        const updatedResult = await supabase.from(item.table).select('*').eq('id', item.id).maybeSingle();
+        const row = updatedResult.data || {};
+        const targetUserId = String(
+          firstValue(row, ['requester_id', 'from_user_id', 'sender_id', 'created_by', 'creator_id', 'user_id']) || ''
+        );
+
+        if (targetUserId && targetUserId !== user?.id) {
+          await sendBajujuPushNotification({
+            type: 'contact_accepted',
+            actorUserId: user?.id,
+            targetUserId,
+            title: 'Invito accettato',
+            body: 'Il tuo invito Bajuju è stato accettato.',
+            data: {
+              screen: 'profile',
+              requestId: item.id,
+            },
+          }).catch((error) => {
+            console.log('Errore notifica contatto accettato:', error);
+          });
+        }
+      }
+
       await loadAll();
     },
-    [loadAll]
+    [loadAll, user?.id]
   );
 
   const requestProfileDeletion = useCallback(() => {
@@ -892,34 +910,44 @@ export default function ProfileScreen() {
         <Text style={styles.profileBackText}>← Torna alla Home</Text>
       </Pressable>
 
-      <View style={styles.headerCard}>
-        <View
-          style={[
-            styles.photoBox,
-            isAdminOrCreator
-              ? styles.photoBoxAdmin
-              : organizedActivities.length > 20
-                ? styles.photoBoxGold
-                : organizedActivities.length > 10
-                  ? styles.photoBoxStrong
-                  : organizedActivities.length > 5
-                    ? styles.photoBoxGreen
-                    : styles.photoBoxBase,
-          ]}
-        >
-          {shouldShowProfilePhoto ? (
-            <Image source={{ uri: photoUrl }} style={styles.photo} onError={() => setPhotoLoadError(true)} />
-          ) : (
-            <Image source={bajujuLogo} style={styles.photo} />
-          )}
+      <View style={styles.profileHeroCard}>
+        <View style={styles.profileHeroTop}>
+          <View
+            style={[
+              styles.photoBox,
+              isAdminOrCreator
+                ? styles.photoBoxAdmin
+                : organizedActivities.length > 20
+                  ? styles.photoBoxGold
+                  : organizedActivities.length > 10
+                    ? styles.photoBoxStrong
+                    : organizedActivities.length > 5
+                      ? styles.photoBoxGreen
+                      : styles.photoBoxBase,
+            ]}
+          >
+            {shouldShowProfilePhoto ? (
+              <Image source={{ uri: photoUrl }} style={styles.photo} onError={() => setPhotoLoadError(true)} />
+            ) : (
+              <Image source={bajujuLogo} style={styles.photo} />
+            )}
+          </View>
+
+          <View style={styles.profileIdentityBox}>
+            <Text style={styles.profileNameText} numberOfLines={2}>
+              {name}
+            </Text>
+            <Text style={styles.email} numberOfLines={2}>
+              {user?.email}
+            </Text>
+            {isAdminOrCreator ? (
+              <Text style={styles.profileRolePill}>Admin Bajuju</Text>
+            ) : null}
+          </View>
         </View>
 
-        <Pressable
-          style={[styles.changePhotoButton, uploadingPhoto && styles.changePhotoButtonDisabled]}
-          onPress={uploadProfilePhoto}
-          disabled={uploadingPhoto}
-        >
-          <Text style={styles.changePhotoButtonText}>
+        <Pressable style={styles.photoButton} onPress={uploadProfilePhoto} disabled={uploadingPhoto}>
+          <Text style={styles.photoButtonText}>
             {uploadingPhoto ? 'Caricamento foto...' : photoUrl ? 'Cambia foto profilo' : 'Carica foto obbligatoria'}
           </Text>
         </Pressable>
@@ -930,48 +958,12 @@ export default function ProfileScreen() {
           </Text>
         ) : null}
 
-        <View style={styles.headerText}>
-          <Text style={styles.name}>{name}</Text>
-          <Text style={styles.email}>{user?.email}</Text>
-          <Text
-            style={[
-              styles.organizerBadge,
-              isAdminOrCreator
-                ? styles.organizerBadgeAdmin
-                : organizedActivities.length > 20
-                  ? styles.organizerBadgeGold
-                  : organizedActivities.length > 10
-                    ? styles.organizerBadgeStrong
-                    : organizedActivities.length > 5
-                      ? styles.organizerBadgeGreen
-                      : styles.organizerBadgeBase,
-            ]}
-          >
-            {isCreatorApp
-              ? 'Creatore app'
-              : isAdmin
-                ? 'Admin'
-                : organizedActivities.length > 20
-                  ? 'Organizzatore top'
-                  : organizedActivities.length > 10
-                    ? 'Organizzatore esperto'
-                    : organizedActivities.length > 5
-                      ? 'Organizzatore attivo'
-                      : 'Organizzatore base'}
+        {photoLoadError ? (
+          <Text style={styles.photoErrorText}>
+            Non sono riuscito a caricare la tua foto profilo. Controlla il link o ricarica la foto.
           </Text>
-          {photoLoadError ? (
-            <Text style={styles.photoErrorText}>
-              Non sono riuscito a caricare la tua foto profilo. Controlla il link o ricarica la foto.
-            </Text>
-          ) : null}
-        </View>
+        ) : null}
       </View>
-
-      {isAdmin ? (
-        <Pressable style={styles.adminButton} onPress={() => router.push('/admin')}>
-          <Text style={styles.adminButtonText}>Apri Area Admin</Text>
-        </Pressable>
-      ) : null}
 
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>Dati profilo</Text>
@@ -1217,46 +1209,97 @@ const styles = StyleSheet.create({
     shadowRadius: 14,
     elevation: 2,
   },
+  profileHeroCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 24,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#ffd3e6',
+    gap: 12,
+    overflow: 'hidden',
+  },
+  profileHeroTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    width: '100%',
+  },
+  profileIdentityBox: {
+    flex: 1,
+    minWidth: 0,
+    justifyContent: 'center',
+  },
+  profileNameText: {
+    color: '#4b1430',
+    fontSize: 22,
+    lineHeight: 27,
+    fontWeight: '900',
+    flexShrink: 1,
+  },
+  profileRolePill: {
+    alignSelf: 'flex-start',
+    marginTop: 8,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+    backgroundColor: '#fff0f7',
+    color: '#e43f98',
+    fontSize: 12,
+    fontWeight: '900',
+    overflow: 'hidden',
+  },
+  photoButton: {
+    alignSelf: 'flex-start',
+    maxWidth: '100%',
+    backgroundColor: '#e43f98',
+    borderRadius: 999,
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+  },
+  photoButtonText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '900',
+    textAlign: 'center',
+  },
   photoBox: {
-
-    alignSelf: 'center',
+    width: 86,
+    height: 86,
+    borderRadius: 43,
+    padding: 4,
+    backgroundColor: '#ffffff',
+    borderWidth: 3,
     alignItems: 'center',
     justifyContent: 'center',
-    width: 132,
-    height: 132,
-    borderRadius: 66,
-    backgroundColor: '#fff0f7',
-    borderWidth: 5,
-    shadowColor: '#e43f98',
-    shadowOpacity: 0.18,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 4,
+    overflow: 'hidden',
+    flexShrink: 0,
   },
   photoBoxBase: {
-    borderColor: '#ffffff',
+    borderColor: '#ffd3e6',
   },
   photoBoxGreen: {
-    borderColor: '#4fb86b',
+    borderColor: '#2fb36d',
   },
   photoBoxStrong: {
-    borderColor: '#ef2d82',
+    borderColor: '#e43f98',
   },
   photoBoxAdmin: {
-    borderColor: BAJUJU_PINK,
+    borderColor: '#e43f98',
   },
   photoBoxGold: {
-    borderColor: '#d8a600',
+    borderColor: '#d6a100',
   },
   photo: {
-
-    width: 118,
-    height: 118,
-    borderRadius: 59,
+    width: '100%',
+    height: '100%',
+    borderRadius: 999,
     resizeMode: 'cover',
   },
   photoFallback: {
-    fontSize: 34,
+    width: '100%',
+    height: '100%',
+    borderRadius: 999,
+    resizeMode: 'contain',
   },
   headerText: {
     flex: 1,
@@ -1271,9 +1314,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   email: {
-    marginTop: 4,
+    color: '#7b4960',
     fontSize: 13,
-    color: '#7a4267',
+    lineHeight: 18,
+    fontWeight: '800',
+    flexShrink: 1,
   },
   changePhotoButton: {
     marginTop: 12,
@@ -1293,25 +1338,22 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   photoRequiredText: {
-    marginTop: 8,
     color: '#9b1f61',
-    fontSize: 12,
+    fontSize: 13,
+    lineHeight: 18,
     fontWeight: '800',
-    textAlign: 'center',
+    backgroundColor: '#fff8fb',
+    borderRadius: 14,
+    padding: 10,
   },
   photoErrorText: {
-
-    alignSelf: 'center',
-    backgroundColor: '#fff0f7',
-    borderRadius: 16,
-    color: '#8d315f',
-    fontSize: 12,
+    color: '#9b1f61',
+    fontSize: 13,
+    lineHeight: 18,
     fontWeight: '800',
-    lineHeight: 17,
-    marginTop: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    textAlign: 'center',
+    backgroundColor: '#fff0f7',
+    borderRadius: 14,
+    padding: 10,
   },
   organizerBadge: {
     marginTop: 8,
@@ -1375,18 +1417,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   card: {
-
     backgroundColor: '#ffffff',
-    borderRadius: 26,
+    borderRadius: 22,
+    padding: 16,
     borderWidth: 1,
-    borderColor: '#ffd6e8',
-    marginTop: 16,
-    padding: 17,
-    shadowColor: '#e43f98',
-    shadowOpacity: 0.08,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 9 },
-    elevation: 2,
+    borderColor: '#ffd3e6',
+    width: '100%',
+    overflow: 'hidden',
   },
   contactCard: {
 

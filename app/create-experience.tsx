@@ -12,6 +12,7 @@ import {
 
 import { EXPERIENCE_CREATION_CATEGORIES } from '../src/constants/experienceCategories';
 import { supabase } from '../src/lib/supabase';
+import { sendBajujuPushNotification, buildExperienceNotificationTitle } from '../src/utils/bajujuNotifications';
 
 function onlyDigits(value: string, maxLength: number) {
   return value.replace(/\D/g, '').slice(0, maxLength);
@@ -157,6 +158,22 @@ export default function CreateExperienceScreen() {
         }
         return;
       }
+
+      await sendBajujuPushNotification({
+        type: 'new_experience',
+        actorUserId: creatorId,
+        title: buildExperienceNotificationTitle(payload.title),
+        body: `${payload.city}: qualcuno ha creato una nuova esperienza su Bajuju.`,
+        province: payload.province,
+        city: payload.city,
+        data: {
+          screen: 'experience',
+          activityId: result.data?.id,
+          title: payload.title,
+        },
+      }).catch((error) => {
+        console.log('Errore notifica nuova esperienza:', error);
+      });
 
       setTitle('');
       setProvince('');

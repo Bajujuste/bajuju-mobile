@@ -63,35 +63,33 @@ export default function LoginScreen() {
 
       if (!result?.data?.session) {
         setMessageTitle('Login non completato');
-        setMessageText('Supabase ha risposto, ma non ha restituito una sessione.');
+        setMessageText('Supabase ha risposto al login, ma non ha restituito una sessione.');
         return;
       }
 
       const loggedUserId = result.data.user?.id || result.data.session?.user?.id;
       let profile: any = null;
 
-      if (loggedUserId) {
-        const byUserId = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('user_id', loggedUserId)
-          .maybeSingle();
+      if (!loggedUserId) {
+        setMessageTitle('Login incompleto');
+        setMessageText('Accesso riuscito, ma non riesco a leggere l’utente collegato.');
+        return;
+      }
 
-        if (!byUserId.error && byUserId.data) {
-          profile = byUserId.data;
-        }
+      const byId = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', loggedUserId)
+        .maybeSingle();
 
-        if (!profile) {
-          const byId = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', loggedUserId)
-            .maybeSingle();
+      if (byId.error) {
+        setMessageTitle('Errore profilo');
+        setMessageText('Login riuscito, ma errore leggendo profiles.id: ' + byId.error.message);
+        return;
+      }
 
-          if (!byId.error && byId.data) {
-            profile = byId.data;
-          }
-        }
+      if (byId.data) {
+        profile = byId.data;
       }
 
       const profileCity = String(

@@ -152,6 +152,7 @@ function isDeleted(row: ActivityRow) {
 
 export default function ExperiencesScreen() {
   const [selectedCategory, setSelectedCategory] = useState('Tutti');
+  const [categoryMenuOpen, setCategoryMenuOpen] = useState(false);
   const [activities, setActivities] = useState<ActivityRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -218,31 +219,55 @@ export default function ExperiencesScreen() {
           <Text style={styles.sectionEyebrow}>Categorie</Text>
           <Text style={styles.title}>Cosa vuoi fare?</Text>
 
-          <View style={styles.categoryGrid}>
-            {EXPERIENCE_CATEGORIES.map((category) => {
-              const isSelected = selectedCategory === category;
+          <Pressable style={styles.mapOverviewButton} onPress={() => router.push('/experiences-map')}>
+            <Text style={styles.mapOverviewIcon}>🗺️</Text>
+            <View style={styles.mapOverviewTextBox}>
+              <Text style={styles.mapOverviewTitle}>Apri mappa esperienze</Text>
+              <Text style={styles.mapOverviewSubtitle}>Vedi gli eventi disponibili con i pin categoria</Text>
+            </View>
+          </Pressable>
 
-              return (
-                <Pressable
-                  key={category}
-                  style={[
-                    styles.categoryButton,
-                    isSelected && styles.categoryButtonActive,
-                  ]}
-                  onPress={() => setSelectedCategory(category)}
-                >
-                  <Text
+          <Pressable
+            style={styles.categorySelectButton}
+            onPress={() => setCategoryMenuOpen((value) => !value)}
+          >
+            <View style={styles.categorySelectTextBox}>
+              <Text style={styles.categorySelectLabel}>Categoria selezionata</Text>
+              <Text style={styles.categorySelectValue}>{selectedCategory}</Text>
+            </View>
+            <Text style={styles.categorySelectArrow}>{categoryMenuOpen ? '▲' : '▼'}</Text>
+          </Pressable>
+
+          {categoryMenuOpen ? (
+            <View style={styles.categoryDropdown}>
+              {EXPERIENCE_CATEGORIES.map((category) => {
+                const isSelected = selectedCategory === category;
+
+                return (
+                  <Pressable
+                    key={category}
                     style={[
-                      styles.categoryText,
-                      isSelected && styles.categoryTextActive,
+                      styles.categoryDropdownItem,
+                      isSelected && styles.categoryDropdownItemActive,
                     ]}
+                    onPress={() => {
+                      setSelectedCategory(category);
+                      setCategoryMenuOpen(false);
+                    }}
                   >
-                    {category}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
+                    <Text
+                      style={[
+                        styles.categoryDropdownText,
+                        isSelected && styles.categoryDropdownTextActive,
+                      ]}
+                    >
+                      {category}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          ) : null}
 
           <View style={styles.resultHeader}>
             <Text style={styles.resultTitle}>
@@ -326,6 +351,99 @@ export default function ExperiencesScreen() {
 }
 
 const styles = StyleSheet.create({
+  mapOverviewSubtitle: {
+    color: '#7b4960',
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: '800',
+    marginTop: 2,
+  },
+  mapOverviewTitle: {
+    color: '#4b1430',
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  mapOverviewTextBox: {
+    flex: 1,
+    minWidth: 0,
+  },
+  mapOverviewIcon: {
+    fontSize: 22,
+  },
+  mapOverviewButton: {
+    backgroundColor: '#fff0f7',
+    borderWidth: 1,
+    borderColor: '#ffd3e6',
+    borderRadius: 18,
+    paddingVertical: 12,
+    paddingHorizontal: 13,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 12,
+  },
+  categoryDropdownTextActive: {
+    color: '#ffffff',
+  },
+  categoryDropdownText: {
+    color: '#7b4960',
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  categoryDropdownItemActive: {
+    backgroundColor: '#ef2d82',
+    borderColor: '#ef2d82',
+  },
+  categoryDropdownItem: {
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: '#fff8fb',
+    borderWidth: 1,
+    borderColor: '#fff0f7',
+  },
+  categoryDropdown: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#ffd3e6',
+    borderRadius: 18,
+    padding: 8,
+    marginBottom: 14,
+    gap: 6,
+  },
+  categorySelectArrow: {
+    color: '#e43f98',
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  categorySelectValue: {
+    color: '#4b1430',
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  categorySelectLabel: {
+    color: '#a95d86',
+    fontSize: 12,
+    fontWeight: '800',
+    marginBottom: 3,
+  },
+  categorySelectTextBox: {
+    flex: 1,
+    minWidth: 0,
+  },
+  categorySelectButton: {
+    backgroundColor: '#fff8fb',
+    borderWidth: 1,
+    borderColor: '#ffd3e6',
+    borderRadius: 18,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    marginBottom: 10,
+  },
   mapButton: {
     alignSelf: 'flex-start',
     marginTop: 8,
@@ -412,27 +530,19 @@ const styles = StyleSheet.create({
     letterSpacing: -0.4,
   },
   categoryGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 9,
-    marginBottom: 18,
+    display: 'none',
   },
   categoryButton: {
-    borderRadius: 999,
-    backgroundColor: '#fff8fb',
-    borderWidth: 1,
-    borderColor: '#ffd3e7',
-    paddingVertical: 9,
-    paddingHorizontal: 13,
+    display: 'none',
   },
   categoryButtonActive: {
     backgroundColor: '#e43f98',
     borderColor: '#e43f98',
   },
   categoryText: {
-    fontSize: 14,
+    color: '#7b4960',
+    fontSize: 13,
     fontWeight: '900',
-    color: '#9b1f61',
   },
   categoryTextActive: {
     color: '#ffffff',

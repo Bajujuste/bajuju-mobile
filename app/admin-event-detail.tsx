@@ -154,10 +154,6 @@ export default function AdminEventDetailScreen() {
     const byId = await supabase.from('profiles').select('*').eq('id', organizerId).maybeSingle();
     if (!byId.error && byId.data) profile = byId.data as LooseRow;
 
-    if (!profile) {
-      const byUserId = await supabase.from('profiles').select('*').eq('user_id', organizerId).maybeSingle();
-      if (!byUserId.error && byUserId.data) profile = byUserId.data as LooseRow;
-    }
 
     setOrganizer({
       id: String(firstValue(profile, ['id', 'user_id']) || organizerId),
@@ -191,10 +187,6 @@ export default function AdminEventDetailScreen() {
       const byId = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
       if (!byId.error && byId.data) profile = byId.data as LooseRow;
 
-      if (!profile) {
-        const byUserId = await supabase.from('profiles').select('*').eq('user_id', userId).maybeSingle();
-        if (!byUserId.error && byUserId.data) profile = byUserId.data as LooseRow;
-      }
 
       nextParticipants.push({
         id: userId,

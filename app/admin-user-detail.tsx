@@ -53,6 +53,27 @@ function firstValue(row: LooseRow | null | undefined, keys: string[]) {
   return undefined;
 }
 
+function hasColumn(row: LooseRow | null | undefined, key: string) {
+  return Boolean(row && Object.prototype.hasOwnProperty.call(row, key));
+}
+
+function pickExistingPayload(row: LooseRow | null | undefined, payload: LooseRow) {
+  const safePayload: LooseRow = {};
+
+  for (const key of Object.keys(payload)) {
+    if (hasColumn(row, key)) {
+      safePayload[key] = payload[key];
+    }
+  }
+
+  return safePayload;
+}
+
+function firstExistingColumn(row: LooseRow | null | undefined, keys: string[]) {
+  if (!row) return '';
+  return keys.find((key) => hasColumn(row, key)) || '';
+}
+
 function formatDate(value: any) {
   if (!value) return 'Non impostato';
   const date = new Date(value);
@@ -152,18 +173,10 @@ export default function AdminUserDetailScreen() {
     if (!byId.error && byId.data) {
       setProfile(byId.data as LooseRow);
       setGradeValue(firstText(byId.data as LooseRow, ['user_grade', 'grade', 'grado', 'organizer_grade'], ''));
-      setLocationText(firstText(byId.data as LooseRow, ['location_description', 'location_text', 'descrizione_location'], ''));
+      setLocationText(firstText(byId.data as LooseRow, ['location_profile_text', 'location_description', 'location_text', 'descrizione_location'], ''));
       return;
     }
 
-    const byUserId = await supabase.from('profiles').select('*').eq('user_id', userId).maybeSingle();
-
-    if (!byUserId.error && byUserId.data) {
-      setProfile(byUserId.data as LooseRow);
-      setGradeValue(firstText(byUserId.data as LooseRow, ['user_grade', 'grade', 'grado', 'organizer_grade'], ''));
-      setLocationText(firstText(byUserId.data as LooseRow, ['location_description', 'location_text', 'descrizione_location'], ''));
-      return;
-    }
 
     setProfile(null);
   }, [userId]);
@@ -191,6 +204,20 @@ export default function AdminUserDetailScreen() {
   }, [loadProfile]);
 
   const currentProfileId = String(firstValue(profile, ['id', 'user_id']) || userId);
+  const premiumColumn = firstExistingColumn(profile, ['is_premium_organizer', 'is_premium', 'premium', 'premium_user']);
+  const locationColumn = firstExistingColumn(profile, ['is_location_organizer', 'is_location', 'location', 'location_user']);
+  const canManagePremium = Boolean(premiumColumn);
+  const canManageLocation = Boolean(locationColumn);
+  const canReactivateProfile = Boolean(
+    profile &&
+      (
+        firstValue(profile, ['deleted_at', 'removed_at', 'archived_at', 'blocked_until', 'suspended_until', 'suspended_at']) ||
+        booleanFromRow(profile, ['is_deleted', 'deleted', 'is_removed', 'removed', 'archived', 'blocked', 'suspended', 'is_blocked'], false) ||
+        ['deleted', 'removed', 'archived', 'blocked', 'suspended', 'eliminato', 'rimosso', 'archiviato', 'bloccato', 'sospeso'].includes(
+          firstText(profile, ['status', 'account_status', 'stato'], '').toLowerCase().trim()
+        )
+      )
+  );
 
 
   const reactivateUser = useCallback(async () => {
@@ -201,36 +228,36 @@ export default function AdminUserDetailScreen() {
       {
         text: 'Riattiva',
         onPress: async () => {
-          const result = await tryUpdateProfile(currentProfileId, [
-            {
-              deleted_at: null,
-              removed_at: null,
-              archived_at: null,
-              blocked_until: null,
-              suspended_until: null,
-              is_deleted: false,
-              deleted: false,
-              is_removed: false,
-              removed: false,
-              archived: false,
-              blocked: false,
-              suspended: false,
-              status: 'active',
-              stato: 'active',
-              account_status: 'active',
-              updated_at: new Date().toISOString(),
-            },
-            {
-              deleted_at: null,
-              is_deleted: false,
-              status: 'active',
-              updated_at: new Date().toISOString(),
-            },
-            {
-              status: 'active',
-              updated_at: new Date().toISOString(),
-            },
-          ]);
+          const basePayload = pickExistingPayload(profile, {
+            deleted_at: null,
+            removed_at: null,
+            archived_at: null,
+            blocked_until: null,
+            suspended_until: null,
+            suspended_at: null,
+            is_deleted: false,
+            deleted: false,
+            is_removed: false,
+            removed: false,
+            archived: false,
+            blocked: false,
+            suspended: false,
+            is_blocked: false,
+            updated_at: new Date().toISOString(),
+          });
+
+          const statusPayload = pickExistingPayload(profile, {
+            status: 'active',
+            account_status: 'active',
+            stato: 'attivo',
+          });
+
+          const payloads = [
+            { ...basePayload, ...statusPayload },
+            basePayload,
+          ].filter((payload) => Object.keys(payload).length > 0);
+
+          const result = await tryUpdateProfile(currentProfileId, payloads);
 
           if (!result.ok) {
             Alert.alert('Errore riattivazione', result.message || 'Non sono riuscito a riattivare questo utente.');
@@ -250,13 +277,20 @@ export default function AdminUserDetailScreen() {
     setSavingRole(true);
 
     try {
-      const result = await tryUpdateProfile(currentProfileId, [
-        payload,
-        {
-          ...payload,
-          updated_at: new Date().toISOString(),
-        },
-      ]);
+      const safePayload = pickExistingPayload(profile, payload);
+      const safePayloadWithDate = pickExistingPayload(profile, {
+        ...payload,
+        updated_at: new Date().toISOString(),
+      });
+
+      const payloads = [safePayloadWithDate, safePayload].filter((item) => Object.keys(item).length > 0);
+
+      if (payloads.length === 0) {
+        Alert.alert('Colonna mancante', 'Nessuna delle colonne richieste esiste nel profilo caricato.');
+        return;
+      }
+
+      const result = await tryUpdateProfile(currentProfileId, payloads);
 
       if (!result.ok) {
         Alert.alert('Errore aggiornamento', result.message || 'Non sono riuscito ad aggiornare il profilo.');
@@ -273,24 +307,34 @@ export default function AdminUserDetailScreen() {
   }, [currentProfileId, loadProfile, profile]);
 
   const togglePremium = useCallback(() => {
-    const active = booleanFromRow(profile, ['is_premium', 'premium', 'premium_user'], false);
+    const active = booleanFromRow(profile, ['is_premium_organizer', 'is_premium', 'premium', 'premium_user'], false);
+    const column = firstExistingColumn(profile, ['is_premium_organizer', 'is_premium', 'premium', 'premium_user']);
+
+    if (!column) {
+      Alert.alert('Colonna mancante', 'Nel profilo caricato non trovo una colonna Premium esistente.');
+      return;
+    }
 
     updateAdminRoleFields(
       {
-        is_premium: !active,
-        premium: !active,
+        [column]: !active,
       },
       !active ? 'Premium attivato.' : 'Premium disattivato.'
     );
   }, [profile, updateAdminRoleFields]);
 
   const toggleLocation = useCallback(() => {
-    const active = booleanFromRow(profile, ['is_location', 'location', 'location_user'], false);
+    const active = booleanFromRow(profile, ['is_location_organizer', 'is_location', 'location', 'location_user'], false);
+    const column = firstExistingColumn(profile, ['is_location_organizer', 'is_location', 'location', 'location_user']);
+
+    if (!column) {
+      Alert.alert('Colonna mancante', 'Nel profilo caricato non trovo una colonna Location esistente.');
+      return;
+    }
 
     updateAdminRoleFields(
       {
-        is_location: !active,
-        location: !active,
+        [column]: !active,
       },
       !active ? 'Location attivato.' : 'Location disattivato.'
     );
@@ -310,6 +354,7 @@ export default function AdminUserDetailScreen() {
   const saveLocationText = useCallback(() => {
     updateAdminRoleFields(
       {
+        location_profile_text: locationText.trim().slice(0, 200),
         location_description: locationText.trim().slice(0, 200),
         location_text: locationText.trim().slice(0, 200),
       },
@@ -485,41 +530,55 @@ export default function AdminUserDetailScreen() {
               <Text style={styles.detailValue}>{currentProfileId}</Text>
             </View>
 
-            <Pressable style={styles.reactivateButton} onPress={reactivateUser}>
-              <Text style={styles.reactivateButtonText}>Riattiva utente</Text>
-            </Pressable>
+            {canReactivateProfile ? (
+              <Pressable style={styles.reactivateButton} onPress={reactivateUser}>
+                <Text style={styles.reactivateButtonText}>Riattiva utente</Text>
+              </Pressable>
+            ) : null}
 
             <View style={styles.roleCard}>
               <Text style={styles.roleTitle}>Gestione Premium / Location / Grado</Text>
 
               <View style={styles.roleButtonsRow}>
-                <Pressable
-                  style={[
-                    styles.roleButton,
-                    booleanFromRow(profile, ['is_premium', 'premium', 'premium_user'], false) && styles.roleButtonActive,
-                    savingRole && styles.roleButtonDisabled,
-                  ]}
-                  onPress={togglePremium}
-                  disabled={savingRole}
-                >
-                  <Text style={styles.roleButtonText}>
-                    {booleanFromRow(profile, ['is_premium', 'premium', 'premium_user'], false) ? 'Premium ON' : 'Premium OFF'}
-                  </Text>
-                </Pressable>
+                {canManagePremium ? (
+                  <Pressable
+                    style={[
+                      styles.roleButton,
+                      booleanFromRow(profile, ['is_premium_organizer', 'is_premium', 'premium', 'premium_user'], false) && styles.roleButtonActive,
+                      savingRole && styles.roleButtonDisabled,
+                    ]}
+                    onPress={togglePremium}
+                    disabled={savingRole}
+                  >
+                    <Text style={styles.roleButtonText}>
+                      {booleanFromRow(profile, ['is_premium_organizer', 'is_premium', 'premium', 'premium_user'], false) ? 'Premium ON' : 'Premium OFF'}
+                    </Text>
+                  </Pressable>
+                ) : (
+                  <View style={styles.roleNotice}>
+                    <Text style={styles.roleNoticeText}>Premium non configurato nel database.</Text>
+                  </View>
+                )}
 
-                <Pressable
-                  style={[
-                    styles.roleButton,
-                    booleanFromRow(profile, ['is_location', 'location', 'location_user'], false) && styles.roleButtonActive,
-                    savingRole && styles.roleButtonDisabled,
-                  ]}
-                  onPress={toggleLocation}
-                  disabled={savingRole}
-                >
-                  <Text style={styles.roleButtonText}>
-                    {booleanFromRow(profile, ['is_location', 'location', 'location_user'], false) ? 'Location ON' : 'Location OFF'}
-                  </Text>
-                </Pressable>
+                {canManageLocation ? (
+                  <Pressable
+                    style={[
+                      styles.roleButton,
+                      booleanFromRow(profile, ['is_location_organizer', 'is_location', 'location', 'location_user'], false) && styles.roleButtonActive,
+                      savingRole && styles.roleButtonDisabled,
+                    ]}
+                    onPress={toggleLocation}
+                    disabled={savingRole}
+                  >
+                    <Text style={styles.roleButtonText}>
+                      {booleanFromRow(profile, ['is_location_organizer', 'is_location', 'location', 'location_user'], false) ? 'Location ON' : 'Location OFF'}
+                    </Text>
+                  </Pressable>
+                ) : (
+                  <View style={styles.roleNotice}>
+                    <Text style={styles.roleNoticeText}>Location non configurato nel database.</Text>
+                  </View>
+                )}
               </View>
 
               <Text style={styles.roleLabel}>Grado utente</Text>
@@ -622,6 +681,23 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#ffd3e7',
     alignItems: 'center',
+  },
+  roleNotice: {
+    flexGrow: 1,
+    minWidth: 130,
+    paddingVertical: 11,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#ffd3e7',
+  },
+  roleNoticeText: {
+    color: '#a95d86',
+    fontSize: 12,
+    fontWeight: '800',
+    textAlign: 'center',
+    lineHeight: 17,
   },
   roleButtonActive: {
     backgroundColor: '#e43f98',

@@ -16,6 +16,7 @@ import {
 import { supabase } from '../src/lib/supabase';
 import { shareBajujuExperience } from '../src/utils/shareBajuju';
 import { getExperienceCategoryIcon, normalizeExperienceCategory } from '@/src/constants/experienceCategories';
+import { sendBajujuPushNotification } from '../src/utils/bajujuNotifications';
 
 const bajujuLogo = require('../assets/brand/bajuju-logo.png');
 
@@ -130,7 +131,7 @@ function getExperienceCreatorId(experience: ActivityRow | null) {
 }
 
 function profileName(profile: ProfileRow | undefined, index: number) {
-  if (!profile) return `Partecipa orante ${index + 1}`;
+  if (!profile) return `Partecipante ${index + 1}`;
 
   const value =
     profile.full_name ||
@@ -143,7 +144,7 @@ function profileName(profile: ProfileRow | undefined, index: number) {
     profile.email ||
     '';
 
-  return value ? String(value).trim() : `Partecipa orante ${index + 1}`;
+  return value ? String(value).trim() : `Partecipante ${index + 1}`;
 }
 
 function profilePhotoUrl(profile: ProfileRow | undefined) {
@@ -328,34 +329,25 @@ export default function ExperienceDetailScreen() {
         .eq('id', userIdToFind)
         .maybeSingle();
 
-      const profileById = byId.data as ProfileRow | null;
+      let profile = byId.data as ProfileRow | null;
 
-      if (profileById) {
-        const id = String(profileById.id || '');
-        const userId = String(profileById.user_id || '');
+      if (!profile) {
+        const byUserId = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('user_id', userIdToFind)
+          .maybeSingle();
 
-        nextProfiles[userIdToFind] = profileById;
-        if (id) nextProfiles[id] = profileById;
-        if (userId) nextProfiles[userId] = profileById;
-
-        continue;
+        profile = byUserId.data as ProfileRow | null;
       }
 
-      const byUserId = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', userIdToFind)
-        .maybeSingle();
+      if (profile) {
+        const id = String(profile.id || '');
+        const profileUserId = String(profile.user_id || '');
 
-      const profileByUserId = byUserId.data as ProfileRow | null;
-
-      if (profileByUserId) {
-        const id = String(profileByUserId.id || '');
-        const userId = String(profileByUserId.user_id || '');
-
-        nextProfiles[userIdToFind] = profileByUserId;
-        if (id) nextProfiles[id] = profileByUserId;
-        if (userId) nextProfiles[userId] = profileByUserId;
+        nextProfiles[userIdToFind] = profile;
+        if (id) nextProfiles[id] = profile;
+        if (profileUserId) nextProfiles[profileUserId] = profile;
       }
     }
 
@@ -464,11 +456,25 @@ export default function ExperienceDetailScreen() {
         return;
       }
 
+      await sendBajujuPushNotification({
+        type: 'new_participant',
+        actorUserId: currentUserId,
+        targetUserId: String((experience as any)?.creator_id || (experience as any)?.user_id || ''),
+        title: 'Nuovo partecipante Bajuju',
+        body: `Qualcuno si è unito alla tua esperienza: ${String((experience as any)?.title || 'Bajuju')}.`,
+        data: {
+          screen: 'experience',
+          activityId: experienceId,
+        },
+      }).catch((error) => {
+        console.log('Errore notifica nuovo partecipante:', error);
+      });
+
       await loadParticipants(experienceId, experience);
       await loadMessages(experienceId);
 
       if (typeof window !== 'undefined') {
-        window.alert('Partecipa orazione registrata.');
+        window.alert('Partecipazione registrata.');
       }
     } finally {
       setJoining(false);
@@ -535,6 +541,33 @@ export default function ExperienceDetailScreen() {
                 .eq('id', experienceId);
 
               if (!result.error) {
+                const participantsResult = await supabase
+                  .from('activity_participants')
+                  .select('user_id')
+                  .eq('activity_id', experienceId);
+
+                const participantIds = (participantsResult.data || [])
+                  .map((row: any) => String(row.user_id || ''))
+                  .filter((id: string) => id && id !== currentUserId);
+
+                await Promise.all(
+                  participantIds.map((targetUserId: string) =>
+                    sendBajujuPushNotification({
+                      type: 'experience_cancelled',
+                      actorUserId: currentUserId,
+                      targetUserId,
+                      title: 'Esperienza annullata',
+                      body: `L’esperienza ${String((experience as any)?.title || 'Bajuju')} è stata annullata.`,
+                      data: {
+                        screen: 'experiences',
+                        activityId: experienceId,
+                      },
+                    }).catch((error) => {
+                      console.log('Errore notifica esperienza annullata:', error);
+                    })
+                  )
+                );
+
                 Alert.alert('Esperienza annullata', 'L’esperienza è stata rimossa.');
                 router.replace('/experiences');
                 return;
@@ -589,6 +622,20 @@ export default function ExperienceDetailScreen() {
         }
         return;
       }
+
+      await sendBajujuPushNotification({
+        type: 'contact_request',
+        actorUserId: currentUserId,
+        targetUserId,
+        title: 'Nuovo invito Bajuju',
+        body: 'Hai ricevuto un invito a uscire da una persona della tua esperienza.',
+        data: {
+          screen: 'profile',
+          activityId: experienceId,
+        },
+      }).catch((error) => {
+        console.log('Errore notifica richiesta contatto:', error);
+      });
 
       if (typeof window !== 'undefined') {
         window.alert('Invito inviato.');
@@ -868,7 +915,9 @@ export default function ExperienceDetailScreen() {
 
                 {displayedParticipants.length === 0 ? (
                   <Text style={styles.emptySmallText}>
-                    Ancora nessun partecipante. Puoi essere tu il primo.
+                    {isOrganizer
+                      ? 'Ancora nessun partecipante. Quando qualcuno si unirà, lo vedrai qui.'
+                      : 'Ancora nessun partecipante. Puoi essere tu il primo.'}
                   </Text>
                 ) : (
                   <View style={styles.participantsList}>
@@ -899,7 +948,7 @@ export default function ExperienceDetailScreen() {
                                 isCreator ? styles.organizerRoleBadge : styles.normalRoleBadge,
                               ]}
                             >
-                              {isCreator ? 'Organizzatore' : 'Partecipa orante'}
+                              {isCreator ? 'Organizzatore' : 'Partecipante'}
                             </Text>
                           </View>
 
@@ -988,7 +1037,7 @@ export default function ExperienceDetailScreen() {
 
                 {!canUseChat ? (
                   <Text style={styles.emptySmallText}>
-                    La chat si sblocca quando partecipi all’esperienza.
+                    La chat si sblocca quando partecipi all’esperienza. L’organizzatore può sempre scrivere.
                   </Text>
                 ) : (
                   <>
@@ -1095,7 +1144,7 @@ export default function ExperienceDetailScreen() {
                     disabled={joining}
                   >
                     <Text style={styles.smallJoinButtonText}>
-                      {joining ? 'Partecipa orazione...' : 'Partecipa ora'}
+                      {joining ? 'Registrazione...' : 'Partecipa ora'}
                     </Text>
                   </Pressable>
                 )}

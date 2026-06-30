@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -14,18 +14,65 @@ import {
   View,
 } from 'react-native';
 
+import * as SecureStore from 'expo-secure-store';
+
 import { supabase } from '../src/lib/supabase';
 
 const bajujuLogo = require('../assets/brand/bajuju-logo.png');
+
+const SAVED_EMAIL_KEY = 'bajuju_saved_email';
+const SAVED_PASSWORD_KEY = 'bajuju_saved_password';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberPassword, setRememberPassword] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [messageTitle, setMessageTitle] = useState('');
   const [messageText, setMessageText] = useState('');
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadSavedLogin() {
+      try {
+        const savedEmail = await SecureStore.getItemAsync(SAVED_EMAIL_KEY);
+        const savedPassword = await SecureStore.getItemAsync(SAVED_PASSWORD_KEY);
+
+        if (!mounted) return;
+
+        if (savedEmail) setEmail(savedEmail);
+        if (savedPassword) {
+          setPassword(savedPassword);
+          setRememberPassword(true);
+        }
+      } catch {
+        // Se SecureStore non è disponibile, il login resta manuale.
+      }
+    }
+
+    loadSavedLogin();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  async function updateSavedLogin(cleanEmail: string) {
+    try {
+      if (rememberPassword) {
+        await SecureStore.setItemAsync(SAVED_EMAIL_KEY, cleanEmail);
+        await SecureStore.setItemAsync(SAVED_PASSWORD_KEY, password);
+      } else {
+        await SecureStore.deleteItemAsync(SAVED_EMAIL_KEY);
+        await SecureStore.deleteItemAsync(SAVED_PASSWORD_KEY);
+      }
+    } catch {
+      // Non blocco il login se il salvataggio locale fallisce.
+    }
+  }
 
   async function handleLogin() {
     const cleanEmail = email.trim().toLowerCase();
@@ -66,6 +113,8 @@ export default function LoginScreen() {
         setMessageText('Supabase ha risposto al login, ma non ha restituito una sessione.');
         return;
       }
+
+      await updateSavedLogin(cleanEmail);
 
       const loggedUserId = result.data.user?.id || result.data.session?.user?.id;
       let profile: any = null;
@@ -168,6 +217,8 @@ export default function LoginScreen() {
                 placeholder="La tua password"
                 placeholderTextColor="#b26a91"
                 secureTextEntry={!showPassword}
+                autoCapitalize="none"
+                autoCorrect={false}
                 style={styles.passwordInput}
               />
 
@@ -180,6 +231,16 @@ export default function LoginScreen() {
                 </Text>
               </Pressable>
             </View>
+
+            <Pressable
+              style={styles.rememberRow}
+              onPress={() => setRememberPassword((value) => !value)}
+            >
+              <View style={[styles.rememberCheck, rememberPassword && styles.rememberCheckActive]}>
+                <Text style={styles.rememberCheckText}>{rememberPassword ? '✓' : ''}</Text>
+              </View>
+              <Text style={styles.rememberText}>Memorizza password su questo telefono</Text>
+            </Pressable>
 
             <Pressable
               style={[styles.button, loading && styles.buttonDisabled]}
@@ -318,6 +379,38 @@ const styles = StyleSheet.create({
     color: '#e43f98',
     fontSize: 12,
     fontWeight: '900',
+  },
+
+  rememberRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 12,
+    marginBottom: 16,
+  },
+  rememberCheck: {
+    width: 24,
+    height: 24,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: '#e43f98',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#ffffff',
+  },
+  rememberCheckActive: {
+    backgroundColor: '#e43f98',
+  },
+  rememberCheckText: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  rememberText: {
+    flex: 1,
+    color: '#6b3652',
+    fontSize: 13,
+    fontWeight: '800',
   },
   button: {
     height: 54,

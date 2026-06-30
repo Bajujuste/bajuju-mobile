@@ -894,6 +894,7 @@ export default function ExperienceDetailScreen() {
                 style={styles.shareExperienceButton}
                 onPress={() =>
                   shareBajujuExperience({
+                    id: experienceId,
                     title: experience.title,
                     category: experience.category,
                     city: experience.city,

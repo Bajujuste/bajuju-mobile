@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "bajujumobile",
+    "scheme": "bajuju",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "ios": {
@@ -20,7 +20,24 @@
       },
       "edgeToEdgeEnabled": false,
       "predictiveBackGestureEnabled": false,
-      "package": "it.bajuju.mobile"
+      "package": "it.bajuju.mobile",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": false,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "bajuju.it",
+              "pathPrefix": "/experience-detail"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ]
     },
     "web": {
       "output": "static",
@@ -46,7 +63,8 @@
           "icon": "./assets/notification-icon.png",
           "color": "#e43f98"
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,

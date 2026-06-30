@@ -9,6 +9,8 @@ type ShareExperienceParams = {
   province?: string | null;
   date?: string | null;
   time?: string | null;
+  id?: string | null;
+  activityId?: string | null;
 };
 
 export async function shareBajujuHome() {
@@ -23,6 +25,10 @@ export async function shareBajujuExperience(params: ShareExperienceParams) {
   const category = params.category?.trim();
   const place = [params.city, params.province].filter(Boolean).join(', ');
   const when = [params.date, params.time].filter(Boolean).join(' alle ');
+  const id = String(params.id || params.activityId || '').trim();
+  const eventLink = id
+    ? `${BAJUJU_LINK}/experience-detail?id=${encodeURIComponent(id)}`
+    : BAJUJU_LINK;
 
   const lines = [
     `Guarda questa esperienza su Bajuju:`,
@@ -32,7 +38,7 @@ export async function shareBajujuExperience(params: ShareExperienceParams) {
     when ? `Quando: ${when}` : '',
     '',
     'Dal Vivo è Meglio',
-    BAJUJU_LINK,
+    eventLink,
   ].filter(Boolean);
 
   await Share.share({

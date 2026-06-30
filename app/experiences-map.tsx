@@ -1,7 +1,6 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
-import MapView, { type Region } from 'react-native-maps';
 
 import {
   ActivityIndicator,
@@ -242,28 +241,6 @@ function formatDate(row: ActivityRow) {
   return [dateText, timeValue].filter(Boolean).join(' · ');
 }
 
-function markerOverlayPosition(row: ActivityRow, index: number, region: Region) {
-  const coordinate = getCoordinates(row) || fallbackCoordinate(index);
-
-  const west = region.longitude - region.longitudeDelta / 2;
-  const east = region.longitude + region.longitudeDelta / 2;
-  const north = region.latitude + region.latitudeDelta / 2;
-  const south = region.latitude - region.latitudeDelta / 2;
-
-  const left = ((coordinate.longitude - west) / (east - west)) * 100;
-  const top = ((north - coordinate.latitude) / (north - south)) * 100;
-
-  const visible = left >= -5 && left <= 105 && top >= -5 && top <= 105;
-
-  return {
-    visible,
-    style: {
-      left: `${left}%`,
-      top: `${top}%`,
-    },
-  };
-}
-
 function fallbackCoordinate(index: number) {
   const points = [
     { latitude: 45.8566, longitude: 9.3977 }, // Lecco
@@ -332,7 +309,6 @@ function openDetail(row: ActivityRow) {
 export default function ExperiencesMapScreen() {
   const [rows, setRows] = useState<ActivityRow[]>([]);
   const [selectedPreviewRow, setSelectedPreviewRow] = useState<ActivityRow | null>(null);
-  const [currentMapRegion, setCurrentMapRegion] = useState<Region>(INITIAL_MAP_REGION);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -429,44 +405,37 @@ export default function ExperiencesMapScreen() {
           </View>
 
           <View style={styles.realMapShell}>
-            <MapView
-              style={styles.realMap}
-              initialRegion={INITIAL_MAP_REGION}
-              onRegionChangeComplete={setCurrentMapRegion}
-              showsUserLocation={false}
-              showsMyLocationButton={false}
-              zoomEnabled
-              scrollEnabled
-              rotateEnabled={false}
-              pitchEnabled={false}
-            />
+            <View style={styles.staticMapSurface}>
+              <View style={styles.staticMapGlowOne} />
+              <View style={styles.staticMapGlowTwo} />
+              <View style={styles.staticMapRoadOne} />
+              <View style={styles.staticMapRoadTwo} />
 
-            <View pointerEvents="box-none" style={styles.markerOverlayLayer}>
-              {rows.slice(0, 80).map((row, index) => {
-                const category = getCategory(row);
-                const id = activityId(row);
-                const position = markerOverlayPosition(row, index, currentMapRegion);
+              <View pointerEvents="box-none" style={styles.markerOverlayLayer}>
+                {rows.slice(0, 80).map((row, index) => {
+                  const category = getCategory(row);
+                  const id = activityId(row);
+                  const position = pinPosition(row, index);
 
-                if (!position.visible) return null;
-
-                return (
-                  <Pressable
-                    key={`bajuju-overlay-circle-${id || index}-${selectedPreviewId === id ? 'selected' : 'idle'}`}
-                    style={[
-                      styles.bajujuOverlayMarkerCircle,
-                      position.style as any,
-                      selectedPreviewId === id && styles.bajujuOverlayMarkerCircleSelected,
-                    ]}
-                    onPress={() => handleMarkerPress(row)}
-                  >
-                    <MaterialCommunityIcons
-                      name={getMapCategoryIconName(category) as any}
-                      size={26}
-                      color="#ffffff"
-                    />
-                  </Pressable>
-                );
-              })}
+                  return (
+                    <Pressable
+                      key={`bajuju-overlay-circle-${id || index}-${selectedPreviewId === id ? 'selected' : 'idle'}`}
+                      style={[
+                        styles.bajujuOverlayMarkerCircle,
+                        position as any,
+                        selectedPreviewId === id && styles.bajujuOverlayMarkerCircleSelected,
+                      ]}
+                      onPress={() => handleMarkerPress(row)}
+                    >
+                      <MaterialCommunityIcons
+                        name={getMapCategoryIconName(category) as any}
+                        size={26}
+                        color="#ffffff"
+                      />
+                    </Pressable>
+                  );
+                })}
+              </View>
             </View>
 
             {selectedPreviewRow ? (
@@ -498,7 +467,7 @@ export default function ExperiencesMapScreen() {
           </View>
 
           <Text style={styles.visualMapHint}>
-            Puoi spostare la mappa col dito e usare due dita per zoomare. I pin aprono direttamente il dettaglio evento.
+            Tocca un cerchio Bajuju per vedere l’anteprima, poi tocca di nuovo per aprire il dettaglio evento.
           </Text>
         </View>
       ) : null}
@@ -971,4 +940,56 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     fontWeight: '800',
   },
+  staticMapSurface: {
+    height: 360,
+    borderRadius: 24,
+    backgroundColor: '#fff0f7',
+    overflow: 'hidden',
+    position: 'relative',
+    borderWidth: 1,
+    borderColor: '#ffd3e7',
+  },
+  staticMapGlowOne: {
+    position: 'absolute',
+    width: 260,
+    height: 260,
+    borderRadius: 130,
+    backgroundColor: '#ffd3e7',
+    top: -70,
+    left: -50,
+    opacity: 0.7,
+  },
+  staticMapGlowTwo: {
+    position: 'absolute',
+    width: 240,
+    height: 240,
+    borderRadius: 120,
+    backgroundColor: '#ffe6f1',
+    right: -60,
+    bottom: -40,
+    opacity: 0.9,
+  },
+  staticMapRoadOne: {
+    position: 'absolute',
+    width: '125%',
+    height: 26,
+    borderRadius: 999,
+    backgroundColor: '#ffffff',
+    opacity: 0.78,
+    top: 116,
+    left: -32,
+    transform: [{ rotate: '-18deg' }],
+  },
+  staticMapRoadTwo: {
+    position: 'absolute',
+    width: '120%',
+    height: 22,
+    borderRadius: 999,
+    backgroundColor: '#ffffff',
+    opacity: 0.62,
+    bottom: 112,
+    left: -28,
+    transform: [{ rotate: '17deg' }],
+  },
+
 });

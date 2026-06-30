@@ -14,6 +14,71 @@ import { EXPERIENCE_CREATION_CATEGORIES } from '../src/constants/experienceCateg
 import { supabase } from '../src/lib/supabase';
 import { sendBajujuPushNotification, buildExperienceNotificationTitle } from '../src/utils/bajujuNotifications';
 
+const LOCATION_OPTIONS = [
+  {
+    province: 'Bergamo',
+    comuni: [
+      'Bergamo',
+      'Caprino Bergamasco',
+      'Almenno San Bartolomeo',
+      'Almenno San Salvatore',
+      'Calolziocorte',
+      'Cisano Bergamasco',
+      'Mapello',
+      'Ponte San Pietro',
+      'Torre de’ Busi',
+      'Valbrembo',
+    ],
+  },
+  {
+    province: 'Lecco',
+    comuni: [
+      'Lecco',
+      'Calolziocorte',
+      'Vercurago',
+      'Olginate',
+      'Garlate',
+      'Valmadrera',
+      'Barzio',
+    ],
+  },
+  {
+    province: 'Milano',
+    comuni: [
+      'Milano',
+      'Sesto San Giovanni',
+      'Cinisello Balsamo',
+      'Rho',
+      'Cologno Monzese',
+    ],
+  },
+  {
+    province: 'Monza e Brianza',
+    comuni: [
+      'Monza',
+      'Vimercate',
+      'Lissone',
+      'Desio',
+      'Seregno',
+    ],
+  },
+  {
+    province: 'Verona',
+    comuni: [
+      'Verona',
+      'San Bonifacio',
+      'Villafranca di Verona',
+      'Bussolengo',
+      'Legnago',
+    ],
+  },
+];
+
+function comuniForProvince(value: string) {
+  return LOCATION_OPTIONS.find((item) => item.province === value)?.comuni || [];
+}
+
+
 function onlyDigits(value: string, maxLength: number) {
   return value.replace(/\D/g, '').slice(0, maxLength);
 }
@@ -88,10 +153,14 @@ export default function CreateExperienceScreen() {
       cleanBudgetAmount <= 9999
     );
 
+  const allowedCities = comuniForProvince(province.trim());
+  const provinceIsValid = allowedCities.length > 0;
+  const cityIsValid = allowedCities.includes(city.trim());
+
   const canCreateExperience =
     title.trim().length > 0 &&
-    province.trim().length > 0 &&
-    city.trim().length > 0 &&
+    provinceIsValid &&
+    cityIsValid &&
     meetingPlace.trim().length > 0 &&
     description.trim().length > 0 &&
     category.trim().length > 0 &&
@@ -233,22 +302,53 @@ export default function CreateExperienceScreen() {
           />
 
           <Text style={styles.label}>📍 Provincia</Text>
-          <TextInput
-            value={province}
-            onChangeText={setProvince}
-            placeholder="Es. Bergamo"
-            placeholderTextColor="#a95d86"
-            style={styles.input}
-          />
+          <View style={styles.categoryGrid}>
+            {LOCATION_OPTIONS.map((item) => (
+              <Pressable
+                key={item.province}
+                style={[
+                  styles.categoryButton,
+                  province === item.province && styles.categoryButtonActive,
+                ]}
+                onPress={() => {
+                  setProvince(item.province);
+                  setCity('');
+                }}
+              >
+                <Text style={[
+                  styles.categoryText,
+                  province === item.province && styles.categoryTextActive,
+                ]}>
+                  {item.province}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
 
           <Text style={styles.label}>🏙️ Comune</Text>
-          <TextInput
-            value={city}
-            onChangeText={setCity}
-            placeholder="Es. Caprino Bergamasco"
-            placeholderTextColor="#a95d86"
-            style={styles.input}
-          />
+          {province ? (
+            <View style={styles.categoryGrid}>
+              {comuniForProvince(province).map((item) => (
+                <Pressable
+                  key={item}
+                  style={[
+                    styles.categoryButton,
+                    city === item && styles.categoryButtonActive,
+                  ]}
+                  onPress={() => setCity(item)}
+                >
+                  <Text style={[
+                    styles.categoryText,
+                    city === item && styles.categoryTextActive,
+                  ]}>
+                    {item}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          ) : (
+            <Text style={styles.helperText}>Scegli prima una provincia.</Text>
+          )}
 
           <Text style={styles.label}>📌 Punto di ritrovo</Text>
           <TextInput

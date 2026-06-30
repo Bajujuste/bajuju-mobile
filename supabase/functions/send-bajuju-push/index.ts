@@ -140,11 +140,10 @@ Deno.serve(async (request) => {
   const actorUserId = payload.actorUserId || null;
   const targetUserId = payload.targetUserId || null;
   const province = payload.province ? String(payload.province).trim() : null;
-  const city = payload.city ? String(payload.city).trim() : null;
 
   let preferencesQuery = supabase
     .from('notification_preferences')
-    .select('user_id, enabled, preferred_province, preferred_city, notify_chat_messages, ' + prefColumn)
+    .select('user_id, enabled, preferred_province, notify_chat_messages, ' + prefColumn)
     .eq('enabled', true)
     .eq(prefColumn, true)
     .eq('notify_chat_messages', false);
@@ -169,12 +168,10 @@ Deno.serve(async (request) => {
       // Per notifiche personali basta il target.
       if (targetUserId) return true;
 
-      // Per nuove esperienze/Flash filtriamo per zona se l'utente ha preferenze.
+      // Per nuove esperienze/Flash filtriamo per provincia se l'utente ha preferenze.
       const preferredProvince = pref.preferred_province ? String(pref.preferred_province).trim().toLowerCase() : '';
-      const preferredCity = pref.preferred_city ? String(pref.preferred_city).trim().toLowerCase() : '';
 
       if (preferredProvince && province && preferredProvince !== province.toLowerCase()) return false;
-      if (preferredCity && city && preferredCity !== city.toLowerCase()) return false;
 
       return true;
     })

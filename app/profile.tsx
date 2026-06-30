@@ -19,80 +19,12 @@ import { sendBajujuPushNotification } from '../src/utils/bajujuNotifications';
 const bajujuLogo = require('../assets/brand/bajuju-logo.png');
 
 const LOCATION_OPTIONS = [
-  {
-    province: 'Bergamo',
-    comuni: [
-      'Bergamo',
-      'Caprino Bergamasco',
-      'Almenno San Bartolomeo',
-      'Almenno San Salvatore',
-      'Calolziocorte',
-      'Cisano Bergamasco',
-      'Mapello',
-      'Ponte San Pietro',
-      'Torre de’ Busi',
-      'Valbrembo',
-    ],
-  },
-  {
-    province: 'Lecco',
-    comuni: [
-      'Lecco',
-      'Calolziocorte',
-      'Vercurago',
-      'Olginate',
-      'Garlate',
-      'Valmadrera',
-      'Barzio',
-    ],
-  },
-  {
-    province: 'Milano',
-    comuni: [
-      'Milano',
-      'Sesto San Giovanni',
-      'Cinisello Balsamo',
-      'Rho',
-      'Cologno Monzese',
-    ],
-  },
-  {
-    province: 'Monza e Brianza',
-    comuni: [
-      'Monza',
-      'Vimercate',
-      'Lissone',
-      'Desio',
-      'Seregno',
-    ],
-  },
-  {
-    province: 'Verona',
-    comuni: [
-      'Verona',
-      'San Bonifacio',
-      'Villafranca di Verona',
-      'Bussolengo',
-      'Legnago',
-    ],
-  },
+  'Bergamo',
+  'Lecco',
+  'Milano',
+  'Monza e Brianza',
+  'Verona',
 ];
-
-function provinceFromCity(value: string) {
-  const clean = String(value || '').trim().toLowerCase();
-
-  if (!clean) return '';
-
-  const found = LOCATION_OPTIONS.find((item) =>
-    item.comuni.some((cityName) => cityName.toLowerCase() === clean)
-  );
-
-  return found?.province || '';
-}
-
-function comuniForProvince(value: string) {
-  return LOCATION_OPTIONS.find((item) => item.province === value)?.comuni || [];
-}
 
 const BAJUJU_CREATOR_EMAIL = 'royaleventi@gmail.com';
 const BAJUJU_PINK = '#e43f98';
@@ -418,7 +350,6 @@ export default function ProfileScreen() {
 
   const [profileName, setProfileName] = useState('');
   const [province, setProvince] = useState('');
-  const [city, setCity] = useState('');
   const [ageRange, setAgeRange] = useState('');
   const [gender, setGender] = useState('');
   const [directContactsEnabled, setDirectContactsEnabled] = useState(true);
@@ -668,13 +599,9 @@ export default function ProfileScreen() {
     setPhotoLoadError(false);
 
     setProfileName(firstText(currentProfile, ['nickname', 'username', 'display_name', 'full_name', 'name', 'nome'], ''));
-    const loadedCity = firstText(currentProfile, ['city', 'citta', 'comune', 'location_city', 'preferred_city'], '');
-    const loadedProvince =
-      firstText(currentProfile, ['province', 'provincia', 'location_province', 'preferred_province'], '') ||
-      provinceFromCity(loadedCity);
+    const loadedProvince = firstText(currentProfile, ['province', 'provincia', 'location_province', 'preferred_province'], '');
 
     setProvince(loadedProvince);
-    setCity(loadedCity);
     setAgeRange(firstText(currentProfile, ['age', 'eta', 'età', 'user_age', 'age_range', 'fascia_eta', 'age_band', 'eta_range'], ''));
     setGender(firstText(currentProfile, ['gender', 'genere', 'sex'], ''));
     setDirectContactsEnabled(
@@ -810,27 +737,20 @@ export default function ProfileScreen() {
     if (!user) return;
 
     const cleanProvince = province.trim();
-    const cleanCity = city.trim();
     const cleanAge = ageRange.trim();
-    const allowedCities = comuniForProvince(cleanProvince);
 
     if (!photoUrl) {
       Alert.alert('Foto obbligatoria', 'Per usare Bajuju devi caricare una foto profilo reale.');
       return;
     }
 
-    if (!cleanProvince || !cleanCity || !cleanAge) {
-      Alert.alert('Dati mancanti', 'Scegli provincia, comune ed età.');
+    if (!cleanProvince || !cleanAge) {
+      Alert.alert('Dati mancanti', 'Scegli provincia ed età.');
       return;
     }
 
-    if (allowedCities.length === 0) {
+    if (!LOCATION_OPTIONS.includes(cleanProvince)) {
       Alert.alert('Provincia non valida', 'Scegli una provincia dall’elenco.');
-      return;
-    }
-
-    if (!allowedCities.includes(cleanCity)) {
-      Alert.alert('Comune non valido', 'Scegli un comune dall’elenco della provincia selezionata.');
       return;
     }
 
@@ -843,7 +763,6 @@ export default function ProfileScreen() {
 
     setSaving(true);
 
-    const cityField = firstKey(profile, ['city', 'citta', 'comune', 'location_city'], 'city');
     const provinceField = firstKey(profile, ['province', 'provincia', 'location_province'], 'province');
     const ageField = firstKey(profile, ['age', 'eta', 'età', 'user_age', 'age_range', 'fascia_eta', 'age_band', 'eta_range'], 'age');
     const genderField = firstKey(profile, ['gender', 'genere', 'sex'], 'gender');
@@ -854,7 +773,6 @@ export default function ProfileScreen() {
     );
 
     const payload: LooseRow = {
-      [cityField]: cleanCity,
       [ageField]: numericAge,
       [genderField]: gender,
       allow_direct_contacts: directContactsEnabled,
@@ -891,7 +809,6 @@ export default function ProfileScreen() {
           user_id: user.id,
           enabled: true,
           preferred_province: cleanProvince,
-          preferred_city: cleanCity,
           updated_at: new Date().toISOString(),
         });
         if (preferencesResult.error) {
@@ -908,7 +825,7 @@ export default function ProfileScreen() {
     } finally {
       setSaving(false);
     }
-  }, [ageRange, city, directContactsEnabled, gender, loadAll, photoUrl, profile, profileIdField, profileIdValue, province, user]);
+  }, [ageRange, directContactsEnabled, gender, loadAll, photoUrl, profile, profileIdField, profileIdValue, province, user]);
 
   const answerItem = useCallback(
     async (item: ContactItem | InviteItem, status: 'accepted' | 'rejected') => {
@@ -1095,7 +1012,7 @@ export default function ProfileScreen() {
         <View style={styles.locationInfoBox}>
           <Text style={styles.locationInfoTitle}>Dove ti trovi</Text>
           <Text style={styles.locationInfoText}>
-            Scegli provincia e comune. Riceverai notifiche per le nuove esperienze create nella tua provincia. Puoi cambiarlo quando ti sposti.
+            Scegli la provincia. Riceverai notifiche per le nuove esperienze create nella tua provincia. Puoi cambiarla quando ti sposti.
           </Text>
         </View>
 
@@ -1103,38 +1020,18 @@ export default function ProfileScreen() {
         <View style={styles.optionWrap}>
           {LOCATION_OPTIONS.map((item) => (
             <Pressable
-              key={item.province}
-              style={[styles.locationOption, province === item.province && styles.optionActive]}
+              key={item}
+              style={[styles.locationOption, province === item && styles.optionActive]}
               onPress={() => {
-                setProvince(item.province);
-                setCity('');
+                setProvince(item);
               }}
             >
-              <Text style={[styles.optionText, province === item.province && styles.optionTextActive]}>
-                {item.province}
+              <Text style={[styles.optionText, province === item && styles.optionTextActive]}>
+                {item}
               </Text>
             </Pressable>
           ))}
         </View>
-
-        <Text style={styles.label}>Comune</Text>
-        {province ? (
-          <View style={styles.optionWrap}>
-            {comuniForProvince(province).map((item) => (
-              <Pressable
-                key={item}
-                style={[styles.locationOption, city === item && styles.optionActive]}
-                onPress={() => setCity(item)}
-              >
-                <Text style={[styles.optionText, city === item && styles.optionTextActive]}>
-                  {item}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        ) : (
-          <Text style={styles.locationHint}>Scegli prima una provincia.</Text>
-        )}
 
         <Text style={styles.label}>Età</Text>
         <TextInput

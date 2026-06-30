@@ -15,69 +15,12 @@ import { supabase } from '../src/lib/supabase';
 import { sendBajujuPushNotification, buildExperienceNotificationTitle } from '../src/utils/bajujuNotifications';
 
 const LOCATION_OPTIONS = [
-  {
-    province: 'Bergamo',
-    comuni: [
-      'Bergamo',
-      'Caprino Bergamasco',
-      'Almenno San Bartolomeo',
-      'Almenno San Salvatore',
-      'Calolziocorte',
-      'Cisano Bergamasco',
-      'Mapello',
-      'Ponte San Pietro',
-      'Torre de’ Busi',
-      'Valbrembo',
-    ],
-  },
-  {
-    province: 'Lecco',
-    comuni: [
-      'Lecco',
-      'Calolziocorte',
-      'Vercurago',
-      'Olginate',
-      'Garlate',
-      'Valmadrera',
-      'Barzio',
-    ],
-  },
-  {
-    province: 'Milano',
-    comuni: [
-      'Milano',
-      'Sesto San Giovanni',
-      'Cinisello Balsamo',
-      'Rho',
-      'Cologno Monzese',
-    ],
-  },
-  {
-    province: 'Monza e Brianza',
-    comuni: [
-      'Monza',
-      'Vimercate',
-      'Lissone',
-      'Desio',
-      'Seregno',
-    ],
-  },
-  {
-    province: 'Verona',
-    comuni: [
-      'Verona',
-      'San Bonifacio',
-      'Villafranca di Verona',
-      'Bussolengo',
-      'Legnago',
-    ],
-  },
+  'Bergamo',
+  'Lecco',
+  'Milano',
+  'Monza e Brianza',
+  'Verona',
 ];
-
-function comuniForProvince(value: string) {
-  return LOCATION_OPTIONS.find((item) => item.province === value)?.comuni || [];
-}
-
 
 function onlyDigits(value: string, maxLength: number) {
   return value.replace(/\D/g, '').slice(0, maxLength);
@@ -118,7 +61,6 @@ function buildTime(hour: string, minute: string) {
 export default function CreateExperienceScreen() {
   const [title, setTitle] = useState('');
   const [province, setProvince] = useState('');
-  const [city, setCity] = useState('');
   const [meetingPlace, setMeetingPlace] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
@@ -153,14 +95,11 @@ export default function CreateExperienceScreen() {
       cleanBudgetAmount <= 9999
     );
 
-  const allowedCities = comuniForProvince(province.trim());
-  const provinceIsValid = allowedCities.length > 0;
-  const cityIsValid = allowedCities.includes(city.trim());
+  const provinceIsValid = LOCATION_OPTIONS.includes(province.trim());
 
   const canCreateExperience =
     title.trim().length > 0 &&
     provinceIsValid &&
-    cityIsValid &&
     meetingPlace.trim().length > 0 &&
     description.trim().length > 0 &&
     category.trim().length > 0 &&
@@ -175,7 +114,6 @@ export default function CreateExperienceScreen() {
 
     const cleanTitle = title.trim();
     const cleanProvince = province.trim();
-    const cleanCity = city.trim();
     const cleanMeetingPlace = meetingPlace.trim();
     const cleanDescription = description.trim();
     const cleanCategory = category.trim();
@@ -205,7 +143,6 @@ export default function CreateExperienceScreen() {
         title: cleanTitle,
         category: cleanCategory,
         description: cleanDescription,
-        city: cleanCity,
         province: cleanProvince,
         meeting_place: cleanMeetingPlace,
         activity_date: isoDate,
@@ -232,9 +169,8 @@ export default function CreateExperienceScreen() {
         type: 'new_experience',
         actorUserId: creatorId,
         title: buildExperienceNotificationTitle(payload.title),
-        body: `${payload.city}: qualcuno ha creato una nuova esperienza su Bajuju.`,
+        body: `${payload.province}: qualcuno ha creato una nuova esperienza su Bajuju.`,
         province: payload.province,
-        city: payload.city,
         data: {
           screen: 'experience',
           activityId: result.data?.id,
@@ -246,7 +182,6 @@ export default function CreateExperienceScreen() {
 
       setTitle('');
       setProvince('');
-      setCity('');
       setMeetingPlace('');
       setDescription('');
       setCategory('');
@@ -305,50 +240,24 @@ export default function CreateExperienceScreen() {
           <View style={styles.categoryGrid}>
             {LOCATION_OPTIONS.map((item) => (
               <Pressable
-                key={item.province}
+                key={item}
                 style={[
                   styles.categoryButton,
-                  province === item.province && styles.categoryButtonActive,
+                  province === item && styles.categoryButtonActive,
                 ]}
                 onPress={() => {
-                  setProvince(item.province);
-                  setCity('');
+                  setProvince(item);
                 }}
               >
                 <Text style={[
                   styles.categoryText,
-                  province === item.province && styles.categoryTextActive,
+                  province === item && styles.categoryTextActive,
                 ]}>
-                  {item.province}
+                  {item}
                 </Text>
               </Pressable>
             ))}
           </View>
-
-          <Text style={styles.label}>🏙️ Comune</Text>
-          {province ? (
-            <View style={styles.categoryGrid}>
-              {comuniForProvince(province).map((item) => (
-                <Pressable
-                  key={item}
-                  style={[
-                    styles.categoryButton,
-                    city === item && styles.categoryButtonActive,
-                  ]}
-                  onPress={() => setCity(item)}
-                >
-                  <Text style={[
-                    styles.categoryText,
-                    city === item && styles.categoryTextActive,
-                  ]}>
-                    {item}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          ) : (
-            <Text style={styles.helperText}>Scegli prima una provincia.</Text>
-          )}
 
           <Text style={styles.label}>📌 Punto di ritrovo</Text>
           <TextInput
@@ -501,7 +410,7 @@ export default function CreateExperienceScreen() {
               {title.trim() || 'Titolo esperienza'}
             </Text>
             <Text style={styles.previewSmall}>
-              {category || 'Categoria'} · {city.trim() || 'Comune'} · {province.trim() || 'Provincia'}
+              {category || 'Categoria'} · {province.trim() || 'Provincia'}
             </Text>
             <Text style={styles.previewSmall}>
               Ritrovo: {meetingPlace.trim() || 'Punto di ritrovo'}

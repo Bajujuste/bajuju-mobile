@@ -505,6 +505,24 @@ export default function ExperienceDetailScreen() {
       return;
     }
 
+    const organizerId = getExperienceCreatorId(experience);
+
+    if (organizerId) {
+      const organizerBlockResult = await supabase
+        .from('user_blocks')
+        .select('id')
+        .eq('blocker_id', organizerId)
+        .eq('blocked_id', currentUserId)
+        .maybeSingle();
+
+      if (organizerBlockResult.data) {
+        if (typeof window !== 'undefined') {
+          window.alert('Non puoi partecipare a questa esperienza.');
+        }
+        return;
+      }
+    }
+
     if (isFull) {
       if (typeof window !== 'undefined') {
         window.alert('Questa esperienza ha già raggiunto il numero massimo di partecipanti.');

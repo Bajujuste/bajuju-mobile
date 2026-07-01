@@ -118,6 +118,7 @@ export default function UserProfileScreen() {
   const [profile, setProfile] = useState<LooseRow | null>(null);
   const [currentUserId, setCurrentUserId] = useState('');
   const [reportingUser, setReportingUser] = useState(false);
+  const [blockingUser, setBlockingUser] = useState(false);
   const [organizedCount, setOrganizedCount] = useState(0);
   const [participatedCount, setParticipatedCount] = useState(0);
   const [errorText, setErrorText] = useState('');
@@ -233,6 +234,55 @@ export default function UserProfileScreen() {
     }
   }
 
+  async function blockUser() {
+    if (!profile || !userId || blockingUser) return;
+
+    if (!currentUserId) {
+      Alert.alert('Accesso richiesto', 'Devi essere collegato per bloccare un utente.');
+      return;
+    }
+
+    if (currentUserId === userId) {
+      Alert.alert('Blocco non valido', 'Non puoi bloccare il tuo profilo.');
+      return;
+    }
+
+    if (isAdminOrCreator) {
+      Alert.alert('Blocco non consentito', 'Non puoi bloccare un amministratore Bajuju.');
+      return;
+    }
+
+    setBlockingUser(true);
+
+    try {
+      const existing = await supabase
+        .from('user_blocks')
+        .select('id')
+        .eq('blocker_id', currentUserId)
+        .eq('blocked_id', userId)
+        .maybeSingle();
+
+      if (!existing.error && existing.data) {
+        Alert.alert('Utente già bloccato', 'Questo utente è già stato bloccato.');
+        return;
+      }
+
+      const result = await supabase.from('user_blocks').insert({
+        blocker_id: currentUserId,
+        blocked_id: userId,
+      });
+
+      if (result.error) {
+        Alert.alert('Errore blocco', result.error.message);
+        return;
+      }
+
+      Alert.alert('Utente bloccato', 'L’utente è stato bloccato. Non riceverà nessuna notifica.');
+    } finally {
+      setBlockingUser(false);
+    }
+  }
+
   const name = firstText(profile, ['nickname', 'username', 'display_name', 'full_name', 'name', 'nome'], 'Utente Bajuju');
   const city = firstText(profile, ['city', 'citta', 'comune', 'location_city'], '');
   const age = firstText(profile, ['age', 'eta', 'età', 'user_age', 'age_range', 'fascia_eta', 'age_band', 'eta_range'], '');
@@ -299,9 +349,17 @@ export default function UserProfileScreen() {
             <Text style={styles.gradeHint}>{isAdminOrCreator ? 'Profilo ufficiale Bajuju' : organizerGradeHint(organizedCount)}</Text>
 
             {currentUserId && currentUserId !== userId ? (
-              <Pressable style={styles.reportUserButton} onPress={reportUser} disabled={reportingUser}>
-                <Text style={styles.reportUserText}>{reportingUser ? 'Invio segnalazione...' : 'Segnala utente'}</Text>
-              </Pressable>
+              <>
+                <Pressable style={styles.reportUserButton} onPress={reportUser} disabled={reportingUser}>
+                  <Text style={styles.reportUserText}>{reportingUser ? 'Invio segnalazione...' : 'Segnala utente'}</Text>
+                </Pressable>
+
+                {!isAdminOrCreator ? (
+                  <Pressable style={styles.blockUserButton} onPress={blockUser} disabled={blockingUser}>
+                    <Text style={styles.blockUserText}>{blockingUser ? 'Blocco...' : 'Blocca utente'}</Text>
+                  </Pressable>
+                ) : null}
+              </>
             ) : null}
           </View>
 
@@ -435,6 +493,20 @@ const styles = StyleSheet.create({
   },
   reportUserText: {
     color: '#9b1f61',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  blockUserButton: {
+    marginTop: 10,
+    borderRadius: 999,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#ffd3e7',
+  },
+  blockUserText: {
+    color: '#7b4960',
     fontSize: 13,
     fontWeight: '900',
   },

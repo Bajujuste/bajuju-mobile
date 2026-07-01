@@ -566,11 +566,11 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
       return;
     }
 
-    const hasStreetNumber = /\d+[a-zA-Z]?/.test(cleanPlace);
+    const hasStreetNumber = /\d+[a-zA-Z]?/.test(cleanStreetNumber);
 
     if (!hasStreetNumber) {
       if (typeof window !== 'undefined') {
-        window.alert('Inserisci un indirizzo preciso con numero civico, esempio: Via Roma 12.');
+        window.alert('Inserisci il numero civico nel campo dedicato, esempio: 12.');
       }
       return;
     }

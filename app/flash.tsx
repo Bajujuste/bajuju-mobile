@@ -423,6 +423,7 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
   const [availableRows, setAvailableRows] = useState<LooseRow[]>([]);
   const [availableProfiles, setAvailableProfiles] = useState<Record<string, LooseRow>>({});
   const [loadingAvailableUsers, setLoadingAvailableUsers] = useState(false);
+  const [sendingAvailabilityInviteTo, setSendingAvailabilityInviteTo] = useState<string | null>(null);
   const [joiningActivityId, setJoiningActivityId] = useState<string | null>(null);
   const [leavingActivityId, setLeavingActivityId] = useState<string | null>(null);
   const [cancellingActivityId, setCancellingActivityId] = useState<string | null>(null);
@@ -748,6 +749,99 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
       setSavingAvailability(false);
     }
   }, [availabilityCity, availabilityDurationHours, availabilityProvince, loadAvailableUsers, savingAvailability]);
+
+  const sendAvailabilityInvite = useCallback(async (targetUserId: string) => {
+    const cleanTargetUserId = String(targetUserId || '').trim();
+
+    if (!cleanTargetUserId || sendingAvailabilityInviteTo) return;
+
+    const authResult = await supabase.auth.getUser();
+    const currentUserId = authResult.data.user?.id || null;
+
+    if (!currentUserId) {
+      if (typeof window !== 'undefined') {
+        window.alert('Devi essere collegato per invitare una persona.');
+      }
+      return;
+    }
+
+    if (currentUserId === cleanTargetUserId) return;
+
+    setSendingAvailabilityInviteTo(cleanTargetUserId);
+
+    try {
+      const [blockedByMeResult, blockedMeResult] = await Promise.all([
+        supabase
+          .from('user_blocks')
+          .select('id')
+          .eq('blocker_id', currentUserId)
+          .eq('blocked_id', cleanTargetUserId)
+          .maybeSingle(),
+        supabase
+          .from('user_blocks')
+          .select('id')
+          .eq('blocker_id', cleanTargetUserId)
+          .eq('blocked_id', currentUserId)
+          .maybeSingle(),
+      ]);
+
+      if (blockedByMeResult.data || blockedMeResult.data) {
+        if (typeof window !== 'undefined') {
+          window.alert('Invito non disponibile per questo utente.');
+        }
+        return;
+      }
+
+      const existingResult = await supabase
+        .from('direct_contact_requests')
+        .select('id,status')
+        .eq('requester_id', currentUserId)
+        .eq('receiver_id', cleanTargetUserId)
+        .in('status', ['pending', 'accepted'])
+        .limit(1);
+
+      if (!existingResult.error && existingResult.data && existingResult.data.length > 0) {
+        if (typeof window !== 'undefined') {
+          window.alert('Hai già inviato un invito a questa persona.');
+        }
+        return;
+      }
+
+      const result = await supabase.from('direct_contact_requests').insert({
+        requester_id: currentUserId,
+        sender_id: currentUserId,
+        receiver_id: cleanTargetUserId,
+        status: 'pending',
+        message: 'Ti ho visto disponibile su Bajuju Flash: ti va di organizzare qualcosa dal vivo?',
+      });
+
+      if (result.error) {
+        if (typeof window !== 'undefined') {
+          window.alert(`Errore invito: ${result.error.message}`);
+        }
+        return;
+      }
+
+      await sendBajujuPushNotification({
+        type: 'contact_request',
+        actorUserId: currentUserId,
+        targetUserId: cleanTargetUserId,
+        title: 'Nuovo invito Bajuju Flash',
+        body: 'Una persona ti ha visto disponibile e vuole invitarti a fare qualcosa dal vivo.',
+        data: {
+          screen: 'profile',
+        },
+      }).catch((error) => {
+        console.log('Errore notifica invito disponibilità:', error);
+      });
+
+      if (typeof window !== 'undefined') {
+        window.alert('Invito inviato.');
+      }
+    } finally {
+      setSendingAvailabilityInviteTo(null);
+    }
+  }, [sendingAvailabilityInviteTo]);
 
   const createFlash = useCallback(async () => {
     if (savingFlash) return;
@@ -1252,8 +1346,17 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
                       </Text>
                       <Text style={styles.availableTime}>{availabilityRemainingText(row)}</Text>
 
-                      <Pressable style={styles.availableInviteButton}>
-                        <Text style={styles.availableInviteButtonText}>Invita</Text>
+                      <Pressable
+                        style={[
+                          styles.availableInviteButton,
+                          sendingAvailabilityInviteTo === availableUserId(row) && styles.buttonDisabled,
+                        ]}
+                        onPress={() => sendAvailabilityInvite(availableUserId(row))}
+                        disabled={sendingAvailabilityInviteTo === availableUserId(row)}
+                      >
+                        <Text style={styles.availableInviteButtonText}>
+                          {sendingAvailabilityInviteTo === availableUserId(row) ? 'Invio...' : 'Invita'}
+                        </Text>
                       </Pressable>
                     </View>
                   );

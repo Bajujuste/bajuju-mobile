@@ -298,6 +298,26 @@ function openMap(row: LooseRow) {
   });
 }
 
+
+function flashId(row: LooseRow) {
+  return String(firstValue(row, ['id', 'activity_id'], '') || '');
+}
+
+function flashMapPinPosition(index: number) {
+  const positions = [
+    { top: '18%', left: '18%' },
+    { top: '30%', left: '58%' },
+    { top: '52%', left: '34%' },
+    { top: '64%', left: '70%' },
+    { top: '42%', left: '14%' },
+    { top: '16%', left: '76%' },
+    { top: '72%', left: '22%' },
+    { top: '48%', left: '52%' },
+  ];
+
+  return positions[index % positions.length];
+}
+
 async function geocodeAddress(address: string, streetNumber: string, city: string, province: string) {
   const cleanAddress = address.trim();
   const cleanStreetNumber = streetNumber.trim();
@@ -369,6 +389,7 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
   const [joiningActivityId, setJoiningActivityId] = useState<string | null>(null);
   const [leavingActivityId, setLeavingActivityId] = useState<string | null>(null);
   const [cancellingActivityId, setCancellingActivityId] = useState<string | null>(null);
+  const [selectedMapFlashId, setSelectedMapFlashId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -936,14 +957,6 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
       <View style={[styles.card, !(selectedSection === 'find' || isFindPage) && styles.hiddenSection]}>
         <Text style={styles.sectionTitle}>Trova chi c’è ora</Text>
 
-        <Pressable style={styles.mapHighlightButton} onPress={() => router.push('/flash-map')}>
-          <Text style={styles.mapHighlightIcon}>🗺️</Text>
-          <View style={styles.mapHighlightTextBox}>
-            <Text style={styles.mapHighlightTitle}>Apri mappa Flash</Text>
-            <Text style={styles.mapHighlightSubtitle}>Guarda subito dove sono i Flash disponibili</Text>
-          </View>
-        </Pressable>
-
         <Text style={styles.sectionTitleSmall}>Provincia</Text>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
@@ -1100,6 +1113,76 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
       </View>
 
       <View style={[styles.card, !(selectedSection === 'find' || isFindPage) && styles.hiddenSection]}>
+        <Text style={styles.sectionTitle}>Mappa Flash disponibili</Text>
+
+        {filteredRows.filter((row) => !!getCoordinates(row)).length === 0 ? (
+          <Text style={styles.mutedText}>Nessun Flash con coordinate disponibile con questi filtri.</Text>
+        ) : (
+          <View style={styles.flashVisualMapCard}>
+            <View style={styles.flashVisualMapHeader}>
+              <View style={styles.flashVisualMapHeaderText}>
+                <Text style={styles.flashVisualMapTitle}>Flash sulla mappa</Text>
+                <Text style={styles.flashVisualMapSubtitle}>Tocca un punto per vedere l’anteprima.</Text>
+              </View>
+              <Text style={styles.flashVisualMapCount}>{filteredRows.filter((row) => !!getCoordinates(row)).length}</Text>
+            </View>
+
+            <View style={styles.flashMapCanvas}>
+              <View style={styles.flashMapBlobOne} />
+              <View style={styles.flashMapBlobTwo} />
+              <View style={styles.flashMapRoadOne} />
+              <View style={styles.flashMapRoadTwo} />
+              <Text style={styles.flashMapWatermark}>Bajuju Flash</Text>
+
+              {filteredRows.filter((row) => !!getCoordinates(row)).slice(0, 40).map((row, index) => {
+                const id = flashId(row);
+                const selected = selectedMapFlashId === id;
+
+                return (
+                  <Pressable
+                    key={`flash-map-pin-${id || index}`}
+                    style={[
+                      styles.flashMapPin,
+                      flashMapPinPosition(index) as any,
+                      selected && styles.flashMapPinSelected,
+                    ]}
+                    onPress={() => setSelectedMapFlashId(selected ? null : id)}
+                  >
+                    <Text style={styles.flashMapPinText}>⚡</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            {selectedMapFlashId ? (
+              (() => {
+                const selectedRow = filteredRows.find((row) => flashId(row) === selectedMapFlashId);
+
+                if (!selectedRow) return null;
+
+                return (
+                  <Pressable
+                    style={styles.flashMapPreview}
+                    onPress={() => router.push({
+                      pathname: '/flash-detail',
+                      params: { id: flashId(selectedRow) },
+                    })}
+                  >
+                    <Text style={styles.flashMapPreviewKicker}>Flash selezionato</Text>
+                    <Text style={styles.flashMapPreviewTitle} numberOfLines={2}>{flashTitle(selectedRow)}</Text>
+                    <Text style={styles.flashMapPreviewMeta} numberOfLines={1}>
+                      {[flashCity(selectedRow), flashProvince(selectedRow)].filter(Boolean).join(' · ')}
+                    </Text>
+                    <Text style={styles.flashMapPreviewAction}>Tocca per aprire il dettaglio</Text>
+                  </Pressable>
+                );
+              })()
+            ) : null}
+          </View>
+        )}
+      </View>
+
+      <View style={[styles.card, !(selectedSection === 'find' || isFindPage) && styles.hiddenSection]}>
         <Text style={styles.sectionTitle}>Flash disponibili</Text>
 
         {loading ? (
@@ -1170,14 +1253,6 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
                   Disponibile fino a: {formatDate(firstValue(row, ['expires_at', 'expiresAt', 'expiry_at', 'expires']))}
                 </Text>
               ) : null}
-
-              {getCoordinates(row) ? (
-                <Pressable style={styles.mapButton} onPress={() => openMap(row)}>
-                  <Text style={styles.mapButtonText}>Apri mappa</Text>
-                </Pressable>
-              ) : (
-                <Text style={styles.noMapText}>Coordinate non disponibili</Text>
-              )}
 
               <Text style={styles.flashStatusText}>
                 {rowBelongsToUser(row, userId)
@@ -1448,6 +1523,153 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     marginBottom: 10,
   },
+  flashVisualMapCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: '#ffd3e6',
+    padding: 14,
+    gap: 12,
+    overflow: 'hidden',
+  },
+  flashVisualMapHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  flashVisualMapHeaderText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  flashVisualMapTitle: {
+    color: '#4b1430',
+    fontSize: 19,
+    fontWeight: '900',
+  },
+  flashVisualMapSubtitle: {
+    color: '#7b4960',
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '800',
+    marginTop: 2,
+  },
+  flashVisualMapCount: {
+    color: '#e43f98',
+    fontSize: 26,
+    fontWeight: '900',
+  },
+  flashMapCanvas: {
+    position: 'relative',
+    height: 260,
+    borderRadius: 22,
+    backgroundColor: '#fff8fb',
+    borderWidth: 1,
+    borderColor: '#ffd3e6',
+    overflow: 'hidden',
+  },
+  flashMapBlobOne: {
+    position: 'absolute',
+    width: 190,
+    height: 150,
+    borderRadius: 95,
+    backgroundColor: '#fff0f7',
+    top: 22,
+    left: 18,
+    transform: [{ rotate: '-18deg' }],
+  },
+  flashMapBlobTwo: {
+    position: 'absolute',
+    width: 150,
+    height: 130,
+    borderRadius: 80,
+    backgroundColor: '#ffe3f0',
+    bottom: 18,
+    right: 18,
+    transform: [{ rotate: '24deg' }],
+  },
+  flashMapRoadOne: {
+    position: 'absolute',
+    width: '120%',
+    height: 18,
+    borderRadius: 999,
+    backgroundColor: '#ffffff',
+    top: 112,
+    left: -28,
+    transform: [{ rotate: '-14deg' }],
+    opacity: 0.88,
+  },
+  flashMapRoadTwo: {
+    position: 'absolute',
+    width: 18,
+    height: '120%',
+    borderRadius: 999,
+    backgroundColor: '#ffffff',
+    top: -22,
+    left: '53%',
+    transform: [{ rotate: '18deg' }],
+    opacity: 0.72,
+  },
+  flashMapWatermark: {
+    position: 'absolute',
+    right: 14,
+    bottom: 12,
+    color: '#f0a4ca',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  flashMapPin: {
+    position: 'absolute',
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: '#e43f98',
+    borderWidth: 3,
+    borderColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  flashMapPinSelected: {
+    backgroundColor: '#9b1f61',
+    transform: [{ scale: 1.12 }],
+  },
+  flashMapPinText: {
+    color: '#ffffff',
+    fontSize: 21,
+    fontWeight: '900',
+  },
+  flashMapPreview: {
+    borderRadius: 18,
+    backgroundColor: '#fff0f7',
+    borderWidth: 1,
+    borderColor: '#ffd3e6',
+    padding: 13,
+  },
+  flashMapPreviewKicker: {
+    color: '#e43f98',
+    fontSize: 12,
+    fontWeight: '900',
+    marginBottom: 4,
+  },
+  flashMapPreviewTitle: {
+    color: '#4b1430',
+    fontSize: 16,
+    lineHeight: 21,
+    fontWeight: '900',
+  },
+  flashMapPreviewMeta: {
+    color: '#7b4960',
+    fontSize: 13,
+    fontWeight: '800',
+    marginTop: 5,
+  },
+  flashMapPreviewAction: {
+    color: '#9b1f61',
+    fontSize: 12,
+    fontWeight: '900',
+    marginTop: 8,
+  },
+
   mapHighlightButton: {
     width: '100%',
     borderRadius: 24,

@@ -463,12 +463,17 @@ export default function ProfileScreen() {
           id: getRowId(row),
           table: result.table,
           raw: row,
-          title: result.table === 'direct_contact_requests' ? 'Invito a uscire' : contactTitle(row),
+          title:
+            result.table === 'direct_contact_requests'
+              ? firstText(row, ['message'], '').toLowerCase().includes('bajuju flash')
+                ? 'Invito Bajuju Flash'
+                : 'Invito a uscire'
+              : contactTitle(row),
           subtitle: firstText(
             row,
             ['message', 'messaggio', 'note'],
             result.table === 'direct_contact_requests'
-              ? 'Una persona conosciuta in una esperienza Bajuju vorrebbe invitarti a vedervi fuori dall’evento.'
+              ? 'Una persona ti ha invitato perché ti sei reso disponibile su Bajuju Flash.'
               : 'Una persona conosciuta in una esperienza Bajuju vuole restare in contatto con te.'
           ),
           status: firstText(row, ['status', 'stato', 'request_status'], 'pending'),

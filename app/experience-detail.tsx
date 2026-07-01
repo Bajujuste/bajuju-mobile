@@ -618,6 +618,26 @@ export default function ExperienceDetailScreen() {
 
     if (String(targetUserId) === String(currentUserId)) return;
 
+    const [blockedByMeResult, blockedMeResult] = await Promise.all([
+      supabase
+        .from('user_blocks')
+        .select('id')
+        .eq('blocker_id', currentUserId)
+        .eq('blocked_id', targetUserId)
+        .maybeSingle(),
+      supabase
+        .from('user_blocks')
+        .select('id')
+        .eq('blocker_id', targetUserId)
+        .eq('blocked_id', currentUserId)
+        .maybeSingle(),
+    ]);
+
+    if (blockedByMeResult.data || blockedMeResult.data) {
+      Alert.alert('Invito non disponibile', 'Non puoi inviare inviti a questo utente.');
+      return;
+    }
+
     setSendingInviteTo(targetUserId);
 
     try {

@@ -227,6 +227,7 @@ export default function ExperienceDetailScreen() {
   const [leaving, setLeaving] = useState(false);
   const [sendingMessage, setSendingMessage] = useState(false);
   const [sendingInviteTo, setSendingInviteTo] = useState<string | null>(null);
+  const [blockedUserIds, setBlockedUserIds] = useState<Set<string>>(new Set());
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const activeParticipants = useMemo(() => {
@@ -315,6 +316,10 @@ export default function ExperienceDetailScreen() {
   const canUseChat = isOrganizer || isParticipant;
   const canShowInviteOut = canUseChat && canInviteOutAfterExperience(experience);
 
+  function isBlockedUser(userId: string) {
+    return blockedUserIds.has(String(userId || '').trim());
+  }
+
   const loadParticipants = useCallback(async (activityId: string, loadedExperience?: ActivityRow | null) => {
     const participantsResult = await supabase
       .from('activity_participants')
@@ -330,6 +335,43 @@ export default function ExperienceDetailScreen() {
 
     const rows = ((participantsResult.data || []) as ParticipantRow[]).filter(participantIsActive);
     setParticipants(rows);
+
+    if (currentUserId) {
+      const participantIds = rows
+        .map((row) => String(row.user_id || '').trim())
+        .filter((id) => id && id !== String(currentUserId));
+
+      if (participantIds.length > 0) {
+        const [blockedByMeResult, blockedMeResult] = await Promise.all([
+          supabase
+            .from('user_blocks')
+            .select('blocked_id')
+            .eq('blocker_id', currentUserId)
+            .in('blocked_id', participantIds),
+          supabase
+            .from('user_blocks')
+            .select('blocker_id')
+            .eq('blocked_id', currentUserId)
+            .in('blocker_id', participantIds),
+        ]);
+
+        const nextBlockedIds = new Set<string>();
+
+        (blockedByMeResult.data || []).forEach((row: any) => {
+          if (row.blocked_id) nextBlockedIds.add(String(row.blocked_id));
+        });
+
+        (blockedMeResult.data || []).forEach((row: any) => {
+          if (row.blocker_id) nextBlockedIds.add(String(row.blocker_id));
+        });
+
+        setBlockedUserIds(nextBlockedIds);
+      } else {
+        setBlockedUserIds(new Set());
+      }
+    } else {
+      setBlockedUserIds(new Set());
+    }
 
     const userIds = rows
       .map((item) => String(item.user_id || ''))
@@ -1056,7 +1098,7 @@ export default function ExperienceDetailScreen() {
                             </Text>
                           </View>
 
-                          {canShowInviteOut && userId !== String(currentUserId || '') ? (
+                          {canShowInviteOut && userId !== String(currentUserId || '') && !isBlockedUser(userId) ? (
                             <Pressable
                               style={styles.inviteOutButton}
                               onPress={() => sendGoingOutInvite(userId)}

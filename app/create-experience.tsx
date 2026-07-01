@@ -22,6 +22,33 @@ const LOCATION_OPTIONS = [
   'Verona',
 ];
 
+function categoryToDatabaseValue(value: string) {
+  switch (value) {
+    case 'Cena':
+      return 'cena';
+    case 'Aperitivo':
+      return 'aperitivo';
+    case 'Camminata':
+      return 'passeggiata';
+    case 'Sport':
+      return 'sport';
+    case 'Cultura':
+      return 'evento';
+    case 'Musica':
+      return 'evento';
+    case 'Cinema/Teatro':
+      return 'cinema';
+    case 'Gita':
+      return 'gita';
+    case 'Giochi':
+      return 'evento';
+    case 'Altro':
+      return 'altro';
+    default:
+      return 'altro';
+  }
+}
+
 function onlyDigits(value: string, maxLength: number) {
   return value.replace(/\D/g, '').slice(0, maxLength);
 }
@@ -117,6 +144,7 @@ export default function CreateExperienceScreen() {
     const cleanMeetingPlace = meetingPlace.trim();
     const cleanDescription = description.trim();
     const cleanCategory = category.trim();
+    const databaseCategory = categoryToDatabaseValue(cleanCategory);
 
     if (!isoDate || !cleanTime) {
       if (typeof window !== 'undefined') {
@@ -141,7 +169,7 @@ export default function CreateExperienceScreen() {
       const payload = {
         creator_id: creatorId,
         title: cleanTitle,
-        category: cleanCategory,
+        category: databaseCategory,
         description: cleanDescription,
         province: cleanProvince,
         meeting_place: cleanMeetingPlace,

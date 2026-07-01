@@ -103,7 +103,6 @@ export default function HomeScreen() {
 
             <View>
               <Text style={styles.brandTitle}>Bajuju</Text>
-              <Text style={styles.brandClaim}>Dal Vivo è Meglio</Text>
             </View>
           </View>
 

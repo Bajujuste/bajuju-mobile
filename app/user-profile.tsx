@@ -119,6 +119,7 @@ export default function UserProfileScreen() {
   const [currentUserId, setCurrentUserId] = useState('');
   const [reportingUser, setReportingUser] = useState(false);
   const [blockingUser, setBlockingUser] = useState(false);
+  const [isBlockedByMe, setIsBlockedByMe] = useState(false);
   const [organizedCount, setOrganizedCount] = useState(0);
   const [participatedCount, setParticipatedCount] = useState(0);
   const [errorText, setErrorText] = useState('');
@@ -129,7 +130,21 @@ export default function UserProfileScreen() {
 
     try {
       const authResult = await supabase.auth.getUser();
-      setCurrentUserId(authResult.data.user?.id || '');
+      const authUserId = authResult.data.user?.id || '';
+      setCurrentUserId(authUserId);
+
+      if (authUserId && userId && authUserId !== userId) {
+        const blockResult = await supabase
+          .from('user_blocks')
+          .select('id')
+          .eq('blocker_id', authUserId)
+          .eq('blocked_id', userId)
+          .maybeSingle();
+
+        setIsBlockedByMe(Boolean(blockResult.data));
+      } else {
+        setIsBlockedByMe(false);
+      }
 
       if (!userId) {
         setErrorText('Profilo non trovato.');
@@ -255,6 +270,23 @@ export default function UserProfileScreen() {
     setBlockingUser(true);
 
     try {
+      if (isBlockedByMe) {
+        const result = await supabase
+          .from('user_blocks')
+          .delete()
+          .eq('blocker_id', currentUserId)
+          .eq('blocked_id', userId);
+
+        if (result.error) {
+          Alert.alert('Errore sblocco', result.error.message);
+          return;
+        }
+
+        setIsBlockedByMe(false);
+        Alert.alert('Utente sbloccato', 'Ora puoi tornare a interagire con questo utente.');
+        return;
+      }
+
       const existing = await supabase
         .from('user_blocks')
         .select('id')
@@ -263,6 +295,7 @@ export default function UserProfileScreen() {
         .maybeSingle();
 
       if (!existing.error && existing.data) {
+        setIsBlockedByMe(true);
         Alert.alert('Utente già bloccato', 'Questo utente è già stato bloccato.');
         return;
       }
@@ -277,6 +310,7 @@ export default function UserProfileScreen() {
         return;
       }
 
+      setIsBlockedByMe(true);
       Alert.alert('Utente bloccato', 'L’utente è stato bloccato. Non riceverà nessuna notifica.');
     } finally {
       setBlockingUser(false);
@@ -356,7 +390,9 @@ export default function UserProfileScreen() {
 
                 {!isAdminOrCreator ? (
                   <Pressable style={styles.blockUserButton} onPress={blockUser} disabled={blockingUser}>
-                    <Text style={styles.blockUserText}>{blockingUser ? 'Blocco...' : 'Blocca utente'}</Text>
+                    <Text style={styles.blockUserText}>
+                      {blockingUser ? 'Aggiorno...' : isBlockedByMe ? 'Sblocca utente' : 'Blocca utente'}
+                    </Text>
                   </Pressable>
                 ) : null}
               </>

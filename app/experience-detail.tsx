@@ -689,6 +689,60 @@ export default function ExperienceDetailScreen() {
     }
   }
 
+  async function reportMessage(item: MessageRow) {
+    if (!experienceId || !currentUserId) {
+      if (typeof window !== 'undefined') {
+        window.alert('Devi essere collegato per segnalare un messaggio.');
+      }
+      return;
+    }
+
+    const messageId = item.id;
+    const reportedUserId = String(item.user_id || item.sender_id || '').trim();
+
+    if (!messageId || !reportedUserId) {
+      if (typeof window !== 'undefined') {
+        window.alert('Non riesco a identificare questo messaggio.');
+      }
+      return;
+    }
+
+    if (reportedUserId === currentUserId) {
+      return;
+    }
+
+    const result = await supabase.from('message_reports').insert({
+      message_id: messageId,
+      activity_id: experienceId,
+      event_id: experienceId,
+      experience_id: experienceId,
+      reporter_id: currentUserId,
+      reported_by: currentUserId,
+      user_id: reportedUserId,
+      sender_id: reportedUserId,
+      reported_user_id: reportedUserId,
+      reason: 'Messaggio chat segnalato dall’utente',
+      message: messageText(item),
+      content: messageText(item),
+      body: messageText(item),
+      text: messageText(item),
+      status: 'open',
+      report_status: 'open',
+      reported_at: new Date().toISOString(),
+    });
+
+    if (result.error) {
+      if (typeof window !== 'undefined') {
+        window.alert(`Errore segnalazione: ${result.error.message}`);
+      }
+      return;
+    }
+
+    if (typeof window !== 'undefined') {
+      window.alert('Messaggio segnalato. Grazie, lo controlleremo.');
+    }
+  }
+
 
 
   const loadAlbumPhotos = useCallback(async () => {
@@ -1068,6 +1122,12 @@ export default function ExperienceDetailScreen() {
                               <Text style={styles.messageTime}>
                                 {formatMessageTime(item.created_at)}
                               </Text>
+
+                              {!isMine ? (
+                                <Pressable style={styles.reportMessageButton} onPress={() => reportMessage(item)}>
+                                  <Text style={styles.reportMessageText}>Segnala</Text>
+                                </Pressable>
+                              ) : null}
                             </View>
                           );
                         })}
@@ -1676,6 +1736,21 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     marginTop: 5,
+  },
+  reportMessageButton: {
+    alignSelf: 'flex-start',
+    marginTop: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    backgroundColor: '#fff0f7',
+    borderWidth: 1,
+    borderColor: '#ffd3e6',
+  },
+  reportMessageText: {
+    color: '#9b1f61',
+    fontSize: 11,
+    fontWeight: '900',
   },
   chatInputRow: {
 

@@ -287,14 +287,14 @@ export default function CreateExperienceScreen() {
             ))}
           </View>
 
-          <Text style={styles.label}>📌 Punto di ritrovo</Text>
+          <Text style={styles.label}>📌 Nome punto di ritrovo</Text>
           <TextInput
             value={meetingPlace}
             onChangeText={setMeetingPlace}
-            placeholder="Es. Piazza principale, ingresso bar, parcheggio..."
+            placeholder="Es. Bar Centrale, parcheggio, ingresso locale..."
             placeholderTextColor="#a95d86"
             style={styles.input}
-            maxLength={120}
+            maxLength={100}
           />
 
           <Text style={styles.label}>Descrizione esperienza</Text>
@@ -441,7 +441,7 @@ export default function CreateExperienceScreen() {
               {category || 'Categoria'} · {province.trim() || 'Provincia'}
             </Text>
             <Text style={styles.previewSmall}>
-              Ritrovo: {meetingPlace.trim() || 'Punto di ritrovo'}
+              Ritrovo: {meetingPlace.trim() || 'Nome punto di ritrovo'}
             </Text>
             <Text style={styles.previewSmall}>
               {day || 'GG'}/{month || 'MM'}/{year || 'AAAA'} · {hour || 'HH'}:{minute || 'MM'}

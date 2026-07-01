@@ -403,6 +403,10 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
   const [newPlace, setNewPlace] = useState('');
   const [newStreetNumber, setNewStreetNumber] = useState('');
   const [newDurationHours, setNewDurationHours] = useState<FlashDuration>(2);
+  const [availabilityProvince, setAvailabilityProvince] = useState('Bergamo');
+  const [availabilityCity, setAvailabilityCity] = useState('');
+  const [availabilityDurationHours, setAvailabilityDurationHours] = useState<FlashDuration>(2);
+  const [savingAvailability, setSavingAvailability] = useState(false);
   const [savingFlash, setSavingFlash] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
 
@@ -571,6 +575,59 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
     await loadFlashRows();
     setRefreshing(false);
   }, [loadFlashRows]);
+
+  const saveAvailability = useCallback(async () => {
+    if (savingAvailability) return;
+
+    const cleanProvince = availabilityProvince.trim();
+    const cleanCity = availabilityCity.trim();
+
+    if (!cleanProvince || !cleanCity) {
+      if (typeof window !== 'undefined') {
+        window.alert('Scegli provincia e scrivi il comune per renderti disponibile.');
+      }
+      return;
+    }
+
+    setSavingAvailability(true);
+
+    try {
+      const authResult = await supabase.auth.getUser();
+      const authUserId = authResult.data.user?.id;
+
+      if (!authUserId) {
+        if (typeof window !== 'undefined') {
+          window.alert('Devi essere collegato per renderti disponibile.');
+        }
+        return;
+      }
+
+      const expiresAt = new Date(Date.now() + availabilityDurationHours * 60 * 60 * 1000).toISOString();
+
+      const result = await supabase.from('user_availability').insert({
+        user_id: authUserId,
+        province: cleanProvince,
+        city: cleanCity,
+        expires_at: expiresAt,
+      });
+
+      if (result.error) {
+        if (typeof window !== 'undefined') {
+          window.alert(`Errore disponibilità: ${result.error.message}`);
+        }
+        return;
+      }
+
+      setSelectedProvince(cleanProvince);
+      setAvailabilityCity('');
+
+      if (typeof window !== 'undefined') {
+        window.alert(`Ora sei visibile per ${availabilityDurationHours} ${availabilityDurationHours === 1 ? 'ora' : 'ore'}.`);
+      }
+    } finally {
+      setSavingAvailability(false);
+    }
+  }, [availabilityCity, availabilityDurationHours, availabilityProvince, savingAvailability]);
 
   const createFlash = useCallback(async () => {
     if (savingFlash) return;
@@ -956,6 +1013,79 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
 
       <View style={[styles.card, !(selectedSection === 'find' || isFindPage) && styles.hiddenSection]}>
         <Text style={styles.sectionTitle}>Trova chi c’è ora</Text>
+
+        <View style={styles.availabilityHeroCard}>
+          <Text style={styles.availabilityKicker}>La parte forte di Bajuju Flash</Text>
+          <Text style={styles.availabilityTitle}>Renditi disponibile adesso</Text>
+          <Text style={styles.availabilityText}>
+            Fatti vedere nella tua zona per 1, 2 o 3 ore. Gli altri potranno trovarti e invitarti a fare qualcosa dal vivo.
+          </Text>
+
+          <Text style={styles.availabilityLabel}>Provincia</Text>
+          <View style={styles.choiceWrap}>
+            {ACTIVE_PROVINCES.map((province) => (
+              <Pressable
+                key={`availability-province-${province}`}
+                style={[
+                  styles.choiceChip,
+                  availabilityProvince === province && styles.choiceChipActive,
+                ]}
+                onPress={() => setAvailabilityProvince(province)}
+              >
+                <Text
+                  style={[
+                    styles.choiceChipText,
+                    availabilityProvince === province && styles.choiceChipTextActive,
+                  ]}
+                >
+                  {province}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+
+          <Text style={styles.availabilityLabel}>Comune dove sei disponibile</Text>
+          <TextInput
+            style={styles.input}
+            value={availabilityCity}
+            onChangeText={setAvailabilityCity}
+            placeholder="Esempio: Bergamo"
+            placeholderTextColor="#b57998"
+          />
+
+          <Text style={styles.availabilityLabel}>Per quanto tempo vuoi farti vedere?</Text>
+          <View style={styles.choiceRow}>
+            {[1, 2, 3].map((hours) => (
+              <Pressable
+                key={`availability-duration-${hours}`}
+                style={[
+                  styles.durationChip,
+                  availabilityDurationHours === hours && styles.durationChipActive,
+                ]}
+                onPress={() => setAvailabilityDurationHours(hours as FlashDuration)}
+              >
+                <Text
+                  style={[
+                    styles.durationChipText,
+                    availabilityDurationHours === hours && styles.durationChipTextActive,
+                  ]}
+                >
+                  {hours} {hours === 1 ? 'ora' : 'ore'}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+
+          <Pressable
+            style={[styles.availabilityMainButton, savingAvailability && styles.buttonDisabled]}
+            onPress={saveAvailability}
+            disabled={savingAvailability}
+          >
+            <Text style={styles.availabilityMainButtonText}>
+              {savingAvailability ? 'Ti sto rendendo visibile...' : 'Mi rendo disponibile'}
+            </Text>
+          </Pressable>
+        </View>
 
         <Text style={styles.sectionTitleSmall}>Provincia</Text>
 
@@ -1517,6 +1647,109 @@ const styles = StyleSheet.create({
     gap: 12,
     marginBottom: 10,
   },
+  availabilityHeroCard: {
+    backgroundColor: '#e43f98',
+    borderRadius: 28,
+    padding: 18,
+    marginBottom: 18,
+    borderWidth: 2,
+    borderColor: '#ffb9dc',
+    shadowColor: '#e43f98',
+    shadowOpacity: 0.32,
+    shadowRadius: 28,
+    shadowOffset: { width: 0, height: 12 },
+    elevation: 10,
+    gap: 10,
+  },
+  availabilityKicker: {
+    color: '#ffe5f2',
+    fontSize: 12,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  availabilityTitle: {
+    color: '#ffffff',
+    fontSize: 25,
+    lineHeight: 30,
+    fontWeight: '900',
+  },
+  availabilityText: {
+    color: '#fff7fb',
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '800',
+  },
+  availabilityLabel: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '900',
+    marginTop: 6,
+  },
+  availabilityMainButton: {
+    backgroundColor: '#ffffff',
+    borderRadius: 18,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  availabilityMainButtonText: {
+    color: '#e43f98',
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  choiceWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  choiceRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  choiceChip: {
+    backgroundColor: '#fff0f7',
+    borderRadius: 999,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: '#ffd3e6',
+  },
+  choiceChipActive: {
+    backgroundColor: '#ffffff',
+    borderColor: '#ffffff',
+  },
+  choiceChipText: {
+    color: '#9b1f61',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  choiceChipTextActive: {
+    color: '#e43f98',
+  },
+  durationChip: {
+    backgroundColor: '#fff0f7',
+    borderRadius: 999,
+    paddingVertical: 10,
+    paddingHorizontal: 13,
+    borderWidth: 1,
+    borderColor: '#ffd3e6',
+  },
+  durationChipActive: {
+    backgroundColor: '#ffffff',
+    borderColor: '#ffffff',
+  },
+  durationChipText: {
+    color: '#9b1f61',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  durationChipTextActive: {
+    color: '#e43f98',
+  },
+
   sectionTitleSmall: {
     color: '#86104f',
     fontSize: 14,

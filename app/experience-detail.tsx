@@ -1542,10 +1542,8 @@ const styles = StyleSheet.create({
     borderColor: '#ffd3e7',
   },
   albumHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 12,
-    alignItems: 'center',
+    gap: 10,
+    alignItems: 'flex-start',
     marginBottom: 12,
   },
   albumTitle: {

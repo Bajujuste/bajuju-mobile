@@ -18,6 +18,9 @@ export default function RulesScreen() {
         <Text style={styles.rule}>3. Non pubblicare contenuti offensivi, falsi o pericolosi.</Text>
         <Text style={styles.rule}>4. Partecipa solo a esperienze reali e lecite.</Text>
         <Text style={styles.rule}>5. Segnala comportamenti scorretti o profili sospetti.</Text>
+        <Text style={styles.rule}>6. Partecipando a un’esperienza Bajuju accetti che durante l’evento possano essere scattate fotografie dai partecipanti.</Text>
+        <Text style={styles.rule}>7. Le foto possono essere caricate nella galleria dell’esperienza e sono visibili solo ai partecipanti della stessa esperienza.</Text>
+        <Text style={styles.rule}>8. È vietato usare o diffondere le foto fuori da Bajuju senza il consenso delle persone ritratte.</Text>
 
         <TouchableOpacity style={styles.button} onPress={() => router.push('/profile')}>
           <Text style={styles.buttonText}>Torna al profilo</Text>

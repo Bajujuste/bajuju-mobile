@@ -394,6 +394,7 @@ export default function ProfileScreen() {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   const [contactRequests, setContactRequests] = useState<ContactItem[]>([]);
+  const [flashInvites, setFlashInvites] = useState<ContactItem[]>([]);
   const [invites, setInvites] = useState<InviteItem[]>([]);
   const [organizedActivities, setOrganizedActivities] = useState<ActivityItem[]>([]);
   const [participatedActivities, setParticipatedActivities] = useState<ActivityItem[]>([]);
@@ -483,7 +484,24 @@ export default function ProfileScreen() {
 
     const unique = new Map<string, ContactItem>();
     for (const item of collected) unique.set(`${item.table}-${item.id}`, item);
-    setContactRequests(Array.from(unique.values()));
+
+    const allContactItems = Array.from(unique.values());
+    const flashItems = allContactItems.filter(
+      (item) =>
+        item.table === 'direct_contact_requests' &&
+        firstText(item.raw, ['message'], '').toLowerCase().includes('bajuju flash')
+    );
+
+    const regularItems = allContactItems.filter(
+      (item) =>
+        !(
+          item.table === 'direct_contact_requests' &&
+          firstText(item.raw, ['message'], '').toLowerCase().includes('bajuju flash')
+        )
+    );
+
+    setFlashInvites(flashItems);
+    setContactRequests(regularItems);
   }, []);
 
   const loadInvites = useCallback(async (userId: string) => {
@@ -910,6 +928,20 @@ export default function ProfileScreen() {
     [loadAll, user?.id]
   );
 
+  const removeItemFromList = useCallback(
+    async (item: ContactItem | InviteItem) => {
+      const ok = await safeUpdateStatus(item.table, item.id, 'archived');
+
+      if (!ok) {
+        Alert.alert('Errore', 'Non sono riuscito a eliminare questo elemento dall’elenco.');
+        return;
+      }
+
+      await loadAll();
+    },
+    [loadAll]
+  );
+
   const requestProfileDeletion = useCallback(() => {
     if (!user) return;
 
@@ -1124,6 +1156,54 @@ export default function ProfileScreen() {
         <Pressable style={styles.primaryButton} onPress={saveProfile} disabled={saving}>
           <Text style={styles.primaryButtonText}>{saving ? 'Salvataggio...' : 'Salva modifiche'}</Text>
         </Pressable>
+      </View>
+
+      <View style={[styles.card, styles.flashInviteCard]}>
+        <View style={styles.sectionHeaderRow}>
+          <View style={[styles.sectionIconBubble, styles.flashInviteIconBubble]}>
+            <Text style={styles.sectionIconText}>⚡</Text>
+          </View>
+          <View style={styles.sectionHeaderText}>
+            <Text style={styles.sectionTitle}>Inviti Flash ricevuti</Text>
+            <Text style={styles.sectionHint}>Qui trovi gli inviti ricevuti perché ti sei reso disponibile su Bajuju Flash.</Text>
+          </View>
+        </View>
+
+        {flashInvites.length === 0 ? (
+          <Text style={styles.emptyText}>Nessun invito Flash al momento.</Text>
+        ) : (
+          flashInvites.map((item) => {
+            const status = item.status.toLowerCase();
+            const isClosed = ['accepted', 'rejected', 'declined', 'archived'].includes(status);
+
+            return (
+              <View key={`${item.table}-${item.id}`} style={styles.itemBox}>
+                <Text style={styles.itemTitle}>{item.title}</Text>
+                <Text style={styles.itemSubtitle}>{item.subtitle}</Text>
+                <Text style={styles.flashInviteStatus}>
+                  Stato: {status === 'accepted' ? 'Accettato' : status === 'rejected' || status === 'declined' ? 'Rifiutato' : status === 'archived' ? 'Eliminato dall’elenco' : 'In attesa'}
+                </Text>
+
+                {isClosed ? (
+                  <View style={styles.rowButtons}>
+                    <Pressable style={styles.smallButtonGhost} onPress={() => removeItemFromList(item)}>
+                      <Text style={styles.smallButtonGhostText}>Elimina dall’elenco</Text>
+                    </Pressable>
+                  </View>
+                ) : (
+                  <View style={styles.rowButtons}>
+                    <Pressable style={styles.smallButton} onPress={() => answerItem(item, 'accepted')}>
+                      <Text style={styles.smallButtonText}>Accetta</Text>
+                    </Pressable>
+                    <Pressable style={styles.smallButtonGhost} onPress={() => answerItem(item, 'rejected')}>
+                      <Text style={styles.smallButtonGhostText}>Rifiuta</Text>
+                    </Pressable>
+                  </View>
+                )}
+              </View>
+            );
+          })
+        )}
       </View>
 
       <View style={[styles.card, styles.contactCard]}>
@@ -1518,6 +1598,20 @@ const styles = StyleSheet.create({
     width: '100%',
     overflow: 'hidden',
   },
+  flashInviteCard: {
+    borderColor: '#e43f98',
+    backgroundColor: '#fff0f7',
+  },
+  flashInviteIconBubble: {
+    backgroundColor: '#e43f98',
+  },
+  flashInviteStatus: {
+    color: '#9b1f61',
+    fontSize: 12,
+    fontWeight: '900',
+    marginTop: 8,
+  },
+
   contactCard: {
 
     backgroundColor: '#fff8fb',

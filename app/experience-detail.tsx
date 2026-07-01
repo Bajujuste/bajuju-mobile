@@ -228,6 +228,7 @@ export default function ExperienceDetailScreen() {
   const [sendingMessage, setSendingMessage] = useState(false);
   const [sendingInviteTo, setSendingInviteTo] = useState<string | null>(null);
   const [blockedUserIds, setBlockedUserIds] = useState<Set<string>>(new Set());
+  const [blockedByOrganizer, setBlockedByOrganizer] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const activeParticipants = useMemo(() => {
@@ -470,6 +471,25 @@ export default function ExperienceDetailScreen() {
     const loadedExperience = result.data as ActivityRow;
 
     setExperience(loadedExperience);
+
+    if (userId) {
+      const organizerId = getExperienceCreatorId(loadedExperience);
+
+      if (organizerId && organizerId !== userId) {
+        const organizerBlockResult = await supabase
+          .from('user_blocks')
+          .select('id')
+          .eq('blocker_id', organizerId)
+          .eq('blocked_id', userId)
+          .maybeSingle();
+
+        setBlockedByOrganizer(Boolean(organizerBlockResult.data));
+      } else {
+        setBlockedByOrganizer(false);
+      }
+    } else {
+      setBlockedByOrganizer(false);
+    }
 
     await loadParticipants(experienceId, loadedExperience);
     await loadMessages(experienceId);

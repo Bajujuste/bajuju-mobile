@@ -724,6 +724,11 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
 
       const expiresAt = new Date(Date.now() + availabilityDurationHours * 60 * 60 * 1000).toISOString();
 
+      await supabase
+        .from('user_availability')
+        .delete()
+        .eq('user_id', authUserId);
+
       const result = await supabase.from('user_availability').insert({
         user_id: authUserId,
         province: cleanProvince,

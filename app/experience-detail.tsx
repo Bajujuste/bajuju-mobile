@@ -4,6 +4,7 @@ import * as ImagePicker from 'expo-image-picker';
 import {
   Alert,
   Image,
+  Modal,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -218,6 +219,7 @@ export default function ExperienceDetailScreen() {
   const [profiles, setProfiles] = useState<Record<string, ProfileRow>>({});
   const [messages, setMessages] = useState<MessageRow[]>([]);
   const [albumPhotos, setAlbumPhotos] = useState<AlbumPhotoRow[]>([]);
+  const [selectedAlbumPhotoIndex, setSelectedAlbumPhotoIndex] = useState<number | null>(null);
   const [uploadingAlbumPhoto, setUploadingAlbumPhoto] = useState(false);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
@@ -279,6 +281,33 @@ export default function ExperienceDetailScreen() {
   const canUseAlbum = Boolean(currentUserId && (isOrganizer || isParticipant));
   const albumIsFull = albumPhotos.length >= 15;
   const userAlbumLimitReached = userAlbumPhotoCount >= 3;
+
+  const visibleAlbumPhotos = albumPhotos.filter((photo) => !!albumPhotoUrl(photo));
+  const selectedAlbumPhoto =
+    selectedAlbumPhotoIndex !== null ? visibleAlbumPhotos[selectedAlbumPhotoIndex] : null;
+  const selectedAlbumPhotoUrl = selectedAlbumPhoto ? albumPhotoUrl(selectedAlbumPhoto) : '';
+
+  function openAlbumPhoto(index: number) {
+    setSelectedAlbumPhotoIndex(index);
+  }
+
+  function closeAlbumPhoto() {
+    setSelectedAlbumPhotoIndex(null);
+  }
+
+  function showPreviousAlbumPhoto() {
+    if (selectedAlbumPhotoIndex === null || visibleAlbumPhotos.length === 0) return;
+    setSelectedAlbumPhotoIndex(
+      selectedAlbumPhotoIndex === 0 ? visibleAlbumPhotos.length - 1 : selectedAlbumPhotoIndex - 1
+    );
+  }
+
+  function showNextAlbumPhoto() {
+    if (selectedAlbumPhotoIndex === null || visibleAlbumPhotos.length === 0) return;
+    setSelectedAlbumPhotoIndex(
+      selectedAlbumPhotoIndex >= visibleAlbumPhotos.length - 1 ? 0 : selectedAlbumPhotoIndex + 1
+    );
+  }
 
   const maxParticipants = Number(experience?.max_participants || 0);
   const isFull = maxParticipants > 0 && participantCount >= maxParticipants;
@@ -1072,20 +1101,50 @@ export default function ExperienceDetailScreen() {
                   </View>
                 ) : (
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.albumPhotosRow}>
-                    {albumPhotos.map((photo, index) => {
+                    {visibleAlbumPhotos.map((photo, index) => {
                       const url = albumPhotoUrl(photo);
 
-                      if (!url) return null;
-
                       return (
-                        <View key={String(photo.id || `${url}-${index}`)} style={styles.albumPhotoCard}>
+                        <Pressable
+                          key={String(photo.id || `${url}-${index}`)}
+                          style={styles.albumPhotoCard}
+                          onPress={() => openAlbumPhoto(index)}
+                        >
                           <Image source={{ uri: url }} style={styles.albumPhoto} resizeMode="cover" />
-                        </View>
+                        </Pressable>
                       );
                     })}
                   </ScrollView>
                 )}
               </View>
+
+              <Modal visible={!!selectedAlbumPhotoUrl} transparent animationType="fade" onRequestClose={closeAlbumPhoto}>
+                <View style={styles.photoModalBackdrop}>
+                  <Pressable style={styles.photoModalClose} onPress={closeAlbumPhoto}>
+                    <Text style={styles.photoModalCloseText}>Chiudi</Text>
+                  </Pressable>
+
+                  {selectedAlbumPhotoUrl ? (
+                    <Image source={{ uri: selectedAlbumPhotoUrl }} style={styles.photoModalImage} resizeMode="contain" />
+                  ) : null}
+
+                  {visibleAlbumPhotos.length > 1 ? (
+                    <View style={styles.photoModalControls}>
+                      <Pressable style={styles.photoModalArrow} onPress={showPreviousAlbumPhoto}>
+                        <Text style={styles.photoModalArrowText}>‹</Text>
+                      </Pressable>
+
+                      <Text style={styles.photoModalCounter}>
+                        {(selectedAlbumPhotoIndex ?? 0) + 1}/{visibleAlbumPhotos.length}
+                      </Text>
+
+                      <Pressable style={styles.photoModalArrow} onPress={showNextAlbumPhoto}>
+                        <Text style={styles.photoModalArrowText}>›</Text>
+                      </Pressable>
+                    </View>
+                  ) : null}
+                </View>
+              </Modal>
 
               <View style={styles.chatBox}>
                 <Text style={styles.sectionTitle}>Chat dell’esperienza</Text>
@@ -1666,6 +1725,61 @@ const styles = StyleSheet.create({
   albumPhoto: {
     width: '100%',
     height: '100%',
+  },
+  photoModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(40, 10, 28, 0.94)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 18,
+  },
+  photoModalClose: {
+    position: 'absolute',
+    top: 48,
+    right: 18,
+    zIndex: 2,
+    borderRadius: 999,
+    paddingHorizontal: 15,
+    paddingVertical: 9,
+    backgroundColor: '#ffffff',
+  },
+  photoModalCloseText: {
+    color: '#9b1f61',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  photoModalImage: {
+    width: '100%',
+    height: '72%',
+    borderRadius: 22,
+  },
+  photoModalControls: {
+    position: 'absolute',
+    bottom: 42,
+    left: 18,
+    right: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  photoModalArrow: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  photoModalArrowText: {
+    color: '#9b1f61',
+    fontSize: 38,
+    fontWeight: '900',
+    lineHeight: 42,
+  },
+  photoModalCounter: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '900',
   },
   chatBox: {
 

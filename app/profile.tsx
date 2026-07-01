@@ -270,6 +270,43 @@ function contactTitle(row: LooseRow) {
   );
 }
 
+async function blockedUserIdsForCurrentUser(currentUserId: string) {
+  const [blockedByMeResult, blockedMeResult] = await Promise.all([
+    supabase
+      .from('user_blocks')
+      .select('blocked_id')
+      .eq('blocker_id', currentUserId),
+    supabase
+      .from('user_blocks')
+      .select('blocker_id')
+      .eq('blocked_id', currentUserId),
+  ]);
+
+  const blockedIds = new Set<string>();
+
+  (blockedByMeResult.data || []).forEach((row: any) => {
+    if (row.blocked_id) blockedIds.add(String(row.blocked_id));
+  });
+
+  (blockedMeResult.data || []).forEach((row: any) => {
+    if (row.blocker_id) blockedIds.add(String(row.blocker_id));
+  });
+
+  return blockedIds;
+}
+
+function contactOtherUserId(row: LooseRow) {
+  return String(
+    firstValue(row, ['requester_id', 'from_user_id', 'sender_id', 'created_by', 'creator_id', 'user_id']) || ''
+  ).trim();
+}
+
+function inviteOtherUserId(row: LooseRow) {
+  return String(
+    firstValue(row, ['requester_id', 'from_user_id', 'sender_id', 'created_by', 'creator_id', 'user_id', 'inviter_id']) || ''
+  ).trim();
+}
+
 function inviteTitle(row: LooseRow) {
   return firstText(row, ['activity_title', 'title', 'titolo', 'name', 'nome'], 'Invito a uscire');
 }
@@ -409,6 +446,7 @@ export default function ProfileScreen() {
   }, []);
 
   const loadContactRequests = useCallback(async (userId: string) => {
+    const blockedIds = await blockedUserIdsForCurrentUser(userId);
     const tables = ['contact_requests', 'direct_contact_requests', 'user_contact_requests'];
     const columns = ['receiver_id', 'recipient_id', 'to_user_id', 'target_user_id', 'profile_id', 'user_id'];
     const collected: ContactItem[] = [];
@@ -418,7 +456,8 @@ export default function ProfileScreen() {
       const mapped = result.rows
         .filter((row) => {
           const status = firstText(row, ['status', 'stato', 'request_status'], 'pending').toLowerCase();
-          return ['pending', 'in_attesa', 'attesa', 'new', 'nuova'].includes(status);
+          const otherUserId = contactOtherUserId(row);
+          return ['pending', 'in_attesa', 'attesa', 'new', 'nuova'].includes(status) && !blockedIds.has(otherUserId);
         })
         .map((row) => ({
           id: getRowId(row),
@@ -443,6 +482,7 @@ export default function ProfileScreen() {
   }, []);
 
   const loadInvites = useCallback(async (userId: string) => {
+    const blockedIds = await blockedUserIdsForCurrentUser(userId);
     const tables = ['activity_invitations', 'activity_invites', 'event_invites', 'invitations'];
     const columns = ['receiver_id', 'recipient_id', 'to_user_id', 'invited_user_id', 'user_id', 'profile_id'];
     const collected: InviteItem[] = [];
@@ -452,7 +492,8 @@ export default function ProfileScreen() {
       const mapped = result.rows
         .filter((row) => {
           const status = firstText(row, ['status', 'stato', 'invite_status'], 'pending').toLowerCase();
-          return ['pending', 'in_attesa', 'attesa', 'invited', 'new', 'nuova'].includes(status);
+          const otherUserId = inviteOtherUserId(row);
+          return ['pending', 'in_attesa', 'attesa', 'invited', 'new', 'nuova'].includes(status) && !blockedIds.has(otherUserId);
         })
         .map((row) => ({
           id: getRowId(row),

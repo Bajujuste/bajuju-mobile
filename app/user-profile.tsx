@@ -2,6 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Image,
   Pressable,
   ScrollView,
@@ -115,6 +116,8 @@ export default function UserProfileScreen() {
 
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<LooseRow | null>(null);
+  const [currentUserId, setCurrentUserId] = useState('');
+  const [reportingUser, setReportingUser] = useState(false);
   const [organizedCount, setOrganizedCount] = useState(0);
   const [participatedCount, setParticipatedCount] = useState(0);
   const [errorText, setErrorText] = useState('');
@@ -124,6 +127,9 @@ export default function UserProfileScreen() {
     setErrorText('');
 
     try {
+      const authResult = await supabase.auth.getUser();
+      setCurrentUserId(authResult.data.user?.id || '');
+
       if (!userId) {
         setErrorText('Profilo non trovato.');
         return;
@@ -181,6 +187,51 @@ export default function UserProfileScreen() {
   useEffect(() => {
     loadProfile();
   }, [loadProfile]);
+
+  async function reportUser() {
+    if (!profile || !userId || reportingUser) return;
+
+    if (!currentUserId) {
+      Alert.alert('Accesso richiesto', 'Devi essere collegato per segnalare un utente.');
+      return;
+    }
+
+    if (currentUserId === userId) {
+      Alert.alert('Segnalazione non valida', 'Non puoi segnalare il tuo profilo.');
+      return;
+    }
+
+    setReportingUser(true);
+
+    try {
+      const reportedName = firstText(profile, ['nickname', 'username', 'display_name', 'full_name', 'name', 'nome'], 'Utente Bajuju');
+
+      const result = await supabase.from('user_reports').insert({
+        reporter_id: currentUserId,
+        reported_by: currentUserId,
+        user_id: userId,
+        reported_user_id: userId,
+        target_user_id: userId,
+        reason: 'Profilo utente segnalato dall’app',
+        message: `Profilo segnalato: ${reportedName}`,
+        content: `Profilo segnalato: ${reportedName}`,
+        body: `Profilo segnalato: ${reportedName}`,
+        text: `Profilo segnalato: ${reportedName}`,
+        status: 'open',
+        report_status: 'open',
+        reported_at: new Date().toISOString(),
+      });
+
+      if (result.error) {
+        Alert.alert('Errore segnalazione', result.error.message);
+        return;
+      }
+
+      Alert.alert('Segnalazione inviata', 'Grazie, controlleremo questo profilo.');
+    } finally {
+      setReportingUser(false);
+    }
+  }
 
   const name = firstText(profile, ['nickname', 'username', 'display_name', 'full_name', 'name', 'nome'], 'Utente Bajuju');
   const city = firstText(profile, ['city', 'citta', 'comune', 'location_city'], '');
@@ -246,6 +297,12 @@ export default function UserProfileScreen() {
             </View>
 
             <Text style={styles.gradeHint}>{isAdminOrCreator ? 'Profilo ufficiale Bajuju' : organizerGradeHint(organizedCount)}</Text>
+
+            {currentUserId && currentUserId !== userId ? (
+              <Pressable style={styles.reportUserButton} onPress={reportUser} disabled={reportingUser}>
+                <Text style={styles.reportUserText}>{reportingUser ? 'Invio segnalazione...' : 'Segnala utente'}</Text>
+              </Pressable>
+            ) : null}
           </View>
 
           <View style={styles.statsGrid}>
@@ -366,6 +423,20 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#6b3652',
     textAlign: 'center',
+  },
+  reportUserButton: {
+    marginTop: 16,
+    borderRadius: 999,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    backgroundColor: '#fff0f7',
+    borderWidth: 1,
+    borderColor: '#ffd3e7',
+  },
+  reportUserText: {
+    color: '#9b1f61',
+    fontSize: 13,
+    fontWeight: '900',
   },
   statsGrid: {
     flexDirection: 'row',

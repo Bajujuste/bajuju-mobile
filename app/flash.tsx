@@ -318,6 +318,40 @@ function flashMapPinPosition(index: number) {
   return positions[index % positions.length];
 }
 
+
+function availableUserId(row: LooseRow) {
+  return String(firstValue(row, ['user_id'], '') || '');
+}
+
+function availableProfileName(profile: LooseRow | null | undefined) {
+  return firstText(profile, ['nickname'], 'Utente Bajuju');
+}
+
+function availableProfilePhoto(profile: LooseRow | null | undefined) {
+  return firstText(profile, ['avatar_url'], '');
+}
+
+function availabilityRemainingText(row: LooseRow) {
+  const expiresAt = normalizeDate(firstValue(row, ['expires_at']));
+
+  if (!expiresAt) return 'Disponibilità attiva';
+
+  const diffMs = expiresAt.getTime() - Date.now();
+
+  if (diffMs <= 0) return 'Disponibilità scaduta';
+
+  const minutes = Math.max(1, Math.ceil(diffMs / 60000));
+
+  if (minutes < 60) return `Ancora ${minutes} min`;
+
+  const hours = Math.floor(minutes / 60);
+  const restMinutes = minutes % 60;
+
+  if (restMinutes === 0) return `Ancora ${hours} ${hours === 1 ? 'ora' : 'ore'}`;
+
+  return `Ancora ${hours}h ${restMinutes}min`;
+}
+
 async function geocodeAddress(address: string, streetNumber: string, city: string, province: string) {
   const cleanAddress = address.trim();
   const cleanStreetNumber = streetNumber.trim();
@@ -386,6 +420,9 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
   const [joinedActivityIds, setJoinedActivityIds] = useState<Set<string>>(new Set());
   const [participantCounts, setParticipantCounts] = useState<Record<string, number>>({});
   const [creatorNames, setCreatorNames] = useState<Record<string, string>>({});
+  const [availableRows, setAvailableRows] = useState<LooseRow[]>([]);
+  const [availableProfiles, setAvailableProfiles] = useState<Record<string, LooseRow>>({});
+  const [loadingAvailableUsers, setLoadingAvailableUsers] = useState(false);
   const [joiningActivityId, setJoiningActivityId] = useState<string | null>(null);
   const [leavingActivityId, setLeavingActivityId] = useState<string | null>(null);
   const [cancellingActivityId, setCancellingActivityId] = useState<string | null>(null);
@@ -570,6 +607,88 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
     };
   }, [loadFlashRows]);
 
+  const loadAvailableUsers = useCallback(async () => {
+    setLoadingAvailableUsers(true);
+
+    try {
+      const authResult = await supabase.auth.getUser();
+      const currentUserId = authResult.data.user?.id || null;
+
+      const result = await supabase
+        .from('user_availability')
+        .select('id,user_id,province,city,expires_at,created_at')
+        .gt('expires_at', new Date().toISOString())
+        .order('created_at', { ascending: false })
+        .limit(40);
+
+      if (result.error) {
+        setAvailableRows([]);
+        setAvailableProfiles({});
+        return;
+      }
+
+      let cleanRows = result.data || [];
+
+      if (currentUserId) {
+        cleanRows = cleanRows.filter((row: LooseRow) => availableUserId(row) !== currentUserId);
+
+        const userIds = cleanRows.map((row: LooseRow) => availableUserId(row)).filter(Boolean);
+
+        if (userIds.length > 0) {
+          const [blockedByMe, blockedMe] = await Promise.all([
+            supabase
+              .from('user_blocks')
+              .select('blocked_id')
+              .eq('blocker_id', currentUserId)
+              .in('blocked_id', userIds),
+            supabase
+              .from('user_blocks')
+              .select('blocker_id')
+              .eq('blocked_id', currentUserId)
+              .in('blocker_id', userIds),
+          ]);
+
+          const blockedIds = new Set<string>();
+
+          if (!blockedByMe.error) {
+            (blockedByMe.data || []).forEach((row: LooseRow) => blockedIds.add(String(row.blocked_id || '')));
+          }
+
+          if (!blockedMe.error) {
+            (blockedMe.data || []).forEach((row: LooseRow) => blockedIds.add(String(row.blocker_id || '')));
+          }
+
+          cleanRows = cleanRows.filter((row: LooseRow) => !blockedIds.has(availableUserId(row)));
+        }
+      }
+
+      const profileIds = Array.from(new Set(cleanRows.map((row: LooseRow) => availableUserId(row)).filter(Boolean)));
+      const profileMap: Record<string, LooseRow> = {};
+
+      if (profileIds.length > 0) {
+        const profilesResult = await supabase
+          .from('profiles')
+          .select('id,nickname,avatar_url,city,is_admin')
+          .in('id', profileIds);
+
+        if (!profilesResult.error) {
+          (profilesResult.data || []).forEach((profile: LooseRow) => {
+            profileMap[String(profile.id)] = profile;
+          });
+        }
+      }
+
+      setAvailableRows(cleanRows);
+      setAvailableProfiles(profileMap);
+    } finally {
+      setLoadingAvailableUsers(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadAvailableUsers();
+  }, [loadAvailableUsers]);
+
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await loadFlashRows();
@@ -620,6 +739,7 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
 
       setSelectedProvince(cleanProvince);
       setAvailabilityCity('');
+      await loadAvailableUsers();
 
       if (typeof window !== 'undefined') {
         window.alert(`Ora sei visibile per ${availabilityDurationHours} ${availabilityDurationHours === 1 ? 'ora' : 'ore'}.`);
@@ -627,7 +747,7 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
     } finally {
       setSavingAvailability(false);
     }
-  }, [availabilityCity, availabilityDurationHours, availabilityProvince, savingAvailability]);
+  }, [availabilityCity, availabilityDurationHours, availabilityProvince, loadAvailableUsers, savingAvailability]);
 
   const createFlash = useCallback(async () => {
     if (savingFlash) return;
@@ -1085,6 +1205,61 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
               {savingAvailability ? 'Ti sto rendendo visibile...' : 'Mi rendo disponibile'}
             </Text>
           </Pressable>
+        </View>
+
+        <View style={styles.availablePeopleSection}>
+          <View style={styles.availablePeopleHeader}>
+            <View style={styles.availablePeopleHeaderText}>
+              <Text style={styles.availablePeopleTitle}>Persone disponibili ora</Text>
+              <Text style={styles.availablePeopleSubtitle}>Card rapide stile Bajuju: guarda chi c’è e scegli chi invitare.</Text>
+            </View>
+            <Text style={styles.availablePeopleCount}>
+              {availableRows.filter((row) => selectedProvince === 'Tutte' || firstText(row, ['province']) === selectedProvince).length}
+            </Text>
+          </View>
+
+          {loadingAvailableUsers ? (
+            <View style={styles.emptyBox}>
+              <ActivityIndicator />
+              <Text style={styles.mutedText}>Cerco persone disponibili...</Text>
+            </View>
+          ) : availableRows.filter((row) => selectedProvince === 'Tutte' || firstText(row, ['province']) === selectedProvince).length === 0 ? (
+            <Text style={styles.availablePeopleEmpty}>
+              Nessuna persona disponibile ora con questi filtri. Renditi disponibile tu e apri il movimento.
+            </Text>
+          ) : (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.availableCardsRow}>
+              {availableRows
+                .filter((row) => selectedProvince === 'Tutte' || firstText(row, ['province']) === selectedProvince)
+                .slice(0, 12)
+                .map((row, index) => {
+                  const profile = availableProfiles[availableUserId(row)];
+                  const photo = availableProfilePhoto(profile);
+
+                  return (
+                    <View key={`available-user-${firstText(row, ['id'], String(index))}`} style={styles.availablePersonCard}>
+                      <View style={styles.availablePhotoBox}>
+                        {photo ? (
+                          <Image source={{ uri: photo }} style={styles.availablePhoto} resizeMode="cover" />
+                        ) : (
+                          <Image source={bajujuLogo} style={styles.availablePhotoFallback} resizeMode="contain" />
+                        )}
+                      </View>
+
+                      <Text style={styles.availableName} numberOfLines={1}>{availableProfileName(profile)}</Text>
+                      <Text style={styles.availableZone} numberOfLines={1}>
+                        {[firstText(row, ['city']), firstText(row, ['province'])].filter(Boolean).join(' · ')}
+                      </Text>
+                      <Text style={styles.availableTime}>{availabilityRemainingText(row)}</Text>
+
+                      <Pressable style={styles.availableInviteButton}>
+                        <Text style={styles.availableInviteButtonText}>Invita</Text>
+                      </Pressable>
+                    </View>
+                  );
+                })}
+            </ScrollView>
+          )}
         </View>
 
         <Text style={styles.sectionTitleSmall}>Provincia</Text>
@@ -1748,6 +1923,113 @@ const styles = StyleSheet.create({
   },
   durationChipTextActive: {
     color: '#e43f98',
+  },
+
+  availablePeopleSection: {
+    backgroundColor: '#fff8fb',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: '#ffd3e6',
+    padding: 14,
+    marginBottom: 18,
+    gap: 12,
+  },
+  availablePeopleHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  availablePeopleHeaderText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  availablePeopleTitle: {
+    color: '#4b1430',
+    fontSize: 21,
+    fontWeight: '900',
+  },
+  availablePeopleSubtitle: {
+    color: '#7b4960',
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '800',
+    marginTop: 3,
+  },
+  availablePeopleCount: {
+    color: '#e43f98',
+    fontSize: 28,
+    fontWeight: '900',
+  },
+  availablePeopleEmpty: {
+    color: '#7b4960',
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '800',
+  },
+  availableCardsRow: {
+    gap: 12,
+    paddingRight: 4,
+  },
+  availablePersonCard: {
+    width: 220,
+    backgroundColor: '#ffffff',
+    borderRadius: 26,
+    borderWidth: 1,
+    borderColor: '#ffd3e6',
+    padding: 12,
+    shadowColor: '#e43f98',
+    shadowOpacity: 0.18,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 6,
+  },
+  availablePhotoBox: {
+    width: '100%',
+    height: 210,
+    borderRadius: 22,
+    backgroundColor: '#fff0f7',
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  availablePhoto: {
+    width: '100%',
+    height: '100%',
+  },
+  availablePhotoFallback: {
+    width: 120,
+    height: 120,
+  },
+  availableName: {
+    color: '#4b1430',
+    fontSize: 20,
+    fontWeight: '900',
+  },
+  availableZone: {
+    color: '#7b4960',
+    fontSize: 13,
+    fontWeight: '800',
+    marginTop: 3,
+  },
+  availableTime: {
+    color: '#e43f98',
+    fontSize: 13,
+    fontWeight: '900',
+    marginTop: 7,
+  },
+  availableInviteButton: {
+    backgroundColor: '#e43f98',
+    borderRadius: 16,
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  availableInviteButtonText: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '900',
   },
 
   sectionTitleSmall: {

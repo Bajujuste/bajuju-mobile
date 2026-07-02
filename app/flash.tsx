@@ -16,6 +16,7 @@ import {
 import { supabase } from '../src/lib/supabase';
 import { shareBajujuFlash } from '../src/utils/shareBajuju';
 import { sendBajujuPushNotification, buildFlashNotificationTitle } from '../src/utils/bajujuNotifications';
+import { ITALIAN_MUNICIPALITIES_BY_PROVINCE } from '../src/data/italianMunicipalities';
 
 const bajujuLogo = require('../assets/brand/bajuju-logo.png');
 
@@ -23,9 +24,20 @@ type LooseRow = Record<string, any>;
 
 type FlashTab = 'all' | 'mine' | 'joined';
 type FlashDuration = 1 | 2 | 3;
-type FlashSection = 'create' | 'find' | null;
+type AvailabilityDuration = FlashDuration | 'evening';
+type FlashSection = 'create' | 'find' | 'availability' | null;
 
-const ACTIVE_PROVINCES = ['Bergamo', 'Milano', 'Lecco', 'Monza e Brianza', 'Brescia', 'Torino'];
+const ACTIVE_PROVINCES = ['Bergamo', 'Milano', 'Lecco', 'Monza e Brianza', 'Brescia', 'Torino'] as const;
+
+function normalizeMunicipalitySearch(value: string) {
+  return value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
 
 function firstValue(row: LooseRow | null | undefined, keys: string[], fallback: any = null) {
   if (!row) return fallback;
@@ -443,10 +455,32 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
   const [newDurationHours, setNewDurationHours] = useState<FlashDuration>(2);
   const [availabilityProvince, setAvailabilityProvince] = useState('Bergamo');
   const [availabilityCity, setAvailabilityCity] = useState('');
-  const [availabilityDurationHours, setAvailabilityDurationHours] = useState<FlashDuration>(2);
+  const [availabilityDurationHours, setAvailabilityDurationHours] = useState<AvailabilityDuration>(2);
   const [savingAvailability, setSavingAvailability] = useState(false);
   const [savingFlash, setSavingFlash] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
+
+  const availabilityMunicipalities = useMemo(() => {
+    return ITALIAN_MUNICIPALITIES_BY_PROVINCE[
+      availabilityProvince as keyof typeof ITALIAN_MUNICIPALITIES_BY_PROVINCE
+    ] ?? [];
+  }, [availabilityProvince]);
+
+  const filteredAvailabilityMunicipalities = useMemo(() => {
+    const query = normalizeMunicipalitySearch(availabilityCity);
+
+    if (!query) return availabilityMunicipalities.slice(0, 24);
+
+    return availabilityMunicipalities
+      .filter((city) => normalizeMunicipalitySearch(city).includes(query))
+      .slice(0, 24);
+  }, [availabilityCity, availabilityMunicipalities]);
+
+  const hasSelectedValidAvailabilityCity = availabilityMunicipalities.includes(availabilityCity as never);
+
+  useEffect(() => {
+    setAvailabilityCity('');
+  }, [availabilityProvince]);
 
   useEffect(() => {
     if (forcedSection) {
@@ -704,7 +738,14 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
 
     if (!cleanProvince || !cleanCity) {
       if (typeof window !== 'undefined') {
-        window.alert('Scegli provincia e scrivi il comune per renderti disponibile.');
+        window.alert('Scegli provincia e seleziona il comune da cui parti.');
+      }
+      return;
+    }
+
+    if (!availabilityMunicipalities.includes(cleanCity as never)) {
+      if (typeof window !== 'undefined') {
+        window.alert('Seleziona un comune valido dalla lista ufficiale. Il comune serve solo per indicare da dove parti.');
       }
       return;
     }
@@ -722,7 +763,12 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
         return;
       }
 
-      const expiresAt = new Date(Date.now() + availabilityDurationHours * 60 * 60 * 1000).toISOString();
+      const now = new Date();
+      const expiresAtDate =
+        availabilityDurationHours === 'evening'
+          ? new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 0, 0)
+          : new Date(now.getTime() + availabilityDurationHours * 60 * 60 * 1000);
+      const expiresAt = expiresAtDate.toISOString();
 
       await supabase
         .from('user_availability')
@@ -748,12 +794,16 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
       await loadAvailableUsers();
 
       if (typeof window !== 'undefined') {
-        window.alert(`Ora sei visibile per ${availabilityDurationHours} ${availabilityDurationHours === 1 ? 'ora' : 'ore'}.`);
+        window.alert(
+          availabilityDurationHours === 'evening'
+            ? 'Ora sei visibile fino a stasera alle 23:59.'
+            : `Ora sei visibile per ${availabilityDurationHours} ${availabilityDurationHours === 1 ? 'ora' : 'ore'}.`
+        );
       }
     } finally {
       setSavingAvailability(false);
     }
-  }, [availabilityCity, availabilityDurationHours, availabilityProvince, loadAvailableUsers, savingAvailability]);
+  }, [availabilityCity, availabilityDurationHours, availabilityMunicipalities, availabilityProvince, loadAvailableUsers, savingAvailability]);
 
   const sendAvailabilityInvite = useCallback(async (targetUserId: string) => {
     const cleanTargetUserId = String(targetUserId || '').trim();
@@ -1170,7 +1220,7 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
         </Pressable>
 
         <Text style={styles.kicker}>Bajuju Flash</Text>
-        <Text style={styles.flashInstructions}>Qui puoi scegliere se farti vedere dagli altri per 1, 2 o 3 ore, organizzare subito qualcosa o essere invitato in un Flash.</Text>
+        <Text style={styles.flashInstructions}>Un’idea semplice, qualcuno disponibile, si parte.</Text>
 
         <View style={styles.flashLogoCircle}>
           <Image source={bajujuLogo} style={styles.flashLogoImage} resizeMode="contain" />
@@ -1180,31 +1230,28 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
           Un’idea semplice. Qualcuno disponibile. Si parte.
         </Text>
 
-        <Text style={styles.flashHeroText}>
-          Fatti vedere per 1, 2 o 3 ore. Organizza subito qualcosa o fatti invitare da chi è disponibile ora.
-        </Text>
-
         <View style={styles.flashChoiceRow}>
+          <Pressable
+            style={[styles.flashChoiceButton, styles.flashFindChoiceButton]}
+            onPress={() => router.push('/flash-find')}
+          >
+            <Text style={styles.flashChoiceIcon}>🔎</Text>
+            <Text style={styles.flashChoiceText}>Trova Flash</Text>
+          </Pressable>
+
           <Pressable
             style={[styles.flashChoiceButton, styles.flashCreateChoiceButton]}
             onPress={() => router.push('/flash-create')}
           >
             <Text style={styles.flashChoiceIcon}>⚡</Text>
-            <Text style={styles.flashChoiceText}>Crea un Flash</Text>
-          </Pressable>
-
-          <Pressable
-            style={[styles.flashChoiceButton, styles.flashFindChoiceButton]}
-            onPress={() => router.push('/flash-find')}
-          >
-            <Text style={styles.flashChoiceIcon}>👀</Text>
-            <Text style={styles.flashChoiceText}>Trova chi c’è ora</Text>
+            <Text style={styles.flashChoiceText}>Crea Flash</Text>
           </Pressable>
         </View>
 
-        <Text style={styles.flashHeroNote}>
-          Flash è pensato per decidere adesso: poche ore, persone disponibili, zero perdite di tempo.
-        </Text>
+        <Pressable style={styles.flashAvailabilityHeroButton} onPress={() => router.push('/flash-availability')}>
+          <Text style={styles.flashAvailabilityHeroIcon}>🙋</Text>
+          <Text style={styles.flashAvailabilityHeroText}>Renditi disponibile ora</Text>
+        </Pressable>
         </View>
       ) : null}
 
@@ -1220,24 +1267,24 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
 
           <Text style={styles.kicker}>Bajuju Flash</Text>
           <Text style={styles.flashDedicatedTitle}>
-            {isCreatePage ? 'Crea un Flash' : 'Trova chi c’è ora'}
+            {isCreatePage ? 'Crea un Flash' : selectedSection === 'availability' ? 'Renditi disponibile ora' : 'Trova Flash'}
           </Text>
           <Text style={styles.flashDedicatedText}>
             {isCreatePage
               ? 'Compila pochi dati e pubblica subito il tuo Flash.'
-              : 'Guarda i Flash disponibili adesso e scegli a quale partecipare.'}
+              : selectedSection === 'availability' ? 'Scegli dove vuoi farti trovare e per quanto tempo restare visibile.' : 'Guarda i Flash disponibili adesso e scegli a quale partecipare.'}
           </Text>
         </View>
       ) : null}
 
-      <View style={[styles.card, !(selectedSection === 'find' || isFindPage) && styles.hiddenSection]}>
-        <Text style={styles.sectionTitle}>Trova chi c’è ora</Text>
+      <View style={[styles.card, !(selectedSection === 'find' || selectedSection === 'availability' || isFindPage) && styles.hiddenSection]}>
+        <Text style={styles.sectionTitle}>{selectedSection === 'availability' ? 'Renditi disponibile ora' : 'Trova Flash'}</Text>
 
         <View style={styles.availabilityHeroCard}>
           <Text style={styles.availabilityKicker}>La parte forte di Bajuju Flash</Text>
-          <Text style={styles.availabilityTitle}>Renditi disponibile adesso</Text>
+          <Text style={styles.availabilityTitle}>Renditi disponibile ora</Text>
           <Text style={styles.availabilityText}>
-            Fatti vedere nella tua zona per 1, 2 o 3 ore. Gli altri potranno trovarti e invitarti a fare qualcosa dal vivo.
+            Scegli provincia, comune e durata. Gli altri potranno trovarti e invitarti a fare qualcosa dal vivo.
           </Text>
 
           <Text style={styles.availabilityLabel}>Provincia</Text>
@@ -1257,39 +1304,82 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
                     availabilityProvince === province && styles.choiceChipTextActive,
                   ]}
                 >
-                  {province}
+                  {availabilityProvince === province ? `✓ ${province}` : province}
                 </Text>
               </Pressable>
             ))}
           </View>
 
-          <Text style={styles.availabilityLabel}>Comune dove sei disponibile</Text>
+          <Text style={styles.availabilityLabel}>Da che comune parti?</Text>
+          <Text style={styles.availabilityHelpText}>
+            Serve solo per far capire agli altri la tua zona. Potrai ricevere inviti anche da comuni vicini.
+          </Text>
           <TextInput
             style={styles.input}
             value={availabilityCity}
             onChangeText={setAvailabilityCity}
-            placeholder="Esempio: Bergamo"
+            placeholder="Cerca e seleziona un comune"
             placeholderTextColor="#b57998"
           />
 
+          <View style={styles.selectedAvailabilityBox}>
+            <Text style={styles.selectedAvailabilityLabel}>Comune selezionato</Text>
+            <Text style={styles.selectedAvailabilityValue}>
+              {hasSelectedValidAvailabilityCity ? `✓ ${availabilityCity}` : 'Nessun comune selezionato'}
+            </Text>
+          </View>
+
+          <View style={styles.municipalityOptionsBox}>
+            {filteredAvailabilityMunicipalities.length > 0 ? (
+              filteredAvailabilityMunicipalities.map((city) => (
+                <Pressable
+                  key={`availability-city-${city}`}
+                  style={[
+                    styles.municipalityChip,
+                    availabilityCity === city && styles.municipalityChipActive,
+                  ]}
+                  onPress={() => setAvailabilityCity(city)}
+                >
+                  <Text
+                    style={[
+                      styles.municipalityChipText,
+                      availabilityCity === city && styles.municipalityChipTextActive,
+                    ]}
+                  >
+                    {availabilityCity === city ? `✓ ${city}` : city}
+                  </Text>
+                </Pressable>
+              ))
+            ) : (
+              <Text style={styles.availabilityHelpText}>
+                Nessun comune trovato nella provincia selezionata. Controlla la ricerca.
+              </Text>
+            )}
+          </View>
+
           <Text style={styles.availabilityLabel}>Per quanto tempo vuoi farti vedere?</Text>
           <View style={styles.choiceRow}>
-            {[1, 2, 3].map((hours) => (
+            {[
+              { value: 1 as AvailabilityDuration, label: '1 ora' },
+              { value: 2 as AvailabilityDuration, label: '2 ore' },
+              { value: 3 as AvailabilityDuration, label: '3 ore' },
+              { value: 'evening' as AvailabilityDuration, label: 'Fino a stasera' },
+            ].map((duration) => (
               <Pressable
-                key={`availability-duration-${hours}`}
+                key={`availability-duration-${duration.value}`}
                 style={[
                   styles.durationChip,
-                  availabilityDurationHours === hours && styles.durationChipActive,
+                  availabilityDurationHours === duration.value && styles.durationChipActive,
                 ]}
-                onPress={() => setAvailabilityDurationHours(hours as FlashDuration)}
+                onPress={() => setAvailabilityDurationHours(duration.value)}
               >
                 <Text
                   style={[
                     styles.durationChipText,
-                    availabilityDurationHours === hours && styles.durationChipTextActive,
+                    availabilityDurationHours === duration.value && styles.durationChipTextActive,
                   ]}
                 >
-                  {hours} {hours === 1 ? 'ora' : 'ore'}
+                  {availabilityDurationHours === duration.value ? `✓ ${duration.label}` : duration.label}
                 </Text>
               </Pressable>
             ))}
@@ -1915,11 +2005,30 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     textAlign: 'center',
   },
-  flashHeroNote: {
+  flashAvailabilityHeroButton: {
+    width: '100%',
     marginTop: 14,
-    color: '#86104f',
-    fontSize: 12,
-    lineHeight: 18,
+    borderRadius: 24,
+    paddingVertical: 19,
+    paddingHorizontal: 18,
+    backgroundColor: '#ef2d82',
+    borderWidth: 2,
+    borderColor: '#f7a7cd',
+    shadowColor: '#ef2d82',
+    shadowOpacity: 0.22,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  flashAvailabilityHeroIcon: {
+    fontSize: 30,
+    marginBottom: 6,
+  },
+  flashAvailabilityHeroText: {
+    color: '#ffffff',
+    fontSize: 19,
     fontWeight: '900',
     textAlign: 'center',
   },
@@ -1969,6 +2078,13 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     marginTop: 6,
   },
+  availabilityHelpText: {
+    color: '#ffe5f1',
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: '800',
+    marginBottom: 8,
+  },
   availabilityMainButton: {
     backgroundColor: '#ffffff',
     borderRadius: 18,
@@ -1995,14 +2111,20 @@ const styles = StyleSheet.create({
   choiceChip: {
     backgroundColor: '#fff0f7',
     borderRadius: 999,
-    paddingVertical: 9,
-    paddingHorizontal: 12,
-    borderWidth: 1,
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    borderWidth: 2,
     borderColor: '#ffd3e6',
   },
   choiceChipActive: {
-    backgroundColor: '#ffffff',
-    borderColor: '#ffffff',
+    backgroundColor: '#ef2d82',
+    borderColor: '#7a1248',
+    borderWidth: 4,
+    shadowColor: '#ef2d82',
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 6,
   },
   choiceChipText: {
     color: '#9b1f61',
@@ -2010,19 +2132,26 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   choiceChipTextActive: {
-    color: '#e43f98',
+    color: '#ffffff',
+    fontWeight: '900',
   },
   durationChip: {
     backgroundColor: '#fff0f7',
     borderRadius: 999,
-    paddingVertical: 10,
-    paddingHorizontal: 13,
-    borderWidth: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 15,
+    borderWidth: 2,
     borderColor: '#ffd3e6',
   },
   durationChipActive: {
-    backgroundColor: '#ffffff',
-    borderColor: '#ffffff',
+    backgroundColor: '#ef2d82',
+    borderColor: '#7a1248',
+    borderWidth: 4,
+    shadowColor: '#ef2d82',
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 6,
   },
   durationChipText: {
     color: '#9b1f61',
@@ -2030,7 +2159,63 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   durationChipTextActive: {
-    color: '#e43f98',
+    color: '#ffffff',
+    fontWeight: '900',
+  },
+  selectedAvailabilityBox: {
+    backgroundColor: '#ffffff',
+    borderRadius: 18,
+    borderWidth: 3,
+    borderColor: '#ef2d82',
+    paddingVertical: 10,
+    paddingHorizontal: 13,
+    marginTop: 10,
+    marginBottom: 8,
+  },
+  selectedAvailabilityLabel: {
+    color: '#7a1248',
+    fontSize: 11,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+    marginBottom: 3,
+  },
+  selectedAvailabilityValue: {
+    color: '#ef2d82',
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  municipalityOptionsBox: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 8,
+  },
+  municipalityChip: {
+    backgroundColor: '#fff0f7',
+    borderRadius: 999,
+    paddingVertical: 10,
+    paddingHorizontal: 13,
+    borderWidth: 2,
+    borderColor: '#ffd3e6',
+  },
+  municipalityChipActive: {
+    backgroundColor: '#ef2d82',
+    borderColor: '#7a1248',
+    borderWidth: 4,
+    shadowColor: '#ef2d82',
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 6,
+  },
+  municipalityChipText: {
+    color: '#9b1f61',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  municipalityChipTextActive: {
+    color: '#ffffff',
+    fontWeight: '900',
   },
 
   availablePeopleSection: {

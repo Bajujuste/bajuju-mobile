@@ -458,7 +458,18 @@ export default function ProfileScreen() {
         .filter((row) => {
           const status = firstText(row, ['status', 'stato', 'request_status'], 'pending').toLowerCase();
           const otherUserId = contactOtherUserId(row);
-          return ['pending', 'in_attesa', 'attesa', 'new', 'nuova'].includes(status) && !blockedIds.has(otherUserId);
+          const isFlashInvite =
+            result.table === 'direct_contact_requests' &&
+            firstText(row, ['message'], '').toLowerCase().includes('bajuju flash');
+
+          if (blockedIds.has(otherUserId)) return false;
+          if (['archived', 'archiviato', 'archiviata', 'deleted', 'eliminato', 'eliminata'].includes(status)) return false;
+
+          if (isFlashInvite) {
+            return ['pending', 'in_attesa', 'attesa', 'new', 'nuova', 'accepted', 'rejected', 'declined'].includes(status);
+          }
+
+          return ['pending', 'in_attesa', 'attesa', 'new', 'nuova'].includes(status);
         })
         .map((row) => ({
           id: getRowId(row),

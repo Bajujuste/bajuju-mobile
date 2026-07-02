@@ -916,6 +916,32 @@ export default function ProfileScreen() {
         const targetUserId = String(
           firstValue(row, ['requester_id', 'from_user_id', 'sender_id', 'created_by', 'creator_id', 'user_id']) || ''
         );
+        const flashActivityId = String(firstValue(row, ['activity_id', 'event_id', 'experience_id', 'flash_id']) || '').trim();
+        const isFlashInvite =
+          item.table === 'direct_contact_requests' &&
+          firstText(row, ['message'], '').toLowerCase().includes('bajuju flash');
+
+        if (isFlashInvite && flashActivityId && user?.id) {
+          const existingParticipantResult = await supabase
+            .from('activity_participants')
+            .select('id')
+            .eq('activity_id', flashActivityId)
+            .eq('user_id', user.id)
+            .limit(1);
+
+          if (!existingParticipantResult.error && (!existingParticipantResult.data || existingParticipantResult.data.length === 0)) {
+            const participantResult = await supabase.from('activity_participants').insert({
+              activity_id: flashActivityId,
+              user_id: user.id,
+              status: 'accepted',
+            });
+
+            if (participantResult.error) {
+              Alert.alert('Invito accettato', 'Invito accettato, ma non sono riuscito ad aggiungerti automaticamente al Flash.');
+              return;
+            }
+          }
+        }
 
         if (targetUserId && targetUserId !== user?.id) {
           await sendBajujuPushNotification({
@@ -923,10 +949,11 @@ export default function ProfileScreen() {
             actorUserId: user?.id,
             targetUserId,
             title: 'Invito accettato',
-            body: 'Il tuo invito Bajuju è stato accettato.',
+            body: isFlashInvite ? 'Il tuo invito Flash è stato accettato. La persona è stata aggiunta al Flash.' : 'Il tuo invito Bajuju è stato accettato.',
             data: {
-              screen: 'profile',
+              screen: isFlashInvite && flashActivityId ? 'flash-detail' : 'profile',
               requestId: item.id,
+              activityId: flashActivityId || undefined,
             },
           }).catch((error) => {
             console.log('Errore notifica contatto accettato:', error);

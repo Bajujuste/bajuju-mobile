@@ -847,17 +847,37 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
         return;
       }
 
+      const ownFlashResult = await supabase
+        .from('activities')
+        .select('id,title,city,province,expires_at,created_at')
+        .eq('creator_id', currentUserId)
+        .eq('is_flash', true)
+        .gt('expires_at', new Date().toISOString())
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      const ownFlash = Array.isArray(ownFlashResult.data) ? ownFlashResult.data[0] as LooseRow | undefined : undefined;
+      const ownFlashId = ownFlash ? String(firstValue(ownFlash, ['id', 'activity_id'], '') || '').trim() : '';
+
+      if (ownFlashResult.error || !ownFlashId || !ownFlash) {
+        if (typeof window !== 'undefined') {
+          window.alert('Devi prima creare un Bajuju Flash attivo per poter invitare questa persona.');
+        }
+        return;
+      }
+
       const existingResult = await supabase
         .from('direct_contact_requests')
-        .select('id,status')
+        .select('id,status,activity_id')
         .eq('requester_id', currentUserId)
         .eq('receiver_id', cleanTargetUserId)
+        .eq('activity_id', ownFlashId)
         .in('status', ['pending', 'accepted'])
         .limit(1);
 
       if (!existingResult.error && existingResult.data && existingResult.data.length > 0) {
         if (typeof window !== 'undefined') {
-          window.alert('Hai già inviato un invito a questa persona.');
+          window.alert('Hai già invitato questa persona a questo Flash.');
         }
         return;
       }
@@ -866,8 +886,9 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
         requester_id: currentUserId,
         sender_id: currentUserId,
         receiver_id: cleanTargetUserId,
+        activity_id: ownFlashId,
         status: 'pending',
-        message: 'Ti ho visto disponibile su Bajuju Flash: ti va di organizzare qualcosa dal vivo?',
+        message: `Ti invito al mio Bajuju Flash “${flashTitle(ownFlash)}”. Ti ho visto disponibile: ti va di partecipare?`,
       });
 
       if (result.error) {
@@ -882,9 +903,10 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
         actorUserId: currentUserId,
         targetUserId: cleanTargetUserId,
         title: 'Nuovo invito Bajuju Flash',
-        body: 'Una persona ti ha visto disponibile e vuole invitarti a fare qualcosa dal vivo.',
+        body: `Una persona ti invita al suo Flash: ${flashTitle(ownFlash)}.`,
         data: {
           screen: 'profile',
+          activityId: ownFlashId,
         },
       }).catch((error) => {
         console.log('Errore notifica invito disponibilità:', error);

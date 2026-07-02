@@ -203,19 +203,6 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        <View style={styles.ideasCard}>
-          <Text style={styles.infoTitle}>Idee per iniziare</Text>
-
-          <View style={styles.pillsRow}>
-            <Text style={styles.pill}>🚶 Passeggiate</Text>
-            <Text style={styles.pill}>🍕 Pizza</Text>
-            <Text style={styles.pill}>🍹 Aperitivo</Text>
-            <Text style={styles.pill}>⚽ Sport</Text>
-            <Text style={styles.pill}>🎉 Eventi</Text>
-            <Text style={styles.pill}>🖼️ Musei</Text>
-          </View>
-        </View>
-
         <View style={styles.footerBox}>
           <Pressable style={styles.shareButton} onPress={shareBajujuHome}>
             <Text style={styles.shareIcon}>📲</Text>

@@ -1,4 +1,5 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import MapView, { Marker } from 'react-native-maps';
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 
@@ -405,38 +406,54 @@ export default function ExperiencesMapScreen() {
           </View>
 
           <View style={styles.realMapShell}>
-            <View style={styles.staticMapSurface}>
-              <View style={styles.staticMapGlowOne} />
-              <View style={styles.staticMapGlowTwo} />
-              <View style={styles.staticMapRoadOne} />
-              <View style={styles.staticMapRoadTwo} />
+            <MapView
+              style={styles.realMap}
+              initialRegion={{
+                latitude: 45.6983,
+                longitude: 9.6773,
+                latitudeDelta: 0.35,
+                longitudeDelta: 0.35,
+              }}
+              zoomEnabled
+              scrollEnabled
+              rotateEnabled={false}
+              pitchEnabled={false}
+            >
+              {rows.slice(0, 80).map((row, index) => {
+                const category = getCategory(row);
+                const id = activityId(row);
+                const coordinates = getCoordinates(row);
 
-              <View pointerEvents="box-none" style={styles.markerOverlayLayer}>
-                {rows.slice(0, 80).map((row, index) => {
-                  const category = getCategory(row);
-                  const id = activityId(row);
-                  const position = pinPosition(row, index);
+                if (!coordinates) {
+                  return null;
+                }
 
-                  return (
-                    <Pressable
-                      key={`bajuju-overlay-circle-${id || index}-${selectedPreviewId === id ? 'selected' : 'idle'}`}
+                return (
+                  <Marker
+                    key={`bajuju-native-marker-${id || index}-${selectedPreviewId === id ? 'selected' : 'idle'}`}
+                    coordinate={coordinates}
+                    title={activityTitle(row)}
+                    description={[getCity(row), getProvince(row)].filter(Boolean).join(' · ')}
+                    onPress={() => handleMarkerPress(row)}
+                  >
+                    <View
                       style={[
-                        styles.bajujuOverlayMarkerCircle,
-                        position as any,
-                        selectedPreviewId === id && styles.bajujuOverlayMarkerCircleSelected,
+                        styles.bajujuMapDot,
+                        selectedPreviewId === id && styles.bajujuMapDotSelected,
                       ]}
-                      onPress={() => handleMarkerPress(row)}
                     >
-                      <MaterialCommunityIcons
-                        name={getMapCategoryIconName(category) as any}
-                        size={26}
-                        color="#ffffff"
-                      />
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </View>
+                      <View style={styles.nativeMarkerIconBubble}>
+                        <MaterialCommunityIcons
+                          name={getMapCategoryIconName(category) as any}
+                          size={24}
+                          color="#e43f98"
+                        />
+                      </View>
+                    </View>
+                  </Marker>
+                );
+              })}
+            </MapView>
 
             {selectedPreviewRow ? (
               <Pressable style={styles.mapPreviewOverlay} onPress={() => openDetail(selectedPreviewRow)}>
@@ -534,6 +551,39 @@ export default function ExperiencesMapScreen() {
 }
 
 const styles = StyleSheet.create({
+  bajujuMapDotSelected: {
+    width: 66,
+    height: 66,
+    borderRadius: 33,
+    backgroundColor: '#c81f77',
+    borderWidth: 6,
+    borderColor: '#ffffff',
+  },
+  bajujuMapDot: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: '#e43f98',
+    borderWidth: 5,
+    borderColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#4b1430',
+    shadowOpacity: 0.45,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 15,
+  },
+  nativeMarkerIconBubble: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#fff0f7',
+    borderWidth: 2,
+    borderColor: '#ffd3e7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   bajujuOverlayMarkerCircleSelected: {
     width: 60,
     height: 60,

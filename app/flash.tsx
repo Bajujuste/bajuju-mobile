@@ -434,6 +434,8 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
   const [creatorNames, setCreatorNames] = useState<Record<string, string>>({});
   const [availableRows, setAvailableRows] = useState<LooseRow[]>([]);
   const [availableProfiles, setAvailableProfiles] = useState<Record<string, LooseRow>>({});
+  const [myActiveAvailability, setMyActiveAvailability] = useState<LooseRow | null>(null);
+  const [cancellingAvailability, setCancellingAvailability] = useState(false);
   const [loadingAvailableUsers, setLoadingAvailableUsers] = useState(false);
   const [sendingAvailabilityInviteTo, setSendingAvailabilityInviteTo] = useState<string | null>(null);
   const [joiningActivityId, setJoiningActivityId] = useState<string | null>(null);
@@ -655,7 +657,7 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
         .select('id,user_id,province,city,expires_at,created_at')
         .gt('expires_at', new Date().toISOString())
         .order('created_at', { ascending: false })
-        .limit(40);
+        .limit(100);
 
       if (result.error) {
         setAvailableRows([]);
@@ -666,6 +668,10 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
       let cleanRows = result.data || [];
 
       if (currentUserId) {
+        const myAvailability =
+          cleanRows.find((row: LooseRow) => availableUserId(row) === currentUserId) || null;
+        setMyActiveAvailability(myAvailability);
+
         cleanRows = cleanRows.filter((row: LooseRow) => availableUserId(row) !== currentUserId);
 
         const userIds = cleanRows.map((row: LooseRow) => availableUserId(row)).filter(Boolean);
@@ -696,6 +702,8 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
 
           cleanRows = cleanRows.filter((row: LooseRow) => !blockedIds.has(availableUserId(row)));
         }
+      } else {
+        setMyActiveAvailability(null);
       }
 
       const profileIds = Array.from(new Set(cleanRows.map((row: LooseRow) => availableUserId(row)).filter(Boolean)));
@@ -734,6 +742,13 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
   const saveAvailability = useCallback(async () => {
     if (savingAvailability) return;
 
+    if (myActiveAvailability) {
+      if (typeof window !== 'undefined') {
+        window.alert('Sei già disponibile. Annulla la disponibilità prima di crearne una nuova.');
+      }
+      return;
+    }
+
     const cleanProvince = availabilityProvince.trim();
     const cleanCity = availabilityCity.trim();
 
@@ -764,17 +779,28 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
         return;
       }
 
+      const existingAvailabilityResult = await supabase
+        .from('user_availability')
+        .select('id,user_id,province,city,expires_at,created_at')
+        .eq('user_id', authUserId)
+        .gt('expires_at', new Date().toISOString())
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (!existingAvailabilityResult.error && existingAvailabilityResult.data && existingAvailabilityResult.data.length > 0) {
+        setMyActiveAvailability(existingAvailabilityResult.data[0] as LooseRow);
+        if (typeof window !== 'undefined') {
+          window.alert('Sei già disponibile. Annulla la disponibilità prima di crearne una nuova.');
+        }
+        return;
+      }
+
       const now = new Date();
       const expiresAtDate =
         availabilityDurationHours === 'evening'
           ? new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 0, 0)
           : new Date(now.getTime() + availabilityDurationHours * 60 * 60 * 1000);
       const expiresAt = expiresAtDate.toISOString();
-
-      await supabase
-        .from('user_availability')
-        .delete()
-        .eq('user_id', authUserId);
 
       const result = await supabase.from('user_availability').insert({
         user_id: authUserId,
@@ -804,7 +830,70 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
     } finally {
       setSavingAvailability(false);
     }
-  }, [availabilityCity, availabilityDurationHours, availabilityMunicipalities, availabilityProvince, loadAvailableUsers, savingAvailability]);
+  }, [availabilityCity, availabilityDurationHours, availabilityMunicipalities, availabilityProvince, loadAvailableUsers, myActiveAvailability, savingAvailability]);
+
+  const cancelAvailability = useCallback(async () => {
+    if (cancellingAvailability) return;
+
+    setCancellingAvailability(true);
+
+    try {
+      const authResult = await supabase.auth.getUser();
+      const authUserId = authResult.data.user?.id || null;
+
+      if (!authUserId) {
+        if (typeof window !== 'undefined') {
+          window.alert('Devi essere collegato per annullare la disponibilità.');
+        }
+        return;
+      }
+
+      let availabilityId = String(firstValue(myActiveAvailability || {}, ['id'], '') || '').trim();
+
+      if (!availabilityId) {
+        const activeResult = await supabase
+          .from('user_availability')
+          .select('id')
+          .eq('user_id', authUserId)
+          .gt('expires_at', new Date().toISOString())
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        availabilityId = String(firstValue((activeResult.data || [])[0] || {}, ['id'], '') || '').trim();
+      }
+
+      if (!availabilityId) {
+        setMyActiveAvailability(null);
+        await loadAvailableUsers();
+
+        if (typeof window !== 'undefined') {
+          window.alert('Non hai una disponibilità attiva da annullare.');
+        }
+        return;
+      }
+
+      const result = await supabase
+        .from('user_availability')
+        .update({ expires_at: new Date().toISOString() })
+        .eq('id', availabilityId);
+
+      if (result.error) {
+        if (typeof window !== 'undefined') {
+          window.alert(`Errore annulla disponibilità: ${result.error.message}`);
+        }
+        return;
+      }
+
+      setMyActiveAvailability(null);
+      await loadAvailableUsers();
+
+      if (typeof window !== 'undefined') {
+        window.alert('Disponibilità annullata.');
+      }
+    } finally {
+      setCancellingAvailability(false);
+    }
+  }, [cancellingAvailability, loadAvailableUsers, myActiveAvailability]);
 
   const sendAvailabilityInvite = useCallback(async (targetUserId: string) => {
     const cleanTargetUserId = String(targetUserId || '').trim();
@@ -1428,15 +1517,39 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
             ))}
           </View>
 
+          {myActiveAvailability ? (
+            <View style={styles.activeAvailabilityBox}>
+              <Text style={styles.activeAvailabilityTitle}>Sei già disponibile</Text>
+              <Text style={styles.activeAvailabilityText}>
+                La tua disponibilità è attiva. Se vuoi cambiarla, annullala e creane una nuova.
+              </Text>
+            </View>
+          ) : null}
+
           <Pressable
-            style={[styles.availabilityMainButton, savingAvailability && styles.buttonDisabled]}
+            style={[
+              styles.availabilityMainButton,
+              (savingAvailability || !!myActiveAvailability) && styles.buttonDisabled,
+            ]}
             onPress={saveAvailability}
-            disabled={savingAvailability}
+            disabled={savingAvailability || !!myActiveAvailability}
           >
             <Text style={styles.availabilityMainButtonText}>
-              {savingAvailability ? 'Ti sto rendendo visibile...' : 'Mi rendo disponibile'}
+              {savingAvailability ? 'Ti sto rendendo visibile...' : myActiveAvailability ? 'Disponibilità già attiva' : 'Mi rendo disponibile'}
             </Text>
           </Pressable>
+
+          {myActiveAvailability ? (
+            <Pressable
+              style={[styles.cancelAvailabilityButton, cancellingAvailability && styles.buttonDisabled]}
+              onPress={cancelAvailability}
+              disabled={cancellingAvailability}
+            >
+              <Text style={styles.cancelAvailabilityButtonText}>
+                {cancellingAvailability ? 'Annullamento...' : 'Annulla disponibilità'}
+              </Text>
+            </Pressable>
+          ) : null}
         </View>
 
         <View style={[styles.availablePeopleSection, selectedSection !== 'available' && styles.hiddenSection]}>
@@ -2139,6 +2252,42 @@ const styles = StyleSheet.create({
   },
   availabilityMainButtonText: {
     color: '#e43f98',
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  activeAvailabilityBox: {
+    backgroundColor: '#fff8fb',
+    borderRadius: 18,
+    borderWidth: 2,
+    borderColor: '#ffd3e6',
+    paddingVertical: 12,
+    paddingHorizontal: 13,
+    marginTop: 8,
+  },
+  activeAvailabilityTitle: {
+    color: '#7a1248',
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  activeAvailabilityText: {
+    color: '#9b1f61',
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '800',
+    marginTop: 4,
+  },
+  cancelAvailabilityButton: {
+    backgroundColor: '#ffffff',
+    borderRadius: 18,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    marginTop: 8,
+    borderWidth: 2,
+    borderColor: '#ffd3e6',
+  },
+  cancelAvailabilityButtonText: {
+    color: '#9b1f61',
     fontSize: 16,
     fontWeight: '900',
   },

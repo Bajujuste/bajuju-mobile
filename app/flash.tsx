@@ -25,7 +25,7 @@ type LooseRow = Record<string, any>;
 type FlashTab = 'all' | 'mine' | 'joined';
 type FlashDuration = 1 | 2 | 3;
 type AvailabilityDuration = FlashDuration | 'evening';
-type FlashSection = 'create' | 'find' | 'availability' | null;
+type FlashSection = 'create' | 'find' | 'availability' | 'available' | null;
 
 const ACTIVE_PROVINCES = ['Bergamo', 'Milano', 'Lecco', 'Monza e Brianza', 'Brescia', 'Torino'] as const;
 
@@ -455,6 +455,7 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
   const [newDurationHours, setNewDurationHours] = useState<FlashDuration>(2);
   const [availabilityProvince, setAvailabilityProvince] = useState('Bergamo');
   const [availabilityCity, setAvailabilityCity] = useState('');
+  const [showAvailabilityMunicipalityList, setShowAvailabilityMunicipalityList] = useState(false);
   const [availabilityDurationHours, setAvailabilityDurationHours] = useState<AvailabilityDuration>(2);
   const [savingAvailability, setSavingAvailability] = useState(false);
   const [savingFlash, setSavingFlash] = useState(false);
@@ -1270,10 +1271,23 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
           </Pressable>
         </View>
 
-        <Pressable style={styles.flashAvailabilityHeroButton} onPress={() => router.push('/flash-availability')}>
-          <Text style={styles.flashAvailabilityHeroIcon}>🙋</Text>
-          <Text style={styles.flashAvailabilityHeroText}>Renditi disponibile ora</Text>
-        </Pressable>
+        <View style={styles.flashChoiceRow}>
+          <Pressable
+            style={[styles.flashChoiceButton, styles.flashFindChoiceButton]}
+            onPress={() => router.push('/flash-availability')}
+          >
+            <Text style={styles.flashChoiceIcon}>🙋</Text>
+            <Text style={styles.flashChoiceText}>Renditi disponibile ora</Text>
+          </Pressable>
+
+          <Pressable
+            style={[styles.flashChoiceButton, styles.flashCreateChoiceButton]}
+            onPress={() => router.push('/flash-available')}
+          >
+            <Text style={styles.flashChoiceIcon}>👀</Text>
+            <Text style={styles.flashChoiceText}>Guarda chi è disponibile</Text>
+          </Pressable>
+        </View>
         </View>
       ) : null}
 
@@ -1289,22 +1303,23 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
 
           <Text style={styles.kicker}>Bajuju Flash</Text>
           <Text style={styles.flashDedicatedTitle}>
-            {isCreatePage ? 'Crea un Flash' : selectedSection === 'availability' ? 'Renditi disponibile ora' : 'Trova Flash'}
+            {isCreatePage ? 'Crea un Flash' : selectedSection === 'availability' ? 'Renditi disponibile ora' : selectedSection === 'available' ? 'Guarda chi è disponibile' : 'Trova Flash'}
           </Text>
           <Text style={styles.flashDedicatedText}>
             {isCreatePage
               ? 'Compila pochi dati e pubblica subito il tuo Flash.'
-              : selectedSection === 'availability' ? 'Scegli dove vuoi farti trovare e per quanto tempo restare visibile.' : 'Guarda i Flash disponibili adesso e scegli a quale partecipare.'}
+              : selectedSection === 'availability' ? 'Scegli dove vuoi farti trovare e per quanto tempo restare visibile.' : selectedSection === 'available' ? 'Scorri le persone disponibili ora e invita chi vuoi al tuo Flash.' : 'Guarda i Flash disponibili adesso e scegli a quale partecipare.'}
           </Text>
         </View>
       ) : null}
 
-      <View style={[styles.card, !(selectedSection === 'find' || selectedSection === 'availability' || isFindPage) && styles.hiddenSection]}>
-        <Text style={styles.sectionTitle}>{selectedSection === 'availability' ? 'Renditi disponibile ora' : 'Trova Flash'}</Text>
+      <View style={[styles.card, !(selectedSection === 'find' || selectedSection === 'availability' || selectedSection === 'available' || isFindPage) && styles.hiddenSection]}>
+        {selectedSection !== 'availability' ? (
+          <Text style={styles.sectionTitle}>{selectedSection === 'available' ? 'Guarda chi è disponibile' : 'Trova Flash'}</Text>
+        ) : null}
 
-        <View style={styles.availabilityHeroCard}>
+        <View style={[styles.availabilityHeroCard, selectedSection !== 'availability' && styles.hiddenSection]}>
           <Text style={styles.availabilityKicker}>La parte forte di Bajuju Flash</Text>
-          <Text style={styles.availabilityTitle}>Renditi disponibile ora</Text>
           <Text style={styles.availabilityText}>
             Scegli provincia, comune e durata. Gli altri potranno trovarti e invitarti a fare qualcosa dal vivo.
           </Text>
@@ -1332,52 +1347,58 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
             ))}
           </View>
 
-          <Text style={styles.availabilityLabel}>Da che comune parti?</Text>
-          <Text style={styles.availabilityHelpText}>
-            Serve solo per far capire agli altri la tua zona. Potrai ricevere inviti anche da comuni vicini.
-          </Text>
-          <TextInput
-            style={styles.input}
-            value={availabilityCity}
-            onChangeText={setAvailabilityCity}
-            placeholder="Cerca e seleziona un comune"
-            placeholderTextColor="#b57998"
-          />
+          <Text style={styles.availabilityLabel}>Seleziona comune</Text>
 
-          <View style={styles.selectedAvailabilityBox}>
-            <Text style={styles.selectedAvailabilityLabel}>Comune selezionato</Text>
-            <Text style={styles.selectedAvailabilityValue}>
-              {hasSelectedValidAvailabilityCity ? `✓ ${availabilityCity}` : 'Nessun comune selezionato'}
+          <Pressable
+            style={styles.municipalityDropdownButton}
+            onPress={() => setShowAvailabilityMunicipalityList((value) => !value)}
+          >
+            <Text
+              style={[
+                styles.municipalityDropdownText,
+                hasSelectedValidAvailabilityCity && styles.municipalityDropdownTextSelected,
+              ]}
+              numberOfLines={1}
+            >
+              {hasSelectedValidAvailabilityCity ? availabilityCity : 'Seleziona comune'}
             </Text>
-          </View>
+            <Text style={styles.municipalityDropdownArrow}>
+              {showAvailabilityMunicipalityList ? '⌃' : '⌄'}
+            </Text>
+          </Pressable>
 
-          <View style={styles.municipalityOptionsBox}>
-            {filteredAvailabilityMunicipalities.length > 0 ? (
-              filteredAvailabilityMunicipalities.map((city) => (
+          {showAvailabilityMunicipalityList ? (
+            <ScrollView
+              style={styles.municipalitySelectBox}
+              contentContainerStyle={styles.municipalitySelectContent}
+              nestedScrollEnabled
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator
+            >
+              {availabilityMunicipalities.map((city) => (
                 <Pressable
                   key={`availability-city-${city}`}
                   style={[
-                    styles.municipalityChip,
-                    availabilityCity === city && styles.municipalityChipActive,
+                    styles.municipalitySelectItem,
+                    availabilityCity === city && styles.municipalitySelectItemActive,
                   ]}
-                  onPress={() => setAvailabilityCity(city)}
+                  onPress={() => {
+                    setAvailabilityCity(city);
+                    setShowAvailabilityMunicipalityList(false);
+                  }}
                 >
                   <Text
                     style={[
-                      styles.municipalityChipText,
-                      availabilityCity === city && styles.municipalityChipTextActive,
+                      styles.municipalitySelectItemText,
+                      availabilityCity === city && styles.municipalitySelectItemTextActive,
                     ]}
                   >
                     {availabilityCity === city ? `✓ ${city}` : city}
                   </Text>
                 </Pressable>
-              ))
-            ) : (
-              <Text style={styles.availabilityHelpText}>
-                Nessun comune trovato nella provincia selezionata. Controlla la ricerca.
-              </Text>
-            )}
-          </View>
+              ))}
+            </ScrollView>
+          ) : null}
 
           <Text style={styles.availabilityLabel}>Per quanto tempo vuoi farti vedere?</Text>
           <View style={styles.choiceRow}>
@@ -1418,11 +1439,11 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
           </Pressable>
         </View>
 
-        <View style={styles.availablePeopleSection}>
+        <View style={[styles.availablePeopleSection, selectedSection !== 'available' && styles.hiddenSection]}>
           <View style={styles.availablePeopleHeader}>
             <View style={styles.availablePeopleHeaderText}>
               <Text style={styles.availablePeopleTitle}>Persone disponibili ora</Text>
-              <Text style={styles.availablePeopleSubtitle}>Card rapide stile Bajuju: guarda chi c’è e scegli chi invitare.</Text>
+              <Text style={styles.availablePeopleSubtitle}>Scorri chi è disponibile ora. Per invitare una persona devi avere un tuo Flash attivo.</Text>
             </View>
             <Text style={styles.availablePeopleCount}>
               {availableRows.filter((row) => selectedProvince === 'Tutte' || firstText(row, ['province']) === selectedProvince).length}
@@ -1442,7 +1463,6 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.availableCardsRow}>
               {availableRows
                 .filter((row) => selectedProvince === 'Tutte' || firstText(row, ['province']) === selectedProvince)
-                .slice(0, 12)
                 .map((row, index) => {
                   const profile = availableProfiles[availableUserId(row)];
                   const photo = availableProfilePhoto(profile);
@@ -1472,7 +1492,7 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
                         disabled={sendingAvailabilityInviteTo === availableUserId(row)}
                       >
                         <Text style={styles.availableInviteButtonText}>
-                          {sendingAvailabilityInviteTo === availableUserId(row) ? 'Invio...' : 'Invita'}
+                          {sendingAvailabilityInviteTo === availableUserId(row) ? 'Invio...' : 'Invita al mio Flash'}
                         </Text>
                       </Pressable>
                     </View>
@@ -1482,45 +1502,47 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
           )}
         </View>
 
-        <Text style={styles.sectionTitleSmall}>Provincia</Text>
+        <View style={[selectedSection !== 'find' && !isFindPage && styles.hiddenSection]}>
+          <Text style={styles.sectionTitleSmall}>Provincia</Text>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
-          {['Tutte', ...ACTIVE_PROVINCES].map((province) => (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
+            {['Tutte', ...ACTIVE_PROVINCES].map((province) => (
+              <Pressable
+                key={province}
+                style={[styles.chip, selectedProvince === province && styles.chipActive]}
+                onPress={() => setSelectedProvince(province)}
+              >
+                <Text style={[styles.chipText, selectedProvince === province && styles.chipTextActive]}>
+                  {province}
+                </Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+
+          <Text style={styles.sectionTitleSmall}>Filtri</Text>
+
+          <View style={styles.tabsRow}>
             <Pressable
-              key={province}
-              style={[styles.chip, selectedProvince === province && styles.chipActive]}
-              onPress={() => setSelectedProvince(province)}
+              style={[styles.tabButton, selectedTab === 'all' && styles.tabButtonActive]}
+              onPress={() => setSelectedTab('all')}
             >
-              <Text style={[styles.chipText, selectedProvince === province && styles.chipTextActive]}>
-                {province}
-              </Text>
+              <Text style={[styles.tabText, selectedTab === 'all' && styles.tabTextActive]}>Tutti</Text>
             </Pressable>
-          ))}
-        </ScrollView>
 
-        <Text style={styles.sectionTitleSmall}>Filtri</Text>
+            <Pressable
+              style={[styles.tabButton, selectedTab === 'mine' && styles.tabButtonActive]}
+              onPress={() => setSelectedTab('mine')}
+            >
+              <Text style={[styles.tabText, selectedTab === 'mine' && styles.tabTextActive]}>I miei</Text>
+            </Pressable>
 
-        <View style={styles.tabsRow}>
-          <Pressable
-            style={[styles.tabButton, selectedTab === 'all' && styles.tabButtonActive]}
-            onPress={() => setSelectedTab('all')}
-          >
-            <Text style={[styles.tabText, selectedTab === 'all' && styles.tabTextActive]}>Tutti</Text>
-          </Pressable>
-
-          <Pressable
-            style={[styles.tabButton, selectedTab === 'mine' && styles.tabButtonActive]}
-            onPress={() => setSelectedTab('mine')}
-          >
-            <Text style={[styles.tabText, selectedTab === 'mine' && styles.tabTextActive]}>I miei</Text>
-          </Pressable>
-
-          <Pressable
-            style={[styles.tabButton, selectedTab === 'joined' && styles.tabButtonActive]}
-            onPress={() => setSelectedTab('joined')}
-          >
-            <Text style={[styles.tabText, selectedTab === 'joined' && styles.tabTextActive]}>A cui partecipo</Text>
-          </Pressable>
+            <Pressable
+              style={[styles.tabButton, selectedTab === 'joined' && styles.tabButtonActive]}
+              onPress={() => setSelectedTab('joined')}
+            >
+              <Text style={[styles.tabText, selectedTab === 'joined' && styles.tabTextActive]}>A cui partecipo</Text>
+            </Pressable>
+          </View>
         </View>
       </View>
 
@@ -2206,48 +2228,81 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '900',
   },
-  municipalityOptionsBox: {
+  municipalityDropdownButton: {
+    backgroundColor: '#ffffff',
+    borderRadius: 18,
+    borderWidth: 3,
+    borderColor: '#ffd3e6',
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    marginTop: 4,
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  municipalityDropdownText: {
+    flex: 1,
+    color: '#9b1f61',
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  municipalityDropdownTextSelected: {
+    color: '#ef2d82',
+  },
+  municipalityDropdownArrow: {
+    color: '#ef2d82',
+    fontSize: 20,
+    fontWeight: '900',
+  },
+  municipalitySelectBox: {
+    maxHeight: 340,
+    backgroundColor: '#fff8fb',
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: '#ffd3e6',
     marginTop: 8,
   },
-  municipalityChip: {
-    backgroundColor: '#fff0f7',
-    borderRadius: 999,
-    paddingVertical: 10,
+  municipalitySelectContent: {
+    padding: 8,
+    gap: 7,
+  },
+  municipalitySelectItem: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    paddingVertical: 11,
     paddingHorizontal: 13,
     borderWidth: 2,
     borderColor: '#ffd3e6',
   },
-  municipalityChipActive: {
+  municipalitySelectItemActive: {
     backgroundColor: '#ef2d82',
     borderColor: '#7a1248',
     borderWidth: 4,
-    shadowColor: '#ef2d82',
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 6,
   },
-  municipalityChipText: {
+  municipalitySelectItemText: {
     color: '#9b1f61',
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '900',
   },
-  municipalityChipTextActive: {
+  municipalitySelectItemTextActive: {
     color: '#ffffff',
     fontWeight: '900',
   },
 
   availablePeopleSection: {
     backgroundColor: '#fff8fb',
-    borderRadius: 24,
-    borderWidth: 1,
+    borderRadius: 28,
+    borderWidth: 2,
     borderColor: '#ffd3e6',
-    padding: 14,
+    padding: 15,
     marginBottom: 18,
-    gap: 12,
+    gap: 13,
+    shadowColor: '#e43f98',
+    shadowOpacity: 0.10,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 4,
   },
   availablePeopleHeader: {
     flexDirection: 'row',
@@ -2283,31 +2338,34 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   availableCardsRow: {
-    gap: 12,
-    paddingRight: 4,
+    gap: 14,
+    paddingRight: 16,
+    paddingBottom: 4,
   },
   availablePersonCard: {
-    width: 220,
+    width: 250,
     backgroundColor: '#ffffff',
-    borderRadius: 26,
-    borderWidth: 1,
+    borderRadius: 30,
+    borderWidth: 2,
     borderColor: '#ffd3e6',
-    padding: 12,
+    padding: 13,
     shadowColor: '#e43f98',
-    shadowOpacity: 0.18,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 6,
+    shadowOpacity: 0.22,
+    shadowRadius: 22,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 8,
   },
   availablePhotoBox: {
     width: '100%',
-    height: 210,
-    borderRadius: 22,
+    height: 240,
+    borderRadius: 26,
     backgroundColor: '#fff0f7',
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
+    marginBottom: 13,
+    borderWidth: 1,
+    borderColor: '#ffd3e6',
   },
   availablePhoto: {
     width: '100%',

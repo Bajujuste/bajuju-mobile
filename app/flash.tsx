@@ -652,10 +652,30 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
       const authResult = await supabase.auth.getUser();
       const currentUserId = authResult.data.user?.id || null;
 
+      const nowIso = new Date().toISOString();
+
+      if (currentUserId) {
+        const myActiveResult = await supabase
+          .from('user_availability')
+          .select('id,user_id,province,city,expires_at,created_at')
+          .eq('user_id', currentUserId)
+          .gt('expires_at', nowIso)
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        if (!myActiveResult.error && myActiveResult.data && myActiveResult.data.length > 0) {
+          setMyActiveAvailability(myActiveResult.data[0] as LooseRow);
+        } else {
+          setMyActiveAvailability(null);
+        }
+      } else {
+        setMyActiveAvailability(null);
+      }
+
       const result = await supabase
         .from('user_availability')
         .select('id,user_id,province,city,expires_at,created_at')
-        .gt('expires_at', new Date().toISOString())
+        .gt('expires_at', nowIso)
         .order('created_at', { ascending: false })
         .limit(100);
 
@@ -668,10 +688,6 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
       let cleanRows = result.data || [];
 
       if (currentUserId) {
-        const myAvailability =
-          cleanRows.find((row: LooseRow) => availableUserId(row) === currentUserId) || null;
-        setMyActiveAvailability(myAvailability);
-
         cleanRows = cleanRows.filter((row: LooseRow) => availableUserId(row) !== currentUserId);
 
         const userIds = cleanRows.map((row: LooseRow) => availableUserId(row)).filter(Boolean);
@@ -874,8 +890,9 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
 
       const result = await supabase
         .from('user_availability')
-        .update({ expires_at: new Date().toISOString() })
-        .eq('id', availabilityId);
+        .delete()
+        .eq('id', availabilityId)
+        .eq('user_id', authUserId);
 
       if (result.error) {
         if (typeof window !== 'undefined') {

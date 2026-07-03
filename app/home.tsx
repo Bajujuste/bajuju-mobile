@@ -176,10 +176,9 @@ export default function HomeScreen() {
 
               <Text style={styles.flashTitle}>Bajuju Flash</Text>
               <Text style={styles.flashDescription}>
-                Fatti vedere per 1, 2 o 3 ore, organizza al volo o fatti invitare.
+                Fatti vedere ed esci subito.
               </Text>
             </View>
-
             <Text style={styles.flashArrow}>›</Text>
           </Pressable>
         </View>

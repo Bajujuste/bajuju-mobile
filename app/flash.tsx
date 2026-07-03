@@ -1,17 +1,6 @@
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Image,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Linking,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Alert, ActivityIndicator, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Linking, Text, TextInput, View,  } from 'react-native';
 
 import { supabase } from '../src/lib/supabase';
 import { shareBajujuFlash } from '../src/utils/shareBajuju';
@@ -195,6 +184,15 @@ function flashPlace(row: LooseRow) {
   return firstText(row, ['place', 'luogo', 'address', 'indirizzo', 'meeting_point', 'punto_ritrovo'], '');
 }
 
+function confirmNative(title: string, message: string, confirmText = 'Conferma') {
+  return new Promise<boolean>((resolve) => {
+    Alert.alert(title, message, [
+      { text: 'No', style: 'cancel', onPress: () => resolve(false) },
+      { text: confirmText, style: 'destructive', onPress: () => resolve(true) },
+    ]);
+  });
+}
+
 function isDeleted(row: LooseRow) {
   const deletedValue = firstValue(row, [
     'deleted_at',
@@ -370,15 +368,18 @@ async function geocodeAddress(address: string, streetNumber: string, city: strin
   const cleanCity = city.trim();
   const cleanProvince = province.trim();
 
-  const fullAddress = cleanStreetNumber ? `${cleanAddress} ${cleanStreetNumber}` : cleanAddress;
+  const addressAlreadyHasStreetNumber =
+    cleanStreetNumber.length > 0 &&
+    new RegExp(`\\b${cleanStreetNumber.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}\\b`, 'i').test(cleanAddress);
+
+  const fullAddress =
+    cleanStreetNumber && !addressAlreadyHasStreetNumber ? `${cleanAddress} ${cleanStreetNumber}` : cleanAddress;
 
   const queries = [
-    `${fullAddress}, ${cleanCity}, ${cleanProvince}, Italia`,
-    `${fullAddress}, ${cleanCity}, Italia`,
-    `${cleanAddress}, ${cleanCity}, ${cleanProvince}, Italia`,
-    `${cleanAddress}, ${cleanCity}, Italia`,
-    `${cleanAddress}, ${cleanProvince}, Italia`,
-    `${cleanCity}, ${cleanProvince}, Italia`,
+    `${fullAddress}, ${cleanCity}, ${cleanProvince}`,
+    `${fullAddress}, ${cleanCity}`,
+    `${cleanAddress}, ${cleanCity}, ${cleanProvince}`,
+    `${cleanAddress}, ${cleanCity}`,
   ];
 
   for (const query of queries) {
@@ -1042,15 +1043,6 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
       return;
     }
 
-    const hasStreetNumber = /\d+[a-zA-Z]?/.test(cleanStreetNumber);
-
-    if (!hasStreetNumber) {
-      if (typeof window !== 'undefined') {
-        window.alert('Inserisci il numero civico nel campo dedicato, esempio: 12.');
-      }
-      return;
-    }
-
     setSavingFlash(true);
 
     try {
@@ -1072,7 +1064,30 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
         creatorId = byId.data.id;
       }
 
+      const creatorIdsToCheck = [authUserId];
+
+      if (creatorId && creatorId !== authUserId) {
+        creatorIdsToCheck.push(creatorId);
+      }
+
       const now = new Date();
+      const nowIso = now.toISOString();
+
+      const activeFlashResult = await supabase
+        .from('activities')
+        .select('id,title,expires_at')
+        .eq('is_flash', true)
+        .in('creator_id', creatorIdsToCheck)
+        .gt('expires_at', nowIso)
+        .limit(1);
+
+      if (!activeFlashResult.error && (activeFlashResult.data || []).length > 0) {
+        if (typeof window !== 'undefined') {
+          window.alert('Hai già un Flash attivo. Annulla quello prima di crearne un altro.');
+        }
+        return;
+      }
+
       const cleanDate = now.toISOString().slice(0, 10);
       const cleanTime = now.toTimeString().slice(0, 8);
       const expiresAt = new Date(now.getTime() + newDurationHours * 60 * 60 * 1000).toISOString();
@@ -1082,11 +1097,18 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
       if (!coordinates) {
         if (typeof window !== 'undefined') {
           window.alert(
-            'Indirizzo non trovato. Controlla via e comune, oppure prova a togliere o correggere il numero civico.'
+            'Indirizzo non trovato. Controlla via, numero civico e comune. Il Flash non viene creato finché la posizione non è valida.'
           );
         }
         return;
       }
+
+      const addressAlreadyHasStreetNumber =
+        cleanStreetNumber.length > 0 &&
+        new RegExp(`\\b${cleanStreetNumber.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}\\b`, 'i').test(cleanPlace);
+
+      const finalMeetingPlace =
+        cleanStreetNumber && !addressAlreadyHasStreetNumber ? `${cleanPlace} ${cleanStreetNumber}` : cleanPlace;
 
       const payload = {
         creator_id: creatorId,
@@ -1095,7 +1117,7 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
         description: `Bajuju Flash creato da mobile app. Disponibile per ${newDurationHours} ore.`,
         city: cleanCity,
         province: cleanProvince,
-        meeting_place: cleanStreetNumber ? `${cleanPlace} ${cleanStreetNumber}` : cleanPlace,
+        meeting_place: finalMeetingPlace,
         activity_date: cleanDate,
         activity_time: cleanTime,
         min_participants: 1,
@@ -1216,10 +1238,11 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
       return;
     }
 
-    const confirmed =
-      typeof window === 'undefined'
-        ? true
-        : window.confirm('Vuoi annullare questo Flash? Non sarà più visibile tra i Flash disponibili.');
+    const confirmed = await confirmNative(
+      'Annulla Flash',
+      'Vuoi annullare questo Flash? Non sarà più visibile tra i Flash disponibili.',
+      'Sì, annulla'
+    );
 
     if (!confirmed) return;
 
@@ -1236,14 +1259,45 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
         return;
       }
 
+      const profileByIdResult = await supabase
+        .from('profiles')
+        .select('id,user_id')
+        .eq('id', authUserId)
+        .maybeSingle();
+
+      const profileByUserIdResult = await supabase
+        .from('profiles')
+        .select('id,user_id')
+        .eq('user_id', authUserId)
+        .maybeSingle();
+
+      const creatorIds = new Set<string>([authUserId]);
+
+      if (!profileByIdResult.error && profileByIdResult.data?.id) {
+        creatorIds.add(String(profileByIdResult.data.id));
+      }
+
+      if (!profileByUserIdResult.error && profileByUserIdResult.data?.id) {
+        creatorIds.add(String(profileByUserIdResult.data.id));
+      }
+
       const result = await supabase
         .from('activities')
         .update({ expires_at: new Date().toISOString() })
-        .eq('id', activityId);
+        .eq('id', activityId)
+        .in('creator_id', Array.from(creatorIds))
+        .select('id');
 
       if (result.error) {
         if (typeof window !== 'undefined') {
           window.alert(`Errore annullamento Flash: ${result.error.message}`);
+        }
+        return;
+      }
+
+      if (!result.data || result.data.length === 0) {
+        if (typeof window !== 'undefined') {
+          window.alert('Non sono riuscito ad annullare il Flash. Ricarica e riprova.');
         }
         return;
       }
@@ -1263,10 +1317,11 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
 
     if (!activityId || leavingActivityId) return;
 
-    const confirmed =
-      typeof window === 'undefined'
-        ? true
-        : window.confirm('Vuoi abbandonare questo Flash?');
+    const confirmed = await confirmNative(
+      'Abbandona Flash',
+      'Vuoi abbandonare questo Flash?',
+      'Sì, abbandona'
+    );
 
     if (!confirmed) return;
 
@@ -1348,52 +1403,55 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
           <Text style={styles.flashBackText}>{forcedSection ? '← Bajuju Flash' : '← Home'}</Text>
         </Pressable>
 
-        <Text style={styles.kicker}>Bajuju Flash</Text>
-        <Text style={styles.flashInstructions}>Un’idea semplice, qualcuno disponibile, si parte.</Text>
+        <View style={styles.flashHeroTopRow}>
+          <View style={styles.flashHeroTextBlock}>
+            <Text style={styles.kicker}>Bajuju Flash</Text>
+            <Text style={styles.flashHeroPhrase}>
+              Fatti vedere ed esci subito.
+            </Text>
+          </View>
 
-        <View style={styles.flashLogoCircle}>
-          <Image source={bajujuLogo} style={styles.flashLogoImage} resizeMode="contain" />
+          <View style={styles.flashLogoCircle}>
+            <Image source={bajujuLogo} style={styles.flashLogoImage} resizeMode="contain" />
+          </View>
         </View>
 
-        <Text style={styles.flashHeroPhrase}>
-          Un’idea semplice. Qualcuno disponibile. Si parte.
-        </Text>
+        <Text style={styles.flashInstructions}>Crea, trova o raggiungi qualcuno disponibile adesso.</Text>
+
+        <Pressable
+          style={[styles.flashChoiceButton, styles.flashCreateChoiceButton, styles.flashMainChoiceButton, styles.flashWideMainButton]}
+          onPress={() => router.push('/flash-create')}
+        >
+          <Text style={styles.flashChoiceIcon}>FLASH</Text>
+          <Text style={styles.flashChoiceText}>Crea un nuovo Flash</Text>
+          <Text style={styles.flashMainChoiceSubtext}>Lancia un invito, raduna le persone, vivilo dal vivo.</Text>
+        </Pressable>
 
         <View style={styles.flashChoiceRow}>
           <Pressable
             style={[styles.flashChoiceButton, styles.flashFindChoiceButton]}
             onPress={() => router.push('/flash-find')}
           >
-            <Text style={styles.flashChoiceIcon}>🔎</Text>
-            <Text style={styles.flashChoiceText}>Trova Flash</Text>
+            <Text style={[styles.flashChoiceIcon, styles.flashSecondaryChoiceIcon]}>CERCA</Text>
+            <Text style={[styles.flashChoiceText, styles.flashSecondaryChoiceText]}>Trova Flash</Text>
           </Pressable>
-
-          <Pressable
-            style={[styles.flashChoiceButton, styles.flashCreateChoiceButton]}
-            onPress={() => router.push('/flash-create')}
-          >
-            <Text style={styles.flashChoiceIcon}>⚡</Text>
-            <Text style={styles.flashChoiceText}>Crea Flash</Text>
-          </Pressable>
-        </View>
-
-        <View style={styles.flashChoiceRow}>
           <Pressable
             style={[styles.flashChoiceButton, styles.flashFindChoiceButton]}
             onPress={() => router.push('/flash-availability')}
           >
-            <Text style={styles.flashChoiceIcon}>🙋</Text>
-            <Text style={styles.flashChoiceText}>Renditi disponibile ora</Text>
+            <Text style={[styles.flashChoiceIcon, styles.flashSecondaryChoiceIcon]}>ORA</Text>
+            <Text style={[styles.flashChoiceText, styles.flashSecondaryChoiceText]}>Renditi disponibile</Text>
           </Pressable>
 
-          <Pressable
-            style={[styles.flashChoiceButton, styles.flashCreateChoiceButton]}
-            onPress={() => router.push('/flash-available')}
-          >
-            <Text style={styles.flashChoiceIcon}>👀</Text>
-            <Text style={styles.flashChoiceText}>Guarda chi è disponibile</Text>
-          </Pressable>
         </View>
+
+        <Pressable
+          style={[styles.flashChoiceButton, styles.flashFindChoiceButton, styles.flashLiveWideButton]}
+          onPress={() => router.push('/flash-available')}
+        >
+          <Text style={[styles.flashChoiceIcon, styles.flashSecondaryChoiceIcon]}>LIVE</Text>
+          <Text style={[styles.flashChoiceText, styles.flashSecondaryChoiceText]}>Guarda chi è disponibile</Text>
+        </Pressable>
         </View>
       ) : null}
 
@@ -1409,7 +1467,7 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
 
           <Text style={styles.kicker}>Bajuju Flash</Text>
           <Text style={styles.flashDedicatedTitle}>
-            {isCreatePage ? 'Crea un Flash' : selectedSection === 'availability' ? 'Renditi disponibile ora' : selectedSection === 'available' ? 'Guarda chi è disponibile' : 'Trova Flash'}
+            {isCreatePage ? 'Crea un Flash' : selectedSection === 'availability' ? 'Renditi disponibile' : selectedSection === 'available' ? 'Guarda chi è disponibile' : 'Trova Flash'}
           </Text>
           <Text style={styles.flashDedicatedText}>
             {isCreatePage
@@ -1790,12 +1848,12 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
       </View>
 
       <View style={[styles.card, !(selectedSection === 'find' || isFindPage) && styles.hiddenSection]}>
-        <Text style={styles.sectionTitle}>Mappa Flash disponibili</Text>
+        <Text style={styles.sectionTitle}>Mappa temporaneamente disabilitata</Text>
 
         {filteredRows.filter((row) => !!getCoordinates(row)).length === 0 ? (
           <Text style={styles.mutedText}>Nessun Flash con coordinate disponibile con questi filtri.</Text>
         ) : (
-          <View style={styles.flashVisualMapCard}>
+          <View style={[styles.flashVisualMapCard, styles.hiddenSection]}>
             <View style={styles.flashVisualMapHeader}>
               <View style={styles.flashVisualMapHeaderText}>
                 <Text style={styles.flashVisualMapTitle}>Flash sulla mappa</Text>
@@ -1825,7 +1883,7 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
                     ]}
                     onPress={() => setSelectedMapFlashId(selected ? null : id)}
                   >
-                    <Text style={styles.flashMapPinText}>⚡</Text>
+                    <Text style={styles.flashMapPinText}>•</Text>
                   </Pressable>
                 );
               })}
@@ -2026,6 +2084,37 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
 }
 
 const styles = StyleSheet.create({
+  flashLiveWideButton: {
+    width: '100%',
+    minHeight: 68,
+    marginTop: 10,
+    alignItems: 'flex-start',
+  },
+  flashWideMainButton: {
+    width: '100%',
+    minHeight: 112,
+    marginTop: 4,
+    marginBottom: 10,
+    alignItems: 'flex-start',
+  },
+  flashMainChoiceSubtext: {
+    color: '#ffe8f1',
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 18,
+    marginTop: 6,
+  },
+  flashHeroTopRow: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 14,
+    marginBottom: 10,
+  },
+  flashHeroTextBlock: {
+    flex: 1,
+  },
   flashDedicatedText: {
     color: '#7b4960',
     fontSize: 14,
@@ -2094,29 +2183,27 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   flashHeroCard: {
-    borderRadius: 36,
-    padding: 20,
-    backgroundColor: '#fffafd',
+    borderRadius: 32,
+    padding: 18,
+    backgroundColor: '#fff8fb',
     borderWidth: 1,
-    borderColor: '#ef8fbe',
-    alignItems: 'center',
-    shadowColor: '#e43f98',
-    shadowOpacity: 0.26,
-    shadowRadius: 32,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 9,
+    borderColor: '#f7d4e3',
+    alignItems: 'stretch',
+    shadowColor: '#8b2d5a',
+    shadowOpacity: 0.12,
+    shadowRadius: 26,
+    shadowOffset: { width: 0, height: 14 },
+    elevation: 4,
   },
   flashLogoCircle: {
-    width: 178,
-    height: 178,
-    borderRadius: 89,
-    backgroundColor: '#fff0f7',
-    borderWidth: 2,
-    borderColor: '#ffc2df',
+    width: 62,
+    height: 62,
+    borderRadius: 31,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#f6d7e4',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 18,
-    marginBottom: 16,
     overflow: 'hidden',
   },
   flashLogoImage: {
@@ -2126,12 +2213,13 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   flashHeroPhrase: {
-    color: '#e43f98',
-    fontSize: 19,
-    lineHeight: 25,
+    color: '#331426',
+    fontSize: 26,
+    lineHeight: 30,
     fontWeight: '900',
-    textAlign: 'center',
-    marginBottom: 8,
+    textAlign: 'left',
+    marginTop: 4,
+    letterSpacing: -0.6,
   },
   flashHeroText: {
     color: '#43152f',
@@ -2157,21 +2245,42 @@ const styles = StyleSheet.create({
     borderWidth: 2,
   },
   flashCreateChoiceButton: {
-    backgroundColor: '#c2185b',
-    borderColor: '#a8144d',
+    backgroundColor: '#ef2d82',
+    borderColor: '#ef2d82',
+  },
+  flashMainChoiceButton: {
+    minHeight: 118,
+    shadowColor: '#ef2d82',
+    shadowOpacity: 0.26,
+    shadowRadius: 22,
+    shadowOffset: { width: 0, height: 12 },
+    elevation: 9,
   },
   flashFindChoiceButton: {
-    backgroundColor: '#e43f98',
-    shadowColor: '#e43f98',
-    shadowOpacity: 0.30,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 9 },
-    elevation: 8,
-    borderColor: '#c72d7d',
+    backgroundColor: '#ffffff',
+    shadowColor: '#8b2d5a',
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 2,
+    borderColor: '#f5d4e2',
+  },
+  flashSecondaryChoiceIcon: {
+    color: '#ef2d82',
+    backgroundColor: '#fff0f7',
+    borderRadius: 999,
+    overflow: 'hidden',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+  },
+  flashSecondaryChoiceText: {
+    color: '#331426',
   },
   flashChoiceIcon: {
-    fontSize: 33,
+    fontSize: 11,
     marginBottom: 8,
+    fontWeight: '900',
+    letterSpacing: 0.7,
   },
   flashChoiceText: {
     color: '#ffffff',
@@ -2986,20 +3095,25 @@ const styles = StyleSheet.create({
   },
   flashActionsRow: {
     flexDirection: 'row',
-    gap: 8,
-    marginTop: 8,
-    marginBottom: 8,
+    gap: 10,
+    marginTop: 12,
+    marginBottom: 4,
   },
   flashActionButton: {
     flex: 1,
+    borderRadius: 999,
+    minHeight: 42,
+    justifyContent: 'center',
   },
   shareFlashButton: {
     borderRadius: 999,
-    backgroundColor: '#fffafd',
+    backgroundColor: '#fff7fb',
     borderWidth: 1,
-    borderColor: '#ef8fbe',
+    borderColor: '#f4b3d1',
     paddingVertical: 10,
     alignItems: 'center',
+    minHeight: 42,
+    justifyContent: 'center',
   },
   shareFlashButtonText: {
     color: '#e43f98',
@@ -3012,30 +3126,42 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   flashBox: {
-    backgroundColor: '#fff0f7',
-    borderRadius: 24,
-    padding: 20,
+    backgroundColor: '#ffffff',
+    borderRadius: 22,
+    padding: 16,
     borderWidth: 1,
-    borderColor: '#ffd3e6',
+    borderColor: '#ffd5e8',
     marginBottom: 12,
+    shadowColor: '#e43f98',
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 2,
   },
   flashTitle: {
-    color: '#4b1430',
-    fontSize: 18,
+    color: '#421229',
+    fontSize: 17,
     fontWeight: '900',
-    marginBottom: 6,
+    marginBottom: 5,
+    letterSpacing: -0.2,
   },
   flashMeta: {
-    color: '#7b4960',
-    fontSize: 14,
-    lineHeight: 20,
+    color: '#7f5268',
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 2,
   },
   flashPlace: {
     color: '#4b1430',
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 13,
+    lineHeight: 18,
     marginTop: 8,
-    fontWeight: '700',
+    fontWeight: '800',
+    backgroundColor: '#fff7fb',
+    borderRadius: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    overflow: 'hidden',
   },
   mapButton: {
     alignSelf: 'flex-start',
@@ -3057,28 +3183,38 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   ownerActions: {
-    gap: 10,
-    marginTop: 12,
+    gap: 8,
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#ffe1ee',
   },
   cancelButton: {
-    backgroundColor: '#fff0f7',
-    borderRadius: 16,
-    paddingVertical: 12,
+    backgroundColor: '#fff7fb',
+    borderRadius: 999,
+    paddingVertical: 10,
     paddingHorizontal: 14,
     borderWidth: 1,
-    borderColor: '#ef2d82',
+    borderColor: '#ef8fbe',
     alignItems: 'center',
+    minHeight: 40,
+    justifyContent: 'center',
   },
   cancelButtonText: {
-    color: '#ef2d82',
-    fontWeight: '900',
-    fontSize: 14,
-  },
-  flashStatusText: {
-    marginTop: 12,
-    color: '#8f3d65',
+    color: '#e43f98',
     fontWeight: '900',
     fontSize: 13,
+  },
+  flashStatusText: {
+    alignSelf: 'flex-start',
+    marginTop: 12,
+    color: '#8f3d65',
+    backgroundColor: '#fff2f8',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    fontWeight: '900',
+    fontSize: 12,
   },
   joinedActions: {
     gap: 10,

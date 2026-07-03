@@ -1,12 +1,11 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import MapView, { Marker } from 'react-native-maps';
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 
 import {
   ActivityIndicator,
-  Image,
   Linking,
+  Image,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -288,15 +287,16 @@ function openExternalMap(row: ActivityRow) {
   const coordinates = getCoordinates(row);
 
   if (coordinates) {
-    const { latitude, longitude } = coordinates;
-    const url = `https://www.openstreetmap.org/?mlat=${latitude}&mlon=${longitude}#map=18/${latitude}/${longitude}&layers=N&marker=${latitude},${longitude}`;
+    const latitude = coordinates.latitude;
+    const longitude = coordinates.longitude;
+    const url = "https://www.openstreetmap.org/?mlat=" + latitude + "&mlon=" + longitude + "#map=18/" + latitude + "/" + longitude + "&layers=N&marker=" + latitude + "," + longitude;
     Linking.openURL(url);
     return;
   }
 
-  const query = [getAddress(row), getCity(row), getProvince(row), 'Italia'].filter(Boolean).join(', ');
+  const query = [getAddress(row), getCity(row), getProvince(row), "Italia"].filter(Boolean).join(", ");
   if (query.trim()) {
-    Linking.openURL(`https://www.openstreetmap.org/search?query=${encodeURIComponent(query)}`);
+    Linking.openURL("https://www.openstreetmap.org/search?query=" + encodeURIComponent(query));
   }
 }
 
@@ -307,7 +307,7 @@ function openDetail(row: ActivityRow) {
   }
 }
 
-export default function ExperiencesMapScreen() {
+export default function ExperiencesMapScreen() { 
   const [rows, setRows] = useState<ActivityRow[]>([]);
   const [selectedPreviewRow, setSelectedPreviewRow] = useState<ActivityRow | null>(null);
   const [loading, setLoading] = useState(true);
@@ -365,9 +365,9 @@ export default function ExperiencesMapScreen() {
 
   function handleMarkerPress(row: ActivityRow) {
     const id = activityId(row);
+    const coordinates = getCoordinates(row);
 
-    if (id && selectedPreviewId === id) {
-      openDetail(row);
+    if (!id || !coordinates) {
       return;
     }
 
@@ -406,54 +406,9 @@ export default function ExperiencesMapScreen() {
           </View>
 
           <View style={styles.realMapShell}>
-            <MapView
-              style={styles.realMap}
-              initialRegion={{
-                latitude: 45.6983,
-                longitude: 9.6773,
-                latitudeDelta: 0.35,
-                longitudeDelta: 0.35,
-              }}
-              zoomEnabled
-              scrollEnabled
-              rotateEnabled={false}
-              pitchEnabled={false}
-            >
-              {rows.slice(0, 80).map((row, index) => {
-                const category = getCategory(row);
-                const id = activityId(row);
-                const coordinates = getCoordinates(row);
-
-                if (!coordinates) {
-                  return null;
-                }
-
-                return (
-                  <Marker
-                    key={`bajuju-native-marker-${id || index}-${selectedPreviewId === id ? 'selected' : 'idle'}`}
-                    coordinate={coordinates}
-                    title={activityTitle(row)}
-                    description={[getCity(row), getProvince(row)].filter(Boolean).join(' · ')}
-                    onPress={() => handleMarkerPress(row)}
-                  >
-                    <View
-                      style={[
-                        styles.bajujuMapDot,
-                        selectedPreviewId === id && styles.bajujuMapDotSelected,
-                      ]}
-                    >
-                      <View style={styles.nativeMarkerIconBubble}>
-                        <MaterialCommunityIcons
-                          name={getMapCategoryIconName(category) as any}
-                          size={24}
-                          color="#e43f98"
-                        />
-                      </View>
-                    </View>
-                  </Marker>
-                );
-              })}
-            </MapView>
+            <View style={{ backgroundColor: "#fff8fb", borderColor: "#ffd3e8", borderRadius: 18, borderWidth: 1, padding: 16 }}>
+              <Text style={{ color: "#7a1f4f", fontSize: 16, fontWeight: "900" }}>Mappa temporaneamente disabilitata</Text>
+            </View>
 
             {selectedPreviewRow ? (
               <Pressable style={styles.mapPreviewOverlay} onPress={() => openDetail(selectedPreviewRow)}>
@@ -484,7 +439,7 @@ export default function ExperiencesMapScreen() {
           </View>
 
           <Text style={styles.visualMapHint}>
-            Tocca un cerchio Bajuju per vedere l’anteprima, poi tocca di nuovo per aprire il dettaglio evento.
+            Mappa temporaneamente disabilitata.
           </Text>
         </View>
       ) : null}

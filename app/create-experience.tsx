@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
+  Modal,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -85,12 +86,76 @@ function buildTime(hour: string, minute: string) {
   return `${hour}:${minute}`;
 }
 
+async function geocodeAddress(address: string, streetNumber: string, city: string, province: string) {
+  const cleanAddress = address.trim();
+  const cleanStreetNumber = streetNumber.trim();
+  const cleanCity = city.trim();
+  const cleanProvince = province.trim();
+
+  const addressAlreadyHasStreetNumber =
+    cleanStreetNumber.length > 0 &&
+    new RegExp(`\\b${cleanStreetNumber.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}\\b`, 'i').test(cleanAddress);
+
+  const fullAddress =
+    cleanStreetNumber && !addressAlreadyHasStreetNumber ? `${cleanAddress} ${cleanStreetNumber}` : cleanAddress;
+
+  const queries = [
+    `${fullAddress}, ${cleanCity}, ${cleanProvince}`,
+    `${fullAddress}, ${cleanCity}`,
+    `${cleanAddress}, ${cleanCity}, ${cleanProvince}`,
+    `${cleanAddress}, ${cleanCity}`,
+  ];
+
+  for (const query of queries) {
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=it&q=${encodeURIComponent(query)}`;
+
+      const response = await fetch(url, {
+        headers: {
+          Accept: 'application/json',
+          'User-Agent': 'BajujuMobileApp/1.0',
+        },
+      });
+
+      if (!response.ok) {
+        console.log('Geocoding esperienza non riuscito:', response.status, query);
+        continue;
+      }
+
+      const data = await response.json();
+
+      if (!Array.isArray(data) || data.length === 0) {
+        console.log('Nessun risultato geocoding esperienza per:', query);
+        continue;
+      }
+
+      const first = data[0];
+      const latitude = Number(first.lat);
+      const longitude = Number(first.lon);
+
+      if (Number.isNaN(latitude) || Number.isNaN(longitude)) {
+        console.log('Coordinate esperienza non valide per:', query);
+        continue;
+      }
+
+      return { latitude, longitude };
+    } catch (error) {
+      console.log('Errore geocoding esperienza per:', query, error);
+    }
+  }
+
+  return null;
+}
+
 export default function CreateExperienceScreen() {
   const [title, setTitle] = useState('');
   const [province, setProvince] = useState('');
+  const [city, setCity] = useState('');
   const [meetingPlace, setMeetingPlace] = useState('');
+  const [streetNumber, setStreetNumber] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
+  const [openSelect, setOpenSelect] = useState<null | 'province' | 'category'>(null);
 
   const [day, setDay] = useState('');
   const [month, setMonth] = useState('');
@@ -127,6 +192,7 @@ export default function CreateExperienceScreen() {
   const canCreateExperience =
     title.trim().length > 0 &&
     provinceIsValid &&
+    city.trim().length > 0 &&
     meetingPlace.trim().length > 0 &&
     description.trim().length > 0 &&
     category.trim().length > 0 &&
@@ -141,10 +207,19 @@ export default function CreateExperienceScreen() {
 
     const cleanTitle = title.trim();
     const cleanProvince = province.trim();
+    const cleanCity = city.trim();
     const cleanMeetingPlace = meetingPlace.trim();
+    const cleanStreetNumber = streetNumber.trim();
     const cleanDescription = description.trim();
     const cleanCategory = category.trim();
     const databaseCategory = categoryToDatabaseValue(cleanCategory);
+
+    if (!cleanCity || !cleanMeetingPlace) {
+      if (typeof window !== 'undefined') {
+        window.alert('Compila provincia, comune e indirizzo.');
+      }
+      return;
+    }
 
     if (!isoDate || !cleanTime) {
       if (typeof window !== 'undefined') {
@@ -166,13 +241,34 @@ export default function CreateExperienceScreen() {
         return;
       }
 
+      const coordinates = await geocodeAddress(cleanMeetingPlace, cleanStreetNumber, cleanCity, cleanProvince);
+
+      if (!coordinates) {
+        if (typeof window !== 'undefined') {
+          window.alert(
+            'Indirizzo non trovato. Controlla via, eventuale numero civico e comune. L’esperienza non viene creata finché la posizione non è valida.'
+          );
+        }
+        return;
+      }
+
+      const addressAlreadyHasStreetNumber =
+        cleanStreetNumber.length > 0 &&
+        new RegExp(`\\b${cleanStreetNumber.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}\\b`, 'i').test(cleanMeetingPlace);
+
+      const finalMeetingPlace =
+        cleanStreetNumber && !addressAlreadyHasStreetNumber
+          ? `${cleanMeetingPlace} ${cleanStreetNumber}`
+          : cleanMeetingPlace;
+
       const payload = {
         creator_id: creatorId,
         title: cleanTitle,
         category: databaseCategory,
         description: cleanDescription,
         province: cleanProvince,
-        meeting_place: cleanMeetingPlace,
+        city: cleanCity,
+        meeting_place: finalMeetingPlace,
         activity_date: isoDate,
         activity_time: cleanTime,
         min_participants: 1,
@@ -180,8 +276,8 @@ export default function CreateExperienceScreen() {
         budget_amount: needsBudget ? cleanBudgetAmount : null,
         is_flash: false,
         expires_at: null,
-        latitude: null,
-        longitude: null,
+        latitude: coordinates.latitude,
+        longitude: coordinates.longitude,
       };
 
       const result = await supabase.from('activities').insert(payload).select('*').single();
@@ -210,7 +306,9 @@ export default function CreateExperienceScreen() {
 
       setTitle('');
       setProvince('');
+      setCity('');
       setMeetingPlace('');
+      setStreetNumber('');
       setDescription('');
       setCategory('');
       setDay('');
@@ -239,198 +337,208 @@ export default function CreateExperienceScreen() {
         </Pressable>
 
         <View style={styles.header}>
-          <Text style={styles.logoText}>Crea esperienza ✨</Text>
-          <Text style={styles.subtitle}>
-            Prepara una nuova esperienza Bajuju: titolo, luogo, orario e anteprima finale.
-          </Text>
+          <Text style={styles.logoText}>Bajuju</Text>
+          <Text style={styles.brandClaim}>Dal Vivo è Meglio</Text>
+          <View style={styles.headerLine} />
 
-          <View style={styles.createHeroTips}>
-            <Text style={styles.createHeroTip}>📝 Compila i dati principali</Text>
-            <Text style={styles.createHeroTip}>📍 Indica dove trovarsi</Text>
-            <Text style={styles.createHeroTip}>🚀 Pubblica e invita persone</Text>
-          </View>
+          <Text style={styles.pageTitle}>Crea esperienza</Text>
+          <Text style={styles.subtitle}>
+            Compila i dettagli essenziali e pubblica la tua esperienza.
+          </Text>
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.sectionEyebrow}>Nuova esperienza</Text>
-          <Text style={styles.title}>Cosa vuoi organizzare?</Text>
+          <View style={styles.formSection}>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionTitle}>Informazioni principali</Text>
+            </View>
 
-          <Text style={styles.label}>Titolo esperienza</Text>
-          <TextInput
-            value={title}
-            onChangeText={setTitle}
-            placeholder="Es. Cena tra amici, camminata, aperitivo..."
-            placeholderTextColor="#a95d86"
-            style={styles.input}
-          />
-
-          <Text style={styles.label}>📍 Provincia</Text>
-          <View style={styles.categoryGrid}>
-            {LOCATION_OPTIONS.map((item) => (
-              <Pressable
-                key={item}
-                style={[
-                  styles.categoryButton,
-                  province === item && styles.categoryButtonActive,
-                ]}
-                onPress={() => {
-                  setProvince(item);
-                }}
-              >
-                <Text style={[
-                  styles.categoryText,
-                  province === item && styles.categoryTextActive,
-                ]}>
-                  {item}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-
-          <Text style={styles.label}>📌 Nome punto di ritrovo</Text>
-          <TextInput
-            value={meetingPlace}
-            onChangeText={setMeetingPlace}
-            placeholder="Es. Bar Centrale, parcheggio, ingresso locale..."
-            placeholderTextColor="#a95d86"
-            style={styles.input}
-            maxLength={100}
-          />
-
-          <Text style={styles.label}>Descrizione esperienza</Text>
-          <TextInput
-            value={description}
-            onChangeText={setDescription}
-            placeholder="Spiega cosa si farà, per chi è adatta e cosa portare."
-            placeholderTextColor="#a95d86"
-            style={[styles.input, styles.textArea]}
-            multiline
-            maxLength={500}
-          />
-          <Text style={styles.helperText}>
-            Massimo 500 caratteri.
-          </Text>
-
-          <Text style={styles.label}>🗓️ Data</Text>
-          <Text style={styles.helperText}>Formato europeo: GG/MM/AAAA — esempio 26/06/2026</Text>
-
-          <View style={styles.datePartsRow}>
+            <Text style={styles.label}>Titolo esperienza</Text>
             <TextInput
-              value={day}
-              onChangeText={(value) => setDay(onlyDigits(value, 2))}
-              placeholder="GG"
-              placeholderTextColor="#a95d86"
-              style={styles.smallInput}
-              keyboardType="number-pad"
-              maxLength={2}
-            />
-            <Text style={styles.separator}>/</Text>
-            <TextInput
-              value={month}
-              onChangeText={(value) => setMonth(onlyDigits(value, 2))}
-              placeholder="MM"
-              placeholderTextColor="#a95d86"
-              style={styles.smallInput}
-              keyboardType="number-pad"
-              maxLength={2}
-            />
-            <Text style={styles.separator}>/</Text>
-            <TextInput
-              value={year}
-              onChangeText={(value) => setYear(onlyDigits(value, 4))}
-              placeholder="AAAA"
-              placeholderTextColor="#a95d86"
-              style={styles.yearInput}
-              keyboardType="number-pad"
-              maxLength={4}
+              value={title}
+              onChangeText={setTitle}
+              placeholder="Titolo"
+              placeholderTextColor="#9c7b8b"
+              style={styles.input}
             />
           </View>
 
-          <Text style={styles.label}>⏰ Ora</Text>
-          <Text style={styles.helperText}>Formato 24 ore: HH:MM — esempio 18:30</Text>
+          <View style={styles.formSection}>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionTitle}>Dove si svolge</Text>
+            </View>
 
-          <View style={styles.datePartsRow}>
-            <TextInput
-              value={hour}
-              onChangeText={(value) => setHour(onlyDigits(value, 2))}
-              placeholder="HH"
-              placeholderTextColor="#a95d86"
-              style={styles.smallInput}
-              keyboardType="number-pad"
-              maxLength={2}
-            />
-            <Text style={styles.separator}>:</Text>
-            <TextInput
-              value={minute}
-              onChangeText={(value) => setMinute(onlyDigits(value, 2))}
-              placeholder="MM"
-              placeholderTextColor="#a95d86"
-              style={styles.smallInput}
-              keyboardType="number-pad"
-              maxLength={2}
-            />
-          </View>
-
-          <Text style={styles.sectionTitle}>Categoria</Text>
-
-          <View style={styles.categoryGrid}>
-            {EXPERIENCE_CREATION_CATEGORIES.map((item) => (
-              <Pressable
-                key={item}
-                style={[
-                  styles.categoryButton,
-                  category === item && styles.categoryButtonActive,
-                ]}
-                onPress={() => {
-                  setCategory(item);
-                  if (item !== 'Gita' && item !== 'Vacanza') {
-                    setBudgetAmount('');
-                  }
-                }}
-              >
-                <Text
-                  style={[
-                    styles.categoryText,
-                    category === item && styles.categoryTextActive,
-                  ]}
-                >
-                  {item}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-
-          <Text style={styles.label}>👥 Numero massimo partecipanti</Text>
-          <TextInput
-            value={maxParticipants}
-            onChangeText={(value) => setMaxParticipants(onlyDigits(value, 2))}
-            placeholder="Es. 10"
-            placeholderTextColor="#a95d86"
-            style={styles.input}
-            keyboardType="number-pad"
-            maxLength={2}
-          />
-          <Text style={styles.helperText}>
-            Puoi inserire da 1 a 99 partecipanti.
-          </Text>
-
-          {needsBudget ? (
-            <>
-              <Text style={styles.label}>💶 Budget indicativo €</Text>
-              <TextInput
-                value={budgetAmount}
-                onChangeText={(value) => setBudgetAmount(onlyDigits(value, 4))}
-                placeholder="Es. 50"
-                placeholderTextColor="#a95d86"
-                style={styles.input}
-                keyboardType="number-pad"
-                maxLength={4}
-              />
-              <Text style={styles.helperText}>
-                Indica una spesa massima indicativa da 0 a 9999 €.
+            <Text style={styles.label}>Provincia</Text>
+            <Pressable style={styles.selectButton} onPress={() => setOpenSelect('province')}>
+              <Text style={[styles.selectButtonText, !province.trim() && styles.selectPlaceholder]}>
+                {province.trim() || 'Seleziona provincia'}
               </Text>
-            </>
-          ) : null}
+              <Text style={styles.selectChevron}>⌄</Text>
+            </Pressable>
+
+            <Text style={styles.label}>Comune</Text>
+            <TextInput
+              value={city}
+              onChangeText={setCity}
+              placeholder="Comune"
+              placeholderTextColor="#9c7b8b"
+              style={styles.input}
+              maxLength={80}
+            />
+
+            <View style={styles.twoColumnsRow}>
+              <View style={styles.addressColumn}>
+                <Text style={styles.label}>Indirizzo</Text>
+                <TextInput
+                  value={meetingPlace}
+                  onChangeText={setMeetingPlace}
+                  placeholder="Indirizzo"
+                  placeholderTextColor="#9c7b8b"
+                  style={styles.input}
+                  maxLength={100}
+                />
+              </View>
+
+              <View style={styles.streetNumberColumn}>
+                <Text style={styles.label}>N. civico</Text>
+                <TextInput
+                  value={streetNumber}
+                  onChangeText={(value) => setStreetNumber(value.replace(/[^0-9a-zA-Z\/\-]/g, '').slice(0, 8))}
+                  placeholder="12"
+                  placeholderTextColor="#9c7b8b"
+                  style={styles.input}
+                  maxLength={8}
+                />
+              </View>
+            </View>
+
+            <Text style={styles.helperText}>
+              L’indirizzo serve solo per posizionare correttamente l’esperienza sulla mappa.
+            </Text>
+          </View>
+
+          <View style={[styles.formSection, styles.whenSection]}>
+            <View style={styles.compactSectionHeaderRow}>
+              <Text style={styles.sectionTitle}>Quando</Text>
+            </View>
+
+            <View style={styles.dateTimeRow}>
+              <View style={styles.dateColumn}>
+                <Text style={styles.compactLabel}>Data</Text>
+                <View style={styles.compactDatePartsRow}>
+                  <TextInput
+                    value={day}
+                    onChangeText={(value) => setDay(onlyDigits(value, 2))}
+                    placeholder="GG"
+                    placeholderTextColor="#9c7b8b"
+                    style={[styles.smallInput, styles.compactSmallInput]}
+                    keyboardType="number-pad"
+                    maxLength={2}
+                  />
+                  <Text style={styles.separator}>/</Text>
+                  <TextInput
+                    value={month}
+                    onChangeText={(value) => setMonth(onlyDigits(value, 2))}
+                    placeholder="MM"
+                    placeholderTextColor="#9c7b8b"
+                    style={[styles.smallInput, styles.compactSmallInput]}
+                    keyboardType="number-pad"
+                    maxLength={2}
+                  />
+                  <Text style={styles.separator}>/</Text>
+                  <TextInput
+                    value={year}
+                    onChangeText={(value) => setYear(onlyDigits(value, 4))}
+                    placeholder="AAAA"
+                    placeholderTextColor="#9c7b8b"
+                    style={[styles.yearInput, styles.compactYearInput]}
+                    keyboardType="number-pad"
+                    maxLength={4}
+                  />
+                </View>
+              </View>
+
+              <View style={styles.timeColumn}>
+                <Text style={styles.compactLabel}>Ora</Text>
+                <View style={styles.compactDatePartsRow}>
+                  <TextInput
+                    value={hour}
+                    onChangeText={(value) => setHour(onlyDigits(value, 2))}
+                    placeholder="HH"
+                    placeholderTextColor="#9c7b8b"
+                    style={[styles.smallInput, styles.compactSmallInput]}
+                    keyboardType="number-pad"
+                    maxLength={2}
+                  />
+                  <Text style={styles.separator}>:</Text>
+                  <TextInput
+                    value={minute}
+                    onChangeText={(value) => setMinute(onlyDigits(value, 2))}
+                    placeholder="MM"
+                    placeholderTextColor="#9c7b8b"
+                    style={[styles.smallInput, styles.compactSmallInput]}
+                    keyboardType="number-pad"
+                    maxLength={2}
+                  />
+                </View>
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.formSection}>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionTitle}>Dettagli</Text>
+            </View>
+
+            <Text style={styles.label}>Categoria</Text>
+            <Pressable style={styles.selectButton} onPress={() => setOpenSelect('category')}>
+              <Text style={[styles.selectButtonText, !category.trim() && styles.selectPlaceholder]}>
+                {category.trim() || 'Seleziona categoria'}
+              </Text>
+              <Text style={styles.selectChevron}>⌄</Text>
+            </Pressable>
+
+            <View style={styles.compactDetailsRow}>
+              <View style={styles.participantsColumn}>
+                <Text style={styles.label}>Partecipanti</Text>
+                <TextInput
+                  value={maxParticipants}
+                  onChangeText={(value) => setMaxParticipants(onlyDigits(value, 2))}
+                  placeholder="10"
+                  placeholderTextColor="#9c7b8b"
+                  style={styles.input}
+                  keyboardType="number-pad"
+                  maxLength={2}
+                />
+              </View>
+
+              {needsBudget ? (
+                <View style={styles.budgetColumn}>
+                  <Text style={styles.label}>Budget €</Text>
+                  <TextInput
+                    value={budgetAmount}
+                    onChangeText={(value) => setBudgetAmount(onlyDigits(value, 4))}
+                    placeholder="50"
+                    placeholderTextColor="#9c7b8b"
+                    style={styles.input}
+                    keyboardType="number-pad"
+                    maxLength={4}
+                  />
+                </View>
+              ) : null}
+            </View>
+
+            <Text style={styles.label}>Descrizione</Text>
+            <TextInput
+              value={description}
+              onChangeText={setDescription}
+              placeholder="Descrivi la tua esperienza..."
+              placeholderTextColor="#9c7b8b"
+              style={[styles.input, styles.textArea, styles.compactTextArea]}
+              multiline
+              maxLength={500}
+            />
+          </View>
 
           <View style={styles.previewBox}>
             <Text style={styles.previewTitle}>Come apparirà la tua esperienza</Text>
@@ -474,18 +582,280 @@ export default function CreateExperienceScreen() {
           </Text>
         </View>
       </ScrollView>
+
+      <Modal
+        visible={openSelect !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setOpenSelect(null)}
+      >
+        <Pressable style={styles.modalBackdrop} onPress={() => setOpenSelect(null)}>
+          <Pressable style={styles.modalSheet} onPress={() => {}}>
+            <View style={styles.modalHandle} />
+            <Text style={styles.modalTitle}>
+              {openSelect === 'province' ? 'Seleziona provincia' : 'Seleziona categoria'}
+            </Text>
+
+            <ScrollView style={styles.modalOptions} contentContainerStyle={styles.modalOptionsContent}>
+              {(openSelect === 'province' ? LOCATION_OPTIONS : EXPERIENCE_CREATION_CATEGORIES).map((item) => {
+                const isSelected = openSelect === 'province' ? province === item : category === item;
+
+                return (
+                  <Pressable
+                    key={item}
+                    style={[styles.modalOption, isSelected && styles.modalOptionActive]}
+                    onPress={() => {
+                      if (openSelect === 'province') {
+                        setProvince(item);
+                      } else {
+                        setCategory(item);
+                        if (item !== 'Gita' && item !== 'Vacanza') {
+                          setBudgetAmount('');
+                        }
+                      }
+                      setOpenSelect(null);
+                    }}
+                  >
+                    <Text style={[styles.modalOptionText, isSelected && styles.modalOptionTextActive]}>
+                      {item}
+                    </Text>
+                    {isSelected ? <Text style={styles.modalCheck}>✓</Text> : null}
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+
+            <Pressable style={styles.modalCloseButton} onPress={() => setOpenSelect(null)}>
+              <Text style={styles.modalCloseText}>Chiudi</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  compactDetailsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'flex-start',
+  },
+  participantsColumn: {
+    width: 132,
+  },
+  budgetColumn: {
+    width: 132,
+  },
+  compactTextArea: {
+    minHeight: 72,
+    paddingTop: 10,
+  },
+  selectButton: {
+    minHeight: 44,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#f2c8db',
+    backgroundColor: '#fff8fb',
+    paddingHorizontal: 16,
+    marginBottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  selectButtonText: {
+    color: '#331426',
+    fontSize: 15,
+    fontWeight: '800',
+    flex: 1,
+  },
+  selectPlaceholder: {
+    color: '#9c7b8b',
+    fontWeight: '700',
+  },
+  selectChevron: {
+    color: '#ef2d82',
+    fontSize: 22,
+    fontWeight: '900',
+    marginLeft: 10,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(51, 20, 38, 0.34)',
+    justifyContent: 'flex-end',
+    padding: 16,
+  },
+  modalSheet: {
+    maxHeight: '72%',
+    backgroundColor: '#fff8fb',
+    borderRadius: 28,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#f6d7e4',
+  },
+  modalHandle: {
+    alignSelf: 'center',
+    width: 44,
+    height: 5,
+    borderRadius: 999,
+    backgroundColor: '#f1bfd4',
+    marginBottom: 14,
+  },
+  modalTitle: {
+    color: '#331426',
+    fontSize: 22,
+    fontWeight: '900',
+    marginBottom: 10,
+  },
+  modalOptions: {
+    maxHeight: 360,
+  },
+  modalOptionsContent: {
+    paddingBottom: 8,
+    gap: 8,
+  },
+  modalOption: {
+    minHeight: 50,
+    borderRadius: 16,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#f5d4e2',
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  modalOptionActive: {
+    backgroundColor: '#ef2d82',
+    borderColor: '#ef2d82',
+  },
+  modalOptionText: {
+    color: '#331426',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  modalOptionTextActive: {
+    color: '#ffffff',
+  },
+  modalCheck: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: '900',
+  },
+  modalCloseButton: {
+    marginTop: 12,
+    minHeight: 44,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#f2c8db',
+  },
+  modalCloseText: {
+    color: '#ef2d82',
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  brandClaim: {
+    color: '#ef2d82',
+    fontSize: 16,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginTop: -2,
+  },
+  headerLine: {
+    height: 1,
+    backgroundColor: '#f8cadd',
+    marginTop: 18,
+    marginBottom: 22,
+    opacity: 0.9,
+  },
+  pageTitle: {
+    color: '#331426',
+    fontSize: 34,
+    fontWeight: '900',
+    letterSpacing: -0.8,
+    marginBottom: 8,
+  },
+  formSection: {
+    backgroundColor: '#ffffff',
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: '#f6d7e4',
+    padding: 14,
+    marginBottom: 10,
+    shadowColor: '#8b2d5a',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    elevation: 2,
+  },
+  sectionHeaderRow: {
+    marginBottom: 10,
+  },
+  twoColumnsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'flex-start',
+  },
+  addressColumn: {
+    flex: 1,
+  },
+  streetNumberColumn: {
+    width: 104,
+  },
+  whenSection: {
+    paddingVertical: 12,
+    marginBottom: 10,
+  },
+  compactSectionHeaderRow: {
+    marginBottom: 10,
+  },
+  compactLabel: {
+    color: '#6f3855',
+    fontSize: 12,
+    fontWeight: '900',
+    marginBottom: 6,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  dateTimeRow: {
+    flexDirection: 'row',
+    gap: 10,
+    alignItems: 'flex-start',
+  },
+  dateColumn: {
+    flex: 1,
+    minWidth: 0,
+  },
+  timeColumn: {
+    width: 112,
+  },
+  compactDatePartsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  compactSmallInput: {
+    width: 38,
+    minHeight: 46,
+    paddingHorizontal: 6,
+    textAlign: 'center',
+  },
+  compactYearInput: {
+    width: 64,
+    minHeight: 46,
+    paddingHorizontal: 6,
+    textAlign: 'center',
+  },
   safeArea: {
     flex: 1,
     backgroundColor: '#fffafd',
   },
   container: {
     flexGrow: 1,
-    padding: 20,
+    padding: 16,
     paddingTop: 44,
     paddingBottom: 32,
     backgroundColor: '#fffafd',
@@ -524,7 +894,7 @@ const styles = StyleSheet.create({
   card: {
     width: '100%',
     borderRadius: 34,
-    padding: 20,
+    padding: 16,
     backgroundColor: '#fffafd',
     borderWidth: 1,
     borderColor: '#f2a8cc',
@@ -533,21 +903,6 @@ const styles = StyleSheet.create({
     shadowRadius: 28,
     shadowOffset: { width: 0, height: 14 },
     elevation: 3,
-  },
-  sectionEyebrow: {
-    color: '#8f1658',
-    fontSize: 12,
-    fontWeight: '900',
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    marginBottom: 4,
-  },
-  title: {
-    fontSize: 27,
-    fontWeight: '900',
-    color: '#e43f98',
-    marginBottom: 14,
-    letterSpacing: -0.4,
   },
   label: {
     fontSize: 14,
@@ -570,14 +925,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     fontSize: 18,
     color: '#4c1835',
-    marginBottom: 16,
+    marginBottom: 10,
     fontWeight: '800',
   },
   datePartsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 16,
+    marginBottom: 10,
   },
   smallInput: {
     width: 64,
@@ -609,41 +964,10 @@ const styles = StyleSheet.create({
     color: '#e43f98',
   },
   sectionTitle: {
-    fontSize: 18,
+    color: '#331426',
+    fontSize: 17,
     fontWeight: '900',
-    color: '#e43f98',
-    marginBottom: 12,
-  },
-  categoryGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 9,
-    marginBottom: 14,
-  },
-  categoryButton: {
-    borderRadius: 999,
-    backgroundColor: '#fffafd',
-    borderWidth: 1,
-    borderColor: '#f2a8cc',
-    paddingVertical: 9,
-    paddingHorizontal: 13,
-  },
-  categoryButtonActive: {
-    backgroundColor: '#e43f98',
-    borderColor: '#e43f98',
-    shadowColor: '#e43f98',
-    shadowOpacity: 0.28,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 7 },
-    elevation: 5,
-  },
-  categoryText: {
-    fontSize: 14,
-    fontWeight: '900',
-    color: '#8f1658',
-  },
-  categoryTextActive: {
-    color: '#ffffff',
+    letterSpacing: -0.2,
   },
   textArea: {
     minHeight: 110,
@@ -651,12 +975,12 @@ const styles = StyleSheet.create({
     paddingTop: 13,
   },
   previewBox: {
-    borderRadius: 22,
-    padding: 15,
-    backgroundColor: '#fffafd',
+    backgroundColor: '#fff8fb',
+    borderRadius: 18,
+    padding: 12,
     borderWidth: 1,
-    borderColor: '#f2a8cc',
-    marginBottom: 16,
+    borderColor: '#f6d7e4',
+    marginTop: 4,
   },
   previewTitle: {
     fontSize: 15,
@@ -677,11 +1001,12 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   mainButton: {
-    height: 58,
+    backgroundColor: '#ef2d82',
     borderRadius: 999,
-    backgroundColor: '#e43f98',
+    minHeight: 52,
     alignItems: 'center',
     justifyContent: 'center',
+    marginTop: 14,
   },
   mainButtonDisabled: {
     opacity: 0.45,
@@ -698,24 +1023,6 @@ const styles = StyleSheet.create({
     color: '#8f1658',
     textAlign: 'center',
     fontWeight: '700',
-  },
-  createHeroTips: {
-    marginTop: 16,
-    borderRadius: 26,
-    backgroundColor: '#e43f98',
-    padding: 15,
-    gap: 8,
-    shadowColor: '#e43f98',
-    shadowOpacity: 0.22,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 5,
-  },
-  createHeroTip: {
-    color: '#ffffff',
-    fontSize: 14,
-    lineHeight: 19,
-    fontWeight: '900',
   },
 
 });

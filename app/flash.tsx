@@ -745,7 +745,7 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
       if (profileIds.length > 0) {
         const profilesResult = await supabase
           .from('profiles')
-          .select('id,nickname,avatar_url,city,is_admin')
+          .select('id,nickname,avatar_url,city,is_admin,age')
           .in('id', profileIds);
 
         if (!profilesResult.error) {
@@ -1687,7 +1687,10 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
                         )}
                       </View>
 
-                      <Text style={styles.availableName} numberOfLines={1}>{availableProfileName(profile)}</Text>
+                      <Text style={styles.availableName} numberOfLines={1}>
+                        {availableProfileName(profile)}
+                        {firstValue(profile, ['age'], null) ? ` · ${firstValue(profile, ['age'], '')} anni` : ''}
+                      </Text>
                       <Text style={styles.availableZone} numberOfLines={1}>
                         {[firstText(row, ['city']), firstText(row, ['province'])].filter(Boolean).join(' · ')}
                       </Text>

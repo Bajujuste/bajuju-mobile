@@ -460,7 +460,7 @@ export default function ProfileScreen() {
           const otherUserId = contactOtherUserId(row);
           const isFlashInvite =
             result.table === 'direct_contact_requests' &&
-            firstText(row, ['message'], '').toLowerCase().includes('bajuju flash');
+            (firstText(row, ['contact_type', 'type'], '').toLowerCase() === 'flash_invite' || firstText(row, ['message'], '').toLowerCase().includes('bajuju flash'));
 
           if (blockedIds.has(otherUserId)) return false;
           if (['archived', 'archiviato', 'archiviata', 'deleted', 'eliminato', 'eliminata'].includes(status)) return false;
@@ -477,7 +477,7 @@ export default function ProfileScreen() {
           raw: row,
           title:
             result.table === 'direct_contact_requests'
-              ? firstText(row, ['message'], '').toLowerCase().includes('bajuju flash')
+              ? (firstText(row, ['contact_type', 'type'], '').toLowerCase() === 'flash_invite' || firstText(row, ['message'], '').toLowerCase().includes('bajuju flash'))
                 ? 'Invito Bajuju Flash'
                 : 'Invito a uscire'
               : contactTitle(row),
@@ -500,14 +500,14 @@ export default function ProfileScreen() {
     const flashItems = allContactItems.filter(
       (item) =>
         item.table === 'direct_contact_requests' &&
-        firstText(item.raw, ['message'], '').toLowerCase().includes('bajuju flash')
+        (firstText(item.raw, ['contact_type', 'type'], '').toLowerCase() === 'flash_invite' || firstText(item.raw, ['message'], '').toLowerCase().includes('bajuju flash'))
     );
 
     const regularItems = allContactItems.filter(
       (item) =>
         !(
           item.table === 'direct_contact_requests' &&
-          firstText(item.raw, ['message'], '').toLowerCase().includes('bajuju flash')
+          (firstText(item.raw, ['contact_type', 'type'], '').toLowerCase() === 'flash_invite' || firstText(item.raw, ['message'], '').toLowerCase().includes('bajuju flash'))
         )
     );
 
@@ -919,7 +919,7 @@ export default function ProfileScreen() {
         const flashActivityId = String(firstValue(row, ['activity_id', 'event_id', 'experience_id', 'flash_id']) || '').trim();
         const isFlashInvite =
           item.table === 'direct_contact_requests' &&
-          firstText(row, ['message'], '').toLowerCase().includes('bajuju flash');
+          (firstText(row, ['contact_type', 'type'], '').toLowerCase() === 'flash_invite' || firstText(row, ['message'], '').toLowerCase().includes('bajuju flash'));
 
         if (isFlashInvite && flashActivityId && user?.id) {
           const existingParticipantResult = await supabase

@@ -768,9 +768,9 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await loadFlashRows();
+    await Promise.all([loadFlashRows(), loadAvailableUsers()]);
     setRefreshing(false);
-  }, [loadFlashRows]);
+  }, [loadAvailableUsers, loadFlashRows]);
 
   const saveAvailability = useCallback(async () => {
     if (savingAvailability) return;

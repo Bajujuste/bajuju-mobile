@@ -380,6 +380,8 @@ async function geocodeAddress(address: string, streetNumber: string, city: strin
     `${fullAddress}, ${cleanCity}`,
     `${cleanAddress}, ${cleanCity}, ${cleanProvince}`,
     `${cleanAddress}, ${cleanCity}`,
+    `${cleanCity}, ${cleanProvince}, Italia`,
+    `${cleanCity}, Italia`,
   ];
 
   for (const query of queries) {
@@ -453,6 +455,7 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
   const [newTitle, setNewTitle] = useState('');
   const [newProvince, setNewProvince] = useState('Bergamo');
   const [newCity, setNewCity] = useState('');
+  const [showNewMunicipalityList, setShowNewMunicipalityList] = useState(false);
   const [newPlace, setNewPlace] = useState('');
   const [newStreetNumber, setNewStreetNumber] = useState('');
   const [newDurationHours, setNewDurationHours] = useState<FlashDuration>(2);
@@ -463,6 +466,14 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
   const [savingAvailability, setSavingAvailability] = useState(false);
   const [savingFlash, setSavingFlash] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
+
+  const newMunicipalities = useMemo(() => {
+    return ITALIAN_MUNICIPALITIES_BY_PROVINCE[
+      newProvince as keyof typeof ITALIAN_MUNICIPALITIES_BY_PROVINCE
+    ] ?? [];
+  }, [newProvince]);
+
+  const hasSelectedValidNewCity = newMunicipalities.includes(newCity as never);
 
   const availabilityMunicipalities = useMemo(() => {
     return ITALIAN_MUNICIPALITIES_BY_PROVINCE[
@@ -481,6 +492,11 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
   }, [availabilityCity, availabilityMunicipalities]);
 
   const hasSelectedValidAvailabilityCity = availabilityMunicipalities.includes(availabilityCity as never);
+
+  useEffect(() => {
+    setNewCity('');
+    setShowNewMunicipalityList(false);
+  }, [newProvince]);
 
   useEffect(() => {
     setAvailabilityCity('');
@@ -995,6 +1011,7 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
         sender_id: currentUserId,
         receiver_id: cleanTargetUserId,
         activity_id: ownFlashId,
+        contact_type: 'flash_invite',
         status: 'pending',
         message: `Ti invito al mio Bajuju Flash “${flashTitle(ownFlash)}”. Ti ho visto disponibile: ti va di partecipare?`,
       });
@@ -1039,6 +1056,13 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
     if (!cleanTitle || !cleanProvince || !cleanCity || !cleanPlace) {
       if (typeof window !== 'undefined') {
         window.alert('Compila titolo, provincia, comune e indirizzo. Il numero civico è separato e consigliato.');
+      }
+      return;
+    }
+
+    if (!newMunicipalities.includes(cleanCity as never)) {
+      if (typeof window !== 'undefined') {
+        window.alert('Seleziona un comune valido dalla lista ufficiale.');
       }
       return;
     }
@@ -1096,9 +1120,7 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
 
       if (!coordinates) {
         if (typeof window !== 'undefined') {
-          window.alert(
-            'Indirizzo non trovato. Controlla via, numero civico e comune. Il Flash non viene creato finché la posizione non è valida.'
-          );
+          window.alert('Non sono riuscito a trovare nemmeno il centro del comune selezionato. Controlla il comune e riprova.');
         }
         return;
       }
@@ -1169,7 +1191,7 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
     } finally {
       setSavingFlash(false);
     }
-  }, [loadFlashRows, newCity, newDurationHours, newPlace, newProvince, newStreetNumber, newTitle, savingFlash]);
+  }, [loadFlashRows, newCity, newDurationHours, newMunicipalities, newPlace, newProvince, newStreetNumber, newTitle, savingFlash]);
 
   const joinFlash = useCallback(async (row: LooseRow) => {
     const activityId = String(firstValue(row, ['id', 'activity_id'], ''));
@@ -1774,13 +1796,50 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
             </ScrollView>
 
             <Text style={styles.label}>Comune</Text>
-            <TextInput
-              value={newCity}
-              onChangeText={setNewCity}
-              placeholder="Es. Bergamo"
-              placeholderTextColor="#a36a86"
-              style={styles.input}
-            />
+            <Pressable
+              style={styles.municipalityDropdownButton}
+              onPress={() => setShowNewMunicipalityList((value) => !value)}
+            >
+              <Text
+                style={[
+                  styles.municipalityDropdownText,
+                  hasSelectedValidNewCity && styles.municipalityDropdownTextSelected,
+                ]}
+                numberOfLines={1}
+              >
+                {hasSelectedValidNewCity ? newCity : 'Seleziona comune'}
+              </Text>
+              <Text style={styles.municipalityDropdownArrow}>
+                {showNewMunicipalityList ? '⌃' : '⌄'}
+              </Text>
+            </Pressable>
+
+            {showNewMunicipalityList ? (
+              <ScrollView style={styles.municipalitySelectBox} nestedScrollEnabled>
+                {newMunicipalities.map((city) => (
+                  <Pressable
+                    key={`new-flash-city-${city}`}
+                    style={[
+                      styles.municipalitySelectItem,
+                      newCity === city && styles.municipalitySelectItemActive,
+                    ]}
+                    onPress={() => {
+                      setNewCity(city);
+                      setShowNewMunicipalityList(false);
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.municipalitySelectItemText,
+                        newCity === city && styles.municipalitySelectItemTextActive,
+                      ]}
+                    >
+                      {newCity === city ? `✓ ${city}` : city}
+                    </Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            ) : null}
 
             <Text style={styles.label}>Indirizzo</Text>
             <TextInput
@@ -1790,6 +1849,10 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
               placeholderTextColor="#a36a86"
               style={styles.input}
             />
+
+            <Text style={styles.addressFallbackText}>
+              Se l’indirizzo inserito non viene trovato correttamente, verrà utilizzato il centro del comune selezionato.
+            </Text>
 
             <Text style={styles.label}>Numero civico</Text>
             <TextInput
@@ -2502,6 +2565,14 @@ const styles = StyleSheet.create({
     color: '#ef2d82',
     fontSize: 16,
     fontWeight: '900',
+  },
+  addressFallbackText: {
+    color: '#8b4b69',
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: '700',
+    marginTop: 8,
+    marginBottom: 4,
   },
   municipalityDropdownButton: {
     backgroundColor: '#ffffff',

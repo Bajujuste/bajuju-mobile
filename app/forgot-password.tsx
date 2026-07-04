@@ -42,7 +42,7 @@ export default function ForgotPasswordScreen() {
 
     try {
       const result = await supabase.auth.resetPasswordForEmail(cleanEmail, {
-        redirectTo: 'https://bajuju.it/reset-password',
+        redirectTo: 'bajuju://auth/callback?next=reset-password',
       });
 
       if (result.error) {
@@ -53,7 +53,7 @@ export default function ForgotPasswordScreen() {
 
       setResetSent(true);
       setMessageTitle('Operazione riuscita');
-      setMessageText('Ti abbiamo inviato il link per impostare una nuova password. Apri la mail, completa il cambio password e poi torna su Accedi.');
+      setMessageText('Ti abbiamo inviato il link per impostare una nuova password. Apri la mail dal telefono e il link ti porterà dentro l’app Bajuju.');
     } catch (error: any) {
       setMessageTitle('Errore collegamento');
       setMessageText(error?.message || 'Errore sconosciuto durante il recupero password.');

@@ -31,6 +31,7 @@ export default function AuthCallbackScreen() {
         const code = getParamFromUrl(url, 'code');
         const accessToken = getParamFromUrl(url, 'access_token');
         const refreshToken = getParamFromUrl(url, 'refresh_token');
+        const nextScreen = getParamFromUrl(url, 'next');
 
         if (code) {
           const result = await supabase.auth.exchangeCodeForSession(code);
@@ -47,6 +48,12 @@ export default function AuthCallbackScreen() {
           if (result.error) {
             throw result.error;
           }
+        }
+
+        if (nextScreen === 'reset-password') {
+          if (mounted) setMessage('Link verificato. Ora puoi impostare la nuova password...');
+          setTimeout(() => router.replace('/reset-password' as any), 700);
+          return;
         }
 
         if (mounted) setMessage('Accesso completato. Ti porto al profilo...');

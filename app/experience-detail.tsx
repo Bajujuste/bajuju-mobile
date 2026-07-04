@@ -739,8 +739,10 @@ export default function ExperienceDetailScreen() {
 
       const result = await supabase.from('direct_contact_requests').insert({
         requester_id: currentUserId,
+        sender_id: currentUserId,
         receiver_id: targetUserId,
         activity_id: experienceId,
+        contact_type: 'experience_invite',
         status: 'pending',
         message: 'Vorrei invitarti a uscire dopo aver partecipato alla stessa esperienza Bajuju.',
       });

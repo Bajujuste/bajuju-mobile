@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Modal,
   Pressable,
@@ -12,15 +12,17 @@ import {
 } from 'react-native';
 
 import { EXPERIENCE_CREATION_CATEGORIES } from '../src/constants/experienceCategories';
+import { ITALIAN_MUNICIPALITIES_BY_PROVINCE } from '../src/data/italianMunicipalities';
 import { supabase } from '../src/lib/supabase';
 import { sendBajujuPushNotification, buildExperienceNotificationTitle } from '../src/utils/bajujuNotifications';
 
 const LOCATION_OPTIONS = [
   'Bergamo',
-  'Lecco',
   'Milano',
+  'Lecco',
   'Monza e Brianza',
-  'Verona',
+  'Brescia',
+  'Torino',
 ];
 
 function categoryToDatabaseValue(value: string) {
@@ -104,6 +106,8 @@ async function geocodeAddress(address: string, streetNumber: string, city: strin
     `${fullAddress}, ${cleanCity}`,
     `${cleanAddress}, ${cleanCity}, ${cleanProvince}`,
     `${cleanAddress}, ${cleanCity}`,
+    `${cleanCity}, ${cleanProvince}, Italia`,
+    `${cleanCity}, Italia`,
   ];
 
   for (const query of queries) {
@@ -155,7 +159,7 @@ export default function CreateExperienceScreen() {
   const [streetNumber, setStreetNumber] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
-  const [openSelect, setOpenSelect] = useState<null | 'province' | 'category'>(null);
+  const [openSelect, setOpenSelect] = useState<null | 'province' | 'city' | 'category'>(null);
 
   const [day, setDay] = useState('');
   const [month, setMonth] = useState('');
@@ -187,12 +191,19 @@ export default function CreateExperienceScreen() {
       cleanBudgetAmount <= 9999
     );
 
+  const provinceMunicipalities = useMemo(() => {
+    return ITALIAN_MUNICIPALITIES_BY_PROVINCE[
+      province.trim() as keyof typeof ITALIAN_MUNICIPALITIES_BY_PROVINCE
+    ] ?? [];
+  }, [province]);
+
   const provinceIsValid = LOCATION_OPTIONS.includes(province.trim());
+  const cityIsValid = provinceMunicipalities.includes(city.trim() as never);
 
   const canCreateExperience =
     title.trim().length > 0 &&
     provinceIsValid &&
-    city.trim().length > 0 &&
+    cityIsValid &&
     meetingPlace.trim().length > 0 &&
     description.trim().length > 0 &&
     category.trim().length > 0 &&
@@ -221,6 +232,13 @@ export default function CreateExperienceScreen() {
       return;
     }
 
+    if (!provinceMunicipalities.includes(cleanCity as never)) {
+      if (typeof window !== 'undefined') {
+        window.alert('Seleziona un comune valido dalla lista ufficiale.');
+      }
+      return;
+    }
+
     if (!isoDate || !cleanTime) {
       if (typeof window !== 'undefined') {
         window.alert('Controlla data e ora prima di creare l’esperienza.');
@@ -245,9 +263,7 @@ export default function CreateExperienceScreen() {
 
       if (!coordinates) {
         if (typeof window !== 'undefined') {
-          window.alert(
-            'Indirizzo non trovato. Controlla via, eventuale numero civico e comune. L’esperienza non viene creata finché la posizione non è valida.'
-          );
+          window.alert('Non sono riuscito a trovare nemmeno il centro del comune selezionato. Controlla il comune e riprova.');
         }
         return;
       }
@@ -377,14 +393,23 @@ export default function CreateExperienceScreen() {
             </Pressable>
 
             <Text style={styles.label}>Comune</Text>
-            <TextInput
-              value={city}
-              onChangeText={setCity}
-              placeholder="Comune"
-              placeholderTextColor="#9c7b8b"
-              style={styles.input}
-              maxLength={80}
-            />
+            <Pressable
+              style={[styles.selectButton, !provinceIsValid && styles.selectButtonDisabled]}
+              onPress={() => {
+                if (!provinceIsValid) {
+                  if (typeof window !== 'undefined') {
+                    window.alert('Scegli prima la provincia.');
+                  }
+                  return;
+                }
+                setOpenSelect('city');
+              }}
+            >
+              <Text style={[styles.selectButtonText, !cityIsValid && styles.selectPlaceholder]}>
+                {cityIsValid ? city : 'Seleziona comune'}
+              </Text>
+              <Text style={styles.selectChevron}>⌄</Text>
+            </Pressable>
 
             <View style={styles.twoColumnsRow}>
               <View style={styles.addressColumn}>
@@ -414,6 +439,7 @@ export default function CreateExperienceScreen() {
 
             <Text style={styles.helperText}>
               L’indirizzo serve solo per posizionare correttamente l’esperienza sulla mappa.
+              Se l’indirizzo inserito non viene trovato correttamente, verrà utilizzato il centro del comune selezionato.
             </Text>
           </View>
 
@@ -593,12 +619,22 @@ export default function CreateExperienceScreen() {
           <Pressable style={styles.modalSheet} onPress={() => {}}>
             <View style={styles.modalHandle} />
             <Text style={styles.modalTitle}>
-              {openSelect === 'province' ? 'Seleziona provincia' : 'Seleziona categoria'}
+              {openSelect === 'province'
+                ? 'Seleziona provincia'
+                : openSelect === 'city'
+                  ? 'Seleziona comune'
+                  : 'Seleziona categoria'}
             </Text>
 
             <ScrollView style={styles.modalOptions} contentContainerStyle={styles.modalOptionsContent}>
-              {(openSelect === 'province' ? LOCATION_OPTIONS : EXPERIENCE_CREATION_CATEGORIES).map((item) => {
-                const isSelected = openSelect === 'province' ? province === item : category === item;
+              {(openSelect === 'province'
+                ? LOCATION_OPTIONS
+                : openSelect === 'city'
+                  ? provinceMunicipalities
+                  : EXPERIENCE_CREATION_CATEGORIES
+              ).map((item) => {
+                const isSelected =
+                  openSelect === 'province' ? province === item : openSelect === 'city' ? city === item : category === item;
 
                 return (
                   <Pressable
@@ -607,6 +643,9 @@ export default function CreateExperienceScreen() {
                     onPress={() => {
                       if (openSelect === 'province') {
                         setProvince(item);
+                        setCity('');
+                      } else if (openSelect === 'city') {
+                        setCity(item);
                       } else {
                         setCategory(item);
                         if (item !== 'Gita' && item !== 'Vacanza') {
@@ -801,6 +840,9 @@ const styles = StyleSheet.create({
   },
   addressColumn: {
     flex: 1,
+  },
+  selectButtonDisabled: {
+    opacity: 0.6,
   },
   streetNumberColumn: {
     width: 104,

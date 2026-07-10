@@ -1444,8 +1444,8 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
           style={[styles.flashChoiceButton, styles.flashCreateChoiceButton, styles.flashMainChoiceButton, styles.flashWideMainButton]}
           onPress={() => router.push('/flash-create')}
         >
-          <Text style={styles.flashChoiceIcon}>FLASH</Text>
-          <Text style={styles.flashChoiceText}>Crea un nuovo Flash</Text>
+          <Text style={[styles.flashChoiceIcon, styles.flashMainChoiceIcon]}>FLASH</Text>
+          <Text style={[styles.flashChoiceText, styles.flashMainChoiceText]}>Crea un nuovo Flash</Text>
           <Text style={styles.flashMainChoiceSubtext}>Lancia un invito, raduna le persone, vivilo dal vivo.</Text>
         </Pressable>
 
@@ -2164,11 +2164,22 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   flashMainChoiceSubtext: {
-    color: '#ffe8f1',
+    color: '#7b4960',
     fontSize: 13,
     fontWeight: '700',
     lineHeight: 18,
     marginTop: 6,
+  },
+  flashMainChoiceIcon: {
+    color: '#ef2d82',
+    backgroundColor: '#fff0f7',
+    borderRadius: 999,
+    overflow: 'hidden',
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+  },
+  flashMainChoiceText: {
+    color: '#331426',
   },
   flashHeroTopRow: {
     width: '100%',
@@ -2311,16 +2322,16 @@ const styles = StyleSheet.create({
     borderWidth: 2,
   },
   flashCreateChoiceButton: {
-    backgroundColor: '#ef2d82',
-    borderColor: '#ef2d82',
+    backgroundColor: '#ffffff',
+    borderColor: '#f5d4e2',
   },
   flashMainChoiceButton: {
     minHeight: 118,
-    shadowColor: '#ef2d82',
-    shadowOpacity: 0.26,
-    shadowRadius: 22,
-    shadowOffset: { width: 0, height: 12 },
-    elevation: 9,
+    shadowColor: '#8b2d5a',
+    shadowOpacity: 0.10,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 3,
   },
   flashFindChoiceButton: {
     backgroundColor: '#ffffff',

@@ -353,10 +353,6 @@ export default function CreateExperienceScreen() {
         </Pressable>
 
         <View style={styles.header}>
-          <Text style={styles.logoText}>Bajuju</Text>
-          <Text style={styles.brandClaim}>Dal Vivo è Meglio</Text>
-          <View style={styles.headerLine} />
-
           <Text style={styles.pageTitle}>Crea esperienza</Text>
           <Text style={styles.subtitle}>
             Compila i dettagli essenziali e pubblica la tua esperienza.
@@ -826,7 +822,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     shadowColor: '#8b2d5a',
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.03,
     shadowRadius: 18,
     elevation: 2,
   },
@@ -863,16 +859,16 @@ const styles = StyleSheet.create({
     letterSpacing: 0.4,
   },
   dateTimeRow: {
-    flexDirection: 'row',
-    gap: 10,
-    alignItems: 'flex-start',
+    flexDirection: 'column',
+    gap: 14,
+    alignItems: 'stretch',
   },
   dateColumn: {
     flex: 1,
     minWidth: 0,
   },
   timeColumn: {
-    width: 112,
+    width: '100%',
   },
   compactDatePartsRow: {
     flexDirection: 'row',
@@ -937,11 +933,11 @@ const styles = StyleSheet.create({
     width: '100%',
     borderRadius: 34,
     padding: 16,
-    backgroundColor: '#fffafd',
+    backgroundColor: '#ffffff',
     borderWidth: 1,
     borderColor: '#f2a8cc',
     shadowColor: '#e43f98',
-    shadowOpacity: 0.18,
+    shadowOpacity: 0.10,
     shadowRadius: 28,
     shadowOffset: { width: 0, height: 14 },
     elevation: 3,

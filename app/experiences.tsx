@@ -316,10 +316,6 @@ export default function ExperiencesScreen() {
                       {getExperienceCategoryIcon(item.category)} {normalizeExperienceCategory(item.category)}
                     </Text>
 
-                    <Pressable style={styles.mapButton} onPress={() => openExperienceMap(item)}>
-                      <Text style={styles.mapButtonText}>🗺️ Apri mappa</Text>
-                    </Pressable>
-
                     <Text style={styles.experienceTitle}>
                       {item.title || 'Esperienza senza titolo'}
                     </Text>
@@ -332,8 +328,26 @@ export default function ExperiencesScreen() {
                       🗓️ {formatDateItalian(item.activity_date)} · {item.activity_time ? String(item.activity_time).slice(0, 5) : 'Ora da definire'}
                     </Text>
 
-                    <View style={styles.experienceFooter}>
-                      <Text style={styles.openDetailText}>Apri</Text>
+                    <View style={styles.experienceActionsRow}>
+                      <Pressable style={styles.mapButton} onPress={(event) => {
+                          event.stopPropagation();
+                          openExperienceMap(item);
+                        }}>
+                        <Text style={styles.mapButtonText}>🗺️ Mappa</Text>
+                      </Pressable>
+
+                      <Pressable
+                        style={styles.experienceFooter}
+                        onPress={(event) => {
+                          event.stopPropagation();
+                          router.push({
+                            pathname: '/experience-detail' as any,
+                            params: { id: item.id || '' },
+                          });
+                        }}
+                      >
+                        <Text style={styles.openDetailText}>Apri</Text>
+                      </Pressable>
                     </View>
                   </View>
                 </Pressable>
@@ -446,7 +460,7 @@ const styles = StyleSheet.create({
   },
   mapButton: {
     alignSelf: 'flex-start',
-    marginTop: 8,
+    marginTop: 0,
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 999,
@@ -505,9 +519,9 @@ const styles = StyleSheet.create({
     width: '100%',
     borderRadius: 28,
     padding: 16,
-    backgroundColor: '#fff2f8',
+    backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: '#ffd3e7',
+    borderColor: '#f6d7e4',
     shadowColor: '#e43f98',
     shadowOpacity: 0.08,
     shadowRadius: 12,
@@ -525,7 +539,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 25,
     fontWeight: '900',
-    color: '#e43f98',
+    color: '#331426',
     marginBottom: 14,
     letterSpacing: -0.4,
   },
@@ -586,13 +600,13 @@ const styles = StyleSheet.create({
   },
   experienceCard: {
     borderRadius: 26,
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: '#ffd3e7',
+    borderColor: '#f6d7e4',
     padding: 12,
     flexDirection: 'row',
     gap: 12,
-    alignItems: 'center',
+    alignItems: 'flex-start',
     shadowColor: '#e43f98',
     shadowOpacity: 0.10,
     shadowRadius: 14,
@@ -642,7 +656,7 @@ const styles = StyleSheet.create({
     fontSize: 19,
     lineHeight: 23,
     fontWeight: '900',
-    color: '#e43f98',
+    color: '#331426',
     marginBottom: 5,
     letterSpacing: -0.3,
   },
@@ -651,9 +665,16 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#6b3652',
     marginTop: 2,
+    flexShrink: 1,
+  },
+  experienceActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 9,
   },
   experienceFooter: {
-    marginTop: 9,
+    marginTop: 0,
     alignSelf: 'flex-start',
     borderRadius: 999,
     backgroundColor: '#e43f98',

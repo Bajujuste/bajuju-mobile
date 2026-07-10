@@ -1500,8 +1500,8 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
       ) : null}
 
       <View style={[styles.card, !(selectedSection === 'find' || selectedSection === 'availability' || selectedSection === 'available' || isFindPage) && styles.hiddenSection]}>
-        {selectedSection !== 'availability' ? (
-          <Text style={styles.sectionTitle}>{selectedSection === 'available' ? 'Guarda chi è disponibile' : 'Trova Flash'}</Text>
+        {selectedSection === 'available' ? (
+          <Text style={styles.sectionTitle}>Guarda chi è disponibile</Text>
         ) : null}
 
         <View style={[styles.availabilityHeroCard, selectedSection !== 'availability' && styles.hiddenSection]}>

@@ -1047,7 +1047,7 @@ export default function ExperienceDetailScreen() {
                 <View style={styles.compactInfoRow}>
                   <Text style={styles.compactInfoLabel}>Quando</Text>
                   <Text style={styles.compactInfoValue}>
-                    {formatDateItalian(experience.activity_date)} · {experience.activity_time || 'Ora da definire'}
+                    {formatDateItalian(experience.activity_date)} · {experience.activity_time ? String(experience.activity_time).slice(0, 5) : 'Ora da definire'}
                   </Text>
                 </View>
 
@@ -1437,7 +1437,7 @@ const styles = StyleSheet.create({
   },
   eventTopRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: 12,
     marginBottom: 14,
   },
@@ -1455,7 +1455,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: '900',
-    color: '#e43f98',
+    color: '#331426',
     marginBottom: 0,
     letterSpacing: -0.5,
   },

@@ -1278,9 +1278,9 @@ export default function ExperienceDetailScreen() {
                                 isMine && styles.messageBubbleMine,
                               ]}
                             >
-                              <Text style={styles.messageAuthor}>{name}</Text>
-                              <Text style={styles.messageBody}>{messageText(item)}</Text>
-                              <Text style={styles.messageTime}>
+                              <Text style={[styles.messageAuthor, isMine && styles.messageAuthorMine]}>{name}</Text>
+                              <Text style={[styles.messageBody, isMine && styles.messageBodyMine]}>{messageText(item)}</Text>
+                              <Text style={[styles.messageTime, isMine && styles.messageTimeMine]}>
                                 {formatMessageTime(item.created_at)}
                               </Text>
 
@@ -1556,7 +1556,7 @@ const styles = StyleSheet.create({
   },
   participantsBox: {
 
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#ffffff',
     borderRadius: 24,
     borderWidth: 1,
     borderColor: '#ffd6e8',
@@ -1569,7 +1569,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   sectionTitle: {
-    color: '#e43f98',
+    color: '#331426',
     fontSize: 18,
     fontWeight: '900',
     marginBottom: 6,
@@ -1758,7 +1758,7 @@ const styles = StyleSheet.create({
     marginTop: 18,
     padding: 16,
     borderRadius: 24,
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#ffffff',
     borderWidth: 1,
     borderColor: '#ffd3e7',
   },
@@ -1939,6 +1939,9 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     marginBottom: 3,
   },
+  messageAuthorMine: {
+    color: '#ffffff',
+  },
   messageBody: {
 
     color: '#48172f',
@@ -1946,12 +1949,19 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     lineHeight: 20,
   },
+  messageBodyMine: {
+    color: '#ffffff',
+  },
   messageTime: {
 
     color: '#a95d86',
     fontSize: 11,
     fontWeight: '700',
     marginTop: 5,
+  },
+  messageTimeMine: {
+    color: '#ffffff',
+    opacity: 0.85,
   },
   reportMessageButton: {
     alignSelf: 'flex-start',

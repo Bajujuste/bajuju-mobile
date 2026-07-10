@@ -1055,7 +1055,7 @@ export default function ProfileScreen() {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
       <Pressable style={styles.profileBackButton} onPress={() => router.push('/home')}>
-        <Text style={styles.profileBackText}>← Torna alla Home</Text>
+        <Text style={styles.profileBackText}>← Home</Text>
       </Pressable>
 
       <View style={styles.profileHeroCard}>
@@ -1638,7 +1638,7 @@ const styles = StyleSheet.create({
   },
   flashInviteCard: {
     borderColor: '#e43f98',
-    backgroundColor: '#fff0f7',
+    backgroundColor: '#ffffff',
   },
   flashInviteIconBubble: {
     backgroundColor: '#e43f98',
@@ -1652,12 +1652,12 @@ const styles = StyleSheet.create({
 
   contactCard: {
 
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#ffffff',
     borderColor: '#ffc7df',
   },
   dateInviteCard: {
     borderColor: '#e43f98',
-    backgroundColor: '#fff3f9',
+    backgroundColor: '#ffffff',
   },
   sectionHeaderRow: {
     flexDirection: 'row',

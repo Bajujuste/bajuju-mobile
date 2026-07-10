@@ -2211,13 +2211,13 @@ const styles = StyleSheet.create({
   flashDedicatedHeroCard: {
     backgroundColor: '#ffffff',
     borderRadius: 24,
-    paddingTop: 14,
+    paddingTop: 10,
     paddingHorizontal: 16,
-    paddingBottom: 18,
+    paddingBottom: 14,
     borderWidth: 1,
     borderColor: '#ffd3e6',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
     overflow: 'hidden',
     width: '100%',
   },
@@ -2958,7 +2958,7 @@ const styles = StyleSheet.create({
   },
 
   card: {
-    backgroundColor: '#fffafd',
+    backgroundColor: '#ffffff',
     borderRadius: 24,
     padding: 22,
     borderWidth: 1,

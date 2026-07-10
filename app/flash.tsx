@@ -3320,12 +3320,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   joinButton: {
-    alignSelf: 'flex-start',
+    width: '100%',
     backgroundColor: '#ef2d82',
-    borderRadius: 14,
+    borderRadius: 999,
     paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingVertical: 12,
     marginTop: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   joinButtonText: {
     color: '#ffffff',

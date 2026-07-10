@@ -2251,7 +2251,7 @@ const styles = StyleSheet.create({
   flashHeroCard: {
     borderRadius: 32,
     padding: 18,
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#ffffff',
     borderWidth: 1,
     borderColor: '#f7d4e3',
     alignItems: 'stretch',

@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, ActivityIndicator, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Linking, Text, TextInput, View,  } from 'react-native';
 
+import BajujuMap, { BajujuMapItem } from '../components/BajujuMap';
 import { supabase } from '../src/lib/supabase';
 import { shareBajujuFlash } from '../src/utils/shareBajuju';
 import { sendBajujuPushNotification, buildFlashNotificationTitle } from '../src/utils/bajujuNotifications';
@@ -313,22 +314,6 @@ function flashId(row: LooseRow) {
   return String(firstValue(row, ['id', 'activity_id'], '') || '');
 }
 
-function flashMapPinPosition(index: number) {
-  const positions = [
-    { top: '18%', left: '18%' },
-    { top: '30%', left: '58%' },
-    { top: '52%', left: '34%' },
-    { top: '64%', left: '70%' },
-    { top: '42%', left: '14%' },
-    { top: '16%', left: '76%' },
-    { top: '72%', left: '22%' },
-    { top: '48%', left: '52%' },
-  ];
-
-  return positions[index % positions.length];
-}
-
-
 function availableUserId(row: LooseRow) {
   return String(firstValue(row, ['user_id'], '') || '');
 }
@@ -444,7 +429,6 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
   const [joiningActivityId, setJoiningActivityId] = useState<string | null>(null);
   const [leavingActivityId, setLeavingActivityId] = useState<string | null>(null);
   const [cancellingActivityId, setCancellingActivityId] = useState<string | null>(null);
-  const [selectedMapFlashId, setSelectedMapFlashId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -453,6 +437,7 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
   const [selectedSection, setSelectedSection] = useState<FlashSection>(forcedSection ?? null);
 
   const [newTitle, setNewTitle] = useState('');
+  const [newDescription, setNewDescription] = useState('');
   const [newProvince, setNewProvince] = useState('Bergamo');
   const [newCity, setNewCity] = useState('');
   const [showNewMunicipalityList, setShowNewMunicipalityList] = useState(false);
@@ -1049,6 +1034,7 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
     if (savingFlash) return;
 
     const cleanTitle = newTitle.trim();
+    const cleanDescription = newDescription.trim();
     const cleanProvince = newProvince.trim();
     const cleanCity = newCity.trim();
     const cleanPlace = newPlace.trim();
@@ -1136,7 +1122,7 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
         creator_id: creatorId,
         title: cleanTitle,
         category: 'altro',
-        description: `Bajuju Flash creato da mobile app. Disponibile per ${newDurationHours} ore.`,
+        description: cleanDescription || `Bajuju Flash disponibile per ${newDurationHours} ore.`,
         city: cleanCity,
         province: cleanProvince,
         meeting_place: finalMeetingPlace,
@@ -1176,6 +1162,7 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
       });
 
       setNewTitle('');
+      setNewDescription('');
       setNewCity('');
       setNewPlace('');
       setNewStreetNumber('');
@@ -1191,7 +1178,7 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
     } finally {
       setSavingFlash(false);
     }
-  }, [loadFlashRows, newCity, newDurationHours, newMunicipalities, newPlace, newProvince, newStreetNumber, newTitle, savingFlash]);
+  }, [loadFlashRows, newCity, newDescription, newDurationHours, newMunicipalities, newPlace, newProvince, newStreetNumber, newTitle, savingFlash]);
 
   const joinFlash = useCallback(async (row: LooseRow) => {
     const activityId = String(firstValue(row, ['id', 'activity_id'], ''));
@@ -1413,6 +1400,31 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
   const isCreatePage = forcedSection === 'create';
   const isFindPage = forcedSection === 'find';
   const isMenuPage = !forcedSection;
+
+  const flashMapItems: BajujuMapItem[] = filteredRows.flatMap((row) => {
+    const id = flashId(row);
+    const coordinates = getCoordinates(row);
+
+    if (!id || !coordinates) return [];
+
+    return [{
+      id,
+      latitude: coordinates.latitude,
+      longitude: coordinates.longitude,
+      icon: '⚡',
+      kicker: 'Bajuju Flash',
+      title: flashTitle(row),
+      locationText: [flashCity(row), flashProvince(row)].filter(Boolean).join(' · '),
+      dateText: formatDate(getFlashDate(row)),
+    }];
+  });
+
+  function openFlashMapItem(item: BajujuMapItem) {
+    router.push({
+      pathname: '/flash-detail',
+      params: { id: item.id },
+    });
+  }
 
   return (
     <ScrollView
@@ -1778,7 +1790,23 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
               placeholder="Es. Aperitivo tra mezz'ora"
               placeholderTextColor="#a36a86"
               style={styles.input}
+              maxLength={80}
             />
+
+            <Text style={styles.label}>Descrizione breve</Text>
+            <TextInput
+              value={newDescription}
+              onChangeText={setNewDescription}
+              placeholder="Es. Ci troviamo per bere qualcosa e fare due chiacchiere"
+              placeholderTextColor="#a36a86"
+              style={[styles.input, styles.flashDescriptionInput]}
+              multiline
+              maxLength={140}
+              textAlignVertical="top"
+            />
+            <Text style={styles.flashDescriptionCounter}>
+              {newDescription.length}/140
+            </Text>
 
             <Text style={styles.label}>Provincia</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
@@ -1899,6 +1927,7 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
               disabled={savingFlash}
               onPress={() => {
                 setNewTitle('');
+                setNewDescription('');
                 setNewCity('');
                 setNewPlace('');
                 setNewStreetNumber('');
@@ -1913,74 +1942,17 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
           </>
       </View>
 
-      <View style={[styles.card, !(selectedSection === 'find' || isFindPage) && styles.hiddenSection]}>
-        <Text style={styles.sectionTitle}>Mappa temporaneamente disabilitata</Text>
-
-        {filteredRows.filter((row) => !!getCoordinates(row)).length === 0 ? (
-          <Text style={styles.mutedText}>Nessun Flash con coordinate disponibile con questi filtri.</Text>
-        ) : (
-          <View style={[styles.flashVisualMapCard, styles.hiddenSection]}>
-            <View style={styles.flashVisualMapHeader}>
-              <View style={styles.flashVisualMapHeaderText}>
-                <Text style={styles.flashVisualMapTitle}>Flash sulla mappa</Text>
-                <Text style={styles.flashVisualMapSubtitle}>Tocca un punto per vedere l’anteprima.</Text>
-              </View>
-              <Text style={styles.flashVisualMapCount}>{filteredRows.filter((row) => !!getCoordinates(row)).length}</Text>
-            </View>
-
-            <View style={styles.flashMapCanvas}>
-              <View style={styles.flashMapBlobOne} />
-              <View style={styles.flashMapBlobTwo} />
-              <View style={styles.flashMapRoadOne} />
-              <View style={styles.flashMapRoadTwo} />
-              <Text style={styles.flashMapWatermark}>Bajuju Flash</Text>
-
-              {filteredRows.filter((row) => !!getCoordinates(row)).slice(0, 40).map((row, index) => {
-                const id = flashId(row);
-                const selected = selectedMapFlashId === id;
-
-                return (
-                  <Pressable
-                    key={`flash-map-pin-${id || index}`}
-                    style={[
-                      styles.flashMapPin,
-                      flashMapPinPosition(index) as any,
-                      selected && styles.flashMapPinSelected,
-                    ]}
-                    onPress={() => setSelectedMapFlashId(selected ? null : id)}
-                  >
-                    <Text style={styles.flashMapPinText}>•</Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-
-            {selectedMapFlashId ? (
-              (() => {
-                const selectedRow = filteredRows.find((row) => flashId(row) === selectedMapFlashId);
-
-                if (!selectedRow) return null;
-
-                return (
-                  <Pressable
-                    style={styles.flashMapPreview}
-                    onPress={() => router.push({
-                      pathname: '/flash-detail',
-                      params: { id: flashId(selectedRow) },
-                    })}
-                  >
-                    <Text style={styles.flashMapPreviewKicker}>Flash selezionato</Text>
-                    <Text style={styles.flashMapPreviewTitle} numberOfLines={2}>{flashTitle(selectedRow)}</Text>
-                    <Text style={styles.flashMapPreviewMeta} numberOfLines={1}>
-                      {[flashCity(selectedRow), flashProvince(selectedRow)].filter(Boolean).join(' · ')}
-                    </Text>
-                    <Text style={styles.flashMapPreviewAction}>Tocca per aprire il dettaglio</Text>
-                  </Pressable>
-                );
-              })()
-            ) : null}
-          </View>
-        )}
+      <View style={!(selectedSection === 'find' || isFindPage) ? styles.hiddenSection : undefined}>
+        {!loading && !errorMessage ? (
+          <BajujuMap
+            items={flashMapItems}
+            mapTitle="Flash sulla mappa"
+            mapSubtitle="Tocca un marker per vedere l’anteprima."
+            emptyText="Nessun Flash con coordinate disponibile con questi filtri."
+            previewActionText="Tocca questa anteprima per aprire il Flash"
+            onOpenItem={openFlashMapItem}
+          />
+        ) : null}
       </View>
 
       <View style={[styles.card, !(selectedSection === 'find' || isFindPage) && styles.hiddenSection]}>
@@ -2020,6 +1992,13 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
           filteredRows.map((row, index) => (
             <View key={String(firstValue(row, ['id', 'activity_id']) || index)} style={styles.flashBox}>
               <Text style={styles.flashTitle}>{flashTitle(row)}</Text>
+
+              {firstText(row, ['description', 'descrizione'], '').trim() ? (
+                <Text style={styles.flashDescription} numberOfLines={3}>
+                  {firstText(row, ['description', 'descrizione'], '').trim()}
+                </Text>
+              ) : null}
+
               <Text style={styles.flashMeta}>{flashCity(row)}{flashProvince(row) ? ` · ${flashProvince(row)}` : ''}</Text>
               {flashCreator(row) || creatorNames[flashCreatorId(row)] ? (
                 <Text style={styles.flashMeta}>
@@ -2771,152 +2750,6 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     marginBottom: 10,
   },
-  flashVisualMapCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: '#ffd3e6',
-    padding: 14,
-    gap: 12,
-    overflow: 'hidden',
-  },
-  flashVisualMapHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  flashVisualMapHeaderText: {
-    flex: 1,
-    minWidth: 0,
-  },
-  flashVisualMapTitle: {
-    color: '#4b1430',
-    fontSize: 19,
-    fontWeight: '900',
-  },
-  flashVisualMapSubtitle: {
-    color: '#7b4960',
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: '800',
-    marginTop: 2,
-  },
-  flashVisualMapCount: {
-    color: '#e43f98',
-    fontSize: 26,
-    fontWeight: '900',
-  },
-  flashMapCanvas: {
-    position: 'relative',
-    height: 260,
-    borderRadius: 22,
-    backgroundColor: '#fff8fb',
-    borderWidth: 1,
-    borderColor: '#ffd3e6',
-    overflow: 'hidden',
-  },
-  flashMapBlobOne: {
-    position: 'absolute',
-    width: 190,
-    height: 150,
-    borderRadius: 95,
-    backgroundColor: '#fff0f7',
-    top: 22,
-    left: 18,
-    transform: [{ rotate: '-18deg' }],
-  },
-  flashMapBlobTwo: {
-    position: 'absolute',
-    width: 150,
-    height: 130,
-    borderRadius: 80,
-    backgroundColor: '#ffe3f0',
-    bottom: 18,
-    right: 18,
-    transform: [{ rotate: '24deg' }],
-  },
-  flashMapRoadOne: {
-    position: 'absolute',
-    width: '120%',
-    height: 18,
-    borderRadius: 999,
-    backgroundColor: '#ffffff',
-    top: 112,
-    left: -28,
-    transform: [{ rotate: '-14deg' }],
-    opacity: 0.88,
-  },
-  flashMapRoadTwo: {
-    position: 'absolute',
-    width: 18,
-    height: '120%',
-    borderRadius: 999,
-    backgroundColor: '#ffffff',
-    top: -22,
-    left: '53%',
-    transform: [{ rotate: '18deg' }],
-    opacity: 0.72,
-  },
-  flashMapWatermark: {
-    position: 'absolute',
-    right: 14,
-    bottom: 12,
-    color: '#f0a4ca',
-    fontSize: 12,
-    fontWeight: '900',
-  },
-  flashMapPin: {
-    position: 'absolute',
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    backgroundColor: '#e43f98',
-    borderWidth: 3,
-    borderColor: '#ffffff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  flashMapPinSelected: {
-    backgroundColor: '#9b1f61',
-    transform: [{ scale: 1.12 }],
-  },
-  flashMapPinText: {
-    color: '#ffffff',
-    fontSize: 21,
-    fontWeight: '900',
-  },
-  flashMapPreview: {
-    borderRadius: 18,
-    backgroundColor: '#fff0f7',
-    borderWidth: 1,
-    borderColor: '#ffd3e6',
-    padding: 13,
-  },
-  flashMapPreviewKicker: {
-    color: '#e43f98',
-    fontSize: 12,
-    fontWeight: '900',
-    marginBottom: 4,
-  },
-  flashMapPreviewTitle: {
-    color: '#4b1430',
-    fontSize: 16,
-    lineHeight: 21,
-    fontWeight: '900',
-  },
-  flashMapPreviewMeta: {
-    color: '#7b4960',
-    fontSize: 13,
-    fontWeight: '800',
-    marginTop: 5,
-  },
-  flashMapPreviewAction: {
-    color: '#9b1f61',
-    fontSize: 12,
-    fontWeight: '900',
-    marginTop: 8,
-  },
 
   mapHighlightButton: {
     width: '100%',
@@ -3040,6 +2873,27 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '900',
     marginBottom: 7,
+  },
+  flashDescriptionInput: {
+    minHeight: 72,
+    maxHeight: 90,
+    paddingTop: 12,
+  },
+  flashDescriptionCounter: {
+    alignSelf: 'flex-end',
+    color: '#9c7b8b',
+    fontSize: 11,
+    fontWeight: '800',
+    marginTop: -6,
+    marginBottom: 2,
+  },
+  flashDescription: {
+    color: '#6f4258',
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '700',
+    marginTop: 6,
+    marginBottom: 4,
   },
   input: {
     minHeight: 58,

@@ -1,4 +1,3 @@
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 
@@ -14,18 +13,11 @@ import {
   View,
 } from 'react-native';
 
+import BajujuMap, { BajujuMapItem } from '../components/BajujuMap';
 import { getExperienceCategoryIcon, normalizeExperienceCategory } from '@/src/constants/experienceCategories';
 import { supabase } from '../src/lib/supabase';
 
 const bajujuLogo = require('../assets/brand/bajuju-logo.png');
-
-const INITIAL_MAP_REGION = {
-  latitude: 45.82,
-  longitude: 9.50,
-  latitudeDelta: 0.32,
-  longitudeDelta: 0.44,
-};
-
 
 type ActivityRow = Record<string, any>;
 
@@ -52,40 +44,6 @@ function activityTitle(row: ActivityRow) {
 
 function getCategory(row: ActivityRow) {
   return cleanText(firstValue(row, ['category', 'categoria'], ''), 'altro');
-}
-
-function getMapCategoryIconName(category: string) {
-  const value = normalizeExperienceCategory(category).toLowerCase();
-
-  if (value.includes('sport') || value.includes('calcetto') || value.includes('calcio') || value.includes('palestra') || value.includes('tennis') || value.includes('padel')) {
-    return 'soccer';
-  }
-
-  if (value.includes('cena') || value.includes('aperitivo') || value.includes('pizza') || value.includes('ristorante') || value.includes('food')) {
-    return 'silverware-fork-knife';
-  }
-
-  if (value.includes('camminata') || value.includes('trekking') || value.includes('gita') || value.includes('passeggiata')) {
-    return 'hiking';
-  }
-
-  if (value.includes('musica') || value.includes('concerto') || value.includes('live')) {
-    return 'music-note';
-  }
-
-  if (value.includes('cinema') || value.includes('film')) {
-    return 'movie-open';
-  }
-
-  if (value.includes('cultura') || value.includes('museo') || value.includes('mostra')) {
-    return 'star-four-points';
-  }
-
-  if (value.includes('viaggio') || value.includes('vacanza')) {
-    return 'bag-suitcase';
-  }
-
-  return 'star-four-points';
 }
 
 function getMapCategoryIcon(category: string) {
@@ -241,48 +199,6 @@ function formatDate(row: ActivityRow) {
   return [dateText, timeValue].filter(Boolean).join(' · ');
 }
 
-function fallbackCoordinate(index: number) {
-  const points = [
-    { latitude: 45.8566, longitude: 9.3977 }, // Lecco
-    { latitude: 45.6983, longitude: 9.6773 }, // Bergamo
-    { latitude: 45.7430, longitude: 9.5480 }, // Ponte San Pietro / area centrale
-    { latitude: 45.7680, longitude: 9.4220 }, // Calolziocorte / Vercurago
-    { latitude: 45.7650, longitude: 9.6400 }, // Val Brembana bassa
-    { latitude: 45.7100, longitude: 9.5000 }, // area intermedia
-  ];
-
-  return points[index % points.length];
-}
-
-
-function pinPosition(row: ActivityRow, index: number) {
-  const coordinates = getCoordinates(row);
-
-  if (coordinates) {
-    const latitude = Math.max(35.4, Math.min(47.2, coordinates.latitude));
-    const longitude = Math.max(6.3, Math.min(18.9, coordinates.longitude));
-
-    const top = 82 - ((latitude - 35.4) / (47.2 - 35.4)) * 68;
-    const left = 8 + ((longitude - 6.3) / (18.9 - 6.3)) * 84;
-
-    return {
-      top: `${Math.max(10, Math.min(78, top))}%`,
-      left: `${Math.max(10, Math.min(86, left))}%`,
-    };
-  }
-
-  const fallbackPositions = [
-    { top: '24%', left: '28%' },
-    { top: '34%', left: '56%' },
-    { top: '52%', left: '38%' },
-    { top: '62%', left: '70%' },
-    { top: '72%', left: '48%' },
-    { top: '42%', left: '78%' },
-  ];
-
-  return fallbackPositions[index % fallbackPositions.length];
-}
-
 function openExternalMap(row: ActivityRow) {
   const coordinates = getCoordinates(row);
 
@@ -309,7 +225,6 @@ function openDetail(row: ActivityRow) {
 
 export default function ExperiencesMapScreen() { 
   const [rows, setRows] = useState<ActivityRow[]>([]);
-  const [selectedPreviewRow, setSelectedPreviewRow] = useState<ActivityRow | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -336,7 +251,6 @@ export default function ExperiencesMapScreen() {
       });
 
     setRows(cleanRows);
-    setSelectedPreviewRow(null);
   }, []);
 
   useEffect(() => {
@@ -361,17 +275,30 @@ export default function ExperiencesMapScreen() {
     setRefreshing(false);
   }, [loadRows]);
 
-  const selectedPreviewId = selectedPreviewRow ? activityId(selectedPreviewRow) : '';
-
-  function handleMarkerPress(row: ActivityRow) {
+  const mapItems: BajujuMapItem[] = rows.flatMap((row) => {
     const id = activityId(row);
     const coordinates = getCoordinates(row);
 
-    if (!id || !coordinates) {
-      return;
-    }
+    if (!id || !coordinates) return [];
 
-    setSelectedPreviewRow(row);
+    return [{
+      id,
+      latitude: coordinates.latitude,
+      longitude: coordinates.longitude,
+      icon: getMapCategoryIcon(getCategory(row)),
+      kicker: normalizeExperienceCategory(getCategory(row)),
+      title: activityTitle(row),
+      locationText: [getCity(row), getProvince(row)].filter(Boolean).join(' · '),
+      dateText: formatDate(row),
+    }];
+  });
+
+  function openMapItem(item: BajujuMapItem) {
+    const row = rows.find((candidate) => activityId(candidate) === item.id);
+
+    if (row) {
+      openDetail(row);
+    }
   }
 
   return (
@@ -396,52 +323,14 @@ export default function ExperiencesMapScreen() {
       </View>
 
       {!loading && !errorMessage && rows.length > 0 ? (
-        <View style={styles.visualMapCard}>
-          <View style={styles.visualMapHeader}>
-            <View style={styles.visualMapHeaderText}>
-              <Text style={styles.visualMapTitle}>Eventi sulla mappa</Text>
-              <Text style={styles.visualMapSubtitle}>Ogni pin mostra il tipo di esperienza.</Text>
-            </View>
-            <Text style={styles.visualMapCount}>{rows.length}</Text>
-          </View>
-
-          <View style={styles.realMapShell}>
-            <View style={{ backgroundColor: "#fff8fb", borderColor: "#ffd3e8", borderRadius: 18, borderWidth: 1, padding: 16 }}>
-              <Text style={{ color: "#7a1f4f", fontSize: 16, fontWeight: "900" }}>Mappa temporaneamente disabilitata</Text>
-            </View>
-
-            {selectedPreviewRow ? (
-              <Pressable style={styles.mapPreviewOverlay} onPress={() => openDetail(selectedPreviewRow)}>
-                <View style={styles.mapPreviewHeader}>
-                  <View style={styles.mapPreviewIconCircle}>
-                    <Text style={styles.mapPreviewIcon}>{getMapCategoryIcon(getCategory(selectedPreviewRow))}</Text>
-                  </View>
-
-                  <View style={styles.mapPreviewTextBox}>
-                    <Text style={styles.mapPreviewKicker}>
-                      {normalizeExperienceCategory(getCategory(selectedPreviewRow))}
-                    </Text>
-                    <Text style={styles.mapPreviewTitle} numberOfLines={2}>
-                      {activityTitle(selectedPreviewRow)}
-                    </Text>
-                  </View>
-                </View>
-
-                <Text style={styles.mapPreviewMeta} numberOfLines={1}>
-                  {[getCity(selectedPreviewRow), getProvince(selectedPreviewRow)].filter(Boolean).join(' · ')}
-                </Text>
-                <Text style={styles.mapPreviewMeta} numberOfLines={1}>
-                  {formatDate(selectedPreviewRow)}
-                </Text>
-                <Text style={styles.mapPreviewAction}>Tocca questa anteprima per aprire l’evento</Text>
-              </Pressable>
-            ) : null}
-          </View>
-
-          <Text style={styles.visualMapHint}>
-            Mappa temporaneamente disabilitata.
-          </Text>
-        </View>
+        <BajujuMap
+          items={mapItems}
+          mapTitle="Eventi sulla mappa"
+          mapSubtitle="Tocca un marker per vedere l’anteprima."
+          emptyText="Nessuna esperienza con coordinate disponibile."
+          previewActionText="Tocca questa anteprima per aprire l’esperienza"
+          onOpenItem={openMapItem}
+        />
       ) : null}
 
       {loading ? (
@@ -506,136 +395,6 @@ export default function ExperiencesMapScreen() {
 }
 
 const styles = StyleSheet.create({
-  bajujuMapDotSelected: {
-    width: 66,
-    height: 66,
-    borderRadius: 33,
-    backgroundColor: '#c81f77',
-    borderWidth: 6,
-    borderColor: '#ffffff',
-  },
-  bajujuMapDot: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    backgroundColor: '#e43f98',
-    borderWidth: 5,
-    borderColor: '#ffffff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#4b1430',
-    shadowOpacity: 0.45,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 15,
-  },
-  nativeMarkerIconBubble: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#fff0f7',
-    borderWidth: 2,
-    borderColor: '#ffd3e7',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  bajujuOverlayMarkerCircleSelected: {
-    width: 60,
-    height: 60,
-    marginLeft: -30,
-    marginTop: -30,
-    borderRadius: 30,
-    borderWidth: 5,
-    backgroundColor: '#c81f77',
-  },
-  bajujuOverlayMarkerCircle: {
-    position: 'absolute',
-    width: 52,
-    height: 52,
-    marginLeft: -26,
-    marginTop: -26,
-    borderRadius: 26,
-    backgroundColor: '#e43f98',
-    borderWidth: 4,
-    borderColor: '#ffffff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#4b1430',
-    shadowOpacity: 0.35,
-    shadowRadius: 9,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 12,
-  },
-  markerOverlayLayer: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
-  },
-  mapPreviewAction: {
-    color: '#e43f98',
-    fontSize: 12,
-    fontWeight: '900',
-    marginTop: 8,
-  },
-  mapPreviewMeta: {
-    color: '#7b4960',
-    fontSize: 12,
-    lineHeight: 17,
-    fontWeight: '800',
-    marginTop: 5,
-  },
-  mapPreviewTitle: {
-    color: '#4b1430',
-    fontSize: 15,
-    lineHeight: 19,
-    fontWeight: '900',
-  },
-  mapPreviewKicker: {
-    color: '#e43f98',
-    fontSize: 12,
-    fontWeight: '900',
-    marginBottom: 2,
-  },
-  mapPreviewTextBox: {
-    flex: 1,
-    minWidth: 0,
-  },
-  mapPreviewIcon: {
-    fontSize: 19,
-  },
-  mapPreviewIconCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#fff0f7',
-    borderWidth: 1,
-    borderColor: '#ffd3e6',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  mapPreviewHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  mapPreviewOverlay: {
-    position: 'absolute',
-    left: 12,
-    right: 12,
-    bottom: 12,
-    backgroundColor: '#ffffff',
-    borderRadius: 20,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#ffd3e6',
-    shadowColor: '#4b1430',
-    shadowOpacity: 0.22,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 12,
-  },
 
 
 
@@ -654,18 +413,6 @@ const styles = StyleSheet.create({
 
 
 
-  realMap: {
-    width: '100%',
-    height: '100%',
-  },
-  realMapShell: {
-    height: 330,
-    borderRadius: 22,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#ffd3e6',
-    backgroundColor: '#fff8fb',
-  },
   page: {
     flexGrow: 1,
     backgroundColor: '#fff8fb',
@@ -734,101 +481,12 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     textAlign: 'center',
   },
-  visualMapCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 24,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#ffd3e6',
-    gap: 12,
-    overflow: 'hidden',
-  },
-  visualMapHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  visualMapHeaderText: {
-    flex: 1,
-    minWidth: 0,
-  },
-  visualMapTitle: {
-    color: '#4b1430',
-    fontSize: 20,
-    fontWeight: '900',
-  },
-  visualMapSubtitle: {
-    color: '#7b4960',
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: '800',
-    marginTop: 2,
-  },
-  visualMapCount: {
-    color: '#e43f98',
-    fontSize: 26,
-    fontWeight: '900',
-  },
-  visualMapCanvas: {
-    position: 'relative',
-    height: 260,
-    borderRadius: 22,
-    backgroundColor: '#fff8fb',
-    borderWidth: 1,
-    borderColor: '#ffd3e6',
-    overflow: 'hidden',
-  },
-  mapBlobOne: {
-    position: 'absolute',
-    width: 190,
-    height: 170,
-    borderRadius: 90,
-    backgroundColor: '#fff0f7',
-    top: 18,
-    left: 20,
-    transform: [{ rotate: '-18deg' }],
-  },
-  mapBlobTwo: {
-    position: 'absolute',
-    width: 150,
-    height: 130,
-    borderRadius: 80,
-    backgroundColor: '#ffe3f0',
-    bottom: 18,
-    right: 18,
-    transform: [{ rotate: '24deg' }],
-  },
-  mapBlobThree: {
-    position: 'absolute',
-    width: 110,
-    height: 90,
-    borderRadius: 55,
-    backgroundColor: '#ffffff',
-    bottom: 48,
-    left: 76,
-    opacity: 0.75,
-  },
-  mapWatermark: {
-    position: 'absolute',
-    right: 14,
-    bottom: 12,
-    color: '#f0a4ca',
-    fontSize: 12,
-    fontWeight: '900',
-  },
 
 
   mapPinIcon: {
     fontSize: 18,
   },
 
-  visualMapHint: {
-    color: '#a95d86',
-    fontSize: 12,
-    lineHeight: 17,
-    fontWeight: '800',
-  },
   card: {
     backgroundColor: '#ffffff',
     borderRadius: 24,

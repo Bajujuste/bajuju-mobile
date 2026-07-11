@@ -46,6 +46,10 @@ function flashTitle(row: LooseRow | null) {
   return firstText(row, ['title', 'titolo', 'name', 'nome'], 'Flash senza titolo');
 }
 
+function flashDescription(row: LooseRow | null) {
+  return firstText(row, ['description', 'descrizione'], '').trim();
+}
+
 function flashCity(row: LooseRow | null) {
   return firstText(row, ['city', 'citta', 'comune', 'location_city'], 'Comune non indicato');
 }
@@ -333,6 +337,12 @@ export default function FlashDetailScreen() {
         <View style={styles.card}>
           <Text style={styles.flashTitle}>{flashTitle(flash)}</Text>
 
+          {flashDescription(flash) ? (
+            <Text style={styles.flashDescription}>
+              {flashDescription(flash)}
+            </Text>
+          ) : null}
+
           <View style={styles.infoBox}>
             <Text style={styles.label}>Comune</Text>
             <Text style={styles.value}>
@@ -461,6 +471,14 @@ const styles = StyleSheet.create({
     color: '#3d1230',
     fontSize: 28,
     fontWeight: '900',
+  },
+  flashDescription: {
+    color: '#6f4258',
+    fontSize: 15,
+    lineHeight: 21,
+    fontWeight: '700',
+    marginTop: 8,
+    marginBottom: 12,
   },
   flashTitle: {
     color: '#3d1230',

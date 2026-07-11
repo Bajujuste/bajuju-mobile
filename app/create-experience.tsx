@@ -1,3 +1,6 @@
+import DateTimePicker, {
+  DateTimePickerEvent,
+} from '@react-native-community/datetimepicker';
 import { router } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import {
@@ -168,6 +171,9 @@ export default function CreateExperienceScreen() {
   const [hour, setHour] = useState('');
   const [minute, setMinute] = useState('');
 
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
+
   const [maxParticipants, setMaxParticipants] = useState('10');
   const [budgetAmount, setBudgetAmount] = useState('');
 
@@ -175,6 +181,27 @@ export default function CreateExperienceScreen() {
 
   const isoDate = buildIsoDate(day, month, year);
   const cleanTime = buildTime(hour, minute);
+
+  const datePickerValue = isoDate
+    ? new Date(Number(year), Number(month) - 1, Number(day), 12, 0, 0)
+    : new Date();
+
+  const timePickerValue = new Date();
+  timePickerValue.setHours(
+    cleanTime ? Number(hour) : 12,
+    cleanTime ? Number(minute) : 0,
+    0,
+    0
+  );
+
+  const formattedSelectedDate = isoDate
+    ? day + '/' + month + '/' + year
+    : 'Seleziona la data';
+
+  const formattedSelectedTime = cleanTime
+    ? hour + ':' + minute
+    : 'Seleziona l’orario';
+
   const needsBudget = category === 'Gita' || category === 'Vacanza';
   const cleanMaxParticipants = Number(maxParticipants || '0');
   const cleanBudgetAmount = budgetAmount ? Number(budgetAmount) : null;
@@ -212,6 +239,36 @@ export default function CreateExperienceScreen() {
     maxParticipantsIsValid &&
     budgetIsValid &&
     !saving;
+
+  function handleDateChange(
+    event: DateTimePickerEvent,
+    selectedDate?: Date
+  ) {
+    setShowDatePicker(false);
+
+    if (event.type === 'dismissed') return;
+    if (selectedDate === undefined) return;
+
+    setDay(String(selectedDate.getDate()).padStart(2, '0'));
+    setMonth(String(selectedDate.getMonth() + 1).padStart(2, '0'));
+    setYear(String(selectedDate.getFullYear()));
+  }
+
+  function handleTimeChange(
+    event: DateTimePickerEvent,
+    selectedTime?: Date
+  ) {
+    setShowTimePicker(false);
+
+    if (event.type === 'dismissed') return;
+    if (selectedTime === undefined) return;
+
+    const selectedHour = selectedTime.getHours();
+    const selectedMinute = selectedTime.getMinutes() >= 30 ? 30 : 0;
+
+    setHour(String(selectedHour).padStart(2, '0'));
+    setMinute(String(selectedMinute).padStart(2, '0'));
+  }
 
   async function handleCreateExperience() {
     if (!canCreateExperience || saving) return;
@@ -447,64 +504,68 @@ export default function CreateExperienceScreen() {
             <View style={styles.dateTimeRow}>
               <View style={styles.dateColumn}>
                 <Text style={styles.compactLabel}>Data</Text>
-                <View style={styles.compactDatePartsRow}>
-                  <TextInput
-                    value={day}
-                    onChangeText={(value) => setDay(onlyDigits(value, 2))}
-                    placeholder="GG"
-                    placeholderTextColor="#9c7b8b"
-                    style={[styles.smallInput, styles.compactSmallInput]}
-                    keyboardType="number-pad"
-                    maxLength={2}
-                  />
-                  <Text style={styles.separator}>/</Text>
-                  <TextInput
-                    value={month}
-                    onChangeText={(value) => setMonth(onlyDigits(value, 2))}
-                    placeholder="MM"
-                    placeholderTextColor="#9c7b8b"
-                    style={[styles.smallInput, styles.compactSmallInput]}
-                    keyboardType="number-pad"
-                    maxLength={2}
-                  />
-                  <Text style={styles.separator}>/</Text>
-                  <TextInput
-                    value={year}
-                    onChangeText={(value) => setYear(onlyDigits(value, 4))}
-                    placeholder="AAAA"
-                    placeholderTextColor="#9c7b8b"
-                    style={[styles.yearInput, styles.compactYearInput]}
-                    keyboardType="number-pad"
-                    maxLength={4}
-                  />
-                </View>
+
+                <Pressable
+                  style={styles.dateTimePickerButton}
+                  onPress={() => {
+                    setShowTimePicker(false);
+                    setShowDatePicker(true);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.dateTimePickerButtonText,
+                      isoDate ? null : styles.dateTimePickerPlaceholder,
+                    ]}
+                  >
+                    {formattedSelectedDate}
+                  </Text>
+                  <Text style={styles.dateTimePickerIcon}>▣</Text>
+                </Pressable>
               </View>
 
               <View style={styles.timeColumn}>
                 <Text style={styles.compactLabel}>Ora</Text>
-                <View style={styles.compactDatePartsRow}>
-                  <TextInput
-                    value={hour}
-                    onChangeText={(value) => setHour(onlyDigits(value, 2))}
-                    placeholder="HH"
-                    placeholderTextColor="#9c7b8b"
-                    style={[styles.smallInput, styles.compactSmallInput]}
-                    keyboardType="number-pad"
-                    maxLength={2}
-                  />
-                  <Text style={styles.separator}>:</Text>
-                  <TextInput
-                    value={minute}
-                    onChangeText={(value) => setMinute(onlyDigits(value, 2))}
-                    placeholder="MM"
-                    placeholderTextColor="#9c7b8b"
-                    style={[styles.smallInput, styles.compactSmallInput]}
-                    keyboardType="number-pad"
-                    maxLength={2}
-                  />
-                </View>
+
+                <Pressable
+                  style={styles.dateTimePickerButton}
+                  onPress={() => {
+                    setShowDatePicker(false);
+                    setShowTimePicker(true);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.dateTimePickerButtonText,
+                      cleanTime ? null : styles.dateTimePickerPlaceholder,
+                    ]}
+                  >
+                    {formattedSelectedTime}
+                  </Text>
+                  <Text style={styles.dateTimePickerIcon}>◷</Text>
+                </Pressable>
               </View>
             </View>
+
+            {showDatePicker ? (
+              <DateTimePicker
+                value={datePickerValue}
+                mode="date"
+                display="calendar"
+                onChange={handleDateChange}
+              />
+            ) : null}
+
+            {showTimePicker ? (
+              <DateTimePicker
+                value={timePickerValue}
+                mode="time"
+                display="spinner"
+                minuteInterval={30}
+                is24Hour
+                onChange={handleTimeChange}
+              />
+            ) : null}
           </View>
 
           <View style={styles.formSection}>
@@ -857,6 +918,32 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     textTransform: 'uppercase',
     letterSpacing: 0.4,
+  },
+  dateTimePickerButton: {
+    minHeight: 50,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#ffd3e6',
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  dateTimePickerButtonText: {
+    flex: 1,
+    color: '#4b1430',
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  dateTimePickerPlaceholder: {
+    color: '#9c7b8b',
+  },
+  dateTimePickerIcon: {
+    color: '#e43f98',
+    fontSize: 18,
+    fontWeight: '900',
   },
   dateTimeRow: {
     flexDirection: 'column',

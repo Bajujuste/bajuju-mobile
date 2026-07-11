@@ -21,11 +21,13 @@ import { sendBajujuPushNotification, buildExperienceNotificationTitle } from '..
 
 const LOCATION_OPTIONS = [
   'Bergamo',
-  'Milano',
   'Lecco',
+  'Milano',
   'Monza e Brianza',
   'Brescia',
   'Torino',
+  'Roma',
+  'Napoli',
 ];
 
 function categoryToDatabaseValue(value: string) {

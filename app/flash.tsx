@@ -17,7 +17,16 @@ type FlashDuration = 1 | 2 | 3;
 type AvailabilityDuration = FlashDuration | 'evening';
 type FlashSection = 'create' | 'find' | 'availability' | 'available' | null;
 
-const ACTIVE_PROVINCES = ['Bergamo', 'Milano', 'Lecco', 'Monza e Brianza', 'Brescia', 'Torino'] as const;
+const ACTIVE_PROVINCES = [
+  'Bergamo',
+  'Lecco',
+  'Milano',
+  'Monza e Brianza',
+  'Brescia',
+  'Torino',
+  'Roma',
+  'Napoli',
+] as const;
 
 function normalizeMunicipalitySearch(value: string) {
   return value

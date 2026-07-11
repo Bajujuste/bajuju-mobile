@@ -23,7 +23,10 @@ const LOCATION_OPTIONS = [
   'Lecco',
   'Milano',
   'Monza e Brianza',
-  'Verona',
+  'Brescia',
+  'Torino',
+  'Roma',
+  'Napoli',
 ];
 
 const BAJUJU_CREATOR_EMAIL = 'royaleventi@gmail.com';

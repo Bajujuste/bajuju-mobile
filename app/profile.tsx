@@ -987,55 +987,74 @@ export default function ProfileScreen() {
     if (!user) return;
 
     Alert.alert(
-      'Eliminazione profilo',
-      'Vuoi inviare una richiesta di eliminazione del profilo? L’admin la vedrà nell’Area Admin.',
+      'Eliminazione account',
+      'Questa operazione eliminerà definitivamente il tuo account Bajuju e non potrà essere annullata.',
       [
         {
           text: 'Annulla',
           style: 'cancel',
         },
         {
-          text: 'Invia richiesta',
+          text: 'Continua',
           style: 'destructive',
-          onPress: async () => {
-            const payload = {
-              user_id: user.id,
-              email: user.email,
-              status: 'pending',
-              created_at: new Date().toISOString(),
-            };
+          onPress: () => {
+            Alert.alert(
+              'Conferma definitiva',
+              'Sei sicuro di voler eliminare definitivamente il tuo account?',
+              [
+                {
+                  text: 'No, mantieni account',
+                  style: 'cancel',
+                },
+                {
+                  text: 'Elimina definitivamente',
+                  style: 'destructive',
+                  onPress: async () => {
+                    try {
+                      const result = await supabase.functions.invoke(
+                        'delete-bajuju-account',
+                        {
+                          body: {},
+                        }
+                      );
 
-            const attempts = [
-              () => supabase.from('profile_deletion_requests').insert(payload),
-              () => supabase.from('deletion_requests').insert(payload),
-              () =>
-                supabase
-                  .from(PROFILE_TABLE)
-                  .update({ deletion_requested_at: new Date().toISOString() })
-                  .eq(profileIdField, profileIdValue),
-            ];
+                      if (result.error) {
+                        console.log('Errore eliminazione account:', result.error);
+                        Alert.alert(
+                          'Eliminazione non riuscita',
+                          'Non è stato possibile eliminare l’account. Riprova più tardi.'
+                        );
+                        return;
+                      }
 
-            for (const attempt of attempts) {
-              try {
-                const result = await attempt();
+                      if (!result.data?.ok) {
+                        console.log('Risposta eliminazione account:', result.data);
+                        Alert.alert(
+                          'Eliminazione non riuscita',
+                          result.data?.error ||
+                            'Non è stato possibile eliminare l’account.'
+                        );
+                        return;
+                      }
 
-                if (!result.error) {
-                  Alert.alert('Richiesta inviata', 'La richiesta di eliminazione profilo è stata registrata.');
-                  return;
-                }
-
-                console.log('Errore richiesta eliminazione:', result.error.message);
-              } catch (error) {
-                console.log('Errore richiesta eliminazione:', error);
-              }
-            }
-
-            Alert.alert('Errore', 'Non sono riuscito a registrare la richiesta di eliminazione.');
+                      await supabase.auth.signOut();
+                      router.replace('/');
+                    } catch (error) {
+                      console.log('Errore eliminazione account:', error);
+                      Alert.alert(
+                        'Eliminazione non riuscita',
+                        'Si è verificato un errore durante l’eliminazione dell’account.'
+                      );
+                    }
+                  },
+                },
+              ]
+            );
           },
         },
       ]
     );
-  }, [profileIdField, profileIdValue, user]);
+  }, [router, user]);
 
   const logout = useCallback(async () => {
     await supabase.auth.signOut();
@@ -1360,7 +1379,7 @@ export default function ProfileScreen() {
           <Text style={styles.linkButtonText}>Apri Regole community</Text>
         </Pressable>
         <Pressable style={styles.deleteButton} onPress={requestProfileDeletion}>
-          <Text style={styles.deleteButtonText}>Richiedi eliminazione profilo</Text>
+          <Text style={styles.deleteButtonText}>Elimina definitivamente account</Text>
         </Pressable>
       </View>
 

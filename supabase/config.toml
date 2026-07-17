@@ -1,0 +1,4 @@
+project_id = "bajuju-mobile"
+
+[functions.admin-create-experience]
+verify_jwt = true

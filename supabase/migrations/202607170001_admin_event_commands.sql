@@ -283,8 +283,8 @@ begin
       select 1 from information_schema.columns
       where table_schema = 'public' and table_name = 'activities' and column_name = col
     ) then
-      insert_columns := insert_columns || quote_ident(col);
-      insert_values := insert_values || quote_nullable(raw_value);
+      insert_columns := array_append(insert_columns, quote_ident(col));
+      insert_values := array_append(insert_values, quote_nullable(raw_value));
     end if;
   end loop;
 
@@ -294,10 +294,10 @@ begin
       select 1 from information_schema.columns
       where table_schema = 'public' and table_name = 'activities' and column_name = col
     ) and not (col = any(insert_columns)) then
-      insert_columns := insert_columns || quote_ident(col);
-      insert_values := insert_values || quote_nullable(
+      insert_columns := array_append(insert_columns, quote_ident(col));
+      insert_values := array_append(insert_values, quote_nullable(
         public.admin_payload_text(clean_payload, 'activity_date', 'date') || 'T' || public.admin_payload_text(clean_payload, 'activity_time', 'time')
-      );
+      ));
     end if;
   end loop;
 
@@ -306,8 +306,8 @@ begin
       select 1 from information_schema.columns
       where table_schema = 'public' and table_name = 'activities' and column_name = col
     ) and not (col = any(insert_columns)) then
-      insert_columns := insert_columns || quote_ident(col);
-      insert_values := insert_values || quote_nullable(current_user_id::text);
+      insert_columns := array_append(insert_columns, quote_ident(col));
+      insert_values := array_append(insert_values, quote_nullable(current_user_id::text));
     end if;
   end loop;
 
@@ -315,16 +315,16 @@ begin
     select 1 from information_schema.columns
     where table_schema = 'public' and table_name = 'activities' and column_name = 'title'
   ) and not ('title' = any(insert_columns)) then
-    insert_columns := insert_columns || 'title';
-    insert_values := insert_values || quote_nullable(public.admin_payload_text(clean_payload, 'title', 'activity_title', 'name'));
+    insert_columns := array_append(insert_columns, 'title');
+    insert_values := array_append(insert_values, quote_nullable(public.admin_payload_text(clean_payload, 'title', 'activity_title', 'name')));
   end if;
 
   if exists (
     select 1 from information_schema.columns
     where table_schema = 'public' and table_name = 'activities' and column_name = 'status'
   ) and not ('status' = any(insert_columns)) then
-    insert_columns := insert_columns || 'status';
-    insert_values := insert_values || quote_nullable(coalesce(public.admin_payload_text(clean_payload, 'status'), 'active'));
+    insert_columns := array_append(insert_columns, 'status');
+    insert_values := array_append(insert_values, quote_nullable(coalesce(public.admin_payload_text(clean_payload, 'status'), 'attiva')));
   end if;
 
   if array_length(insert_columns, 1) is null then
@@ -345,7 +345,7 @@ begin
 
   update public.admin_event_commands
   set status = 'succeeded',
-      activity_id = nullif(activity_row ->> 'id', ''),
+      activity_id = nullif(activity_row ->> 'id', '')::uuid,
       response = jsonb_build_object('ok', true, 'status', 201, 'activity', activity_row, 'idempotent', false),
       error_code = null
   where id = command_row.id;

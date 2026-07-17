@@ -1,11 +1,16 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
+type EventPayload = Record<string, unknown>;
+
 type RequestBody = {
   idempotencyKey?: string;
   idempotency_key?: string;
-  payload?: Record<string, unknown>;
-  experience?: Record<string, unknown>;
+  payload?: EventPayload;
+  experience?: EventPayload;
 };
+
+const MAX_TEXT_LENGTH = 500;
+const MAX_LONG_TEXT_LENGTH = 4000;
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -23,9 +28,55 @@ function jsonResponse(body: Record<string, unknown>, status = 200) {
   });
 }
 
+function cleanString(value: unknown) {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
 function cleanIdempotencyKey(req: Request, body: RequestBody) {
-  const headerKey = req.headers.get('idempotency-key') || req.headers.get('Idempotency-Key') || '';
-  return String(body.idempotencyKey || body.idempotency_key || headerKey).trim();
+  const headerKey = req.headers.get('idempotency-key') || '';
+  return cleanString(body.idempotencyKey || body.idempotency_key || headerKey);
+}
+
+function isValidIsoDate(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
+function isValidTime(value: string) {
+  return /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/.test(value);
+}
+
+function optionalNumber(value: unknown) {
+  if (value === undefined || value === null || value === '') return null;
+  const numberValue = typeof value === 'number' ? value : Number(String(value).trim());
+  return Number.isFinite(numberValue) ? numberValue : Number.NaN;
+}
+
+function validateEventPayload(payload: EventPayload) {
+  const title = cleanString(payload.title || payload.activity_title || payload.name);
+  const date = cleanString(payload.activity_date || payload.date);
+  const time = cleanString(payload.activity_time || payload.time);
+  const city = cleanString(payload.city || payload.citta);
+  const province = cleanString(payload.province || payload.provincia);
+  const description = cleanString(payload.description || payload.activity_description || '');
+  const latitude = optionalNumber(payload.latitude);
+  const longitude = optionalNumber(payload.longitude);
+  const maxParticipants = optionalNumber(payload.max_participants);
+
+  if (!title || title.length > MAX_TEXT_LENGTH) return 'INVALID_TITLE';
+  if (description.length > MAX_LONG_TEXT_LENGTH) return 'INVALID_DESCRIPTION';
+  if (!date || !isValidIsoDate(date)) return 'INVALID_ACTIVITY_DATE';
+  if (!time || !isValidTime(time)) return 'INVALID_ACTIVITY_TIME';
+  if (!city || city.length > MAX_TEXT_LENGTH) return 'INVALID_CITY';
+  if (!province || province.length > 100) return 'INVALID_PROVINCE';
+  if (latitude !== null && (Number.isNaN(latitude) || latitude < -90 || latitude > 90)) return 'INVALID_LATITUDE';
+  if (longitude !== null && (Number.isNaN(longitude) || longitude < -180 || longitude > 180)) return 'INVALID_LONGITUDE';
+  if (maxParticipants !== null && (Number.isNaN(maxParticipants) || !Number.isInteger(maxParticipants) || maxParticipants < 1 || maxParticipants > 10000)) {
+    return 'INVALID_MAX_PARTICIPANTS';
+  }
+
+  return null;
 }
 
 Deno.serve(async (req) => {
@@ -41,7 +92,7 @@ Deno.serve(async (req) => {
   const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
 
   if (!supabaseUrl || !supabaseAnonKey) {
-    return jsonResponse({ ok: false, error: 'MISSING_SUPABASE_ENV' }, 500);
+    return jsonResponse({ ok: false, error: 'SERVER_NOT_CONFIGURED' }, 500);
   }
 
   const authorization = req.headers.get('Authorization') || '';
@@ -69,11 +120,15 @@ Deno.serve(async (req) => {
     return jsonResponse({ ok: false, error: 'INVALID_PAYLOAD' }, 400);
   }
 
+  const validationError = validateEventPayload(payload);
+
+  if (validationError) {
+    return jsonResponse({ ok: false, error: validationError }, 400);
+  }
+
   const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     global: {
-      headers: {
-        Authorization: authorization,
-      },
+      headers: { Authorization: authorization },
     },
     auth: {
       persistSession: false,
@@ -93,7 +148,7 @@ Deno.serve(async (req) => {
   });
 
   if (error) {
-    return jsonResponse({ ok: false, error: 'ADMIN_CREATE_EXPERIENCE_RPC_FAILED', message: error.message }, 500);
+    return jsonResponse({ ok: false, error: 'CREATE_EXPERIENCE_FAILED' }, 500);
   }
 
   const result = (data || {}) as Record<string, unknown>;

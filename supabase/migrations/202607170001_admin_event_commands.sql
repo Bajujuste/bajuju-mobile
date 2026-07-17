@@ -5,7 +5,7 @@ create table if not exists public.admin_event_requests (
   id uuid primary key default gen_random_uuid(),
   idempotency_key text not null unique,
   admin_user_id uuid not null references auth.users(id) on delete restrict,
-  activity_id uuid null,
+  activity_id text null,
   request_payload jsonb not null,
   response_payload jsonb null,
   status text not null check (status in ('processing', 'completed', 'failed')),

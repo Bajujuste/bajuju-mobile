@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
+  Alert,
   Image,
   Pressable,
   SafeAreaView,
@@ -8,7 +9,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 
 import { supabase } from '../src/lib/supabase';
 import { shareBajujuHome } from '../src/utils/shareBajuju';
@@ -38,12 +39,66 @@ export default function HomeScreen() {
 
     async function setupBajujuNotifications() {
       try {
-        const { data } = await supabase.auth.getUser();
+        const authResult = await supabase.auth.getUser();
+
+        if (authResult.error) {
+          throw authResult.error;
+        }
+
+        const userId = authResult.data.user?.id;
+
+        if (!active || !userId) return;
+
+        const preferencesResult = await supabase
+          .from('notification_preferences')
+          .select('enabled')
+          .eq('user_id', userId)
+          .maybeSingle();
+
+        if (preferencesResult.error) {
+          throw preferencesResult.error;
+        }
+
         if (!active) return;
 
-        await registerForBajujuPushNotifications(data.user?.id);
+        if (preferencesResult.data?.enabled === false) {
+          return;
+        }
+
+        if (preferencesResult.data?.enabled === true) {
+          return;
+        }
+
+        Alert.alert(
+          'Notifiche Bajuju',
+          'Vuoi ricevere notifiche per nuove esperienze, Flash, partecipazioni e richieste?',
+          [
+            {
+              text: 'No',
+              style: 'cancel',
+              onPress: () => {
+                void supabase.from('notification_preferences').upsert(
+                  {
+                    user_id: userId,
+                    enabled: false,
+                    updated_at: new Date().toISOString(),
+                  },
+                  {
+                    onConflict: 'user_id',
+                  }
+                );
+              },
+            },
+            {
+              text: 'Sì',
+              onPress: () => {
+                void registerForBajujuPushNotifications(userId);
+              },
+            },
+          ]
+        );
       } catch (error) {
-        console.log('Errore registrazione notifiche Bajuju:', error);
+        console.log('Errore registrazione notifiche Bajuju.');
       }
     }
 
@@ -55,31 +110,98 @@ export default function HomeScreen() {
   }, []);
 
   const [profilePhotoUrl, setProfilePhotoUrl] = useState('');
+  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      let active = true;
+
+      async function loadUnreadNotificationsCount() {
+        try {
+          const authResult = await supabase.auth.getUser();
+
+          if (authResult.error) {
+            throw authResult.error;
+          }
+
+          const userId = authResult.data.user?.id;
+
+          if (userId === undefined || userId === null || active === false) {
+            if (active) {
+              setUnreadNotificationsCount(0);
+            }
+            return;
+          }
+
+          const { count, error } = await supabase
+            .from('push_notification_logs')
+            .select('id', { count: 'exact', head: true })
+            .eq('user_id', userId)
+            .eq('is_read', false);
+
+          if (error) throw error;
+
+          if (active) {
+            setUnreadNotificationsCount(count || 0);
+          }
+        } catch (error) {
+          console.log('Errore conteggio notifiche non lette:', error);
+
+          if (active) {
+            setUnreadNotificationsCount(0);
+          }
+        }
+      }
+
+      void loadUnreadNotificationsCount();
+
+      return () => {
+        active = false;
+      };
+    }, [])
+  );
 
   useEffect(() => {
     let isMounted = true;
 
     async function loadProfilePhoto() {
-      const { data: userData } = await supabase.auth.getUser();
-      const userId = userData.user?.id;
+      try {
+        const authResult = await supabase.auth.getUser();
 
-      if (!userId) return;
+        if (authResult.error) {
+          throw authResult.error;
+        }
 
-      const { data } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .maybeSingle();
+        const userId = authResult.data.user?.id;
 
-      if (!isMounted) return;
+        if (!userId) return;
 
-      setProfilePhotoUrl(
-        firstText(
-          data as ProfileRow | null,
+        const profileResult = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .maybeSingle();
+
+        if (profileResult.error) {
+          throw profileResult.error;
+        }
+
+        if (!isMounted) return;
+
+        setProfilePhotoUrl(
+          firstText(
+            profileResult.data as ProfileRow | null,
           ['avatar_url', 'photo_url', 'profile_photo_url', 'profile_image_url', 'image_url', 'foto'],
-          ''
-        )
-      );
+            ''
+          )
+        );
+      } catch (error) {
+        console.log('Errore caricamento foto profilo.');
+
+        if (isMounted) {
+          setProfilePhotoUrl('');
+        }
+      }
     }
 
     loadProfilePhoto();
@@ -90,8 +212,22 @@ export default function HomeScreen() {
   }, []);
 
   async function handleLogout() {
-    await supabase.auth.signOut();
-    router.replace('/');
+    try {
+      const result = await supabase.auth.signOut();
+
+      if (result.error) {
+        throw result.error;
+      }
+
+      router.replace('/');
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Non sono riuscito a effettuare il logout.';
+
+      Alert.alert('Errore logout', message);
+    }
   }
 
   return (
@@ -105,6 +241,25 @@ export default function HomeScreen() {
               <Text style={styles.brandTitle}>Bajuju</Text>
             </View>
           </View>
+
+          <Pressable
+            style={styles.notificationButton}
+            onPress={() => router.push('/notifications' as any)}
+            accessibilityRole="button"
+            accessibilityLabel="Apri notifiche"
+          >
+            <Text style={styles.notificationIcon}>🔔</Text>
+
+            {unreadNotificationsCount > 0 ? (
+              <View style={styles.notificationBadge}>
+                <Text style={styles.notificationBadgeText}>
+                  {unreadNotificationsCount > 99
+                    ? '99+'
+                    : unreadNotificationsCount}
+                </Text>
+              </View>
+            ) : null}
+          </Pressable>
 
           <Pressable style={styles.profileButton} onPress={() => router.push('/profile')}>
             {profilePhotoUrl ? (
@@ -283,6 +438,46 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '900',
     color: PINK_DARK,
+  },
+  notificationButton: {
+    width: 42,
+    height: 42,
+    marginRight: 8,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: WHITE,
+    borderWidth: 1,
+    borderColor: BORDER,
+    shadowColor: PINK,
+    shadowOpacity: 0.09,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 7 },
+    elevation: 3,
+    position: 'relative',
+  },
+  notificationIcon: {
+    fontSize: 20,
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: -5,
+    right: -5,
+    minWidth: 20,
+    height: 20,
+    borderRadius: 999,
+    paddingHorizontal: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: PINK,
+    borderWidth: 2,
+    borderColor: WHITE,
+  },
+  notificationBadgeText: {
+    color: WHITE,
+    fontSize: 10,
+    lineHeight: 12,
+    fontWeight: '900',
   },
   profileButton: {
     height: 42,

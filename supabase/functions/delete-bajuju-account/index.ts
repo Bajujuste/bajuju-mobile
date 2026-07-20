@@ -55,8 +55,36 @@ Deno.serve(async (request) => {
     },
   });
 
+  let requestedUserId = user.id;
+
+  try {
+    const body = await request.json();
+    const candidate = String(body?.target_user_id || '').trim();
+    if (candidate) requestedUserId = candidate;
+  } catch {
+    // Body facoltativo: senza target l’utente elimina il proprio account.
+  }
+
+  if (requestedUserId !== user.id) {
+    const isAdminFromMetadata =
+      user.app_metadata?.is_admin === true ||
+      user.app_metadata?.role === 'admin';
+
+    const adminProfileResult = await adminClient
+      .from('profiles')
+      .select('is_admin')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    const isAdmin = isAdminFromMetadata || adminProfileResult.data?.is_admin === true;
+
+    if (!isAdmin) {
+      return jsonResponse({ error: 'Permessi amministratore richiesti' }, 403);
+    }
+  }
+
   const { error: deleteError } = await adminClient.auth.admin.deleteUser(
-    user.id,
+    requestedUserId,
     false
   );
 

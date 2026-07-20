@@ -547,33 +547,94 @@ export default function AdminUserDetailScreen() {
   const deleteUser = useCallback(() => {
     if (!profile) return;
 
-    Alert.alert('Disattivare utente', `Vuoi eliminare/disattivare ${profileName(profile)}?`, [
+    Alert.alert('Disattivare utente', `Vuoi disattivare ${profileName(profile)}? L’account resterà recuperabile.`, [
       { text: 'Annulla', style: 'cancel' },
       {
-        text: 'Elimina',
+        text: 'Disattiva',
         style: 'destructive',
         onPress: async () => {
-            try {
-          const result = await trySoftDeleteProfile(currentProfileId, profile);
+          try {
+            const result = await trySoftDeleteProfile(currentProfileId, profile);
 
-          if (!result.ok) {
-            Alert.alert('Errore', result.message);
-            return;
-          }
-
-          Alert.alert('Fatto', 'Utente disattivato.');
-          router.replace('/admin-users');
-            } catch (error: unknown) {
-              const message =
-                error instanceof Error
-                  ? error.message
-                  : "Non è stato possibile disattivare l’utente.";
-
-              Alert.alert("Errore", message);
+            if (!result.ok) {
+              Alert.alert('Errore', result.message);
+              return;
             }
+
+            Alert.alert('Fatto', 'Utente disattivato.');
+            router.replace('/admin-users');
+          } catch (error: unknown) {
+            const message =
+              error instanceof Error
+                ? error.message
+                : 'Non è stato possibile disattivare l’utente.';
+
+            Alert.alert('Errore', message);
+          }
         },
       },
     ]);
+  }, [currentProfileId, profile]);
+
+  const hardDeleteUser = useCallback(() => {
+    if (!profile) return;
+
+    const name = profileName(profile);
+
+    Alert.alert(
+      'Eliminazione definitiva',
+      `Stai per eliminare definitivamente ${name}. L’account e la sua email verranno rimossi e non potranno essere recuperati.`,
+      [
+        { text: 'Annulla', style: 'cancel' },
+        {
+          text: 'Continua',
+          style: 'destructive',
+          onPress: () => {
+            Alert.alert(
+              'Conferma definitiva',
+              `Confermi l’eliminazione definitiva di ${name}?`,
+              [
+                { text: 'No', style: 'cancel' },
+                {
+                  text: 'Elimina definitivamente',
+                  style: 'destructive',
+                  onPress: async () => {
+                    try {
+                      const result = await supabase.functions.invoke('delete-bajuju-account', {
+                        body: { target_user_id: currentProfileId },
+                      });
+
+                      if (result.error) {
+                        Alert.alert('Errore eliminazione', result.error.message || 'Eliminazione non riuscita.');
+                        return;
+                      }
+
+                      if (result.data?.ok !== true) {
+                        Alert.alert(
+                          'Errore eliminazione',
+                          String(result.data?.error || result.data?.details || 'Eliminazione non riuscita.')
+                        );
+                        return;
+                      }
+
+                      Alert.alert('Utente eliminato', 'Account eliminato definitivamente e email liberata.');
+                      router.replace('/admin-users');
+                    } catch (error: unknown) {
+                      const message =
+                        error instanceof Error
+                          ? error.message
+                          : 'Non è stato possibile eliminare definitivamente l’utente.';
+
+                      Alert.alert('Errore eliminazione', message);
+                    }
+                  },
+                },
+              ]
+            );
+          },
+        },
+      ]
+    );
   }, [currentProfileId, profile]);
 
   return (
@@ -725,6 +786,10 @@ export default function AdminUserDetailScreen() {
 
             <Pressable style={styles.dangerButton} onPress={deleteUser}>
               <Text style={styles.actionButtonText}>Disattiva utente</Text>
+            </Pressable>
+
+            <Pressable style={styles.hardDeleteButton} onPress={hardDeleteUser}>
+              <Text style={styles.actionButtonText}>Elimina definitivamente</Text>
             </Pressable>
           </View>
         </>
@@ -948,6 +1013,16 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     paddingVertical: 13,
     alignItems: 'center',
+  },
+  hardDeleteButton: {
+    marginTop: 10,
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    backgroundColor: '#7a001f',
+    borderWidth: 2,
+    borderColor: '#4d0014',
   },
   dangerButton: {
     backgroundColor: '#b00020',

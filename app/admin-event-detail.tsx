@@ -126,12 +126,22 @@ export default function AdminEventDetailScreen() {
       return;
     }
 
+    try {
     const result = await supabase.from('activities').select('*').eq('id', activityId).maybeSingle();
 
     if (!result.error && result.data) {
       setActivity(result.data as LooseRow);
     } else {
       setActivity(null);
+    }
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Non sono riuscito a caricare l’evento.";
+
+      setActivity(null);
+      Alert.alert("Errore", message);
     }
   }, [activityId]);
 
@@ -140,6 +150,7 @@ export default function AdminEventDetailScreen() {
 
     if (!activityId) return;
 
+    try {
     const activityResult = await supabase.from('activities').select('*').eq('id', activityId).maybeSingle();
 
     if (activityResult.error || !activityResult.data) return;
@@ -160,6 +171,15 @@ export default function AdminEventDetailScreen() {
       name: profileName(profile, 'Organizzatore non trovato'),
       email: firstText(profile, ['email'], 'Email non disponibile'),
     });
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Non sono riuscito a caricare l’organizzatore.";
+
+      setOrganizer(null);
+      Alert.alert("Errore", message);
+    }
   }, [activityId]);
 
   const loadParticipants = useCallback(async () => {
@@ -167,6 +187,7 @@ export default function AdminEventDetailScreen() {
 
     if (!activityId) return;
 
+    try {
     const participantsResult = await supabase
       .from('activity_participants')
       .select('*')
@@ -196,6 +217,15 @@ export default function AdminEventDetailScreen() {
     }
 
     setParticipants(nextParticipants);
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Non sono riuscito a caricare i partecipanti.";
+
+      setParticipants([]);
+      Alert.alert("Errore", message);
+    }
   }, [activityId]);
 
   const loadAll = useCallback(async () => {
@@ -207,8 +237,14 @@ export default function AdminEventDetailScreen() {
 
     async function start() {
       setLoading(true);
-      await loadAll();
-      if (mounted) setLoading(false);
+
+      try {
+        await loadAll();
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
     }
 
     start();
@@ -220,8 +256,12 @@ export default function AdminEventDetailScreen() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await loadAll();
-    setRefreshing(false);
+
+    try {
+      await loadAll();
+    } finally {
+      setRefreshing(false);
+    }
   }, [loadAll]);
 
   const deleteActivity = useCallback(() => {
@@ -233,6 +273,7 @@ export default function AdminEventDetailScreen() {
         text: 'Elimina',
         style: 'destructive',
         onPress: async () => {
+            try {
           const result = await tryDeleteActivity(activityId);
 
           if (!result.ok) {
@@ -242,6 +283,14 @@ export default function AdminEventDetailScreen() {
 
           Alert.alert('Fatto', 'Evento rimosso.');
           router.replace('/admin-events');
+            } catch (error: unknown) {
+              const message =
+                error instanceof Error
+                  ? error.message
+                  : "Non è stato possibile rimuovere l’evento.";
+
+              Alert.alert("Errore", message);
+            }
         },
       },
     ]);

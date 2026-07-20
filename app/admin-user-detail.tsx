@@ -162,23 +162,58 @@ export default function AdminUserDetailScreen() {
   const [savingRole, setSavingRole] = useState(false);
 
   const loadProfile = useCallback(async () => {
-    if (!userId) {
+    if (userId.length === 0) {
       setProfile(null);
-      setLoading(false);
       return;
     }
 
-    const byId = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
+    try {
+      const byId = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", userId)
+        .maybeSingle();
 
-    if (!byId.error && byId.data) {
-      setProfile(byId.data as LooseRow);
-      setGradeValue(firstText(byId.data as LooseRow, ['user_grade', 'grade', 'grado', 'organizer_grade'], ''));
-      setLocationText(firstText(byId.data as LooseRow, ['location_profile_text', 'location_description', 'location_text', 'descrizione_location'], ''));
-      return;
+      if (byId.error) {
+        throw byId.error;
+      }
+
+      if (byId.data === null) {
+        setProfile(null);
+        return;
+      }
+
+      const loadedProfile = byId.data as LooseRow;
+
+      setProfile(loadedProfile);
+      setGradeValue(
+        firstText(
+          loadedProfile,
+          ["user_grade", "grade", "grado", "organizer_grade"],
+          ""
+        )
+      );
+      setLocationText(
+        firstText(
+          loadedProfile,
+          [
+            "location_profile_text",
+            "location_description",
+            "location_text",
+            "descrizione_location",
+          ],
+          ""
+        )
+      );
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Non sono riuscito a caricare il profilo.";
+
+      setProfile(null);
+      Alert.alert("Errore", message);
     }
-
-
-    setProfile(null);
   }, [userId]);
 
   useEffect(() => {
@@ -186,8 +221,14 @@ export default function AdminUserDetailScreen() {
 
     async function start() {
       setLoading(true);
-      await loadProfile();
-      if (mounted) setLoading(false);
+
+      try {
+        await loadProfile();
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
     }
 
     start();
@@ -199,8 +240,12 @@ export default function AdminUserDetailScreen() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await loadProfile();
-    setRefreshing(false);
+
+    try {
+      await loadProfile();
+    } finally {
+      setRefreshing(false);
+    }
   }, [loadProfile]);
 
   const currentProfileId = String(firstValue(profile, ['id', 'user_id']) || userId);
@@ -228,44 +273,56 @@ export default function AdminUserDetailScreen() {
       {
         text: 'Riattiva',
         onPress: async () => {
-          const basePayload = pickExistingPayload(profile, {
-            deleted_at: null,
-            removed_at: null,
-            archived_at: null,
-            blocked_until: null,
-            suspended_until: null,
-            suspended_at: null,
-            is_deleted: false,
-            deleted: false,
-            is_removed: false,
-            removed: false,
-            archived: false,
-            blocked: false,
-            suspended: false,
-            is_blocked: false,
-            updated_at: new Date().toISOString(),
-          });
+          try {
+            const basePayload = pickExistingPayload(profile, {
+              deleted_at: null,
+              removed_at: null,
+              archived_at: null,
+              blocked_until: null,
+              suspended_until: null,
+              suspended_at: null,
+              is_deleted: false,
+              deleted: false,
+              is_removed: false,
+              removed: false,
+              archived: false,
+              blocked: false,
+              suspended: false,
+              is_blocked: false,
+              updated_at: new Date().toISOString(),
+            });
 
-          const statusPayload = pickExistingPayload(profile, {
-            status: 'active',
-            account_status: 'active',
-            stato: 'attivo',
-          });
+            const statusPayload = pickExistingPayload(profile, {
+              status: 'active',
+              account_status: 'active',
+              stato: 'attivo',
+            });
 
-          const payloads = [
-            { ...basePayload, ...statusPayload },
-            basePayload,
-          ].filter((payload) => Object.keys(payload).length > 0);
+            const payloads = [
+              { ...basePayload, ...statusPayload },
+              basePayload,
+            ].filter((payload) => Object.keys(payload).length > 0);
 
-          const result = await tryUpdateProfile(currentProfileId, payloads);
+            const result = await tryUpdateProfile(currentProfileId, payloads);
 
-          if (!result.ok) {
-            Alert.alert('Errore riattivazione', result.message || 'Non sono riuscito a riattivare questo utente.');
-            return;
+            if (result.ok === false) {
+              Alert.alert(
+                'Errore riattivazione',
+                result.message || 'Non sono riuscito a riattivare questo utente.'
+              );
+              return;
+            }
+
+            Alert.alert('Utente riattivato', 'Il profilo è di nuovo attivo.');
+            await loadProfile();
+          } catch (error: unknown) {
+            const message =
+              error instanceof Error
+                ? error.message
+                : 'Non sono riuscito a riattivare questo utente.';
+
+            Alert.alert('Errore riattivazione', message);
           }
-
-          Alert.alert('Utente riattivato', 'Il profilo è di nuovo attivo.');
-          await loadProfile();
         },
       },
     ]);
@@ -299,8 +356,13 @@ export default function AdminUserDetailScreen() {
 
       Alert.alert('Aggiornato', successMessage);
       await loadProfile();
-    } catch (error: any) {
-      Alert.alert('Errore aggiornamento', error?.message || 'Non sono riuscito ad aggiornare il profilo.');
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Non sono riuscito ad aggiornare il profilo.';
+
+      Alert.alert('Errore aggiornamento', message);
     } finally {
       setSavingRole(false);
     }
@@ -372,6 +434,7 @@ export default function AdminUserDetailScreen() {
         text: 'Sospendi',
         style: 'destructive',
         onPress: async () => {
+            try {
           const farFuture = '2099-12-31T23:59:59.000Z';
 
           const result = await tryUpdateProfile(currentProfileId, [
@@ -390,6 +453,14 @@ export default function AdminUserDetailScreen() {
 
           Alert.alert('Fatto', 'Utente sospeso.');
           await loadProfile();
+            } catch (error: unknown) {
+              const message =
+                error instanceof Error
+                  ? error.message
+                  : "Non è stato possibile sospendere l’utente.";
+
+              Alert.alert("Errore", message);
+            }
         },
       },
     ]);
@@ -404,6 +475,7 @@ export default function AdminUserDetailScreen() {
         text: 'Blocca 7 giorni',
         style: 'destructive',
         onPress: async () => {
+            try {
           const blockedUntil = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
           const result = await tryUpdateProfile(currentProfileId, [
@@ -420,6 +492,14 @@ export default function AdminUserDetailScreen() {
 
           Alert.alert('Fatto', 'Utente bloccato per 7 giorni.');
           await loadProfile();
+            } catch (error: unknown) {
+              const message =
+                error instanceof Error
+                  ? error.message
+                  : "Non è stato possibile bloccare l’utente.";
+
+              Alert.alert("Errore", message);
+            }
         },
       },
     ]);
@@ -433,6 +513,7 @@ export default function AdminUserDetailScreen() {
       {
         text: 'Sblocca',
         onPress: async () => {
+            try {
           const result = await tryUpdateProfile(currentProfileId, [
             { blocked_until: null, suspended_until: null, status: 'active', is_blocked: false },
             { blocked_until: null, suspended_until: null, is_blocked: false },
@@ -450,6 +531,14 @@ export default function AdminUserDetailScreen() {
 
           Alert.alert('Fatto', 'Utente sbloccato.');
           await loadProfile();
+            } catch (error: unknown) {
+              const message =
+                error instanceof Error
+                  ? error.message
+                  : "Non è stato possibile sbloccare l’utente.";
+
+              Alert.alert("Errore", message);
+            }
         },
       },
     ]);
@@ -464,6 +553,7 @@ export default function AdminUserDetailScreen() {
         text: 'Elimina',
         style: 'destructive',
         onPress: async () => {
+            try {
           const result = await trySoftDeleteProfile(currentProfileId, profile);
 
           if (!result.ok) {
@@ -473,6 +563,14 @@ export default function AdminUserDetailScreen() {
 
           Alert.alert('Fatto', 'Utente disattivato.');
           router.replace('/admin-users');
+            } catch (error: unknown) {
+              const message =
+                error instanceof Error
+                  ? error.message
+                  : "Non è stato possibile disattivare l’utente.";
+
+              Alert.alert("Errore", message);
+            }
         },
       },
     ]);

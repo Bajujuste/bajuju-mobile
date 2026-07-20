@@ -2,8 +2,11 @@ import DateTimePicker, {
   DateTimePickerEvent,
 } from '@react-native-community/datetimepicker';
 import { router } from 'expo-router';
+import * as ImageManipulator from 'expo-image-manipulator';
+import * as ImagePicker from 'expo-image-picker';
 import React, { useMemo, useState } from 'react';
 import {
+  Image,
   Modal,
   Pressable,
   SafeAreaView,
@@ -125,14 +128,14 @@ async function geocodeAddress(address: string, streetNumber: string, city: strin
       });
 
       if (!response.ok) {
-        console.log('Geocoding esperienza non riuscito:', response.status, query);
+        console.log('Geocoding esperienza non riuscito.');
         continue;
       }
 
       const data = await response.json();
 
       if (!Array.isArray(data) || data.length === 0) {
-        console.log('Nessun risultato geocoding esperienza per:', query);
+        console.log('Nessun risultato geocoding esperienza.');
         continue;
       }
 
@@ -141,13 +144,13 @@ async function geocodeAddress(address: string, streetNumber: string, city: strin
       const longitude = Number(first.lon);
 
       if (Number.isNaN(latitude) || Number.isNaN(longitude)) {
-        console.log('Coordinate esperienza non valide per:', query);
+        console.log('Coordinate esperienza non valide.');
         continue;
       }
 
       return { latitude, longitude };
     } catch (error) {
-      console.log('Errore geocoding esperienza per:', query, error);
+      console.log('Errore geocoding esperienza.');
     }
   }
 
@@ -176,6 +179,7 @@ export default function CreateExperienceScreen() {
 
   const [maxParticipants, setMaxParticipants] = useState('10');
   const [budgetAmount, setBudgetAmount] = useState('');
+  const [photoUri, setPhotoUri] = useState<string | null>(null);
 
   const [saving, setSaving] = useState(false);
 
@@ -270,6 +274,48 @@ export default function CreateExperienceScreen() {
     setMinute(String(selectedMinute).padStart(2, '0'));
   }
 
+  async function handlePickPhoto() {
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (!permission.granted) {
+        if (typeof window !== 'undefined') {
+          window.alert('Autorizza l’accesso alle immagini per scegliere la foto dell’esperienza.');
+        }
+        return;
+      }
+
+      const picked = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [16, 9],
+        quality: 0.9,
+      });
+
+      if (picked.canceled || !picked.assets?.[0]?.uri) return;
+
+      const resized = await ImageManipulator.manipulateAsync(
+        picked.assets[0].uri,
+        [{ resize: { width: 1280 } }],
+        {
+          compress: 0.72,
+          format: ImageManipulator.SaveFormat.JPEG,
+        }
+      );
+
+      setPhotoUri(resized.uri);
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Non sono riuscito a preparare la foto selezionata.';
+
+      if (typeof window !== 'undefined') {
+        window.alert(message);
+      }
+    }
+  }
+
   async function handleCreateExperience() {
     if (!canCreateExperience || saving) return;
 
@@ -307,6 +353,11 @@ export default function CreateExperienceScreen() {
 
     try {
       const authResult = await supabase.auth.getUser();
+
+      if (authResult.error) {
+        throw authResult.error;
+      }
+
       const creatorId = authResult.data.user?.id;
 
       if (!creatorId) {
@@ -362,6 +413,47 @@ export default function CreateExperienceScreen() {
         return;
       }
 
+      let photoUploadWarning = '';
+
+      if (photoUri && result.data?.id) {
+        try {
+          const photoResponse = await fetch(photoUri);
+          const photoBuffer = await photoResponse.arrayBuffer();
+          const filePath = `${result.data.id}/${creatorId}-cover-${Date.now()}.jpg`;
+
+          const uploadResult = await supabase.storage
+            .from('event-photos')
+            .upload(filePath, photoBuffer, {
+              contentType: 'image/jpeg',
+              upsert: true,
+            });
+
+          if (uploadResult.error) throw uploadResult.error;
+
+          const publicUrlResult = supabase.storage
+            .from('event-photos')
+            .getPublicUrl(filePath);
+
+          const publicUrl = publicUrlResult.data.publicUrl;
+
+          if (!publicUrl) {
+            throw new Error('URL pubblico della foto non disponibile.');
+          }
+
+          const updateResult = await supabase
+            .from('activities')
+            .update({ photo_url: publicUrl })
+            .eq('id', result.data.id);
+
+          if (updateResult.error) throw updateResult.error;
+        } catch (error: unknown) {
+          photoUploadWarning =
+            error instanceof Error
+              ? error.message
+              : 'La foto non è stata caricata correttamente.';
+        }
+      }
+
       await sendBajujuPushNotification({
         type: 'new_experience',
         actorUserId: creatorId,
@@ -374,7 +466,7 @@ export default function CreateExperienceScreen() {
           title: payload.title,
         },
       }).catch((error) => {
-        console.log('Errore notifica nuova esperienza:', error);
+        console.log('Errore notifica nuova esperienza.');
       });
 
       setTitle('');
@@ -391,12 +483,28 @@ export default function CreateExperienceScreen() {
       setMinute('');
       setMaxParticipants('10');
       setBudgetAmount('');
+      setPhotoUri(null);
 
       if (typeof window !== 'undefined') {
-        window.alert('Esperienza creata correttamente.');
+        window.alert(
+          photoUploadWarning
+            ? `Esperienza creata correttamente, ma la foto non è stata caricata: ${photoUploadWarning}`
+            : 'Esperienza creata correttamente.'
+        );
       }
 
       router.replace('/experiences');
+    } catch (error: unknown) {
+      console.log('Errore creazione esperienza.');
+
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Non sono riuscito a creare l’esperienza. Riprova tra poco.';
+
+      if (typeof window !== 'undefined') {
+        window.alert(message);
+      }
     } finally {
       setSaving(false);
     }
@@ -621,6 +729,39 @@ export default function CreateExperienceScreen() {
               multiline
               maxLength={500}
             />
+
+              <Text style={styles.label}>Foto esperienza</Text>
+
+              <Pressable style={styles.photoPicker} onPress={handlePickPhoto}>
+                {photoUri ? (
+                  <Image
+                    source={{ uri: photoUri }}
+                    style={styles.photoPreview}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <View style={styles.photoPlaceholder}>
+                    <Text style={styles.photoPlaceholderTitle}>Aggiungi una foto</Text>
+                    <Text style={styles.photoPlaceholderText}>Formato panoramico 16:9</Text>
+                  </View>
+                )}
+              </Pressable>
+
+              {photoUri ? (
+                <View style={styles.photoActions}>
+                  <Pressable style={styles.photoActionButton} onPress={handlePickPhoto}>
+                    <Text style={styles.photoActionText}>Sostituisci</Text>
+                  </Pressable>
+
+                  <Pressable style={styles.photoActionButton} onPress={() => setPhotoUri(null)}>
+                    <Text style={styles.photoRemoveText}>Rimuovi</Text>
+                  </Pressable>
+                </View>
+              ) : (
+                <Text style={styles.photoHelper}>
+                  Facoltativa. La foto viene adattata automaticamente.
+                </Text>
+              )}
           </View>
 
           <View style={styles.previewBox}>
@@ -732,6 +873,70 @@ export default function CreateExperienceScreen() {
 }
 
 const styles = StyleSheet.create({
+  photoPicker: {
+    width: '100%',
+    height: 158,
+    borderRadius: 20,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#f2a8cc',
+    backgroundColor: '#fff8fb',
+    marginTop: 2,
+    marginBottom: 10,
+  },
+  photoPreview: {
+    width: '100%',
+    height: '100%',
+  },
+  photoPlaceholder: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+  },
+  photoPlaceholderTitle: {
+    color: '#8f1658',
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  photoPlaceholderText: {
+    color: '#a95d86',
+    fontSize: 12,
+    fontWeight: '700',
+    marginTop: 4,
+  },
+  photoActions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 12,
+  },
+  photoActionButton: {
+    flex: 1,
+    minHeight: 40,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#f2a8cc',
+    backgroundColor: '#fffafd',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  photoActionText: {
+    color: '#e43f98',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  photoRemoveText: {
+    color: '#8f1658',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  photoHelper: {
+    color: '#a95d86',
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: '700',
+    marginBottom: 12,
+  },
   compactDetailsRow: {
     flexDirection: 'row',
     gap: 12,

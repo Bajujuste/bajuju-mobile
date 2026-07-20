@@ -9,21 +9,26 @@ import {
     RefreshControl,
     ScrollView,
     StyleSheet,
+    Switch,
     Text,
     TextInput,
     View,
 } from 'react-native';
 import { supabase } from '../src/lib/supabase';
-import { sendBajujuPushNotification } from '../src/utils/bajujuNotifications';
+import {
+  registerForBajujuPushNotifications,
+  sendBajujuPushNotification,
+} from '../src/utils/bajujuNotifications';
 
 const bajujuLogo = require('../assets/brand/bajuju-logo.png');
 
 const LOCATION_OPTIONS = [
   'Bergamo',
-  'Lecco',
   'Milano',
+  'Lecco',
   'Monza e Brianza',
-  'Verona',
+  'Brescia',
+  'Torino',
 ];
 
 const BAJUJU_CREATOR_EMAIL = 'royaleventi@gmail.com';
@@ -282,6 +287,14 @@ async function blockedUserIdsForCurrentUser(currentUserId: string) {
       .eq('blocked_id', currentUserId),
   ]);
 
+  if (blockedByMeResult.error) {
+    throw blockedByMeResult.error;
+  }
+
+  if (blockedMeResult.error) {
+    throw blockedMeResult.error;
+  }
+
   const blockedIds = new Set<string>();
 
   (blockedByMeResult.data || []).forEach((row: any) => {
@@ -313,7 +326,18 @@ function inviteTitle(row: LooseRow) {
 
 function getRowId(row: LooseRow) {
   const id = firstValue(row, ['id', 'request_id', 'invite_id']);
-  return id ? String(id) : `${Date.now()}-${Math.random()}`;
+
+  if (id) {
+    return String(id);
+  }
+
+  return [
+    firstValue(row, ['user_id', 'requester_id', 'sender_id']),
+    firstValue(row, ['activity_id', 'flash_id']),
+    firstValue(row, ['created_at']),
+  ]
+    .map((value) => String(value || ''))
+    .join('-');
 }
 
 async function tryReadOneProfile(userId: string) {
@@ -390,6 +414,7 @@ export default function ProfileScreen() {
   const [ageRange, setAgeRange] = useState('');
   const [gender, setGender] = useState('');
   const [directContactsEnabled, setDirectContactsEnabled] = useState(true);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [photoLoadError, setPhotoLoadError] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
@@ -572,7 +597,12 @@ export default function ProfileScreen() {
 
     setOrganizedActivities(
       visibleOrganizedRows.map((row) => ({
-        id: String(firstValue(row, ['id', 'activity_id']) || `${Date.now()}-${Math.random()}`),
+        id: String(
+          firstValue(row, ['id', 'activity_id']) ||
+            [activityTitle(row), activitySubtitle(row)]
+              .map((value) => String(value || ''))
+              .join('-')
+        ),
         title: activityTitle(row),
         subtitle: activitySubtitle(row),
         raw: row,
@@ -637,7 +667,12 @@ export default function ProfileScreen() {
 
         setParticipatedActivities(
           visibleParticipatedRows.map((row) => ({
-            id: String(firstValue(row, ['id', 'activity_id']) || `${Date.now()}-${Math.random()}`),
+            id: String(
+          firstValue(row, ['id', 'activity_id']) ||
+            [activityTitle(row), activitySubtitle(row)]
+              .map((value) => String(value || ''))
+              .join('-')
+        ),
             title: activityTitle(row),
             subtitle: activitySubtitle(row),
             raw: row,
@@ -655,6 +690,7 @@ export default function ProfileScreen() {
   const loadAll = useCallback(async () => {
     setLoading(true);
 
+    try {
     const authResult = await supabase.auth.getUser();
     const currentUser = authResult.data.user as LooseRow | null;
 
@@ -687,6 +723,25 @@ export default function ProfileScreen() {
       )
     );
 
+    try {
+      const notificationPreferencesResult = await supabase
+        .from('notification_preferences')
+        .select('enabled, preferred_province')
+        .eq('user_id', String(currentUser.id))
+        .maybeSingle();
+
+      if (!notificationPreferencesResult.error && notificationPreferencesResult.data) {
+        setNotificationsEnabled(notificationPreferencesResult.data.enabled !== false);
+
+        const preferredProvince = notificationPreferencesResult.data.preferred_province;
+        if (typeof preferredProvince === 'string' && preferredProvince.trim()) {
+          setProvince(preferredProvince.trim());
+        }
+      }
+    } catch {
+      // Se la tabella non è disponibile, manteniamo il valore predefinito.
+    }
+
     const admin = await checkAdmin(currentUser, currentProfile);
     setIsAdmin(admin);
 
@@ -696,7 +751,18 @@ export default function ProfileScreen() {
       loadActivities(String(currentUser.id)),
     ]);
 
-    setLoading(false);
+    } catch (error: unknown) {
+      console.log('Errore salvataggio profilo:', error);
+
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Errore imprevisto durante il caricamento del profilo.";
+
+      Alert.alert("Errore profilo", message);
+    } finally {
+      setLoading(false);
+    }
   }, [checkAdmin, loadActivities, loadContactRequests, loadInvites, router]);
 
   useEffect(() => {
@@ -797,12 +863,15 @@ export default function ProfileScreen() {
       setPhotoLoadError(false);
       Alert.alert('Foto aggiornata', 'La foto profilo è stata caricata correttamente.');
       await loadAll();
-    } catch (error: any) {
-      Alert.alert(
-        'Errore foto profilo',
-        error?.message ||
-          'Non sono riuscito a caricare la foto. Controlla che in Supabase esista il bucket Storage chiamato avatars.'
-      );
+    } catch (error: unknown) {
+      console.log('Errore salvataggio profilo:', error);
+
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Non sono riuscito a caricare la foto. Controlla che in Supabase esista il bucket Storage chiamato avatars.';
+
+      Alert.alert('Errore foto profilo', message);
     } finally {
       setUploadingPhoto(false);
     }
@@ -813,6 +882,12 @@ export default function ProfileScreen() {
 
     const cleanProvince = province.trim();
     const cleanAge = ageRange.trim();
+    const cleanProfileName = profileName.trim();
+
+    if (cleanProfileName.length < 3) {
+      Alert.alert('Nome non valido', 'Il nome utente deve contenere almeno 3 caratteri.');
+      return;
+    }
 
     if (!photoUrl) {
       Alert.alert('Foto obbligatoria', 'Per usare Bajuju devi caricare una foto profilo reale.');
@@ -841,6 +916,11 @@ export default function ProfileScreen() {
     const provinceField = firstKey(profile, ['province', 'provincia', 'location_province'], 'province');
     const ageField = firstKey(profile, ['age', 'eta', 'età', 'user_age', 'age_range', 'fascia_eta', 'age_band', 'eta_range'], 'age');
     const genderField = firstKey(profile, ['gender', 'genere', 'sex'], 'gender');
+    const nameField = firstKey(
+      profile,
+      ['nickname', 'username', 'display_name', 'full_name', 'name', 'nome'],
+      'username'
+    );
     const directContactsField = firstKey(
       profile,
       ['allow_direct_contacts', 'direct_contacts_enabled', 'receive_direct_contacts', 'ricevi_contatti_diretti'],
@@ -848,14 +928,13 @@ export default function ProfileScreen() {
     );
 
     const payload: LooseRow = {
+      [nameField]: cleanProfileName,
       [ageField]: numericAge,
       [genderField]: gender,
       allow_direct_contacts: directContactsEnabled,
     };
 
-    if (!profile || Object.prototype.hasOwnProperty.call(profile, provinceField)) {
-      payload[provinceField] = cleanProvince;
-    }
+    payload[provinceField] = cleanProvince;
 
     if (profile && Object.prototype.hasOwnProperty.call(profile, directContactsField)) {
       payload[directContactsField] = directContactsEnabled;
@@ -880,14 +959,30 @@ export default function ProfileScreen() {
       }
 
       try {
+        let notificationsSuccessfullyEnabled = notificationsEnabled;
+
+        if (notificationsEnabled) {
+          const notificationResult =
+            await registerForBajujuPushNotifications(String(user.id));
+
+          if (!notificationResult.ok) {
+            Alert.alert(
+              'Notifiche non attivate',
+              notificationResult.reason ||
+                'Non sono riuscito ad attivare le notifiche sul dispositivo.'
+            );
+          }
+        }
+
         const preferencesResult = await supabase.from('notification_preferences').upsert({
           user_id: user.id,
-          enabled: true,
+          enabled: notificationsSuccessfullyEnabled,
           preferred_province: cleanProvince,
           updated_at: new Date().toISOString(),
         });
+
         if (preferencesResult.error) {
-          console.warn('Preferenze notifiche non salvate:', preferencesResult.error.message);
+          console.warn('Preferenze notifiche non salvate.');
         }
       } catch {
         // Se la tabella notifiche non è ancora pronta, il profilo resta comunque salvato.
@@ -895,12 +990,19 @@ export default function ProfileScreen() {
 
       Alert.alert('Profilo salvato', 'Le modifiche sono state registrate.');
       await loadAll();
-    } catch (error: any) {
-      Alert.alert('Errore salvataggio', error?.message || 'Non sono riuscito a salvare il profilo.');
+    } catch (error: unknown) {
+      console.log('Errore salvataggio profilo:', error);
+
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Non sono riuscito a salvare il profilo.';
+
+      Alert.alert('Errore salvataggio', message);
     } finally {
       setSaving(false);
     }
-  }, [ageRange, directContactsEnabled, gender, loadAll, photoUrl, profile, profileIdField, profileIdValue, province, user]);
+  }, [ageRange, directContactsEnabled, gender, loadAll, notificationsEnabled, photoUrl, profile, profileIdField, profileIdValue, province, user]);
 
   const answerItem = useCallback(
     async (item: ContactItem | InviteItem, status: 'accepted' | 'rejected') => {
@@ -912,6 +1014,13 @@ export default function ProfileScreen() {
 
       if (status === 'accepted') {
         const updatedResult = await supabase.from(item.table).select('*').eq('id', item.id).maybeSingle();
+
+        if (updatedResult.error) {
+          Alert.alert('Errore', 'La richiesta è stata aggiornata, ma non sono riuscito a rileggerne i dettagli.');
+          await loadAll();
+          return;
+        }
+
         const row = updatedResult.data || {};
         const targetUserId = String(
           firstValue(row, ['requester_id', 'from_user_id', 'sender_id', 'created_by', 'creator_id', 'user_id']) || ''
@@ -929,7 +1038,16 @@ export default function ProfileScreen() {
             .eq('user_id', user.id)
             .limit(1);
 
-          if (!existingParticipantResult.error && (!existingParticipantResult.data || existingParticipantResult.data.length === 0)) {
+          if (existingParticipantResult.error) {
+            Alert.alert(
+              'Invito accettato',
+              'Invito accettato, ma non sono riuscito a verificare la tua partecipazione al Flash.'
+            );
+            await loadAll();
+            return;
+          }
+
+          if (!existingParticipantResult.data || existingParticipantResult.data.length === 0) {
             const participantResult = await supabase.from('activity_participants').insert({
               activity_id: flashActivityId,
               user_id: user.id,
@@ -956,7 +1074,7 @@ export default function ProfileScreen() {
               activityId: flashActivityId || undefined,
             },
           }).catch((error) => {
-            console.log('Errore notifica contatto accettato:', error);
+            console.log('Errore notifica contatto accettato.');
           });
         }
       }
@@ -1016,7 +1134,7 @@ export default function ProfileScreen() {
                       );
 
                       if (result.error) {
-                        console.log('Errore eliminazione account:', result.error);
+                        console.log('Errore eliminazione account.');
                         Alert.alert(
                           'Eliminazione non riuscita',
                           'Non è stato possibile eliminare l’account. Riprova più tardi.'
@@ -1025,7 +1143,7 @@ export default function ProfileScreen() {
                       }
 
                       if (!result.data?.ok) {
-                        console.log('Risposta eliminazione account:', result.data);
+                        console.log('Eliminazione account rifiutata dalla funzione.');
                         Alert.alert(
                           'Eliminazione non riuscita',
                           result.data?.error ||
@@ -1037,7 +1155,7 @@ export default function ProfileScreen() {
                       await supabase.auth.signOut();
                       router.replace('/');
                     } catch (error) {
-                      console.log('Errore eliminazione account:', error);
+                      console.log('Errore eliminazione account.');
                       Alert.alert(
                         'Eliminazione non riuscita',
                         'Si è verificato un errore durante l’eliminazione dell’account.'
@@ -1054,8 +1172,22 @@ export default function ProfileScreen() {
   }, [router, user]);
 
   const logout = useCallback(async () => {
-    await supabase.auth.signOut();
-    router.replace('/');
+    try {
+      const result = await supabase.auth.signOut();
+
+      if (result.error) {
+        throw result.error;
+      }
+
+      router.replace('/');
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Non sono riuscito a effettuare il logout.';
+
+      Alert.alert('Errore logout', message);
+    }
   }, [router]);
 
   if (loading) {
@@ -1118,6 +1250,15 @@ export default function ProfileScreen() {
             {uploadingPhoto ? 'Caricamento foto...' : photoUrl ? 'Cambia foto profilo' : 'Carica foto obbligatoria'}
           </Text>
         </Pressable>
+
+        {isAdminOrCreator ? (
+          <Pressable
+            style={styles.adminButton}
+            onPress={() => router.push('/admin')}
+          >
+            <Text style={styles.adminButtonText}>Apri area admin</Text>
+          </Pressable>
+        ) : null}
 
         {!photoUrl ? (
           <Text style={styles.photoRequiredText}>
@@ -1198,6 +1339,22 @@ export default function ProfileScreen() {
             Preferisco non specificarlo
           </Text>
         </Pressable>
+
+        <View style={[styles.toggleRow, notificationsEnabled && styles.toggleRowActive]}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.toggleTitle}>Ricevere notifiche</Text>
+            <Text style={styles.toggleSubtitle}>
+              {notificationsEnabled ? 'Attive' : 'Disattivate'}
+            </Text>
+          </View>
+
+          <Switch
+            value={notificationsEnabled}
+            onValueChange={setNotificationsEnabled}
+            trackColor={{ false: '#d1d5db', true: '#f4a8ce' }}
+            thumbColor={notificationsEnabled ? BAJUJU_PINK : '#f4f4f5'}
+          />
+        </View>
 
         <Pressable
           style={[styles.toggleRow, directContactsEnabled && styles.toggleRowActive]}

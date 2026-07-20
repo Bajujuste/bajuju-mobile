@@ -150,8 +150,14 @@ export default function AdminReportsScreen() {
 
     async function start() {
       setLoading(true);
-      await loadReports();
-      if (mounted) setLoading(false);
+
+      try {
+        await loadReports();
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
     }
 
     start();
@@ -163,8 +169,12 @@ export default function AdminReportsScreen() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await loadReports();
-    setRefreshing(false);
+
+    try {
+      await loadReports();
+    } finally {
+      setRefreshing(false);
+    }
   }, [loadReports]);
 
   const onArchive = useCallback(
@@ -174,6 +184,7 @@ export default function AdminReportsScreen() {
         {
           text: 'Archivia',
           onPress: async () => {
+              try {
             const result = await archiveReport(item);
 
             if (!result.ok) {
@@ -183,6 +194,14 @@ export default function AdminReportsScreen() {
 
             Alert.alert('Fatto', 'Segnalazione archiviata.');
             await loadReports();
+              } catch (error: unknown) {
+                const message =
+                  error instanceof Error
+                    ? error.message
+                    : "Non è stato possibile archiviare la segnalazione.";
+
+                Alert.alert("Errore", message);
+              }
           },
         },
       ]);

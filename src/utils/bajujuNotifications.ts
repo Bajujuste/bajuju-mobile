@@ -48,7 +48,7 @@ async function getNotificationsModule() {
 
     return notificationsModule;
   } catch (error) {
-    console.log('expo-notifications non disponibile in questo ambiente:', error);
+    console.log('expo-notifications non disponibile in questo ambiente.');
     return null;
   }
 }
@@ -76,23 +76,43 @@ async function savePushToken(userId: string, token: string) {
   );
 
   if (!upsertResult.error) {
-    await supabase.from('notification_preferences').upsert(
-      {
-        user_id: userId,
-        enabled: true,
-        notify_new_experience: true,
-        notify_new_flash: true,
-        notify_new_participant: true,
-        notify_contact_request: true,
-        notify_contact_accepted: true,
-        notify_experience_cancelled: true,
-        notify_experience_reminder: true,
-        notify_chat_messages: false,
-      },
-      {
-        onConflict: 'user_id',
-      }
-    );
+    const existingPreferencesResult = await supabase
+      .from('notification_preferences')
+      .select('enabled')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    const existingEnabled =
+      existingPreferencesResult.data?.enabled;
+
+    const preferencesUpsertResult = await supabase
+      .from('notification_preferences')
+      .upsert(
+        {
+          user_id: userId,
+          enabled: existingEnabled ?? true,
+          notify_new_experience: true,
+          notify_new_flash: true,
+          notify_new_participant: true,
+          notify_contact_request: true,
+          notify_contact_accepted: true,
+          notify_experience_cancelled: true,
+          notify_experience_reminder: true,
+          notify_chat_messages: false,
+        },
+        {
+          onConflict: 'user_id',
+        }
+      );
+
+    if (preferencesUpsertResult.error) {
+      console.log('Preferenze notifiche non salvate.');
+
+      return {
+        ok: false,
+        table: 'notification_preferences',
+      };
+    }
 
     return { ok: true, table: 'push_tokens' };
   }
@@ -189,7 +209,15 @@ export async function registerForBajujuPushNotifications(userId?: string | null)
   const token = tokenResult.data;
 
   if (userId) {
-    await savePushToken(userId, token);
+    const saveResult = await savePushToken(userId, token);
+
+    if (!saveResult.ok) {
+      return {
+        ok: false,
+        reason: 'Token ottenuto, ma salvataggio su Supabase non riuscito.',
+        token,
+      };
+    }
   }
 
   return {
@@ -220,7 +248,7 @@ export type SendBajujuPushInput = {
 
 export async function sendBajujuPushNotification(input: SendBajujuPushInput) {
   if (!isBajujuNotificationAllowed(input.type)) {
-    console.log('Notifica Bajuju bloccata:', input.type);
+    console.log('Notifica Bajuju bloccata.');
     return {
       ok: false,
       blocked: true,
@@ -233,7 +261,7 @@ export async function sendBajujuPushNotification(input: SendBajujuPushInput) {
   });
 
   if (result.error) {
-    console.log('Errore invio notifica Bajuju:', result.error);
+    console.log('Errore invio notifica Bajuju.');
     return {
       ok: false,
       error: result.error,

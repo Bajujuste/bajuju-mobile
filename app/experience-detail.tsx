@@ -221,6 +221,7 @@ export default function ExperienceDetailScreen() {
   const [albumPhotos, setAlbumPhotos] = useState<AlbumPhotoRow[]>([]);
   const [selectedAlbumPhotoIndex, setSelectedAlbumPhotoIndex] = useState<number | null>(null);
   const [uploadingAlbumPhoto, setUploadingAlbumPhoto] = useState(false);
+  const [updatingCoverPhoto, setUpdatingCoverPhoto] = useState(false);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState(false);
@@ -576,7 +577,7 @@ export default function ExperienceDetailScreen() {
           activityId: experienceId,
         },
       }).catch((error) => {
-        console.log('Errore notifica nuovo partecipante:', error);
+        console.log('Errore notifica nuovo partecipante.');
       });
 
       await loadParticipants(experienceId, experience);
@@ -584,6 +585,15 @@ export default function ExperienceDetailScreen() {
 
       if (typeof window !== 'undefined') {
         window.alert('Partecipazione registrata.');
+      }
+    } catch (error: any) {
+      console.log('Errore partecipazione esperienza.');
+
+      if (typeof window !== 'undefined') {
+        window.alert(
+          error?.message ||
+            'Non sono riuscito a registrare la partecipazione. Riprova tra poco.'
+        );
       }
     } finally {
       setJoining(false);
@@ -615,6 +625,15 @@ export default function ExperienceDetailScreen() {
       if (typeof window !== 'undefined') {
         window.alert('Hai abbandonato questa esperienza.');
       }
+    } catch (error: any) {
+      console.log('Errore abbandono esperienza.');
+
+      if (typeof window !== 'undefined') {
+        window.alert(
+          error?.message ||
+            'Non sono riuscito ad abbandonare l’esperienza. Riprova tra poco.'
+        );
+      }
     } finally {
       setLeaving(false);
     }
@@ -632,61 +651,78 @@ export default function ExperienceDetailScreen() {
           text: 'Sì, annulla',
           style: 'destructive',
           onPress: async () => {
-            const now = new Date().toISOString();
+            try {
+              const now = new Date().toISOString();
 
-            const attempts = [
-              { deleted_at: now, status: 'deleted' },
-              { deleted_at: now },
-              { is_deleted: true, status: 'deleted' },
-              { hidden: true, status: 'deleted' },
-              { status: 'deleted' },
-              { stato: 'eliminato' },
-            ];
+              const attempts = [
+                { deleted_at: now, status: 'deleted' },
+                { deleted_at: now },
+                { is_deleted: true, status: 'deleted' },
+                { hidden: true, status: 'deleted' },
+                { status: 'deleted' },
+                { stato: 'eliminato' },
+              ];
 
-            for (const payload of attempts) {
-              const result = await supabase
-                .from('activities')
-                .update(payload)
-                .eq('id', experienceId);
+              for (const payload of attempts) {
+                const result = await supabase
+                  .from('activities')
+                  .update(payload)
+                  .eq('id', experienceId);
 
-              if (!result.error) {
-                const participantsResult = await supabase
-                  .from('activity_participants')
-                  .select('user_id')
-                  .eq('activity_id', experienceId);
+                if (!result.error) {
+                  const participantsResult = await supabase
+                    .from('activity_participants')
+                    .select('user_id')
+                    .eq('activity_id', experienceId);
 
-                const participantIds = (participantsResult.data || [])
-                  .map((row: any) => String(row.user_id || ''))
-                  .filter((id: string) => id && id !== currentUserId);
+                  if (participantsResult.error) {
+                    console.log('Errore lettura partecipanti esperienza annullata.');
+                  }
 
-                await Promise.all(
-                  participantIds.map((targetUserId: string) =>
-                    sendBajujuPushNotification({
-                      type: 'experience_cancelled',
-                      actorUserId: currentUserId,
-                      targetUserId,
-                      title: 'Esperienza annullata',
-                      body: `L’esperienza ${String((experience as any)?.title || 'Bajuju')} è stata annullata.`,
-                      data: {
-                        screen: 'experiences',
-                        activityId: experienceId,
-                      },
-                    }).catch((error) => {
-                      console.log('Errore notifica esperienza annullata:', error);
-                    })
-                  )
-                );
+                  const participantIds = (participantsResult.data || [])
+                    .map((row: any) => String(row.user_id || ''))
+                    .filter((id: string) => id && id !== currentUserId);
 
-                Alert.alert('Esperienza annullata', 'L’esperienza è stata rimossa.');
-                router.replace('/experiences');
-                return;
+                  await Promise.all(
+                    participantIds.map((targetUserId: string) =>
+                      sendBajujuPushNotification({
+                        type: 'experience_cancelled',
+                        actorUserId: currentUserId,
+                        targetUserId,
+                        title: 'Esperienza annullata',
+                        body: `L’esperienza ${String((experience as any)?.title || 'Bajuju')} è stata annullata.`,
+                        data: {
+                          screen: 'experiences',
+                          activityId: experienceId,
+                        },
+                      }).catch((error) => {
+                        console.log('Errore notifica esperienza annullata.');
+                      })
+                    )
+                  );
+
+                  Alert.alert(
+                    'Esperienza annullata',
+                    'L’esperienza è stata rimossa.'
+                  );
+                  router.replace('/experiences');
+                  return;
+                }
               }
-            }
 
-            Alert.alert(
-              'Errore annullamento',
-              'Non sono riuscito ad annullare questa esperienza. Probabile policy Supabase o colonna mancante.'
-            );
+              Alert.alert(
+                'Errore annullamento',
+                'Non sono riuscito ad annullare questa esperienza. Probabile policy Supabase o colonna mancante.'
+              );
+            } catch (error: any) {
+              console.log('Errore generale annullamento esperienza.');
+
+              Alert.alert(
+                'Errore annullamento',
+                error?.message ||
+                  'Non sono riuscito ad annullare questa esperienza. Riprova tra poco.'
+              );
+            }
           },
         },
       ]
@@ -698,29 +734,32 @@ export default function ExperienceDetailScreen() {
 
     if (String(targetUserId) === String(currentUserId)) return;
 
-    const [blockedByMeResult, blockedMeResult] = await Promise.all([
-      supabase
-        .from('user_blocks')
-        .select('id')
-        .eq('blocker_id', currentUserId)
-        .eq('blocked_id', targetUserId)
-        .maybeSingle(),
-      supabase
-        .from('user_blocks')
-        .select('id')
-        .eq('blocker_id', targetUserId)
-        .eq('blocked_id', currentUserId)
-        .maybeSingle(),
-    ]);
-
-    if (blockedByMeResult.data || blockedMeResult.data) {
-      Alert.alert('Invito non disponibile', 'Non puoi inviare inviti a questo utente.');
-      return;
-    }
-
     setSendingInviteTo(targetUserId);
 
     try {
+      const [blockedByMeResult, blockedMeResult] = await Promise.all([
+        supabase
+          .from('user_blocks')
+          .select('id')
+          .eq('blocker_id', currentUserId)
+          .eq('blocked_id', targetUserId)
+          .maybeSingle(),
+        supabase
+          .from('user_blocks')
+          .select('id')
+          .eq('blocker_id', targetUserId)
+          .eq('blocked_id', currentUserId)
+          .maybeSingle(),
+      ]);
+
+      if (blockedByMeResult.error) throw blockedByMeResult.error;
+      if (blockedMeResult.error) throw blockedMeResult.error;
+
+      if (blockedByMeResult.data || blockedMeResult.data) {
+        Alert.alert('Invito non disponibile', 'Non puoi inviare inviti a questo utente.');
+        return;
+      }
+
       const existingResult = await supabase
         .from('direct_contact_requests')
         .select('id,status')
@@ -729,6 +768,8 @@ export default function ExperienceDetailScreen() {
         .eq('activity_id', experienceId)
         .in('status', ['pending', 'accepted'])
         .maybeSingle();
+
+      if (existingResult.error) throw existingResult.error;
 
       if (existingResult.data) {
         if (typeof window !== 'undefined') {
@@ -765,12 +806,16 @@ export default function ExperienceDetailScreen() {
           activityId: experienceId,
         },
       }).catch((error) => {
-        console.log('Errore notifica richiesta contatto:', error);
+        console.log('Errore notifica richiesta contatto.');
       });
 
       if (typeof window !== 'undefined') {
         window.alert('Invito inviato.');
       }
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Errore imprevisto durante l’invio dell’invito.';
+
+      Alert.alert('Errore invito', message);
     } finally {
       setSendingInviteTo(null);
     }
@@ -815,6 +860,13 @@ export default function ExperienceDetailScreen() {
 
       setNewMessage('');
       await loadMessages(experienceId);
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Errore imprevisto durante l’invio del messaggio.';
+
+      Alert.alert('Errore invio messaggio', message);
     } finally {
       setSendingMessage(false);
     }
@@ -842,35 +894,44 @@ export default function ExperienceDetailScreen() {
       return;
     }
 
-    const result = await supabase.from('message_reports').insert({
-      message_id: messageId,
-      activity_id: experienceId,
-      event_id: experienceId,
-      experience_id: experienceId,
-      reporter_id: currentUserId,
-      reported_by: currentUserId,
-      user_id: reportedUserId,
-      sender_id: reportedUserId,
-      reported_user_id: reportedUserId,
-      reason: 'Messaggio chat segnalato dall’utente',
-      message: messageText(item),
-      content: messageText(item),
-      body: messageText(item),
-      text: messageText(item),
-      status: 'open',
-      report_status: 'open',
-      reported_at: new Date().toISOString(),
-    });
+    try {
+      const result = await supabase.from('message_reports').insert({
+        message_id: messageId,
+        activity_id: experienceId,
+        event_id: experienceId,
+        experience_id: experienceId,
+        reporter_id: currentUserId,
+        reported_by: currentUserId,
+        user_id: reportedUserId,
+        sender_id: reportedUserId,
+        reported_user_id: reportedUserId,
+        reason: 'Messaggio chat segnalato dall’utente',
+        message: messageText(item),
+        content: messageText(item),
+        body: messageText(item),
+        text: messageText(item),
+        status: 'open',
+        report_status: 'open',
+        reported_at: new Date().toISOString(),
+      });
 
-    if (result.error) {
-      if (typeof window !== 'undefined') {
-        window.alert(`Errore segnalazione: ${result.error.message}`);
+      if (result.error) {
+        if (typeof window !== 'undefined') {
+          window.alert(`Errore segnalazione: ${result.error.message}`);
+        }
+        return;
       }
-      return;
-    }
 
-    if (typeof window !== 'undefined') {
-      window.alert('Messaggio segnalato. Grazie, lo controlleremo.');
+      if (typeof window !== 'undefined') {
+        window.alert('Messaggio segnalato. Grazie, lo controlleremo.');
+      }
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Errore imprevisto durante la segnalazione del messaggio.';
+
+      Alert.alert('Errore segnalazione', message);
     }
   }
 
@@ -913,6 +974,10 @@ export default function ExperienceDetailScreen() {
     }
   }, [experienceId]);
 
+  useEffect(() => {
+    loadAlbumPhotos();
+  }, [loadAlbumPhotos]);
+
   const uploadAlbumPhoto = useCallback(async () => {
     if (!experienceId || !currentUserId || uploadingAlbumPhoto) return;
 
@@ -931,6 +996,8 @@ export default function ExperienceDetailScreen() {
       return;
     }
 
+    setUploadingAlbumPhoto(true);
+
     try {
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
@@ -946,8 +1013,6 @@ export default function ExperienceDetailScreen() {
       });
 
       if (picked.canceled || !picked.assets?.[0]?.uri) return;
-
-      setUploadingAlbumPhoto(true);
 
       const asset = picked.assets[0];
       const response = await fetch(asset.uri);
@@ -986,11 +1051,13 @@ export default function ExperienceDetailScreen() {
 
       window.alert('Foto caricata nella galleria.');
       await loadAlbumPhotos();
-    } catch (error: any) {
-      window.alert(
-        error?.message ||
-          'Non sono riuscito a caricare la foto. Controlla che esistano tabella event_album_photos e bucket event-photos.'
-      );
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Non sono riuscito a caricare la foto. Controlla che esistano tabella event_album_photos e bucket event-photos.';
+
+      window.alert(message);
     } finally {
       setUploadingAlbumPhoto(false);
     }
@@ -1003,6 +1070,75 @@ export default function ExperienceDetailScreen() {
     uploadingAlbumPhoto,
     userAlbumLimitReached,
   ]);
+
+  const updateCoverPhoto = useCallback(async () => {
+    if (!experienceId || !currentUserId || !isOrganizer || updatingCoverPhoto) return;
+
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (!permission.granted) {
+        Alert.alert("Permesso richiesto", "Autorizza l’accesso alle immagini per scegliere la foto copertina.");
+        return;
+      }
+
+      const picked = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [16, 9],
+        quality: 0.8,
+      });
+
+      if (picked.canceled || !picked.assets?.[0]?.uri) return;
+
+      setUpdatingCoverPhoto(true);
+
+      const asset = picked.assets[0];
+      const response = await fetch(asset.uri);
+      const arrayBuffer = await response.arrayBuffer();
+      const filePath = `${experienceId}/${currentUserId}-cover-${Date.now()}.jpg`;
+
+      const uploadResult = await supabase.storage
+        .from("event-photos")
+        .upload(filePath, arrayBuffer, {
+          contentType: "image/jpeg",
+          upsert: true,
+        });
+
+      if (uploadResult.error) throw uploadResult.error;
+
+      const publicUrlResult = supabase.storage
+        .from("event-photos")
+        .getPublicUrl(filePath);
+
+      const publicUrl = publicUrlResult.data.publicUrl;
+
+      if (!publicUrl) throw new Error("URL pubblico della foto non disponibile.");
+
+      const updateResult = await supabase
+        .from("activities")
+        .update({ photo_url: publicUrl })
+        .eq("id", experienceId)
+        .eq("creator_id", currentUserId);
+
+      if (updateResult.error) throw updateResult.error;
+
+      setExperience((current) =>
+        current ? { ...current, photo_url: publicUrl } : current
+      );
+
+      Alert.alert("Foto aggiornata", "La foto copertina dell’evento è stata aggiornata.");
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Non sono riuscito ad aggiornare la foto copertina.";
+
+      Alert.alert("Errore foto", message);
+    } finally {
+      setUpdatingCoverPhoto(false);
+    }
+  }, [currentUserId, experienceId, isOrganizer, updatingCoverPhoto]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -1019,11 +1155,25 @@ export default function ExperienceDetailScreen() {
           ) : experience ? (
             <>
               <View style={styles.eventTopRow}>
-                <Image
-                  source={experiencePhotoUrl(experience) ? { uri: experiencePhotoUrl(experience) } : bajujuLogo}
-                  style={styles.eventPhoto}
-                  resizeMode="cover"
-                />
+                <View>
+                  <Image
+                    source={experiencePhotoUrl(experience) ? { uri: experiencePhotoUrl(experience) } : bajujuLogo}
+                    style={styles.eventPhoto}
+                    resizeMode="cover"
+                  />
+
+                  {isOrganizer ? (
+                    <Pressable
+                      style={styles.coverPhotoButton}
+                      onPress={updateCoverPhoto}
+                      disabled={updatingCoverPhoto}
+                    >
+                      <Text style={styles.coverPhotoButtonText}>
+                        {updatingCoverPhoto ? "Caricamento..." : "Cambia foto"}
+                      </Text>
+                    </Pressable>
+                  ) : null}
+                </View>
 
                 <View style={styles.eventTopText}>
                   <Text style={styles.category}>{getExperienceCategoryIcon(experience.category)} {normalizeExperienceCategory(experience.category)}</Text>
@@ -1141,7 +1291,10 @@ export default function ExperienceDetailScreen() {
                           {canShowInviteOut && userId !== String(currentUserId || '') && !isBlockedUser(userId) ? (
                             <Pressable
                               style={styles.inviteOutButton}
-                              onPress={() => sendGoingOutInvite(userId)}
+                              onPress={(event) => {
+                                event.stopPropagation();
+                                sendGoingOutInvite(userId);
+                              }}
                               disabled={sendingInviteTo === userId}
                             >
                               <Text style={styles.inviteOutButtonText}>
@@ -2015,6 +2168,8 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '900',
   },
+  coverPhotoButton: { marginTop: 8, backgroundColor: "#fff0f7", borderRadius: 12, borderWidth: 1, borderColor: "#ffd3e6", paddingVertical: 8, paddingHorizontal: 10, alignItems: "center" },
+  coverPhotoButtonText: { color: "#9b1f61", fontSize: 12, fontWeight: "900" },
   messageText: {
     color: '#9b1f61',
     fontSize: 14,

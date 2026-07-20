@@ -3,7 +3,6 @@ import React, { useCallback, useEffect, useState } from 'react';
 
 import {
   ActivityIndicator,
-  Linking,
   Image,
   Pressable,
   RefreshControl,
@@ -18,6 +17,45 @@ import { getExperienceCategoryIcon, normalizeExperienceCategory } from '@/src/co
 import { supabase } from '../src/lib/supabase';
 
 const bajujuLogo = require('../assets/brand/bajuju-logo.png');
+
+const PROVINCE_REGIONS = {
+  Bergamo: {
+    latitude: 45.6983,
+    longitude: 9.6773,
+    latitudeDelta: 0.42,
+    longitudeDelta: 0.52,
+  },
+  Milano: {
+    latitude: 45.4642,
+    longitude: 9.19,
+    latitudeDelta: 0.46,
+    longitudeDelta: 0.58,
+  },
+  Lecco: {
+    latitude: 45.8566,
+    longitude: 9.3977,
+    latitudeDelta: 0.38,
+    longitudeDelta: 0.48,
+  },
+  'Monza e Brianza': {
+    latitude: 45.5845,
+    longitude: 9.2744,
+    latitudeDelta: 0.34,
+    longitudeDelta: 0.44,
+  },
+  Brescia: {
+    latitude: 45.5416,
+    longitude: 10.2118,
+    latitudeDelta: 0.52,
+    longitudeDelta: 0.64,
+  },
+  Torino: {
+    latitude: 45.0703,
+    longitude: 7.6869,
+    latitudeDelta: 0.58,
+    longitudeDelta: 0.7,
+  },
+} as const;
 
 type ActivityRow = Record<string, any>;
 
@@ -128,10 +166,43 @@ function getAddress(row: ActivityRow) {
 }
 
 function getCoordinates(row: ActivityRow) {
-  const latitude = Number(firstValue(row, ['latitude', 'lat', 'location_latitude', 'meeting_latitude'], null));
-  const longitude = Number(firstValue(row, ['longitude', 'lng', 'lon', 'location_longitude', 'meeting_longitude'], null));
+  const latitudeValue = firstValue(
+    row,
+    ['latitude', 'lat', 'location_latitude', 'meeting_latitude'],
+    null
+  );
+  const longitudeValue = firstValue(
+    row,
+    ['longitude', 'lng', 'lon', 'location_longitude', 'meeting_longitude'],
+    null
+  );
 
-  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+  if (
+    latitudeValue === null ||
+    latitudeValue === undefined ||
+    String(latitudeValue).trim() === '' ||
+    longitudeValue === null ||
+    longitudeValue === undefined ||
+    String(longitudeValue).trim() === ''
+  ) {
+    return null;
+  }
+
+  const latitude = Number(latitudeValue);
+  const longitude = Number(longitudeValue);
+
+  if (
+    Number.isFinite(latitude) === false ||
+    Number.isFinite(longitude) === false ||
+    latitude < -90 ||
+    latitude > 90 ||
+    longitude < -180 ||
+    longitude > 180 ||
+    (latitude === 0 && longitude === 0)
+  ) {
+    return null;
+  }
+
   return { latitude, longitude };
 }
 
@@ -199,23 +270,6 @@ function formatDate(row: ActivityRow) {
   return [dateText, timeValue].filter(Boolean).join(' · ');
 }
 
-function openExternalMap(row: ActivityRow) {
-  const coordinates = getCoordinates(row);
-
-  if (coordinates) {
-    const latitude = coordinates.latitude;
-    const longitude = coordinates.longitude;
-    const url = "https://www.openstreetmap.org/?mlat=" + latitude + "&mlon=" + longitude + "#map=18/" + latitude + "/" + longitude + "&layers=N&marker=" + latitude + "," + longitude;
-    Linking.openURL(url);
-    return;
-  }
-
-  const query = [getAddress(row), getCity(row), getProvince(row), "Italia"].filter(Boolean).join(", ");
-  if (query.trim()) {
-    Linking.openURL("https://www.openstreetmap.org/search?query=" + encodeURIComponent(query));
-  }
-}
-
 function openDetail(row: ActivityRow) {
   const id = activityId(row);
   if (id) {
@@ -225,6 +279,7 @@ function openDetail(row: ActivityRow) {
 
 export default function ExperiencesMapScreen() { 
   const [rows, setRows] = useState<ActivityRow[]>([]);
+  const [profileProvince, setProfileProvince] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -232,25 +287,62 @@ export default function ExperiencesMapScreen() {
   const loadRows = useCallback(async () => {
     setErrorMessage(null);
 
-    const result = await supabase.from('activities').select('*').limit(200);
+    try {
+      const authResult = await supabase.auth.getUser();
+      const userId = authResult.data.user?.id || null;
 
-    if (result.error) {
+      let selectedProvince = '';
+
+      if (userId) {
+        const profileResult = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .maybeSingle();
+
+        if (!profileResult.error && profileResult.data) {
+          selectedProvince = cleanText(
+            firstValue(
+              profileResult.data as ActivityRow,
+              ['province', 'provincia', 'location_province', 'preferred_province'],
+              ''
+            ),
+            ''
+          );
+        }
+      }
+
+      setProfileProvince(selectedProvince);
+
+      const result = await supabase.from('activities').select('*').limit(200);
+
+      if (result.error) {
+        setRows([]);
+        setErrorMessage(result.error.message || 'Non sono riuscito a caricare le esperienze.');
+        return;
+      }
+
+      const cleanRows = ((result.data || []) as ActivityRow[])
+        .filter((row) => row.is_flash !== true)
+        .filter((row) => !isDeleted(row))
+        .filter(isFutureOrToday)
+        .filter((row) => {
+          if (!selectedProvince) return true;
+
+          return getProvince(row).toLowerCase() === selectedProvince.toLowerCase();
+        })
+        .sort((a, b) => {
+          const dateA = `${firstValue(a, ['activity_date', 'event_date', 'date', 'data'], '9999-12-31')}T${firstValue(a, ['activity_time', 'event_time', 'time', 'ora'], '23:59')}`;
+          const dateB = `${firstValue(b, ['activity_date', 'event_date', 'date', 'data'], '9999-12-31')}T${firstValue(b, ['activity_time', 'event_time', 'time', 'ora'], '23:59')}`;
+          return dateA.localeCompare(dateB);
+        });
+
+      setRows(cleanRows);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Errore imprevisto durante il caricamento della mappa.";
       setRows([]);
-      setErrorMessage(result.error.message || 'Non sono riuscito a caricare le esperienze.');
-      return;
+      setErrorMessage(message);
     }
-
-    const cleanRows = ((result.data || []) as ActivityRow[])
-      .filter((row) => row.is_flash !== true)
-      .filter((row) => !isDeleted(row))
-      .filter(isFutureOrToday)
-      .sort((a, b) => {
-        const dateA = `${firstValue(a, ['activity_date', 'event_date', 'date', 'data'], '9999-12-31')}T${firstValue(a, ['activity_time', 'event_time', 'time', 'ora'], '23:59')}`;
-        const dateB = `${firstValue(b, ['activity_date', 'event_date', 'date', 'data'], '9999-12-31')}T${firstValue(b, ['activity_time', 'event_time', 'time', 'ora'], '23:59')}`;
-        return dateA.localeCompare(dateB);
-      });
-
-    setRows(cleanRows);
   }, []);
 
   useEffect(() => {
@@ -274,6 +366,15 @@ export default function ExperiencesMapScreen() {
     await loadRows();
     setRefreshing(false);
   }, [loadRows]);
+
+  const retryLoadRows = useCallback(async () => {
+    setLoading(true);
+    await loadRows();
+    setLoading(false);
+  }, [loadRows]);
+
+  const provinceRegion =
+    PROVINCE_REGIONS[profileProvince as keyof typeof PROVINCE_REGIONS] || undefined;
 
   const mapItems: BajujuMapItem[] = rows.flatMap((row) => {
     const id = activityId(row);
@@ -322,16 +423,25 @@ export default function ExperiencesMapScreen() {
         </Text>
       </View>
 
-      {!loading && !errorMessage && rows.length > 0 ? (
-        <BajujuMap
-          items={mapItems}
-          mapTitle="Eventi sulla mappa"
-          mapSubtitle="Tocca un marker per vedere l’anteprima."
-          emptyText="Nessuna esperienza con coordinate disponibile."
-          previewActionText="Tocca questa anteprima per aprire l’esperienza"
-          onOpenItem={openMapItem}
-        />
-      ) : null}
+        {!loading && !errorMessage ? (
+          <BajujuMap
+            items={mapItems}
+            mapTitle={
+              profileProvince
+                ? `Eventi in provincia di ${profileProvince}`
+                : 'Eventi sulla mappa'
+            }
+            mapSubtitle="Tocca un marker per vedere l’anteprima."
+            emptyText={
+              profileProvince
+                ? `Nessuna esperienza con coordinate disponibile in provincia di ${profileProvince}.`
+                : 'Nessuna esperienza con coordinate disponibile.'
+            }
+            previewActionText="Tocca questa anteprima per aprire l’esperienza"
+            onOpenItem={openMapItem}
+            fallbackRegion={provinceRegion}
+          />
+        ) : null}
 
       {loading ? (
         <View style={styles.card}>
@@ -342,15 +452,19 @@ export default function ExperiencesMapScreen() {
         <View style={styles.card}>
           <Text style={styles.errorTitle}>Errore caricamento</Text>
           <Text style={styles.errorText}>{errorMessage}</Text>
-          <Pressable style={styles.mainButton} onPress={loadRows}>
+          <Pressable style={styles.mainButton} onPress={retryLoadRows}>
             <Text style={styles.mainButtonText}>Riprova</Text>
           </Pressable>
         </View>
-      ) : rows.length === 0 ? (
-        <View style={styles.card}>
-          <Text style={styles.emptyTitle}>Nessuna esperienza disponibile</Text>
-          <Text style={styles.mutedText}>Quando saranno presenti eventi attivi, li troverai qui.</Text>
-        </View>
+        ) : rows.length === 0 ? (
+          <View style={styles.card}>
+            <Text style={styles.emptyTitle}>Nessuna esperienza disponibile</Text>
+            <Text style={styles.mutedText}>
+              {profileProvince
+                ? `Al momento non ci sono esperienze attive in provincia di ${profileProvince}.`
+                : 'Quando saranno presenti eventi attivi, li troverai qui.'}
+            </Text>
+          </View>
       ) : (
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Eventi disponibili</Text>
@@ -362,7 +476,7 @@ export default function ExperiencesMapScreen() {
             const address = getAddress(row);
 
             return (
-              <View key={activityId(row) || `${activityTitle(row)}-${Math.random()}`} style={styles.eventBox}>
+              <View key={activityId(row) || `${activityTitle(row)}-${getCity(row)}-${formatDate(row)}`} style={styles.eventBox}>
                 <Pressable style={styles.eventHeader} onPress={() => openDetail(row)}>
                   <View style={styles.pinCircle}>
                     <Text style={styles.pinIcon}>{getExperienceCategoryIcon(category)}</Text>
@@ -382,8 +496,8 @@ export default function ExperiencesMapScreen() {
                   {address || 'Indirizzo non indicato: provo ad aprire la mappa dal comune.'}
                 </Text>
 
-                <Pressable style={styles.mapButton} onPress={() => openExternalMap(row)}>
-                  <Text style={styles.mapButtonText}>Apri posizione su mappa</Text>
+                <Pressable style={styles.mapButton} onPress={() => openDetail(row)}>
+                  <Text style={styles.mapButtonText}>Apri esperienza</Text>
                 </Pressable>
               </View>
             );

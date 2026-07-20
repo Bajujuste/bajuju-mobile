@@ -1,5 +1,7 @@
 import { router } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import * as Linking from 'expo-linking';
+import * as SecureStore from 'expo-secure-store';
 import {
   ActivityIndicator,
   Image,
@@ -14,18 +16,69 @@ import {
   View,
 } from 'react-native';
 
+import { establishRecoverySession } from '../src/lib/authRecovery';
 import { supabase } from '../src/lib/supabase';
 
 const bajujuLogo = require('../assets/brand/bajuju-logo.png');
+
+const SAVED_PASSWORD_KEY = 'bajuju_saved_password';
 
 export default function ResetPasswordScreen() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [checkingRecovery, setCheckingRecovery] = useState(true);
+  const [recoveryReady, setRecoveryReady] = useState(false);
   const [messageTitle, setMessageTitle] = useState('');
   const [messageText, setMessageText] = useState('');
   const [done, setDone] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+
+    async function prepareRecovery() {
+      try {
+        const initialUrl = await Linking.getInitialURL();
+        const result = await establishRecoverySession(initialUrl);
+
+        if (!active) return;
+
+        if (!result.success) {
+          setMessageTitle('Link non valido');
+          setMessageText(
+            result.error ||
+              'Il link di recupero non è valido o è scaduto. Richiedine uno nuovo.'
+          );
+          setRecoveryReady(false);
+          return;
+        }
+
+        setRecoveryReady(true);
+      } catch (error: unknown) {
+        if (!active) return;
+
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Errore durante la verifica del link di recupero.";
+
+        setMessageTitle("Link non valido");
+        setMessageText(message);
+        setRecoveryReady(false);
+      } finally {
+        if (active) {
+          setCheckingRecovery(false);
+        }
+      }
+    }
+
+    prepareRecovery();
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   async function handleUpdatePassword() {
     const cleanPassword = password.trim();
@@ -33,6 +86,14 @@ export default function ResetPasswordScreen() {
 
     setMessageTitle('');
     setMessageText('');
+
+    if (!recoveryReady) {
+      setMessageTitle('Recupero non disponibile');
+      setMessageText(
+        'Il link di recupero non è valido o non è stato completato correttamente.'
+      );
+      return;
+    }
 
     if (!cleanPassword || !cleanConfirmPassword) {
       setMessageTitle('Password mancante');
@@ -65,12 +126,34 @@ export default function ResetPasswordScreen() {
         return;
       }
 
+      try {
+        await SecureStore.deleteItemAsync(SAVED_PASSWORD_KEY);
+      } catch {
+        // La cancellazione locale non deve bloccare il cambio password.
+      }
+
+      const signOutResult = await supabase.auth.signOut();
+
+      if (signOutResult.error) {
+        throw signOutResult.error;
+      }
+
       setDone(true);
+      setRecoveryReady(false);
+      setPassword('');
+      setConfirmPassword('');
       setMessageTitle('Password aggiornata');
-      setMessageText('La nuova password è stata salvata. Ora puoi accedere a Bajuju.');
-    } catch (error: any) {
+      setMessageText(
+        'La nuova password è stata salvata. La vecchia password non è più valida. Ora puoi accedere di nuovo.'
+      );
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Errore sconosciuto durante il cambio password.';
+
       setMessageTitle('Errore collegamento');
-      setMessageText(error?.message || 'Errore sconosciuto durante il cambio password.');
+      setMessageText(message);
     } finally {
       setLoading(false);
     }
@@ -90,9 +173,18 @@ export default function ResetPasswordScreen() {
           </View>
 
           <View style={styles.card}>
-            <Text style={styles.description}>
-              Inserisci la nuova password. Dopo il salvataggio potrai tornare alla schermata di accesso.
-            </Text>
+            {checkingRecovery ? (
+              <View style={styles.loadingBox}>
+                <ActivityIndicator color="#e43f98" />
+                <Text style={styles.description}>
+                  Verifica del link di recupero in corso...
+                </Text>
+              </View>
+            ) : (
+              <Text style={styles.description}>
+                Inserisci la nuova password. Dopo il salvataggio la vecchia password non sarà più valida.
+              </Text>
+            )}
 
             <Text style={styles.label}>Nuova password</Text>
             <View style={styles.passwordRow}>
@@ -129,9 +221,13 @@ export default function ResetPasswordScreen() {
             ) : null}
 
             <Pressable
-              style={[styles.button, (loading || done) && styles.buttonDisabled]}
+              style={[
+                styles.button,
+                (loading || done || checkingRecovery || !recoveryReady) &&
+                  styles.buttonDisabled,
+              ]}
               onPress={handleUpdatePassword}
-              disabled={loading || done}
+              disabled={loading || done || checkingRecovery || !recoveryReady}
             >
               {loading ? (
                 <ActivityIndicator color="#ffffff" />
@@ -140,9 +236,23 @@ export default function ResetPasswordScreen() {
               )}
             </Pressable>
 
-            <Pressable style={styles.secondaryButton} onPress={() => router.replace('/login')}>
-              <Text style={styles.secondaryButtonText}>Torna ad Accedi</Text>
-            </Pressable>
+            {!checkingRecovery && !recoveryReady && !done ? (
+              <Pressable
+                style={styles.secondaryButton}
+                onPress={() => router.replace('/forgot-password')}
+              >
+                <Text style={styles.secondaryButtonText}>
+                  Richiedi un nuovo link
+                </Text>
+              </Pressable>
+            ) : (
+              <Pressable
+                style={styles.secondaryButton}
+                onPress={() => router.replace('/login')}
+              >
+                <Text style={styles.secondaryButtonText}>Torna ad Accedi</Text>
+              </Pressable>
+            )}
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -196,6 +306,10 @@ const styles = StyleSheet.create({
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 10 },
     elevation: 4,
+  },
+  loadingBox: {
+    alignItems: 'center',
+    gap: 12,
   },
   description: {
     fontSize: 15,

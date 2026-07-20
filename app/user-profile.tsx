@@ -130,6 +130,11 @@ export default function UserProfileScreen() {
 
     try {
       const authResult = await supabase.auth.getUser();
+
+      if (authResult.error) {
+        throw authResult.error;
+      }
+
       const authUserId = authResult.data.user?.id || '';
       setCurrentUserId(authUserId);
 
@@ -140,6 +145,10 @@ export default function UserProfileScreen() {
           .eq('blocker_id', authUserId)
           .eq('blocked_id', userId)
           .maybeSingle();
+
+        if (blockResult.error) {
+          throw blockResult.error;
+        }
 
         setIsBlockedByMe(Boolean(blockResult.data));
       } else {
@@ -193,8 +202,13 @@ export default function UserProfileScreen() {
       });
 
       setParticipatedCount(participatedIds.size);
-    } catch (error: any) {
-      setErrorText(error?.message || 'Errore durante il caricamento del profilo.');
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Errore durante il caricamento del profilo.';
+
+      setErrorText(message);
     } finally {
       setLoading(false);
     }
@@ -294,7 +308,11 @@ export default function UserProfileScreen() {
         .eq('blocked_id', userId)
         .maybeSingle();
 
-      if (!existing.error && existing.data) {
+      if (existing.error) {
+        throw existing.error;
+      }
+
+      if (existing.data) {
         setIsBlockedByMe(true);
         Alert.alert('Utente già bloccato', 'Questo utente è già stato bloccato.');
         return;
@@ -311,7 +329,14 @@ export default function UserProfileScreen() {
       }
 
       setIsBlockedByMe(true);
-      Alert.alert('Utente bloccato', 'L’utente è stato bloccato. Non riceverà nessuna notifica.');
+      Alert.alert('Utente bloccato', 'L’utente è stato bloccato. Non potrà più interagire con te e non riceverà notifiche relative alle tue attività.');
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Errore imprevisto durante il blocco dell’utente.';
+
+      Alert.alert('Errore blocco', message);
     } finally {
       setBlockingUser(false);
     }

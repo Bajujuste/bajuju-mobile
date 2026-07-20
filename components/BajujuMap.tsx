@@ -1,11 +1,16 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Platform,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import MapView, { Marker, Region } from 'react-native-maps';
+import MapView, {
+  Marker,
+  PROVIDER_GOOGLE,
+  Region,
+} from 'react-native-maps';
 
 export type BajujuMapItem = {
   id: string;
@@ -25,6 +30,7 @@ type BajujuMapProps = {
   emptyText: string;
   previewActionText: string;
   onOpenItem: (item: BajujuMapItem) => void;
+  fallbackRegion?: Region;
 };
 
 const DEFAULT_REGION: Region = {
@@ -69,22 +75,66 @@ export default function BajujuMap({
   emptyText,
   previewActionText,
   onOpenItem,
+  fallbackRegion,
 }: BajujuMapProps) {
+  const mapRef = useRef<MapView | null>(null);
+  const [mapReady, setMapReady] = useState(false);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
 
-  const initialRegion = useMemo(() => buildInitialRegion(items), [items]);
+  const initialRegion = useMemo(
+    () => (items.length > 0 ? buildInitialRegion(items) : fallbackRegion || DEFAULT_REGION),
+    [fallbackRegion, items]
+  );
 
   const selectedItem =
     items.find((item) => item.id === selectedItemId) ?? null;
 
-  if (items.length === 0) {
-    return (
-      <View style={styles.card}>
-        <Text style={styles.title}>{mapTitle}</Text>
-        <Text style={styles.emptyText}>{emptyText}</Text>
-      </View>
+  useEffect(() => {
+    if (selectedItemId && !items.some((item) => item.id === selectedItemId)) {
+      setSelectedItemId(null);
+    }
+  }, [items, selectedItemId]);
+
+  useEffect(() => {
+    if (!mapReady || !mapRef.current) return;
+
+    if (items.length === 0) {
+      mapRef.current.animateToRegion(
+        fallbackRegion || DEFAULT_REGION,
+        350
+      );
+      return;
+    }
+
+    if (items.length === 1) {
+      mapRef.current.animateToRegion(
+        {
+          latitude: items[0].latitude,
+          longitude: items[0].longitude,
+          latitudeDelta: 0.08,
+          longitudeDelta: 0.08,
+        },
+        350
+      );
+      return;
+    }
+
+    mapRef.current.fitToCoordinates(
+      items.map((item) => ({
+        latitude: item.latitude,
+        longitude: item.longitude,
+      })),
+      {
+        edgePadding: {
+          top: 70,
+          right: 50,
+          bottom: 70,
+          left: 50,
+        },
+        animated: true,
+      }
     );
-  }
+  }, [fallbackRegion, items, mapReady]);
 
   return (
     <View style={styles.card}>
@@ -99,8 +149,21 @@ export default function BajujuMap({
 
       <View style={styles.mapShell}>
         <MapView
+          ref={mapRef}
+          provider={
+            Platform.OS === 'android'
+              ? PROVIDER_GOOGLE
+              : undefined
+          }
           style={styles.map}
           initialRegion={initialRegion}
+          mapType="standard"
+          loadingEnabled
+          loadingIndicatorColor="#e43f98"
+          loadingBackgroundColor="#fff8fb"
+          onMapReady={() => {
+            setMapReady(true);
+          }}
           showsCompass
           showsScale
           zoomControlEnabled
@@ -141,6 +204,7 @@ export default function BajujuMap({
                 <Text style={styles.previewIcon}>{selectedItem.icon}</Text>
               </View>
 
+
               <View style={styles.previewText}>
                 <Text style={styles.previewKicker}>
                   {selectedItem.kicker}
@@ -170,6 +234,10 @@ export default function BajujuMap({
           </Pressable>
         ) : null}
       </View>
+
+        {items.length === 0 ? (
+          <Text style={styles.emptyText}>{emptyText}</Text>
+        ) : null}
     </View>
   );
 }

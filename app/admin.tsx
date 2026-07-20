@@ -283,8 +283,16 @@ export default function AdminScreen() {
 
     async function start() {
       setLoading(true);
-      await loadStats();
-      if (mounted) setLoading(false);
+
+      try {
+        await loadStats();
+      } catch (error) {
+        console.log('Errore caricamento statistiche admin.');
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
     }
 
     start();
@@ -296,8 +304,14 @@ export default function AdminScreen() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await loadStats();
-    setRefreshing(false);
+
+    try {
+      await loadStats();
+    } catch (error) {
+      console.log('Errore aggiornamento statistiche admin.');
+    } finally {
+      setRefreshing(false);
+    }
   }, [loadStats]);
 
   return (
@@ -326,6 +340,16 @@ export default function AdminScreen() {
 
       <View style={styles.menuCard}>
         <Text style={styles.sectionTitle}>Controlli principali</Text>
+
+        <Pressable style={styles.menuRow} onPress={() => router.push('/admin-create-experience')}>
+          <View style={styles.menuIconBox}>
+            <Text style={styles.menuIcon}>🎙️</Text>
+          </View>
+          <View style={styles.menuTextBox}>
+            <Text style={styles.menuTitle}>Crea evento con dettatura</Text>
+            <Text style={styles.menuSubtitle}>Detta i dati, controlla il riepilogo e pubblica l’evento.</Text>
+          </View>
+        </Pressable>
 
         <Pressable style={styles.menuRow} onPress={() => router.push('/admin-users')}>
           <View style={styles.menuIconBox}>

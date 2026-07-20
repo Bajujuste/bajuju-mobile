@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, ActivityIndicator, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Linking, Text, TextInput, View,  } from 'react-native';
+import { Alert, ActivityIndicator, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import BajujuMap, { BajujuMapItem } from '../components/BajujuMap';
 import { supabase } from '../src/lib/supabase';
@@ -280,35 +280,37 @@ function rowBelongsToUser(row: LooseRow, userId: string | null) {
 }
 
 function getCoordinates(row: LooseRow) {
-  const latitude = Number(firstValue(row, ['latitude', 'lat']));
-  const longitude = Number(firstValue(row, ['longitude', 'lng', 'lon']));
+  const latitudeValue = firstValue(row, ['latitude', 'lat'], null);
+  const longitudeValue = firstValue(row, ['longitude', 'lng', 'lon'], null);
 
-  if (Number.isNaN(latitude) || Number.isNaN(longitude)) return null;
+  if (
+    latitudeValue === null ||
+    latitudeValue === undefined ||
+    String(latitudeValue).trim() === '' ||
+    longitudeValue === null ||
+    longitudeValue === undefined ||
+    String(longitudeValue).trim() === ''
+  ) {
+    return null;
+  }
+
+  const latitude = Number(latitudeValue);
+  const longitude = Number(longitudeValue);
+
+  if (
+    Number.isFinite(latitude) === false ||
+    Number.isFinite(longitude) === false ||
+    latitude < -90 ||
+    latitude > 90 ||
+    longitude < -180 ||
+    longitude > 180 ||
+    (latitude === 0 && longitude === 0)
+  ) {
+    return null;
+  }
 
   return { latitude, longitude };
 }
-
-function openMap(row: LooseRow) {
-  const coordinates = getCoordinates(row);
-
-  if (!coordinates) {
-    if (typeof window !== 'undefined') {
-      window.alert('Coordinate non disponibili per questo Flash.');
-    }
-    return;
-  }
-
-  const { latitude, longitude } = coordinates;
-  const title = encodeURIComponent(flashTitle(row));
-  const url = `https://www.openstreetmap.org/?mlat=${latitude}&mlon=${longitude}#map=18/${latitude}/${longitude}&layers=N&marker=${latitude},${longitude}`;
-
-  Linking.openURL(url).catch(() => {
-    if (typeof window !== 'undefined') {
-      window.alert(`Non riesco ad aprire la mappa per ${decodeURIComponent(title)}.`);
-    }
-  });
-}
-
 
 function flashId(row: LooseRow) {
   return String(firstValue(row, ['id', 'activity_id'], '') || '');
@@ -381,14 +383,14 @@ async function geocodeAddress(address: string, streetNumber: string, city: strin
       });
 
       if (!response.ok) {
-        console.log('Geocoding non riuscito:', response.status, query);
+        console.log('Geocoding non riuscito.');
         continue;
       }
 
       const data = await response.json();
 
       if (!Array.isArray(data) || data.length === 0) {
-        console.log('Nessun risultato geocoding per:', query);
+        console.log('Nessun risultato geocoding.');
         continue;
       }
 
@@ -397,13 +399,13 @@ async function geocodeAddress(address: string, streetNumber: string, city: strin
       const longitude = Number(first.lon);
 
       if (Number.isNaN(latitude) || Number.isNaN(longitude)) {
-        console.log('Coordinate non valide per:', query);
+        console.log('Coordinate geocoding non valide.');
         continue;
       }
 
       return { latitude, longitude };
     } catch (error) {
-      console.log('Errore geocoding per:', query, error);
+      console.log('Errore geocoding.');
     }
   }
 
@@ -497,75 +499,110 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
   }, [forcedSection]);
 
 
+  useEffect(() => {
+    async function loadPreferredProvince() {
+      try {
+        const authResult = await supabase.auth.getUser();
+        const currentUserId = authResult.data.user?.id;
+
+        if (!currentUserId) return;
+
+        const preferencesResult = await supabase
+          .from('notification_preferences')
+          .select('preferred_province')
+          .eq('user_id', currentUserId)
+          .maybeSingle();
+
+        const preferredProvince = preferencesResult.data?.preferred_province;
+
+        if (
+          !preferencesResult.error &&
+          typeof preferredProvince === 'string' &&
+          (ACTIVE_PROVINCES as readonly string[]).includes(preferredProvince.trim())
+        ) {
+          const cleanProvince = preferredProvince.trim();
+          setSelectedProvince(cleanProvince);
+          setNewProvince(cleanProvince);
+          setAvailabilityProvince(cleanProvince);
+        }
+      } catch {
+        // Mantiene i valori predefiniti se le preferenze non sono disponibili.
+      }
+    }
+
+    loadPreferredProvince();
+  }, []);
+
   const loadFlashRows = useCallback(async () => {
     setErrorMessage(null);
 
-    const authResult = await supabase.auth.getUser();
-    const currentUserId = authResult.data.user?.id || null;
-    setUserId(currentUserId);
+    try {
+      const authResult = await supabase.auth.getUser();
+      const currentUserId = authResult.data.user?.id || null;
+      setUserId(currentUserId);
 
-    const result = await supabase
-      .from('activities')
-      .select('*')
-      .limit(120);
+      const result = await supabase
+        .from('activities')
+        .select('*')
+        .limit(120);
 
-    if (result.error) {
-      setRows([]);
-      setJoinedActivityIds(new Set());
-      setErrorMessage(result.error.message || 'Non sono riuscito a caricare i Flash.');
-      return;
-    }
+      if (result.error) {
+        setRows([]);
+        setJoinedActivityIds(new Set());
+        setErrorMessage(result.error.message || 'Non sono riuscito a caricare i Flash.');
+        return;
+      }
 
-    if (currentUserId) {
-      const joinedResult = await supabase
-        .from('activity_participants')
-        .select('activity_id,user_id,status')
-        .eq('user_id', currentUserId)
-        .limit(300);
+      if (currentUserId) {
+        const joinedResult = await supabase
+          .from('activity_participants')
+          .select('activity_id,user_id,status')
+          .eq('user_id', currentUserId)
+          .limit(300);
 
-      if (!joinedResult.error && Array.isArray(joinedResult.data)) {
-        const joinedIds = new Set(
-          joinedResult.data
-            .filter((item: LooseRow) => {
-              const status = firstText(item, ['status', 'stato'], '').toLowerCase().trim();
+        if (!joinedResult.error && Array.isArray(joinedResult.data)) {
+          const joinedIds = new Set(
+            joinedResult.data
+              .filter((item: LooseRow) => {
+                const status = firstText(item, ['status', 'stato'], '').toLowerCase().trim();
 
-              return ![
-                'rejected',
-                'rifiutato',
-                'declined',
-                'annullato',
-                'annullata',
-                'deleted',
-                'eliminato',
-                'eliminata',
-                'removed',
-                'cancellato',
-                'cancellata',
-              ].includes(status);
-            })
-            .map((item: LooseRow) => String(firstValue(item, ['activity_id', 'event_id', 'experience_id'], '')))
-            .filter(Boolean)
-        );
+                return ![
+                  'rejected',
+                  'rifiutato',
+                  'declined',
+                  'annullato',
+                  'annullata',
+                  'deleted',
+                  'eliminato',
+                  'eliminata',
+                  'removed',
+                  'cancellato',
+                  'cancellata',
+                ].includes(status);
+              })
+              .map((item: LooseRow) => String(firstValue(item, ['activity_id', 'event_id', 'experience_id'], '')))
+              .filter(Boolean)
+          );
 
-        setJoinedActivityIds(joinedIds);
+          setJoinedActivityIds(joinedIds);
+        } else {
+          setJoinedActivityIds(new Set());
+        }
       } else {
         setJoinedActivityIds(new Set());
       }
-    } else {
-      setJoinedActivityIds(new Set());
-    }
 
-    const cleanRows = ((result.data || []) as LooseRow[])
-      .filter((row) => !isDeleted(row))
-      .filter(isFlashRow)
-      .filter(isFlashStillAvailable)
-      .sort((a, b) => {
-        const dateA = getFlashDate(a)?.getTime() || 0;
-        const dateB = getFlashDate(b)?.getTime() || 0;
-        return dateA - dateB;
-      });
+      const cleanRows = ((result.data || []) as LooseRow[])
+        .filter((row) => !isDeleted(row))
+        .filter(isFlashRow)
+        .filter(isFlashStillAvailable)
+        .sort((a, b) => {
+          const dateA = getFlashDate(a)?.getTime() || 0;
+          const dateB = getFlashDate(b)?.getTime() || 0;
+          return dateA - dateB;
+        });
 
-    setRows(cleanRows);
+      setRows(cleanRows);
 
       const flashIds = cleanRows
         ? cleanRows.map((item: LooseRow) => String(firstValue(item, ['id', 'activity_id'], ''))).filter(Boolean)
@@ -629,6 +666,14 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
         setParticipantCounts({});
         setCreatorNames({});
       }
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Errore imprevisto durante il caricamento dei Flash.";
+      setRows([]);
+      setJoinedActivityIds(new Set());
+      setParticipantCounts({});
+      setCreatorNames({});
+      setErrorMessage(message);
+    }
   }, []);
 
   useEffect(() => {
@@ -742,6 +787,16 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
 
       setAvailableRows(cleanRows);
       setAvailableProfiles(profileMap);
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Errore imprevisto durante il caricamento degli utenti disponibili.";
+
+      setAvailableRows([]);
+      setAvailableProfiles({});
+      setMyActiveAvailability(null);
+      setErrorMessage(message);
     } finally {
       setLoadingAvailableUsers(false);
     }
@@ -756,6 +811,12 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
     await Promise.all([loadFlashRows(), loadAvailableUsers()]);
     setRefreshing(false);
   }, [loadAvailableUsers, loadFlashRows]);
+
+  const retryLoadFlashRows = useCallback(async () => {
+    setLoading(true);
+    await loadFlashRows();
+    setLoading(false);
+  }, [loadFlashRows]);
 
   const saveAvailability = useCallback(async () => {
     if (savingAvailability) return;
@@ -845,6 +906,13 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
             : `Ora sei visibile per ${availabilityDurationHours} ${availabilityDurationHours === 1 ? 'ora' : 'ore'}.`
         );
       }
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Errore imprevisto durante il salvataggio della disponibilità.';
+
+      Alert.alert('Errore disponibilità', message);
     } finally {
       setSavingAvailability(false);
     }
@@ -876,6 +944,8 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
           .gt('expires_at', new Date().toISOString())
           .order('created_at', { ascending: false })
           .limit(1);
+
+        if (activeResult.error) throw activeResult.error;
 
         availabilityId = String(firstValue((activeResult.data || [])[0] || {}, ['id'], '') || '').trim();
       }
@@ -909,6 +979,13 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
       if (typeof window !== 'undefined') {
         window.alert('Disponibilità annullata.');
       }
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Errore imprevisto durante l’annullamento della disponibilità.';
+
+      Alert.alert('Errore annulla disponibilità', message);
     } finally {
       setCancellingAvailability(false);
     }
@@ -949,6 +1026,9 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
           .maybeSingle(),
       ]);
 
+      if (blockedByMeResult.error) throw blockedByMeResult.error;
+      if (blockedMeResult.error) throw blockedMeResult.error;
+
       if (blockedByMeResult.data || blockedMeResult.data) {
         if (typeof window !== 'undefined') {
           window.alert('Invito non disponibile per questo utente.');
@@ -984,7 +1064,9 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
         .in('status', ['pending', 'accepted'])
         .limit(1);
 
-      if (!existingResult.error && existingResult.data && existingResult.data.length > 0) {
+      if (existingResult.error) throw existingResult.error;
+
+      if (existingResult.data && existingResult.data.length > 0) {
         if (typeof window !== 'undefined') {
           window.alert('Hai già invitato questa persona a questo Flash.');
         }
@@ -1019,12 +1101,19 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
           activityId: ownFlashId,
         },
       }).catch((error) => {
-        console.log('Errore notifica invito disponibilità:', error);
+        console.log('Errore notifica invito disponibilità.');
       });
 
       if (typeof window !== 'undefined') {
         window.alert('Invito inviato.');
       }
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Errore imprevisto durante l’invio dell’invito.';
+
+      Alert.alert('Errore invito', message);
     } finally {
       setSendingAvailabilityInviteTo(null);
     }
@@ -1091,7 +1180,9 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
         .gt('expires_at', nowIso)
         .limit(1);
 
-      if (!activeFlashResult.error && (activeFlashResult.data || []).length > 0) {
+      if (activeFlashResult.error) throw activeFlashResult.error;
+
+      if ((activeFlashResult.data || []).length > 0) {
         if (typeof window !== 'undefined') {
           window.alert('Hai già un Flash attivo. Annulla quello prima di crearne un altro.');
         }
@@ -1158,7 +1249,7 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
           title: payload.title,
         },
       }).catch((error) => {
-        console.log('Errore notifica nuovo Flash:', error);
+        console.log('Errore notifica nuovo Flash.');
       });
 
       setNewTitle('');
@@ -1175,6 +1266,13 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
       if (typeof window !== 'undefined') {
         window.alert('Flash creato correttamente.');
       }
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Errore imprevisto durante la creazione del Flash.';
+
+      Alert.alert('Errore creazione Flash', message);
     } finally {
       setSavingFlash(false);
     }
@@ -1230,6 +1328,13 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
       if (typeof window !== 'undefined') {
         window.alert('Partecipazione registrata.');
       }
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Errore imprevisto durante la partecipazione al Flash.';
+
+      Alert.alert('Errore partecipazione', message);
     } finally {
       setJoiningActivityId(null);
     }
@@ -1280,6 +1385,9 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
         .eq('user_id', authUserId)
         .maybeSingle();
 
+      if (profileByIdResult.error) throw profileByIdResult.error;
+      if (profileByUserIdResult.error) throw profileByUserIdResult.error;
+
       const creatorIds = new Set<string>([authUserId]);
 
       if (!profileByIdResult.error && profileByIdResult.data?.id) {
@@ -1316,6 +1424,13 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
       if (typeof window !== 'undefined') {
         window.alert('Flash annullato correttamente.');
       }
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Errore imprevisto durante l’annullamento del Flash.';
+
+      Alert.alert('Errore annullamento Flash', message);
     } finally {
       setCancellingActivityId(null);
     }
@@ -1365,6 +1480,13 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
       if (typeof window !== 'undefined') {
         window.alert('Hai abbandonato il Flash.');
       }
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Errore imprevisto durante l’abbandono del Flash.';
+
+      Alert.alert('Errore abbandono Flash', message);
     } finally {
       setLeavingActivityId(null);
     }
@@ -1782,7 +1904,8 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
           </Pressable>
         ) : null}
 
-        <>
+        {isCreatePage || showCreateForm ? (
+          <>
             <Text style={styles.label}>Titolo Flash</Text>
             <TextInput
               value={newTitle}
@@ -1940,20 +2063,23 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
             </Pressable>
 
           </>
-      </View>
-
-      <View style={!(selectedSection === 'find' || isFindPage) ? styles.hiddenSection : undefined}>
-        {!loading && !errorMessage ? (
-          <BajujuMap
-            items={flashMapItems}
-            mapTitle="Flash sulla mappa"
-            mapSubtitle="Tocca un marker per vedere l’anteprima."
-            emptyText="Nessun Flash con coordinate disponibile con questi filtri."
-            previewActionText="Tocca questa anteprima per aprire il Flash"
-            onOpenItem={openFlashMapItem}
-          />
         ) : null}
       </View>
+
+      {selectedSection === 'find' || isFindPage ? (
+        <View>
+          {!loading && !errorMessage ? (
+            <BajujuMap
+              items={flashMapItems}
+              mapTitle="Flash sulla mappa"
+              mapSubtitle="Tocca un marker per vedere l’anteprima."
+              emptyText="Nessun Flash con coordinate disponibile con questi filtri."
+              previewActionText="Tocca questa anteprima per aprire il Flash"
+              onOpenItem={openFlashMapItem}
+            />
+          ) : null}
+        </View>
+      ) : null}
 
       <View style={[styles.card, !(selectedSection === 'find' || isFindPage) && styles.hiddenSection]}>
         <Text style={styles.sectionTitle}>Flash disponibili</Text>
@@ -1967,7 +2093,7 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
           <View style={styles.emptyBox}>
             <Text style={styles.errorTitle}>Errore caricamento</Text>
             <Text style={styles.errorText}>{errorMessage}</Text>
-            <Pressable style={styles.smallButton} onPress={loadFlashRows}>
+            <Pressable style={styles.smallButton} onPress={retryLoadFlashRows}>
               <Text style={styles.smallButtonText}>Riprova</Text>
             </Pressable>
           </View>
@@ -1990,7 +2116,7 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
           </View>
         ) : (
           filteredRows.map((row, index) => (
-            <View key={String(firstValue(row, ['id', 'activity_id']) || index)} style={styles.flashBox}>
+            <View key={String(firstValue(row, ['id', 'activity_id']) || `${flashTitle(row)}-${flashCity(row)}-${formatDate(getFlashDate(row))}`)} style={styles.flashBox}>
               <Text style={styles.flashTitle}>{flashTitle(row)}</Text>
 
               {firstText(row, ['description', 'descrizione'], '').trim() ? (

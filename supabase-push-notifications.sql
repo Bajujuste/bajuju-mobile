@@ -44,7 +44,8 @@ create table if not exists public.push_notification_logs (
   data jsonb not null default '{}'::jsonb,
   sent_at timestamptz not null default now(),
   success boolean,
-  error_message text
+  error_message text,
+  is_read boolean not null default false
 );
 
 alter table public.push_tokens enable row level security;
@@ -101,6 +102,14 @@ on public.push_notification_logs
 for select
 to authenticated
 using (auth.uid() = user_id);
+
+drop policy if exists "push_notification_logs_update_own" on public.push_notification_logs;
+create policy "push_notification_logs_update_own"
+on public.push_notification_logs
+for update
+to authenticated
+using (auth.uid() = user_id)
+with check (auth.uid() = user_id);
 
 create index if not exists push_tokens_user_id_idx on public.push_tokens(user_id);
 create index if not exists push_tokens_token_idx on public.push_tokens(expo_push_token);

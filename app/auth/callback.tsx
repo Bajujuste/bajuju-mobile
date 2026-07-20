@@ -1,83 +1,93 @@
 import { router } from 'expo-router';
+import * as Linking from 'expo-linking';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Linking, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
-import { supabase } from '../../src/lib/supabase';
-
-function getParamFromUrl(url: string, key: string) {
-  const queryPart = url.split('?')[1]?.split('#')[0] || '';
-  const hashPart = url.split('#')[1] || '';
-  const params = new URLSearchParams(`${queryPart}&${hashPart}`);
-
-  return params.get(key);
-}
+import { establishRecoverySession } from '../../src/lib/authRecovery';
 
 export default function AuthCallbackScreen() {
-  const [message, setMessage] = useState('Sto completando l’accesso...');
+  const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
-    let mounted = true;
+    let active = true;
 
-    async function completeAuth() {
+    async function completeAuthCallback() {
       try {
         const url = await Linking.getInitialURL();
+        const result = await establishRecoverySession(url);
 
-        if (!url) {
-          if (mounted) setMessage('Link non valido. Torna al login e accedi con email e password.');
-          setTimeout(() => router.replace('/login'), 1200);
+        if (!active) return;
+
+        if (!result.success) {
+          setErrorMessage(
+            result.error ||
+              'Non è stato possibile completare la verifica del link.'
+          );
           return;
         }
 
-        const code = getParamFromUrl(url, 'code');
-        const accessToken = getParamFromUrl(url, 'access_token');
-        const refreshToken = getParamFromUrl(url, 'refresh_token');
-        const nextScreen = getParamFromUrl(url, 'next');
+        const parsedUrl = url ? new URL(url) : null;
+        const searchParameters = new URLSearchParams(parsedUrl?.search || '');
+        const hashParameters = new URLSearchParams(
+          parsedUrl?.hash?.startsWith('#')
+            ? parsedUrl.hash.slice(1)
+            : parsedUrl?.hash || ''
+        );
+        const linkType =
+          searchParameters.get('type') || hashParameters.get('type');
 
-        if (code) {
-          const result = await supabase.auth.exchangeCodeForSession(code);
+        router.replace(linkType === 'recovery' ? '/reset-password' : '/profile');
+      } catch (error: unknown) {
+        if (!active) return;
 
-          if (result.error) {
-            throw result.error;
-          }
-        } else if (accessToken && refreshToken) {
-          const result = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken,
-          });
-
-          if (result.error) {
-            throw result.error;
-          }
-        }
-
-        if (nextScreen === 'reset-password') {
-          if (mounted) setMessage('Link verificato. Ora puoi impostare la nuova password...');
-          setTimeout(() => router.replace('/reset-password' as any), 700);
-          return;
-        }
-
-        if (mounted) setMessage('Accesso completato. Ti porto al profilo...');
-        setTimeout(() => router.replace('/profile'), 700);
-      } catch (error: any) {
-        console.log('Errore callback auth:', error?.message || error);
-        if (mounted) setMessage('Non sono riuscito a completare l’accesso. Torna al login.');
-        setTimeout(() => router.replace('/login'), 1500);
+        setErrorMessage(
+          error instanceof Error
+            ? error.message
+            : 'Non è stato possibile completare la verifica del link.'
+        );
       }
     }
 
-    completeAuth();
+    completeAuthCallback();
 
     return () => {
-      mounted = false;
+      active = false;
     };
   }, []);
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.card}>
-        <ActivityIndicator color="#e43f98" />
-        <Text style={styles.title}>Bajuju</Text>
-        <Text style={styles.message}>{message}</Text>
+        {errorMessage ? (
+          <>
+            <Text style={styles.title}>Link non valido</Text>
+            <Text style={styles.message}>{errorMessage}</Text>
+
+            <Pressable
+              style={styles.button}
+              onPress={() => router.replace('/forgot-password')}
+            >
+              <Text style={styles.buttonText}>
+                Richiedi un nuovo link
+              </Text>
+            </Pressable>
+          </>
+        ) : (
+          <>
+            <ActivityIndicator size="large" color="#e43f98" />
+            <Text style={styles.title}>Verifica del link</Text>
+            <Text style={styles.message}>
+              Stiamo completando la verifica del tuo account.
+            </Text>
+          </>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -86,32 +96,43 @@ export default function AuthCallbackScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#fff8fb',
-    alignItems: 'center',
     justifyContent: 'center',
     padding: 22,
+    backgroundColor: '#fff8fb',
   },
   card: {
-    width: '100%',
+    padding: 24,
     borderRadius: 28,
     backgroundColor: '#ffffff',
     borderWidth: 1,
     borderColor: '#ffd3e7',
-    padding: 24,
     alignItems: 'center',
   },
   title: {
     marginTop: 16,
     color: '#e43f98',
-    fontSize: 34,
+    fontSize: 24,
     fontWeight: '900',
+    textAlign: 'center',
   },
   message: {
     marginTop: 10,
     color: '#6b3652',
     fontSize: 15,
+    lineHeight: 22,
     fontWeight: '700',
     textAlign: 'center',
-    lineHeight: 22,
+  },
+  button: {
+    marginTop: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderRadius: 18,
+    backgroundColor: '#e43f98',
+  },
+  buttonText: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '900',
   },
 });

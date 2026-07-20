@@ -211,19 +211,18 @@ export default function AdminUsersScreen() {
   }, [ageFilter, genderFilter, searchQuery, users]);
 
   const loadUsers = useCallback(async () => {
-    const result = await supabase
-      .from('profiles')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(250);
+    try {
+      const result = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(250);
 
-    if (result.error) {
-      setUsers([]);
-      Alert.alert('Errore', result.error.message || 'Non sono riuscito a caricare gli utenti.');
-      return;
-    }
+      if (result.error) {
+        throw result.error;
+      }
 
-    const mapped = ((result.data || []) as LooseRow[])
+      const mapped = ((result.data || []) as LooseRow[])
       .filter((row) => !isDeletedUser(row))
       .map((row) => ({
         id: userId(row),
@@ -242,9 +241,18 @@ export default function AdminUsersScreen() {
         status: userStatus(row),
         raw: row,
       }))
-      .filter((item) => Boolean(item.id));
+        .filter((item) => Boolean(item.id));
 
-    setUsers(mapped);
+      setUsers(mapped);
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Non sono riuscito a caricare gli utenti.';
+
+      setUsers([]);
+      Alert.alert('Errore', message);
+    }
   }, []);
 
   useEffect(() => {
@@ -252,8 +260,14 @@ export default function AdminUsersScreen() {
 
     async function start() {
       setLoading(true);
-      await loadUsers();
-      if (mounted) setLoading(false);
+
+      try {
+        await loadUsers();
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
     }
 
     start();
@@ -265,8 +279,12 @@ export default function AdminUsersScreen() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await loadUsers();
-    setRefreshing(false);
+
+    try {
+      await loadUsers();
+    } finally {
+      setRefreshing(false);
+    }
   }, [loadUsers]);
 
   const suspendUser = useCallback(
@@ -277,20 +295,29 @@ export default function AdminUsersScreen() {
           text: 'Sospendi',
           style: 'destructive',
           onPress: async () => {
-            const now = new Date().toISOString();
-            const result = await tryUpdateById('profiles', item.id, [
-              { status: 'suspended', suspended_at: now },
-              { account_status: 'suspended', suspended_at: now },
-              { stato: 'sospeso' },
-            ]);
+            try {
+              const now = new Date().toISOString();
+              const result = await tryUpdateById('profiles', item.id, [
+                { status: 'suspended', suspended_at: now },
+                { account_status: 'suspended', suspended_at: now },
+                { stato: 'sospeso' },
+              ]);
 
-            if (!result.ok) {
-              Alert.alert('Errore', result.message);
-              return;
+              if (!result.ok) {
+                Alert.alert('Errore', result.message);
+                return;
+              }
+
+              Alert.alert('Fatto', 'Utente sospeso.');
+              await loadUsers();
+            } catch (error: unknown) {
+              const message =
+                error instanceof Error
+                  ? error.message
+                  : 'Non è stato possibile sospendere l’utente.';
+
+              Alert.alert('Errore', message);
             }
-
-            Alert.alert('Fatto', 'Utente sospeso.');
-            await loadUsers();
           },
         },
       ]);
@@ -308,20 +335,29 @@ export default function AdminUsersScreen() {
           text: 'Blocca 7 giorni',
           style: 'destructive',
           onPress: async () => {
-            const result = await tryUpdateById('profiles', item.id, [
-              { blocked_until: blockedUntil, status: 'blocked' },
-              { blocked_until: blockedUntil, account_status: 'blocked' },
-              { is_blocked: true, blocked_until: blockedUntil },
-              { bloccato_fino: blockedUntil, stato: 'bloccato' },
-            ]);
+            try {
+              const result = await tryUpdateById('profiles', item.id, [
+                { blocked_until: blockedUntil, status: 'blocked' },
+                { blocked_until: blockedUntil, account_status: 'blocked' },
+                { is_blocked: true, blocked_until: blockedUntil },
+                { bloccato_fino: blockedUntil, stato: 'bloccato' },
+              ]);
 
-            if (!result.ok) {
-              Alert.alert('Errore', result.message);
-              return;
+              if (!result.ok) {
+                Alert.alert('Errore', result.message);
+                return;
+              }
+
+              Alert.alert('Fatto', 'Utente bloccato per 7 giorni.');
+              await loadUsers();
+            } catch (error: unknown) {
+              const message =
+                error instanceof Error
+                  ? error.message
+                  : 'Non è stato possibile bloccare l’utente.';
+
+              Alert.alert('Errore', message);
             }
-
-            Alert.alert('Fatto', 'Utente bloccato per 7 giorni.');
-            await loadUsers();
           },
         },
       ]);
@@ -339,18 +375,27 @@ export default function AdminUsersScreen() {
           {
             text: 'Elimina',
             style: 'destructive',
-            onPress: async () => {
-              const result = await trySoftDeleteUser(item);
+              onPress: async () => {
+                try {
+                  const result = await trySoftDeleteUser(item);
 
-              if (!result.ok) {
-                Alert.alert('Errore', result.message);
-                return;
-              }
+                  if (result.ok === false) {
+                    Alert.alert("Errore", result.message);
+                    return;
+                  }
 
-              Alert.alert('Fatto', 'Utente disattivato.');
-              setUsers((current) => current.filter((user) => user.id !== item.id));
-              await loadUsers();
-            },
+                  Alert.alert("Fatto", "Utente disattivato.");
+                  setUsers((current) => current.filter((user) => user.id !== item.id));
+                  await loadUsers();
+                } catch (error: unknown) {
+                  const message =
+                    error instanceof Error
+                      ? error.message
+                      : "Non è stato possibile disattivare l’utente.";
+
+                  Alert.alert("Errore", message);
+                }
+              },
           },
         ]
       );

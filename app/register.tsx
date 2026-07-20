@@ -23,6 +23,7 @@ export default function RegisterScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [messageTitle, setMessageTitle] = useState('');
@@ -47,6 +48,12 @@ export default function RegisterScreen() {
       return;
     }
 
+    if (!acceptedTerms) {
+      setMessageTitle('Accettazione richiesta');
+      setMessageText('Per registrarti devi accettare Termini, Privacy e le regole di tolleranza zero contro abusi e contenuti offensivi.');
+      return;
+    }
+
     if (password.length < 6) {
       setMessageTitle('Password troppo corta');
       setMessageText('Usa almeno 6 caratteri.');
@@ -56,22 +63,11 @@ export default function RegisterScreen() {
     setLoading(true);
 
     try {
-      const existingProfile = await supabase
-        .from('profiles')
-        .select('id,email')
-        .eq('email', cleanEmail)
-        .maybeSingle();
-
-      if (!existingProfile.error && existingProfile.data) {
-        setMessageTitle('Email già utilizzata');
-        setMessageText('Questa email è già registrata. Accedi oppure usa un’altra email.');
-        return;
-      }
-
       const result = await supabase.auth.signUp({
         email: cleanEmail,
         password,
         options: {
+          emailRedirectTo: 'bajuju://auth/callback?next=profile',
           data: {
             username: cleanProfileName,
             nickname: cleanProfileName,
@@ -109,9 +105,14 @@ export default function RegisterScreen() {
 
       setMessageTitle('Controlla la tua email');
       setMessageText('Abbiamo inviato il link di conferma. Dopo la conferma accedi e completa subito il profilo.');
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Errore sconosciuto durante la registrazione.';
+
       setMessageTitle('Errore collegamento');
-      setMessageText(error?.message || 'Errore sconosciuto durante la registrazione.');
+      setMessageText(message);
     } finally {
       setLoading(false);
     }
@@ -183,9 +184,30 @@ export default function RegisterScreen() {
             </View>
 
             <Pressable
-              style={[styles.button, loading && styles.buttonDisabled]}
+              style={styles.termsRow}
+              onPress={() => setAcceptedTerms((value) => !value)}
+            >
+              <View style={[styles.checkbox, acceptedTerms && styles.checkboxSelected]}>
+                <Text style={styles.checkboxText}>{acceptedTerms ? '✓' : ''}</Text>
+              </View>
+              <Text style={styles.termsText}>
+                Accetto i Termini e la Privacy. Bajuju applica tolleranza zero verso contenuti offensivi, molestie e utenti abusivi.
+              </Text>
+            </Pressable>
+
+            <View style={styles.termsLinks}>
+              <Pressable onPress={() => router.push('/rules')}>
+                <Text style={styles.termsLinkText}>Leggi Termini e Regole</Text>
+              </Pressable>
+              <Pressable onPress={() => router.push('/privacy')}>
+                <Text style={styles.termsLinkText}>Leggi Privacy</Text>
+              </Pressable>
+            </View>
+
+            <Pressable
+              style={[styles.button, (loading || !acceptedTerms) && styles.buttonDisabled]}
               onPress={handleRegister}
-              disabled={loading}
+              disabled={loading || !acceptedTerms}
             >
               {loading ? (
                 <ActivityIndicator color="#ffffff" />
@@ -315,6 +337,49 @@ const styles = StyleSheet.create({
     color: '#e43f98',
     fontSize: 13,
     fontWeight: '900',
+  },
+  termsRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    marginBottom: 10,
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 7,
+    borderWidth: 2,
+    borderColor: '#e43f98',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 1,
+  },
+  checkboxSelected: {
+    backgroundColor: '#e43f98',
+  },
+  checkboxText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  termsText: {
+    flex: 1,
+    color: '#6b3652',
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 19,
+  },
+  termsLinks: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginBottom: 14,
+  },
+  termsLinkText: {
+    color: '#e43f98',
+    fontSize: 12,
+    fontWeight: '900',
+    textDecorationLine: 'underline',
   },
   button: {
     height: 54,

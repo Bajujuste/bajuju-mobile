@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { supabase } from '../src/lib/supabase';
 
@@ -222,6 +222,17 @@ export default function FlashDetailScreen() {
 
       setProfiles(nextProfiles);
       await loadMessages(flashId);
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Errore imprevisto durante il caricamento del Flash.';
+
+      setFlash(null);
+      setParticipants([]);
+      setProfiles({});
+      setMessages([]);
+      setErrorMessage(message);
     } finally {
       setLoading(false);
     }
@@ -303,6 +314,13 @@ export default function FlashDetailScreen() {
 
       setNewMessage('');
       await loadMessages(flashId);
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Errore imprevisto durante l’invio del messaggio.';
+
+      Alert.alert('Errore invio messaggio', message);
     } finally {
       setSendingMessage(false);
     }

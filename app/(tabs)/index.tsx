@@ -23,14 +23,21 @@ export default function WelcomeScreen() {
   }, []);
 
   async function checkExistingSession() {
-    const { data } = await supabase.auth.getSession();
+    try {
+      const { data, error } = await supabase.auth.getSession();
 
-    if (data.session) {
-      router.replace('/home');
-      return;
+      if (error) {
+        throw error;
+      }
+
+      if (data.session) {
+        router.replace('/home');
+      }
+    } catch (error: unknown) {
+      console.error('Errore controllo sessione Bajuju.');
+    } finally {
+      setCheckingSession(false);
     }
-
-    setCheckingSession(false);
   }
 
   if (checkingSession) {

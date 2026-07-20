@@ -119,8 +119,14 @@ export default function AdminReportsArchivedScreen() {
 
     async function start() {
       setLoading(true);
-      await loadReports();
-      if (mounted) setLoading(false);
+
+      try {
+        await loadReports();
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
     }
 
     start();
@@ -132,8 +138,12 @@ export default function AdminReportsArchivedScreen() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await loadReports();
-    setRefreshing(false);
+
+    try {
+      await loadReports();
+    } finally {
+      setRefreshing(false);
+    }
   }, [loadReports]);
 
   return (

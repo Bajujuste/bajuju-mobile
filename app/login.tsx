@@ -28,6 +28,7 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberPassword, setRememberPassword] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [messageTitle, setMessageTitle] = useState('');
@@ -86,6 +87,12 @@ export default function LoginScreen() {
       return;
     }
 
+    if (!acceptedTerms) {
+      setMessageTitle('Accettazione richiesta');
+      setMessageText('Per accedere devi accettare Termini, Privacy e le regole di tolleranza zero contro abusi e contenuti offensivi.');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -100,11 +107,19 @@ export default function LoginScreen() {
         }, 12000);
       });
 
-      const result: any = await Promise.race([loginPromise, timeoutPromise]);
+      const result = (await Promise.race([loginPromise, timeoutPromise])) as {
+        error?: { message?: string } | null;
+        data?: {
+          session?: { user?: { id?: string } } | null;
+          user?: { id?: string } | null;
+        } | null;
+      };
 
       if (result?.error) {
         setMessageTitle('Accesso non riuscito');
-        setMessageText(result.error.message);
+        setMessageText(
+          result.error.message || "Accesso non riuscito."
+        );
         return;
       }
 
@@ -117,7 +132,7 @@ export default function LoginScreen() {
       await updateSavedLogin(cleanEmail);
 
       const loggedUserId = result.data.user?.id || result.data.session?.user?.id;
-      let profile: any = null;
+      let profile: Record<string, unknown> | null = null;
 
       if (!loggedUserId) {
         setMessageTitle('Login incompleto');
@@ -132,8 +147,9 @@ export default function LoginScreen() {
         .maybeSingle();
 
       if (byId.error) {
+        await supabase.auth.signOut();
         setMessageTitle('Errore profilo');
-        setMessageText('Login riuscito, ma errore leggendo profiles.id: ' + byId.error.message);
+        setMessageText('Login riuscito, ma errore leggendo il profilo. Riprova.');
         return;
       }
 
@@ -167,9 +183,14 @@ export default function LoginScreen() {
       }
 
       router.replace('/profile');
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Errore sconosciuto durante il login.';
+
       setMessageTitle('Errore collegamento');
-      setMessageText(error?.message || 'Errore sconosciuto durante il login.');
+      setMessageText(message);
     } finally {
       setLoading(false);
     }
@@ -243,9 +264,30 @@ export default function LoginScreen() {
             </Pressable>
 
             <Pressable
-              style={[styles.button, loading && styles.buttonDisabled]}
+              style={styles.termsRow}
+              onPress={() => setAcceptedTerms((value) => !value)}
+            >
+              <View style={[styles.checkbox, acceptedTerms && styles.checkboxSelected]}>
+                <Text style={styles.checkboxText}>{acceptedTerms ? '✓' : ''}</Text>
+              </View>
+              <Text style={styles.termsText}>
+                Accetto i Termini e la Privacy. Bajuju applica tolleranza zero verso contenuti offensivi, molestie e utenti abusivi.
+              </Text>
+            </Pressable>
+
+            <View style={styles.termsLinks}>
+              <Pressable onPress={() => router.push('/rules')}>
+                <Text style={styles.termsLinkText}>Leggi Termini e Regole</Text>
+              </Pressable>
+              <Pressable onPress={() => router.push('/privacy')}>
+                <Text style={styles.termsLinkText}>Leggi Privacy</Text>
+              </Pressable>
+            </View>
+
+            <Pressable
+              style={[styles.button, (loading || !acceptedTerms) && styles.buttonDisabled]}
               onPress={handleLogin}
-              disabled={loading}
+              disabled={loading || !acceptedTerms}
             >
               {loading ? (
                 <ActivityIndicator color="#ffffff" />
@@ -412,6 +454,50 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
   },
+  termsRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    marginBottom: 10,
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 7,
+    borderWidth: 2,
+    borderColor: '#e43f98',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 1,
+  },
+  checkboxSelected: {
+    backgroundColor: '#e43f98',
+  },
+  checkboxText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  termsText: {
+    flex: 1,
+    color: '#6b3652',
+    fontSize: 13,
+    lineHeight: 19,
+    fontWeight: '800',
+  },
+  termsLinks: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginBottom: 16,
+  },
+  termsLinkText: {
+    color: '#e43f98',
+    fontSize: 12,
+    fontWeight: '900',
+    textDecorationLine: 'underline',
+  },
+
   button: {
     height: 54,
     borderRadius: 20,

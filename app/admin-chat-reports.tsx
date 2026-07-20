@@ -102,8 +102,14 @@ export default function AdminChatReportsScreen() {
 
     async function start() {
       setLoading(true);
-      await loadItems();
-      if (mounted) setLoading(false);
+
+      try {
+        await loadItems();
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
     }
 
     start();
@@ -115,8 +121,12 @@ export default function AdminChatReportsScreen() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await loadItems();
-    setRefreshing(false);
+
+    try {
+      await loadItems();
+    } finally {
+      setRefreshing(false);
+    }
   }, [loadItems]);
 
   return (

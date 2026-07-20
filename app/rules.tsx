@@ -17,10 +17,13 @@ export default function RulesScreen() {
         <Text style={styles.rule}>2. Rispetta sempre gli altri utenti.</Text>
         <Text style={styles.rule}>3. Non pubblicare contenuti offensivi, falsi o pericolosi.</Text>
         <Text style={styles.rule}>4. Partecipa solo a esperienze reali e lecite.</Text>
-        <Text style={styles.rule}>5. Segnala comportamenti scorretti o profili sospetti.</Text>
-        <Text style={styles.rule}>6. Partecipando a un’esperienza Bajuju accetti che durante l’evento possano essere scattate fotografie dai partecipanti.</Text>
-        <Text style={styles.rule}>7. Le foto possono essere caricate nella galleria dell’esperienza e sono visibili solo ai partecipanti della stessa esperienza.</Text>
-        <Text style={styles.rule}>8. È vietato usare o diffondere le foto fuori da Bajuju senza il consenso delle persone ritratte.</Text>
+        <Text style={styles.rule}>5. Bajuju applica tolleranza zero verso contenuti offensivi, molestie, minacce, discriminazioni, spam, truffe e utenti abusivi.</Text>
+        <Text style={styles.rule}>6. Segnala subito contenuti, messaggi o profili sospetti usando i pulsanti Segnala presenti nell’app.</Text>
+        <Text style={styles.rule}>7. Blocca gli utenti con cui non vuoi più interagire usando il pulsante Blocca utente nel loro profilo.</Text>
+        <Text style={styles.rule}>8. Le segnalazioni vengono esaminate e possono portare alla rimozione dei contenuti, alla sospensione o al blocco dell’account.</Text>
+        <Text style={styles.rule}>9. Partecipando a un’esperienza Bajuju accetti che durante l’evento possano essere scattate fotografie dai partecipanti.</Text>
+        <Text style={styles.rule}>10. Le foto possono essere caricate nella galleria dell’esperienza e sono visibili solo ai partecipanti della stessa esperienza.</Text>
+        <Text style={styles.rule}>11. È vietato usare o diffondere le foto fuori da Bajuju senza il consenso delle persone ritratte.</Text>
 
         <TouchableOpacity style={styles.button} onPress={() => router.push('/profile')}>
           <Text style={styles.buttonText}>Torna al profilo</Text>

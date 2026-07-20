@@ -2,7 +2,6 @@ import { router } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Image,
-  Linking,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -15,6 +14,16 @@ import { EXPERIENCE_CATEGORIES, getExperienceCategoryIcon, normalizeExperienceCa
 import { supabase } from '../src/lib/supabase';
 
 const bajujuLogo = require('../assets/brand/bajuju-logo.png');
+
+const PROVINCE_OPTIONS = [
+  'Tutte',
+  'Bergamo',
+  'Milano',
+  'Lecco',
+  'Monza e Brianza',
+  'Brescia',
+  'Torino',
+] as const;
 
 type ActivityRow = {
   id?: string;
@@ -71,27 +80,6 @@ function getExperienceAddress(row: ActivityRow) {
       (row as any).indirizzo ||
       ''
   ).trim();
-}
-
-function openExperienceMap(row: ActivityRow) {
-  const coordinates = getExperienceCoordinates(row);
-
-  if (coordinates) {
-    const { latitude, longitude } = coordinates;
-    const url = `https://www.openstreetmap.org/?mlat=${latitude}&mlon=${longitude}#map=18/${latitude}/${longitude}&layers=N&marker=${latitude}/${longitude}`;
-
-    Linking.openURL(url);
-    return;
-  }
-
-  const address = getExperienceAddress(row);
-  const city = String((row as any).city || (row as any).citta || (row as any).comune || '').trim();
-  const province = String((row as any).province || (row as any).provincia || '').trim();
-  const query = [address, city, province, 'Italia'].filter(Boolean).join(', ');
-
-  if (!query.trim()) return;
-
-  Linking.openURL(`https://www.openstreetmap.org/search?query=${encodeURIComponent(query)}`);
 }
 
 function activityImageSource(row: ActivityRow) {
@@ -153,6 +141,8 @@ function isDeleted(row: ActivityRow) {
 export default function ExperiencesScreen() {
   const [selectedCategory, setSelectedCategory] = useState('Tutti');
   const [categoryMenuOpen, setCategoryMenuOpen] = useState(false);
+  const [selectedProvince, setSelectedProvince] = useState('Tutte');
+  const [provinceMenuOpen, setProvinceMenuOpen] = useState(false);
   const [activities, setActivities] = useState<ActivityRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -184,6 +174,14 @@ export default function ExperiencesScreen() {
         });
 
       setActivities(cleanRows);
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Errore imprevisto durante il caricamento delle esperienze.';
+
+      setActivities([]);
+      setErrorMessage(message);
     } finally {
       setLoading(false);
     }
@@ -194,12 +192,18 @@ export default function ExperiencesScreen() {
   }, [loadExperiences]);
 
   const filteredActivities = useMemo(() => {
-    if (selectedCategory === 'Tutti') return activities;
+    return activities.filter((item) => {
+      const matchesCategory =
+        selectedCategory === 'Tutti' ||
+        normalizeCategory(item.category) === normalizeCategory(selectedCategory);
 
-    return activities.filter(
-      (item) => normalizeCategory(item.category) === normalizeCategory(selectedCategory)
-    );
-  }, [activities, selectedCategory]);
+      const matchesProvince =
+        selectedProvince === 'Tutte' ||
+        String(item.province || '').trim() === selectedProvince;
+
+      return matchesCategory && matchesProvince;
+    });
+  }, [activities, selectedCategory, selectedProvince]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -229,7 +233,10 @@ export default function ExperiencesScreen() {
 
           <Pressable
             style={styles.categorySelectButton}
-            onPress={() => setCategoryMenuOpen((value) => !value)}
+            onPress={() => {
+              setProvinceMenuOpen(false);
+              setCategoryMenuOpen((value) => !value);
+            }}
           >
             <View style={styles.categorySelectTextBox}>
               <Text style={styles.categorySelectLabel}>Categoria selezionata</Text>
@@ -268,6 +275,54 @@ export default function ExperiencesScreen() {
               })}
             </View>
           ) : null}
+
+
+            <Pressable
+              style={styles.categorySelectButton}
+              onPress={() => {
+                setCategoryMenuOpen(false);
+                setProvinceMenuOpen((value) => !value);
+              }}
+            >
+              <View style={styles.categorySelectTextBox}>
+                <Text style={styles.categorySelectLabel}>Provincia selezionata</Text>
+                <Text style={styles.categorySelectValue}>{selectedProvince}</Text>
+              </View>
+              <Text style={styles.categorySelectArrow}>
+                {provinceMenuOpen ? '▲' : '▼'}
+              </Text>
+            </Pressable>
+
+            {provinceMenuOpen ? (
+              <View style={styles.categoryDropdown}>
+                {PROVINCE_OPTIONS.map((province) => {
+                  const isSelected = selectedProvince === province;
+
+                  return (
+                    <Pressable
+                      key={province}
+                      style={[
+                        styles.categoryDropdownItem,
+                        isSelected && styles.categoryDropdownItemActive,
+                      ]}
+                      onPress={() => {
+                        setSelectedProvince(province);
+                        setProvinceMenuOpen(false);
+                      }}
+                    >
+                      <Text
+                        style={[
+                          styles.categoryDropdownText,
+                          isSelected && styles.categoryDropdownTextActive,
+                        ]}
+                      >
+                        {province}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            ) : null}
 
           <View style={styles.resultHeader}>
             <Text style={styles.resultTitle}>
@@ -331,7 +386,7 @@ export default function ExperiencesScreen() {
                     <View style={styles.experienceActionsRow}>
                       <Pressable style={styles.mapButton} onPress={(event) => {
                           event.stopPropagation();
-                          openExperienceMap(item);
+                          router.push('/experiences-map');
                         }}>
                         <Text style={styles.mapButtonText}>🗺️ Mappa</Text>
                       </Pressable>

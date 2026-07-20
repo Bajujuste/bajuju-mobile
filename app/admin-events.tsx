@@ -272,6 +272,7 @@ export default function AdminEventsScreen() {
   }, [activities, dateFilter]);
 
   const loadActivities = useCallback(async () => {
+    try {
     const result = await supabase
       .from('activities')
       .select('*')
@@ -319,11 +320,21 @@ export default function AdminEventsScreen() {
     }
 
     setActivities(mapped);
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Non sono riuscito a caricare gli eventi.";
+
+      setActivities([]);
+      Alert.alert("Errore", message);
+    }
   }, []);
 
   const loadParticipants = useCallback(async (activityId: string) => {
     setParticipants([]);
 
+    try {
     const participantsResult = await supabase
       .from('activity_participants')
       .select('*')
@@ -357,6 +368,15 @@ export default function AdminEventsScreen() {
     }
 
     setParticipants(nextParticipants);
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Non sono riuscito a caricare i partecipanti.";
+
+      setParticipants([]);
+      Alert.alert("Errore", message);
+    }
   }, []);
 
   useEffect(() => {
@@ -364,8 +384,14 @@ export default function AdminEventsScreen() {
 
     async function start() {
       setLoading(true);
-      await loadActivities();
-      if (mounted) setLoading(false);
+
+      try {
+        await loadActivities();
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
     }
 
     start();
@@ -377,9 +403,16 @@ export default function AdminEventsScreen() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await loadActivities();
-    if (selectedActivity) await loadParticipants(selectedActivity.id);
-    setRefreshing(false);
+
+    try {
+      await loadActivities();
+
+      if (selectedActivity) {
+        await loadParticipants(selectedActivity.id);
+      }
+    } finally {
+      setRefreshing(false);
+    }
   }, [loadActivities, loadParticipants, selectedActivity]);
 
   const openActivity = useCallback(
@@ -398,6 +431,7 @@ export default function AdminEventsScreen() {
           text: 'Elimina',
           style: 'destructive',
           onPress: async () => {
+              try {
             const result = await tryDeleteActivity(item);
 
             if (!result.ok) {
@@ -409,6 +443,14 @@ export default function AdminEventsScreen() {
             setSelectedActivity(null);
             setParticipants([]);
             await loadActivities();
+              } catch (error: unknown) {
+                const message =
+                  error instanceof Error
+                    ? error.message
+                    : "Non è stato possibile rimuovere l’evento.";
+
+                Alert.alert("Errore", message);
+              }
           },
         },
       ]);

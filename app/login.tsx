@@ -157,11 +157,10 @@ export default function LoginScreen() {
         profile = byId.data;
       }
 
-      const profileCity = String(
-        profile?.city ||
-          profile?.citta ||
-          profile?.comune ||
-          profile?.location_city ||
+      const profileProvince = String(
+        profile?.province ||
+          profile?.provincia ||
+          profile?.location_province ||
           ''
       ).trim();
 
@@ -177,7 +176,7 @@ export default function LoginScreen() {
           ''
       ).trim();
 
-      if (profile && profileCity && profileAge) {
+      if (profile && profileProvince && profileAge) {
         router.replace('/home');
         return;
       }

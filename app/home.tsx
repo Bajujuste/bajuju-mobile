@@ -49,7 +49,7 @@ export default function HomeScreen() {
         const userId = authResult.data.user?.id;
         if (!active || !userId) return;
 
-        const localChoiceKey = `bajuju-notification-choice:${userId}`;
+        const localChoiceKey = `bajuju-notification-choice-v2:${userId}`;
         const localChoice = await AsyncStorage.getItem(localChoiceKey);
 
         if (!active || localChoice === 'accepted' || localChoice === 'declined') return;

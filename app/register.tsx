@@ -14,6 +14,8 @@ import {
   View,
 } from 'react-native';
 
+import { supabase } from '../src/lib/supabase';
+
 const bajujuLogo = require('../assets/brand/bajuju-logo.png');
 
 const SUPABASE_URL = 'https://xwcbmsfsirggozpcskcz.supabase.co';
@@ -22,6 +24,9 @@ const SIGNUP_REDIRECT = 'bajuju://auth/callback?next=profile';
 
 type SignupResponse = {
   id?: string;
+  access_token?: string;
+  refresh_token?: string;
+  user?: { id?: string; identities?: unknown[] };
   identities?: unknown[];
   msg?: string;
   message?: string;
@@ -148,20 +153,46 @@ export default function RegisterScreen() {
         return;
       }
 
-      if (!payload.id) {
+      const newUserId = payload.user?.id || payload.id;
+      const identities = payload.user?.identities || payload.identities;
+
+      if (!newUserId) {
         setMessageTitle('Registrazione non riuscita');
         setMessageText('Supabase non ha restituito il nuovo account. Riprova tra poco.');
         return;
       }
 
-      if (Array.isArray(payload.identities) && payload.identities.length === 0) {
+      if (Array.isArray(identities) && identities.length === 0) {
         setMessageTitle('Email già utilizzata');
         setMessageText('Questa email è già registrata. Accedi oppure usa un’altra email.');
         return;
       }
 
-      setMessageTitle('Controlla la tua email');
-      setMessageText('Abbiamo inviato il link di conferma. Dopo la conferma accedi e completa subito il profilo.');
+      if (payload.access_token && payload.refresh_token) {
+        const sessionResult = await supabase.auth.setSession({
+          access_token: payload.access_token,
+          refresh_token: payload.refresh_token,
+        });
+
+        if (sessionResult.error) {
+          setMessageTitle('Registrazione completata');
+          setMessageText('Il tuo account è stato creato. Accedi per completare il profilo.');
+          await new Promise((resolve) => setTimeout(resolve, 1600));
+          router.replace('/login');
+          return;
+        }
+
+        setMessageTitle('Registrazione avvenuta con successo');
+        setMessageText('Il tuo account è stato creato. Ora completa il profilo.');
+        await new Promise((resolve) => setTimeout(resolve, 1600));
+        router.replace('/profile');
+        return;
+      }
+
+      setMessageTitle('Registrazione avvenuta con successo');
+      setMessageText('Il tuo account è stato creato. Ora accedi e completa il profilo.');
+      await new Promise((resolve) => setTimeout(resolve, 1600));
+      router.replace('/login');
     } catch (error: unknown) {
       setMessageTitle('Errore collegamento');
       setMessageText(unknownErrorMessage(error));

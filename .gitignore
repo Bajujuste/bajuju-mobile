@@ -44,3 +44,15 @@ app-example
 
 # APK locali
 *.apk
+
+# Backup locali e file temporanei
+*.bak
+*.bak-*
+*.backup-*
+backups/
+supabase/.temp/
+
+# Script temporanei usati per modifiche locali
+scripts/add-*.py
+scripts/fix-*.py
+scripts/update-*.py

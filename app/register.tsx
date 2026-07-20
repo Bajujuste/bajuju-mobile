@@ -14,9 +14,48 @@ import {
   View,
 } from 'react-native';
 
-import { supabase } from '../src/lib/supabase';
-
 const bajujuLogo = require('../assets/brand/bajuju-logo.png');
+
+const SUPABASE_URL = 'https://xwcbmsfsirggozpcskcz.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_Kg74KvC--sJpim0_tY7K0Q_YJcMqf9g';
+const SIGNUP_REDIRECT = 'bajuju://auth/callback?next=profile';
+
+type SignupResponse = {
+  id?: string;
+  identities?: unknown[];
+  msg?: string;
+  message?: string;
+  error?: string;
+  error_description?: string;
+};
+
+function signupErrorMessage(payload: SignupResponse, fallback: string) {
+  return String(
+    payload.message ||
+      payload.msg ||
+      payload.error_description ||
+      payload.error ||
+      fallback
+  );
+}
+
+function unknownErrorMessage(error: unknown) {
+  if (typeof error === 'string' && error.trim()) return error;
+
+  if (error && typeof error === 'object' && 'message' in error) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === 'string' && message.trim()) return message;
+  }
+
+  try {
+    const serialized = JSON.stringify(error);
+    if (serialized && serialized !== '{}') return serialized;
+  } catch {
+    // Nessuna informazione aggiuntiva disponibile.
+  }
+
+  return 'Errore di collegamento durante la registrazione.';
+}
 
 export default function RegisterScreen() {
   const [profileName, setProfileName] = useState('');
@@ -63,11 +102,16 @@ export default function RegisterScreen() {
     setLoading(true);
 
     try {
-      const result = await supabase.auth.signUp({
-        email: cleanEmail,
-        password,
-        options: {
-          emailRedirectTo: 'bajuju://auth/callback?next=profile',
+      const redirect = encodeURIComponent(SIGNUP_REDIRECT);
+      const response = await fetch(`${SUPABASE_URL}/auth/v1/signup?redirect_to=${redirect}`, {
+        method: 'POST',
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: cleanEmail,
+          password,
           data: {
             username: cleanProfileName,
             nickname: cleanProfileName,
@@ -75,44 +119,52 @@ export default function RegisterScreen() {
             full_name: cleanProfileName,
             name: cleanProfileName,
           },
-        },
+        }),
       });
 
-      if (result.error) {
-        const message = String(result.error.message || '');
+      const rawBody = await response.text();
+      let payload: SignupResponse = {};
+
+      if (rawBody) {
+        try {
+          payload = JSON.parse(rawBody) as SignupResponse;
+        } catch {
+          payload = { message: rawBody };
+        }
+      }
+
+      if (!response.ok) {
+        const errorMessage = signupErrorMessage(payload, `Errore registrazione (${response.status}).`);
+        const normalized = errorMessage.toLowerCase();
 
         setMessageTitle('Registrazione non riuscita');
         setMessageText(
-          message.toLowerCase().includes('already') || message.toLowerCase().includes('registered')
+          normalized.includes('already') ||
+          normalized.includes('registered') ||
+          normalized.includes('exists')
             ? 'Questa email è già registrata. Accedi oppure usa un’altra email.'
-            : 'Non sono riuscito a completare la registrazione. Riprova tra poco.'
+            : errorMessage
         );
         return;
       }
 
-      const identities = result.data.user?.identities || [];
-
-      if (result.data.user && identities.length === 0) {
-        setMessageTitle('Email già utilizzata');
-        setMessageText('Questa email è già registrata. Accedi oppure usa un’altra email.');
+      if (!payload.id) {
+        setMessageTitle('Registrazione non riuscita');
+        setMessageText('Supabase non ha restituito il nuovo account. Riprova tra poco.');
         return;
       }
 
-      if (result.data.session) {
-        router.replace('/profile');
+      if (Array.isArray(payload.identities) && payload.identities.length === 0) {
+        setMessageTitle('Email già utilizzata');
+        setMessageText('Questa email è già registrata. Accedi oppure usa un’altra email.');
         return;
       }
 
       setMessageTitle('Controlla la tua email');
       setMessageText('Abbiamo inviato il link di conferma. Dopo la conferma accedi e completa subito il profilo.');
     } catch (error: unknown) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : 'Errore sconosciuto durante la registrazione.';
-
       setMessageTitle('Errore collegamento');
-      setMessageText(message);
+      setMessageText(unknownErrorMessage(error));
     } finally {
       setLoading(false);
     }

@@ -41,9 +41,6 @@ export default function HomeScreen() {
     let active = true;
 
     async function setupBajujuNotifications() {
-      if (notificationPromptRunningRef.current) return;
-      notificationPromptRunningRef.current = true;
-
       try {
         const authResult = await supabase.auth.getUser();
 
@@ -99,8 +96,6 @@ export default function HomeScreen() {
         );
       } catch {
         console.log('Errore registrazione notifiche Bajuju.');
-      } finally {
-        notificationPromptRunningRef.current = false;
       }
     }
 

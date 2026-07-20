@@ -1,5 +1,5 @@
-import { router, useLocalSearchParams } from 'expo-router';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import {
   Alert,
@@ -221,6 +221,7 @@ export default function ExperienceDetailScreen() {
   const [albumPhotos, setAlbumPhotos] = useState<AlbumPhotoRow[]>([]);
   const [selectedAlbumPhotoIndex, setSelectedAlbumPhotoIndex] = useState<number | null>(null);
   const [uploadingAlbumPhoto, setUploadingAlbumPhoto] = useState(false);
+  const albumUploadLockRef = useRef(false);
   const [updatingCoverPhoto, setUpdatingCoverPhoto] = useState(false);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
@@ -974,12 +975,16 @@ export default function ExperienceDetailScreen() {
     }
   }, [experienceId]);
 
-  useEffect(() => {
-    loadAlbumPhotos();
-  }, [loadAlbumPhotos]);
+  useFocusEffect(
+    useCallback(() => {
+      void loadAlbumPhotos();
+    }, [loadAlbumPhotos])
+  );
 
   const uploadAlbumPhoto = useCallback(async () => {
-    if (!experienceId || !currentUserId || uploadingAlbumPhoto) return;
+    if (!experienceId || !currentUserId || uploadingAlbumPhoto || albumUploadLockRef.current) return;
+
+    albumUploadLockRef.current = true;
 
     if (!canUseAlbum) {
       window.alert('Solo organizzatore e partecipanti possono caricare foto nella galleria evento.');
@@ -1059,6 +1064,7 @@ export default function ExperienceDetailScreen() {
 
       window.alert(message);
     } finally {
+      albumUploadLockRef.current = false;
       setUploadingAlbumPhoto(false);
     }
   }, [

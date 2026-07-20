@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   Alert,
   Image,
@@ -34,20 +35,27 @@ function firstText(row: ProfileRow | null, keys: string[], fallback = '') {
 }
 
 export default function HomeScreen() {
+  const notificationPromptRunningRef = useRef(false);
+
   React.useEffect(() => {
     let active = true;
 
     async function setupBajujuNotifications() {
+      if (notificationPromptRunningRef.current) return;
+      notificationPromptRunningRef.current = true;
+
       try {
         const authResult = await supabase.auth.getUser();
 
-        if (authResult.error) {
-          throw authResult.error;
-        }
+        if (authResult.error) throw authResult.error;
 
         const userId = authResult.data.user?.id;
-
         if (!active || !userId) return;
+
+        const localChoiceKey = `bajuju-notification-choice:${userId}`;
+        const localChoice = await AsyncStorage.getItem(localChoiceKey);
+
+        if (!active || localChoice === 'accepted' || localChoice === 'declined') return;
 
         const preferencesResult = await supabase
           .from('notification_preferences')
@@ -55,17 +63,15 @@ export default function HomeScreen() {
           .eq('user_id', userId)
           .maybeSingle();
 
-        if (preferencesResult.error) {
-          throw preferencesResult.error;
-        }
-
         if (!active) return;
 
-        if (preferencesResult.data?.enabled === false) {
+        if (!preferencesResult.error && preferencesResult.data?.enabled === false) {
+          await AsyncStorage.setItem(localChoiceKey, 'declined');
           return;
         }
 
-        if (preferencesResult.data?.enabled === true) {
+        if (!preferencesResult.error && preferencesResult.data?.enabled === true) {
+          await AsyncStorage.setItem(localChoiceKey, 'accepted');
           return;
         }
 
@@ -77,32 +83,46 @@ export default function HomeScreen() {
               text: 'No',
               style: 'cancel',
               onPress: () => {
-                void supabase.from('notification_preferences').upsert(
-                  {
-                    user_id: userId,
-                    enabled: false,
-                    updated_at: new Date().toISOString(),
-                  },
-                  {
-                    onConflict: 'user_id',
+                void (async () => {
+                  await AsyncStorage.setItem(localChoiceKey, 'declined');
+                  const saveResult = await supabase.from('notification_preferences').upsert(
+                    {
+                      user_id: userId,
+                      enabled: false,
+                      updated_at: new Date().toISOString(),
+                    },
+                    { onConflict: 'user_id' }
+                  );
+
+                  if (saveResult.error) {
+                    console.log('Preferenza notifiche No non salvata su Supabase.');
                   }
-                );
+                })();
               },
             },
             {
               text: 'Sì',
               onPress: () => {
-                void registerForBajujuPushNotifications(userId);
+                void (async () => {
+                  await AsyncStorage.setItem(localChoiceKey, 'accepted');
+                  const registerResult = await registerForBajujuPushNotifications(userId);
+
+                  if (!registerResult.ok) {
+                    console.log('Attivazione notifiche non completata.');
+                  }
+                })();
               },
             },
           ]
         );
-      } catch (error) {
+      } catch {
         console.log('Errore registrazione notifiche Bajuju.');
+      } finally {
+        notificationPromptRunningRef.current = false;
       }
     }
 
-    setupBajujuNotifications();
+    void setupBajujuNotifications();
 
     return () => {
       active = false;

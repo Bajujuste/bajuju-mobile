@@ -65,11 +65,6 @@ export default function HomeScreen() {
 
         if (!active) return;
 
-        if (!preferencesResult.error && preferencesResult.data?.enabled === false) {
-          await AsyncStorage.setItem(localChoiceKey, 'declined');
-          return;
-        }
-
         if (!preferencesResult.error && preferencesResult.data?.enabled === true) {
           await AsyncStorage.setItem(localChoiceKey, 'accepted');
           return;

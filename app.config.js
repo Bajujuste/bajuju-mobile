@@ -26,7 +26,7 @@ module.exports = () => {
         },
       },
 
-      versionCode: 5,
+      versionCode: 6,
     },
   };
 };

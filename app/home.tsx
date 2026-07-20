@@ -57,19 +57,6 @@ export default function HomeScreen() {
 
         if (!active || localChoice === 'accepted' || localChoice === 'declined') return;
 
-        const preferencesResult = await supabase
-          .from('notification_preferences')
-          .select('enabled')
-          .eq('user_id', userId)
-          .maybeSingle();
-
-        if (!active) return;
-
-        if (!preferencesResult.error && preferencesResult.data?.enabled === true) {
-          await AsyncStorage.setItem(localChoiceKey, 'accepted');
-          return;
-        }
-
         Alert.alert(
           'Notifiche Bajuju',
           'Vuoi ricevere notifiche per nuove esperienze, Flash, partecipazioni e richieste?',

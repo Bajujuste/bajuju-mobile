@@ -46,7 +46,6 @@ function organizerGrade(count: number) {
   return 'Organizzatore base';
 }
 
-
 function booleanFromRow(row: LooseRow | null | undefined, keys: string[], fallback = false) {
   if (!row) return fallback;
 
@@ -350,7 +349,19 @@ export default function UserProfileScreen() {
   const isCreator = isCreatorProfile(profile);
   const isAdmin = isAdminProfile(profile);
   const isAdminOrCreator = isCreator || isAdmin;
-  const grade = isCreator ? 'Creatore app' : isAdmin ? 'Admin' : organizerGrade(organizedCount);
+  const isPremium = booleanFromRow(profile, ['is_premium_organizer', 'is_premium', 'premium', 'premium_user'], false);
+  const grade = isCreator
+    ? 'Creatore app'
+    : isAdmin
+      ? 'Admin'
+      : isPremium
+        ? 'Organizzatore premium'
+        : organizerGrade(organizedCount);
+  const gradeHint = isAdminOrCreator
+    ? 'Profilo ufficiale Bajuju'
+    : isPremium
+      ? 'Organizzatore Premium verificato da Bajuju.'
+      : organizerGradeHint(organizedCount);
 
   return (
     <ScrollView style={styles.page} contentContainerStyle={styles.content}>
@@ -374,13 +385,17 @@ export default function UserProfileScreen() {
             <View
               style={[
                 styles.photoFrame,
-                organizedCount > 20
-                  ? styles.photoFrameGold
-                  : organizedCount > 10
+                isAdminOrCreator
+                  ? styles.photoFrameAdmin
+                  : isPremium
                     ? styles.photoFrameStrong
-                    : organizedCount > 5
-                      ? styles.photoFrameGreen
-                      : styles.photoFrameBase,
+                    : organizedCount > 20
+                      ? styles.photoFrameGold
+                      : organizedCount > 10
+                        ? styles.photoFrameStrong
+                        : organizedCount > 5
+                          ? styles.photoFrameGreen
+                          : styles.photoFrameBase,
               ]}
             >
               <Image source={photo ? { uri: photo } : bajujuLogo} style={styles.photo} resizeMode="cover" />
@@ -391,8 +406,10 @@ export default function UserProfileScreen() {
             <View
               style={[
                 styles.gradeBadge,
-                  isAdminOrCreator
-                    ? styles.gradeBadgeAdmin
+                isAdminOrCreator
+                  ? styles.gradeBadgeAdmin
+                  : isPremium
+                    ? styles.gradeBadgeStrong
                     : organizedCount > 20
                       ? styles.gradeBadgeGold
                       : organizedCount > 10
@@ -405,7 +422,7 @@ export default function UserProfileScreen() {
               <Text style={styles.gradeText}>{grade}</Text>
             </View>
 
-            <Text style={styles.gradeHint}>{isAdminOrCreator ? 'Profilo ufficiale Bajuju' : organizerGradeHint(organizedCount)}</Text>
+            <Text style={styles.gradeHint}>{gradeHint}</Text>
 
             {currentUserId && currentUserId !== userId ? (
               <>

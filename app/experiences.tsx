@@ -27,6 +27,7 @@ const PROVINCE_OPTIONS = [
 
 type ActivityRow = {
   id?: string;
+  creator_id?: string | null;
   title?: string | null;
   category?: string | null;
   city?: string | null;
@@ -144,6 +145,7 @@ export default function ExperiencesScreen() {
   const [selectedProvince, setSelectedProvince] = useState('Tutte');
   const [provinceMenuOpen, setProvinceMenuOpen] = useState(false);
   const [activities, setActivities] = useState<ActivityRow[]>([]);
+  const [currentUserId, setCurrentUserId] = useState('');
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -152,6 +154,9 @@ export default function ExperiencesScreen() {
     setErrorMessage(null);
 
     try {
+      const authResult = await supabase.auth.getUser();
+      setCurrentUserId(authResult.data.user?.id || '');
+
       const result = await supabase
         .from('activities')
         .select('*')
@@ -391,6 +396,21 @@ export default function ExperiencesScreen() {
                         <Text style={styles.mapButtonText}>🗺️ Mappa</Text>
                       </Pressable>
 
+                      {currentUserId && item.creator_id === currentUserId ? (
+                        <Pressable
+                          style={styles.editButton}
+                          onPress={(event) => {
+                            event.stopPropagation();
+                            router.push({
+                              pathname: '/edit-experience' as any,
+                              params: { id: item.id || '' },
+                            });
+                          }}
+                        >
+                          <Text style={styles.editButtonText}>✏️ Modifica</Text>
+                        </Pressable>
+                      ) : null}
+
                       <Pressable
                         style={styles.experienceFooter}
                         onPress={(event) => {
@@ -525,6 +545,20 @@ const styles = StyleSheet.create({
   },
   mapButtonText: {
     color: '#9b1f61',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  editButton: {
+    alignSelf: 'flex-start',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    backgroundColor: '#fff7db',
+    borderWidth: 1,
+    borderColor: '#ead18a',
+  },
+  editButtonText: {
+    color: '#7a5a00',
     fontSize: 12,
     fontWeight: '900',
   },

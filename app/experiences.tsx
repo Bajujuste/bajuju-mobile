@@ -1,5 +1,5 @@
-import { router } from 'expo-router';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   Image,
   Linking,
@@ -18,6 +18,7 @@ const bajujuLogo = require('../assets/brand/bajuju-logo.png');
 
 type ActivityRow = {
   id?: string;
+  creator_id?: string | null;
   title?: string | null;
   category?: string | null;
   city?: string | null;
@@ -37,7 +38,6 @@ type ActivityRow = {
 function normalizeCategory(value: string | null | undefined) {
   return normalizeExperienceCategory(value).toLowerCase();
 }
-
 
 function getExperienceCoordinates(row: ActivityRow) {
   const latitude = Number(
@@ -154,6 +154,7 @@ export default function ExperiencesScreen() {
   const [selectedCategory, setSelectedCategory] = useState('Tutti');
   const [categoryMenuOpen, setCategoryMenuOpen] = useState(false);
   const [activities, setActivities] = useState<ActivityRow[]>([]);
+  const [currentUserId, setCurrentUserId] = useState('');
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -162,6 +163,9 @@ export default function ExperiencesScreen() {
     setErrorMessage(null);
 
     try {
+      const authResult = await supabase.auth.getUser();
+      setCurrentUserId(authResult.data.user?.id || '');
+
       const result = await supabase
         .from('activities')
         .select('*')
@@ -189,9 +193,11 @@ export default function ExperiencesScreen() {
     }
   }, []);
 
-  useEffect(() => {
-    loadExperiences();
-  }, [loadExperiences]);
+  useFocusEffect(
+    useCallback(() => {
+      loadExperiences();
+    }, [loadExperiences])
+  );
 
   const filteredActivities = useMemo(() => {
     if (selectedCategory === 'Tutti') return activities;
@@ -273,9 +279,7 @@ export default function ExperiencesScreen() {
             <Text style={styles.resultTitle}>
               {selectedCategory === 'Tutti' ? 'Esperienze disponibili' : selectedCategory}
             </Text>
-            <Text style={styles.resultCount}>
-              {filteredActivities.length} risultati
-            </Text>
+            <Text style={styles.resultCount}>{filteredActivities.length} risultati</Text>
           </View>
 
           {loading ? (
@@ -294,64 +298,86 @@ export default function ExperiencesScreen() {
             </View>
           ) : (
             <View style={styles.experienceList}>
-              {filteredActivities.map((item) => (
-                <Pressable
-                  key={item.id || `${item.title}-${item.activity_date}`}
-                  style={styles.experienceCard}
-                  onPress={() => router.push({
-                    pathname: '/experience-detail' as any,
-                    params: { id: item.id || '' },
-                  })}
-                >
-                  <View style={styles.experienceImageBox}>
-                    <Image
-                      source={activityImageSource(item)}
-                      style={styles.experienceImage}
-                      resizeMode="contain"
-                    />
-                  </View>
+              {filteredActivities.map((item) => {
+                const isCreator =
+                  Boolean(currentUserId) &&
+                  Boolean(item.creator_id) &&
+                  String(item.creator_id) === currentUserId;
 
-                  <View style={styles.experienceContent}>
-                    <Text style={styles.experienceCategory}>
-                      {getExperienceCategoryIcon(item.category)} {normalizeExperienceCategory(item.category)}
-                    </Text>
-
-                    <Text style={styles.experienceTitle}>
-                      {item.title || 'Esperienza senza titolo'}
-                    </Text>
-
-                    <Text style={styles.experienceMeta}>
-                      📍 {item.city || 'Comune'} · {item.province || 'Provincia'}
-                    </Text>
-
-                    <Text style={styles.experienceMeta}>
-                      🗓️ {formatDateItalian(item.activity_date)} · {item.activity_time ? String(item.activity_time).slice(0, 5) : 'Ora da definire'}
-                    </Text>
-
-                    <View style={styles.experienceActionsRow}>
-                      <Pressable style={styles.mapButton} onPress={(event) => {
-                          event.stopPropagation();
-                          openExperienceMap(item);
-                        }}>
-                        <Text style={styles.mapButtonText}>🗺️ Mappa</Text>
-                      </Pressable>
-
-                      <Pressable
-                        style={styles.experienceFooter}
-                        onPress={(event) => {
-                          event.stopPropagation();
-                          router.push({
-                            pathname: '/experience-detail' as any,
-                            params: { id: item.id || '' },
-                          });
-                        }}
-                      >
-                        <Text style={styles.openDetailText}>Apri</Text>
-                      </Pressable>
+                return (
+                  <Pressable
+                    key={item.id || `${item.title}-${item.activity_date}`}
+                    style={styles.experienceCard}
+                    onPress={() =>
+                      router.push({
+                        pathname: '/experience-detail' as any,
+                        params: { id: item.id || '' },
+                      })
+                    }
+                  >
+                    <View style={styles.experienceImageBox}>
+                      <Image source={activityImageSource(item)} style={styles.experienceImage} resizeMode="contain" />
                     </View>
-                  </View>
-                </Pressable>
-              ))}
+
+                    <View style={styles.experienceContent}>
+                      <Text style={styles.experienceCategory}>
+                        {getExperienceCategoryIcon(item.category)} {normalizeExperienceCategory(item.category)}
+                      </Text>
+
+                      <Text style={styles.experienceTitle}>{item.title || 'Esperienza senza titolo'}</Text>
+
+                      <Text style={styles.experienceMeta}>
+                        📍 {item.city || 'Comune'} · {item.province || 'Provincia'}
+                      </Text>
+
+                      <Text style={styles.experienceMeta}>
+                        🗓️ {formatDateItalian(item.activity_date)} ·{' '}
+                        {item.activity_time ? String(item.activity_time).slice(0, 5) : 'Ora da definire'}
+                      </Text>
+
+                      <View style={styles.experienceActionsRow}>
+                        <Pressable
+                          style={styles.mapButton}
+                          onPress={(event) => {
+                            event.stopPropagation();
+                            openExperienceMap(item);
+                          }}
+                        >
+                          <Text style={styles.mapButtonText}>🗺️ Mappa</Text>
+                        </Pressable>
+
+                        {isCreator ? (
+                          <Pressable
+                            style={styles.editButton}
+                            onPress={(event) => {
+                              event.stopPropagation();
+                              router.push({
+                                pathname: '/edit-experience' as any,
+                                params: { id: item.id || '' },
+                              });
+                            }}
+                          >
+                            <Text style={styles.editButtonText}>✏️ Modifica</Text>
+                          </Pressable>
+                        ) : null}
+
+                        <Pressable
+                          style={styles.experienceFooter}
+                          onPress={(event) => {
+                            event.stopPropagation();
+                            router.push({
+                              pathname: '/experience-detail' as any,
+                              params: { id: item.id || '' },
+                            });
+                          }}
+                        >
+                          <Text style={styles.openDetailText}>Apri</Text>
+                        </Pressable>
+                      </View>
+                    </View>
+                  </Pressable>
+                );
+              })}
             </View>
           )}
 
@@ -460,7 +486,6 @@ const styles = StyleSheet.create({
   },
   mapButton: {
     alignSelf: 'flex-start',
-    marginTop: 0,
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 999,
@@ -470,6 +495,20 @@ const styles = StyleSheet.create({
   },
   mapButtonText: {
     color: '#9b1f61',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  editButton: {
+    alignSelf: 'flex-start',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    backgroundColor: '#fff7db',
+    borderWidth: 1,
+    borderColor: '#ead08a',
+  },
+  editButtonText: {
+    color: '#805d00',
     fontSize: 12,
     fontWeight: '900',
   },
@@ -543,24 +582,6 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     letterSpacing: -0.4,
   },
-  categoryGrid: {
-    display: 'none',
-  },
-  categoryButton: {
-    display: 'none',
-  },
-  categoryButtonActive: {
-    backgroundColor: '#e43f98',
-    borderColor: '#e43f98',
-  },
-  categoryText: {
-    color: '#7b4960',
-    fontSize: 13,
-    fontWeight: '900',
-  },
-  categoryTextActive: {
-    color: '#ffffff',
-  },
   resultHeader: {
     marginBottom: 12,
   },
@@ -584,7 +605,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     alignItems: 'center',
     shadowColor: '#e43f98',
-    shadowOpacity: 0.10,
+    shadowOpacity: 0.1,
     shadowRadius: 14,
     shadowOffset: { width: 0, height: 7 },
     elevation: 3,
@@ -608,7 +629,7 @@ const styles = StyleSheet.create({
     gap: 12,
     alignItems: 'flex-start',
     shadowColor: '#e43f98',
-    shadowOpacity: 0.10,
+    shadowOpacity: 0.1,
     shadowRadius: 14,
     shadowOffset: { width: 0, height: 7 },
     elevation: 3,
@@ -622,22 +643,15 @@ const styles = StyleSheet.create({
     borderColor: '#ffd3e7',
     overflow: 'hidden',
     alignItems: 'center',
-    shadowColor: '#e43f98',
-    shadowOpacity: 0.10,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 7 },
-    elevation: 3,
     justifyContent: 'center',
   },
   experienceImage: {
     width: '100%',
     height: '100%',
   },
-
   experienceContent: {
     flex: 1,
   },
-
   experienceCategory: {
     alignSelf: 'flex-start',
     backgroundColor: '#fff0f7',
@@ -669,22 +683,17 @@ const styles = StyleSheet.create({
   },
   experienceActionsRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     gap: 8,
     marginTop: 9,
   },
   experienceFooter: {
-    marginTop: 0,
     alignSelf: 'flex-start',
     borderRadius: 999,
     backgroundColor: '#e43f98',
     paddingVertical: 7,
     paddingHorizontal: 16,
-    shadowColor: '#e43f98',
-    shadowOpacity: 0.18,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 3,
   },
   openDetailText: {
     color: '#ffffff',
@@ -697,11 +706,6 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     backgroundColor: '#e43f98',
     alignItems: 'center',
-    shadowColor: '#e43f98',
-    shadowOpacity: 0.10,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 7 },
-    elevation: 3,
     justifyContent: 'center',
   },
   refreshButtonText: {

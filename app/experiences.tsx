@@ -220,7 +220,14 @@ export default function ExperiencesScreen() {
         </Pressable>
 
         <View style={styles.header}>
-          <Text style={styles.logoText}>Trova esperienza</Text>
+          <View style={[styles.headerBlob, styles.headerBlobTop]} />
+          <View style={[styles.headerBlob, styles.headerBlobBottom]} />
+          <Text style={[styles.headerDoodle, styles.headerDoodleLeft]}>‹‹</Text>
+          <Text style={[styles.headerDoodle, styles.headerDoodleRight]}>✦</Text>
+          <Text style={styles.logoText}>
+            <Text style={styles.headerTitlePlum}>Trova </Text>
+            <Text style={styles.headerTitlePink}>esperienza</Text>
+          </Text>
           <Text style={styles.subtitle}>Scopri esperienze vere vicino a te.</Text>
         </View>
 
@@ -448,14 +455,14 @@ export default function ExperiencesScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: BAJUJU_COLORS.softPink,
+    backgroundColor: BAJUJU_COLORS.background,
   },
   container: {
     flexGrow: 1,
     paddingHorizontal: 22,
     paddingTop: 20,
     paddingBottom: 132,
-    backgroundColor: BAJUJU_COLORS.softPink,
+    backgroundColor: BAJUJU_COLORS.background,
   },
   backButton: {
     alignSelf: 'flex-start',
@@ -476,31 +483,76 @@ const styles = StyleSheet.create({
   },
   header: {
     marginBottom: 18,
-    paddingVertical: 24,
+    minHeight: 176,
+    paddingVertical: 28,
     paddingHorizontal: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
     borderRadius: 30,
-    backgroundColor: BAJUJU_COLORS.brightPink,
-    borderWidth: 2,
-    borderColor: '#FF9DCA',
-    shadowColor: BAJUJU_COLORS.brightPink,
-    shadowOpacity: 0.26,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 7,
+    backgroundColor: '#FFFFFFDC',
+    borderWidth: 1.5,
+    borderColor: BAJUJU_COLORS.line,
+    ...BAJUJU_SHADOW,
+  },
+  headerBlob: {
+    position: 'absolute',
+    width: 104,
+    height: 76,
+    borderRadius: 52,
+    backgroundColor: BAJUJU_COLORS.palePink,
+    opacity: 0.76,
+  },
+  headerBlobTop: {
+    left: -27,
+    top: -25,
+    transform: [{ rotate: '-18deg' }],
+  },
+  headerBlobBottom: {
+    right: -34,
+    bottom: -28,
+    transform: [{ rotate: '18deg' }],
+  },
+  headerDoodle: {
+    position: 'absolute',
+    zIndex: 2,
+    color: BAJUJU_COLORS.brightPink,
+    fontFamily: BAJUJU_FONTS.bold,
+  },
+  headerDoodleLeft: {
+    left: 28,
+    top: 78,
+    fontSize: 24,
+    transform: [{ rotate: '-8deg' }],
+  },
+  headerDoodleRight: {
+    right: 27,
+    top: 24,
+    fontSize: 23,
+    transform: [{ rotate: '8deg' }],
   },
   logoText: {
+    zIndex: 1,
     fontSize: 34,
     lineHeight: 39,
     fontFamily: BAJUJU_FONTS.bold,
-    color: BAJUJU_COLORS.white,
     letterSpacing: -0.9,
+    textAlign: 'center',
+  },
+  headerTitlePlum: {
+    color: BAJUJU_COLORS.plum,
+  },
+  headerTitlePink: {
+    color: BAJUJU_COLORS.brightPink,
   },
   subtitle: {
+    zIndex: 1,
     marginTop: 7,
     fontSize: 15,
     lineHeight: 20,
     fontFamily: BAJUJU_FONTS.medium,
-    color: '#FFE8F3',
+    color: BAJUJU_COLORS.plum,
+    textAlign: 'center',
   },
   card: {
     width: '100%',
@@ -531,9 +583,9 @@ const styles = StyleSheet.create({
     marginBottom: 18,
     paddingHorizontal: 16,
     borderRadius: 23,
-    borderWidth: 2,
-    borderColor: '#FF8FC2',
-    backgroundColor: BAJUJU_COLORS.brightPink,
+    borderWidth: 1.5,
+    borderColor: BAJUJU_COLORS.line,
+    backgroundColor: BAJUJU_COLORS.softPink,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 13,
@@ -553,19 +605,19 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   mapOverviewTitle: {
-    color: BAJUJU_COLORS.white,
+    color: BAJUJU_COLORS.plum,
     fontFamily: BAJUJU_FONTS.semiBold,
     fontSize: 16,
   },
   mapOverviewSubtitle: {
     marginTop: 2,
-    color: '#FFE8F3',
+    color: BAJUJU_COLORS.muted,
     fontFamily: BAJUJU_FONTS.medium,
     fontSize: 13,
     lineHeight: 18,
   },
   mapOverviewArrow: {
-    color: BAJUJU_COLORS.white,
+    color: BAJUJU_COLORS.brightPink,
     fontFamily: BAJUJU_FONTS.bold,
     fontSize: 25,
   },

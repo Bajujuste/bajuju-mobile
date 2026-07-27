@@ -1,4 +1,3 @@
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import React from 'react';
@@ -11,6 +10,11 @@ import {
   Text,
   View,
 } from 'react-native';
+
+import {
+  BajujuIcon,
+  BajujuIconName,
+} from '../icons/BajujuIcon';
 
 const bajujuLogo = require('../../../assets/brand/bajuju-logo.png');
 
@@ -77,8 +81,8 @@ export function BajujuHomeView({
                 pressed && styles.pressed,
               ]}
             >
-              <Ionicons
-                name="notifications-outline"
+              <BajujuIcon
+                name="bell"
                 size={25}
                 color={COLORS.plum}
               />
@@ -110,8 +114,8 @@ export function BajujuHomeView({
                   style={styles.profilePhoto}
                 />
               ) : (
-                <Ionicons
-                  name="person-outline"
+                <BajujuIcon
+                  name="person"
                   size={22}
                   color={COLORS.pink}
                 />
@@ -142,7 +146,7 @@ export function BajujuHomeView({
 
           <View style={styles.actionRow}>
             <ActionCard
-              icon={<Ionicons name="search" size={39} color={COLORS.pink} />}
+              icon={<BajujuIcon name="search" size={39} color={COLORS.pink} />}
               title="Trova"
               description="Scopri le esperienze"
               accessibilityLabel="Trova esperienze"
@@ -150,8 +154,8 @@ export function BajujuHomeView({
             />
             <ActionCard
               icon={
-                <Ionicons
-                  name="calendar-outline"
+                <BajujuIcon
+                  name="plus"
                   size={40}
                   color={COLORS.pink}
                 />
@@ -179,8 +183,8 @@ export function BajujuHomeView({
               <View style={styles.flashBubbleBottom} />
 
               <View style={styles.flashIcon}>
-                <MaterialCommunityIcons
-                  name="lightning-bolt"
+                <BajujuIcon
+                  name="bolt"
                   size={51}
                   color={COLORS.brightPink}
                 />
@@ -197,8 +201,8 @@ export function BajujuHomeView({
               </View>
 
               <View style={styles.flashArrow}>
-                <Ionicons
-                  name="arrow-forward"
+                <BajujuIcon
+                  name="arrow"
                   size={28}
                   color={COLORS.brightPink}
                 />
@@ -210,15 +214,15 @@ export function BajujuHomeView({
             <Text style={styles.infoTitle}>Con Bajuju puoi</Text>
 
             <InfoItem
-              icon="account-group-outline"
+              icon="group"
               text="Conoscere persone facendo qualcosa dal vivo."
             />
             <InfoItem
-              icon="map-marker-outline"
+              icon="pin"
               text="Trovare esperienze vicino alla tua zona."
             />
             <InfoItem
-              icon="lightning-bolt-outline"
+              icon="bolt"
               text="Organizzare subito con Bajuju Flash."
             />
           </View>
@@ -233,7 +237,7 @@ export function BajujuHomeView({
                 pressed && styles.pressed,
               ]}
             >
-              <Ionicons name="share-social" size={22} color={COLORS.white} />
+              <BajujuIcon name="share" size={22} color={COLORS.white} />
               <Text style={styles.shareText}>Condividi Bajuju</Text>
             </Pressable>
 
@@ -275,10 +279,10 @@ export function BajujuHomeView({
 
       <View style={styles.bottomNav}>
         <NavItem active icon="home" label="Home" onPress={() => undefined} />
-        <NavItem icon="search-outline" label="Trova" onPress={onFind} />
-        <NavItem icon="flash-outline" label="Flash" onPress={onFlash} />
+        <NavItem icon="search" label="Trova" onPress={onFind} />
+        <NavItem icon="bolt" label="Flash" onPress={onFlash} />
         <NavItem
-          icon="person-outline"
+          icon="person"
           label="Profilo"
           onPress={onOpenProfile}
         />
@@ -317,14 +321,14 @@ function ActionCard({
       <View style={styles.titleUnderline} />
       <Text style={styles.actionDescription}>{description}</Text>
       <View style={styles.cardArrow}>
-        <Ionicons name="arrow-forward" size={23} color={COLORS.brightPink} />
+        <BajujuIcon name="arrow" size={23} color={COLORS.brightPink} />
       </View>
     </Pressable>
   );
 }
 
 type InfoItemProps = {
-  icon: React.ComponentProps<typeof MaterialCommunityIcons>['name'];
+  icon: BajujuIconName;
   text: string;
 };
 
@@ -332,7 +336,7 @@ function InfoItem({ icon, text }: InfoItemProps) {
   return (
     <View style={styles.infoItem}>
       <View style={styles.infoIcon}>
-        <MaterialCommunityIcons
+        <BajujuIcon
           name={icon}
           size={24}
           color={COLORS.brightPink}
@@ -345,7 +349,7 @@ function InfoItem({ icon, text }: InfoItemProps) {
 
 type NavItemProps = {
   active?: boolean;
-  icon: React.ComponentProps<typeof Ionicons>['name'];
+  icon: BajujuIconName;
   label: string;
   onPress: () => void;
 };
@@ -361,7 +365,7 @@ function NavItem({ active = false, icon, label, onPress }: NavItemProps) {
       onPress={onPress}
       style={({ pressed }) => [styles.navItem, pressed && styles.pressed]}
     >
-      <Ionicons name={icon} size={28} color={color} />
+      <BajujuIcon name={icon} size={28} color={color} />
       <Text style={[styles.navLabel, active && styles.navLabelActive]}>
         {label}
       </Text>

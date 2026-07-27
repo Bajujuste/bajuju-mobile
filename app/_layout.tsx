@@ -1,5 +1,4 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -18,8 +17,8 @@ export const unstable_settings = {
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const [fontsLoaded, fontError] = useFonts({
-    ...Ionicons.font,
-    ...MaterialCommunityIcons.font,
+    ionicons: require('../assets/fonts/Ionicons.ttf'),
+    'material-community': require('../assets/fonts/MaterialCommunityIcons.ttf'),
     FredokaRegular: require('../assets/fonts/Fredoka-400.ttf'),
     FredokaMedium: require('../assets/fonts/Fredoka-500.ttf'),
     FredokaSemiBold: require('../assets/fonts/Fredoka-600.ttf'),

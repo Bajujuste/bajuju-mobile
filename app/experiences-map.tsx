@@ -15,7 +15,7 @@ import {
 import BajujuMap, { BajujuMapItem } from '../components/BajujuMap';
 import { BajujuBottomNav } from '@/src/components/navigation/BajujuBottomNav';
 import { getExperienceCategoryIcon, normalizeExperienceCategory } from '@/src/constants/experienceCategories';
-import { BAJUJU_COLORS, BAJUJU_FONTS } from '@/src/theme/bajujuTheme';
+import { BAJUJU_COLORS, BAJUJU_FONTS, BAJUJU_SHADOW } from '@/src/theme/bajujuTheme';
 import { supabase } from '../src/lib/supabase';
 
 const PROVINCE_REGIONS = {
@@ -409,11 +409,18 @@ export default function ExperiencesMapScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         <View style={styles.heroCard}>
+        <View style={[styles.heroBlob, styles.heroBlobTop]} />
+        <View style={[styles.heroBlob, styles.heroBlobBottom]} />
+        <Text style={[styles.heroDoodle, styles.heroDoodleLeft]}>‹‹</Text>
+        <Text style={[styles.heroDoodle, styles.heroDoodleRight]}>✦</Text>
         <Pressable style={styles.backButton} onPress={() => router.push('/experiences')}>
           <Text style={styles.backButtonText}>← Trova</Text>
         </Pressable>
 
-        <Text style={styles.title}>Mappa esperienze</Text>
+        <Text style={styles.title}>
+          <Text style={styles.heroTitlePlum}>Mappa </Text>
+          <Text style={styles.heroTitlePink}>esperienze</Text>
+        </Text>
         <Text style={styles.subtitle}>Tocca un pin per aprire l’esperienza.</Text>
         </View>
 
@@ -772,28 +779,62 @@ void legacyStyles;
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: BAJUJU_COLORS.softPink,
+    backgroundColor: BAJUJU_COLORS.background,
   },
   page: {
     flexGrow: 1,
     paddingTop: 20,
     paddingHorizontal: 22,
     paddingBottom: 132,
-    backgroundColor: BAJUJU_COLORS.softPink,
+    backgroundColor: BAJUJU_COLORS.background,
     gap: 14,
   },
   heroCard: {
     marginBottom: 10,
-    padding: 22,
+    minHeight: 206,
+    padding: 20,
+    overflow: 'hidden',
     borderRadius: 30,
-    backgroundColor: BAJUJU_COLORS.brightPink,
-    borderWidth: 2,
-    borderColor: '#FF9DCA',
-    shadowColor: BAJUJU_COLORS.brightPink,
-    shadowOpacity: 0.26,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 7,
+    backgroundColor: '#FFFFFFDC',
+    borderWidth: 1.5,
+    borderColor: BAJUJU_COLORS.line,
+    ...BAJUJU_SHADOW,
+  },
+  heroBlob: {
+    position: 'absolute',
+    width: 104,
+    height: 76,
+    borderRadius: 52,
+    backgroundColor: BAJUJU_COLORS.palePink,
+    opacity: 0.76,
+  },
+  heroBlobTop: {
+    left: -27,
+    top: -25,
+    transform: [{ rotate: '-18deg' }],
+  },
+  heroBlobBottom: {
+    right: -34,
+    bottom: -28,
+    transform: [{ rotate: '18deg' }],
+  },
+  heroDoodle: {
+    position: 'absolute',
+    zIndex: 2,
+    color: BAJUJU_COLORS.brightPink,
+    fontFamily: BAJUJU_FONTS.bold,
+  },
+  heroDoodleLeft: {
+    left: 30,
+    top: 121,
+    fontSize: 23,
+    transform: [{ rotate: '-8deg' }],
+  },
+  heroDoodleRight: {
+    right: 27,
+    top: 25,
+    fontSize: 23,
+    transform: [{ rotate: '8deg' }],
   },
   backButton: {
     alignSelf: 'flex-start',
@@ -803,7 +844,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 17,
     borderRadius: 999,
     borderWidth: 0,
-    backgroundColor: BAJUJU_COLORS.white,
+    backgroundColor: '#FFFFFFE8',
   },
   backButtonText: {
     color: BAJUJU_COLORS.brightPink,
@@ -811,18 +852,27 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   title: {
-    color: BAJUJU_COLORS.white,
+    zIndex: 1,
     fontFamily: BAJUJU_FONTS.bold,
     fontSize: 34,
     lineHeight: 39,
     letterSpacing: -0.9,
+    textAlign: 'center',
+  },
+  heroTitlePlum: {
+    color: BAJUJU_COLORS.plum,
+  },
+  heroTitlePink: {
+    color: BAJUJU_COLORS.brightPink,
   },
   subtitle: {
+    zIndex: 1,
     marginTop: 7,
-    color: '#FFE8F3',
+    color: BAJUJU_COLORS.plum,
     fontFamily: BAJUJU_FONTS.medium,
     fontSize: 15,
     lineHeight: 20,
+    textAlign: 'center',
   },
   card: {
     padding: 18,

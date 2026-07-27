@@ -12,6 +12,8 @@ import MapView, {
   Region,
 } from 'react-native-maps';
 
+import { BAJUJU_COLORS, BAJUJU_FONTS } from '../src/theme/bajujuTheme';
+
 export type BajujuMapItem = {
   id: string;
   latitude: number;
@@ -242,7 +244,7 @@ export default function BajujuMap({
   );
 }
 
-const styles = StyleSheet.create({
+const legacyStyles = StyleSheet.create({
   card: {
     backgroundColor: '#ffffff',
     borderRadius: 24,
@@ -391,5 +393,146 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '900',
     marginTop: 8,
+  },
+});
+
+void legacyStyles;
+
+const styles = StyleSheet.create({
+  card: {
+    padding: 22,
+    borderRadius: 29,
+    borderWidth: 2,
+    borderColor: BAJUJU_COLORS.palePink,
+    backgroundColor: '#FFFCFE',
+    gap: 14,
+    overflow: 'hidden',
+    shadowColor: '#9B1A5B',
+    shadowOpacity: 0.18,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 6,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  headerText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  title: {
+    color: BAJUJU_COLORS.plum,
+    fontFamily: BAJUJU_FONTS.bold,
+    fontSize: 21,
+    lineHeight: 25,
+  },
+  subtitle: {
+    marginTop: 3,
+    color: BAJUJU_COLORS.muted,
+    fontFamily: BAJUJU_FONTS.medium,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  count: {
+    minWidth: 42,
+    height: 42,
+    borderRadius: 21,
+    overflow: 'hidden',
+    textAlign: 'center',
+    textAlignVertical: 'center',
+    backgroundColor: BAJUJU_COLORS.brightPink,
+    color: BAJUJU_COLORS.white,
+    fontFamily: BAJUJU_FONTS.bold,
+    fontSize: 23,
+  },
+  emptyText: {
+    color: BAJUJU_COLORS.muted,
+    fontFamily: BAJUJU_FONTS.medium,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  mapShell: {
+    position: 'relative',
+    height: 430,
+    borderRadius: 24,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: '#F7A7CD',
+    backgroundColor: BAJUJU_COLORS.mapGreen,
+    shadowColor: '#9B1A5B',
+    shadowOpacity: 0.16,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 7 },
+    elevation: 4,
+  },
+  map: {
+    width: '100%',
+    height: '100%',
+  },
+  preview: {
+    position: 'absolute',
+    left: 12,
+    right: 12,
+    bottom: 12,
+    padding: 13,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: BAJUJU_COLORS.palePink,
+    backgroundColor: BAJUJU_COLORS.white,
+    shadowColor: '#9B1A5B',
+    shadowOpacity: 0.22,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 9 },
+    elevation: 7,
+  },
+  previewHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  previewIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: BAJUJU_COLORS.line,
+    backgroundColor: BAJUJU_COLORS.softPink,
+  },
+  previewIcon: {
+    fontSize: 19,
+  },
+  previewText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  previewKicker: {
+    marginBottom: 2,
+    color: BAJUJU_COLORS.brightPink,
+    fontFamily: BAJUJU_FONTS.semiBold,
+    fontSize: 12,
+  },
+  previewTitle: {
+    color: BAJUJU_COLORS.plum,
+    fontFamily: BAJUJU_FONTS.bold,
+    fontSize: 15,
+    lineHeight: 19,
+  },
+  previewMeta: {
+    marginTop: 5,
+    color: BAJUJU_COLORS.muted,
+    fontFamily: BAJUJU_FONTS.medium,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  previewAction: {
+    marginTop: 8,
+    color: BAJUJU_COLORS.brightPink,
+    fontFamily: BAJUJU_FONTS.semiBold,
+    fontSize: 12,
   },
 });

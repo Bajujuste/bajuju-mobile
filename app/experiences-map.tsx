@@ -3,9 +3,9 @@ import React, { useCallback, useEffect, useState } from 'react';
 
 import {
   ActivityIndicator,
-  Image,
   Pressable,
   RefreshControl,
+  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -13,10 +13,10 @@ import {
 } from 'react-native';
 
 import BajujuMap, { BajujuMapItem } from '../components/BajujuMap';
+import { BajujuBottomNav } from '@/src/components/navigation/BajujuBottomNav';
 import { getExperienceCategoryIcon, normalizeExperienceCategory } from '@/src/constants/experienceCategories';
+import { BAJUJU_COLORS, BAJUJU_FONTS, BAJUJU_SHADOW } from '@/src/theme/bajujuTheme';
 import { supabase } from '../src/lib/supabase';
-
-const bajujuLogo = require('../assets/brand/bajuju-logo.png');
 
 const PROVINCE_REGIONS = {
   Bergamo: {
@@ -403,25 +403,26 @@ export default function ExperiencesMapScreen() {
   }
 
   return (
-    <ScrollView
-      contentContainerStyle={styles.page}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-    >
-      <View style={styles.heroCard}>
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView
+        contentContainerStyle={styles.page}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      >
+        <View style={styles.heroCard}>
+        <View style={[styles.heroBlob, styles.heroBlobTop]} />
+        <View style={[styles.heroBlob, styles.heroBlobBottom]} />
+        <Text style={[styles.heroDoodle, styles.heroDoodleLeft]}>‹‹</Text>
+        <Text style={[styles.heroDoodle, styles.heroDoodleRight]}>✦</Text>
         <Pressable style={styles.backButton} onPress={() => router.push('/experiences')}>
-          <Text style={styles.backButtonText}>← Trova esperienza</Text>
+          <Text style={styles.backButtonText}>← Trova</Text>
         </Pressable>
 
-        <View style={styles.logoCircle}>
-          <Image source={bajujuLogo} style={styles.logoImage} resizeMode="contain" />
-        </View>
-
-        <Text style={styles.kicker}>Bajuju</Text>
-        <Text style={styles.title}>Mappa esperienze</Text>
-        <Text style={styles.subtitle}>
-          Ecco gli eventi disponibili: tocca un pin per aprire subito l’esperienza.
+        <Text style={styles.title}>
+          <Text style={styles.heroTitlePlum}>Mappa </Text>
+          <Text style={styles.heroTitlePink}>esperienze</Text>
         </Text>
-      </View>
+        <Text style={styles.subtitle}>Tocca un pin per aprire l’esperienza.</Text>
+        </View>
 
         {!loading && !errorMessage ? (
           <BajujuMap
@@ -504,11 +505,13 @@ export default function ExperiencesMapScreen() {
           })}
         </View>
       )}
-    </ScrollView>
+      </ScrollView>
+      <BajujuBottomNav active="find" />
+    </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
+const legacyStyles = StyleSheet.create({
 
 
 
@@ -769,4 +772,227 @@ const styles = StyleSheet.create({
     transform: [{ rotate: '17deg' }],
   },
 
+});
+
+void legacyStyles;
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: BAJUJU_COLORS.background,
+  },
+  page: {
+    flexGrow: 1,
+    paddingTop: 20,
+    paddingHorizontal: 22,
+    paddingBottom: 132,
+    backgroundColor: BAJUJU_COLORS.background,
+    gap: 14,
+  },
+  heroCard: {
+    marginBottom: 10,
+    minHeight: 206,
+    padding: 20,
+    overflow: 'hidden',
+    borderRadius: 30,
+    backgroundColor: '#FFFFFFDC',
+    borderWidth: 1.5,
+    borderColor: BAJUJU_COLORS.line,
+    ...BAJUJU_SHADOW,
+  },
+  heroBlob: {
+    position: 'absolute',
+    width: 104,
+    height: 76,
+    borderRadius: 52,
+    backgroundColor: BAJUJU_COLORS.palePink,
+    opacity: 0.76,
+  },
+  heroBlobTop: {
+    left: -27,
+    top: -25,
+    transform: [{ rotate: '-18deg' }],
+  },
+  heroBlobBottom: {
+    right: -34,
+    bottom: -28,
+    transform: [{ rotate: '18deg' }],
+  },
+  heroDoodle: {
+    position: 'absolute',
+    zIndex: 2,
+    color: BAJUJU_COLORS.brightPink,
+    fontFamily: BAJUJU_FONTS.bold,
+  },
+  heroDoodleLeft: {
+    left: 30,
+    top: 121,
+    fontSize: 23,
+    transform: [{ rotate: '-8deg' }],
+  },
+  heroDoodleRight: {
+    right: 27,
+    top: 25,
+    fontSize: 23,
+    transform: [{ rotate: '8deg' }],
+  },
+  backButton: {
+    alignSelf: 'flex-start',
+    minHeight: 44,
+    marginBottom: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 17,
+    borderRadius: 999,
+    borderWidth: 0,
+    backgroundColor: '#FFFFFFE8',
+  },
+  backButtonText: {
+    color: BAJUJU_COLORS.brightPink,
+    fontFamily: BAJUJU_FONTS.semiBold,
+    fontSize: 15,
+  },
+  title: {
+    zIndex: 1,
+    fontFamily: BAJUJU_FONTS.bold,
+    fontSize: 34,
+    lineHeight: 39,
+    letterSpacing: -0.9,
+    textAlign: 'center',
+  },
+  heroTitlePlum: {
+    color: BAJUJU_COLORS.plum,
+  },
+  heroTitlePink: {
+    color: BAJUJU_COLORS.brightPink,
+  },
+  subtitle: {
+    zIndex: 1,
+    marginTop: 7,
+    color: BAJUJU_COLORS.plum,
+    fontFamily: BAJUJU_FONTS.medium,
+    fontSize: 15,
+    lineHeight: 20,
+    textAlign: 'center',
+  },
+  card: {
+    padding: 18,
+    borderRadius: 25,
+    borderWidth: 2,
+    borderColor: BAJUJU_COLORS.palePink,
+    backgroundColor: '#FFFCFE',
+    gap: 12,
+    shadowColor: '#9B1A5B',
+    shadowOpacity: 0.18,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 6,
+  },
+  sectionTitle: {
+    color: BAJUJU_COLORS.plum,
+    fontFamily: BAJUJU_FONTS.bold,
+    fontSize: 21,
+  },
+  eventBox: {
+    padding: 14,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: BAJUJU_COLORS.palePink,
+    backgroundColor: BAJUJU_COLORS.softPink,
+    gap: 8,
+  },
+  eventHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  pinCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: BAJUJU_COLORS.line,
+    backgroundColor: BAJUJU_COLORS.white,
+  },
+  pinIcon: {
+    fontSize: 18,
+  },
+  eventTextBox: {
+    flex: 1,
+    minWidth: 0,
+  },
+  eventTitle: {
+    color: BAJUJU_COLORS.plum,
+    fontFamily: BAJUJU_FONTS.bold,
+    fontSize: 16,
+    lineHeight: 21,
+  },
+  eventMeta: {
+    marginTop: 2,
+    color: BAJUJU_COLORS.brightPink,
+    fontFamily: BAJUJU_FONTS.semiBold,
+    fontSize: 12,
+  },
+  eventInfo: {
+    color: BAJUJU_COLORS.muted,
+    fontFamily: BAJUJU_FONTS.medium,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  addressText: {
+    padding: 10,
+    borderRadius: 14,
+    backgroundColor: BAJUJU_COLORS.white,
+    color: BAJUJU_COLORS.plum,
+    fontFamily: BAJUJU_FONTS.medium,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  mapButton: {
+    alignSelf: 'flex-start',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    backgroundColor: BAJUJU_COLORS.brightPink,
+  },
+  mapButtonText: {
+    color: BAJUJU_COLORS.white,
+    fontFamily: BAJUJU_FONTS.semiBold,
+    fontSize: 13,
+  },
+  mainButton: {
+    alignSelf: 'flex-start',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    backgroundColor: BAJUJU_COLORS.brightPink,
+  },
+  mainButtonText: {
+    color: BAJUJU_COLORS.white,
+    fontFamily: BAJUJU_FONTS.semiBold,
+    fontSize: 13,
+  },
+  mutedText: {
+    color: BAJUJU_COLORS.muted,
+    fontFamily: BAJUJU_FONTS.medium,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  emptyTitle: {
+    color: BAJUJU_COLORS.plum,
+    fontFamily: BAJUJU_FONTS.bold,
+    fontSize: 18,
+  },
+  errorTitle: {
+    color: '#B00020',
+    fontFamily: BAJUJU_FONTS.bold,
+    fontSize: 18,
+  },
+  errorText: {
+    color: BAJUJU_COLORS.muted,
+    fontFamily: BAJUJU_FONTS.medium,
+    fontSize: 14,
+    lineHeight: 20,
+  },
 });

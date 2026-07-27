@@ -17,9 +17,11 @@ import {
   View,
 } from 'react-native';
 
+import { BajujuBottomNav } from '../src/components/navigation/BajujuBottomNav';
 import { EXPERIENCE_CREATION_CATEGORIES } from '../src/constants/experienceCategories';
 import { ITALIAN_MUNICIPALITIES_BY_PROVINCE } from '../src/data/italianMunicipalities';
 import { supabase } from '../src/lib/supabase';
+import { BAJUJU_COLORS, BAJUJU_FONTS, BAJUJU_SHADOW } from '../src/theme/bajujuTheme';
 import { sendBajujuPushNotification, buildExperienceNotificationTitle } from '../src/utils/bajujuNotifications';
 
 const LOCATION_OPTIONS = [
@@ -518,7 +520,14 @@ export default function CreateExperienceScreen() {
         </Pressable>
 
         <View style={styles.header}>
-          <Text style={styles.pageTitle}>Crea esperienza</Text>
+          <View style={[styles.headerBlob, styles.headerBlobTop]} />
+          <View style={[styles.headerBlob, styles.headerBlobBottom]} />
+          <Text style={[styles.headerDoodle, styles.headerDoodleLeft]}>‹‹</Text>
+          <Text style={[styles.headerDoodle, styles.headerDoodleRight]}>✦</Text>
+          <Text style={styles.pageTitle}>
+            <Text style={styles.headerTitlePlum}>Crea </Text>
+            <Text style={styles.headerTitlePink}>esperienza</Text>
+          </Text>
           <Text style={styles.subtitle}>
             Compila i dettagli essenziali e pubblica la tua esperienza.
           </Text>
@@ -545,32 +554,38 @@ export default function CreateExperienceScreen() {
               <Text style={styles.sectionTitle}>Dove si svolge</Text>
             </View>
 
-            <Text style={styles.label}>Provincia</Text>
-            <Pressable style={styles.selectButton} onPress={() => setOpenSelect('province')}>
-              <Text style={[styles.selectButtonText, !province.trim() && styles.selectPlaceholder]}>
-                {province.trim() || 'Seleziona provincia'}
-              </Text>
-              <Text style={styles.selectChevron}>⌄</Text>
-            </Pressable>
+            <View style={styles.twoColumnsRow}>
+              <View style={styles.addressColumn}>
+                <Text style={styles.label}>Provincia</Text>
+                <Pressable style={styles.selectButton} onPress={() => setOpenSelect('province')}>
+                  <Text style={[styles.selectButtonText, !province.trim() && styles.selectPlaceholder]}>
+                    {province.trim() || 'Seleziona'}
+                  </Text>
+                  <Text style={styles.selectChevron}>⌄</Text>
+                </Pressable>
+              </View>
 
-            <Text style={styles.label}>Comune</Text>
-            <Pressable
-              style={[styles.selectButton, !provinceIsValid && styles.selectButtonDisabled]}
-              onPress={() => {
-                if (!provinceIsValid) {
-                  if (typeof window !== 'undefined') {
-                    window.alert('Scegli prima la provincia.');
-                  }
-                  return;
-                }
-                setOpenSelect('city');
-              }}
-            >
-              <Text style={[styles.selectButtonText, !cityIsValid && styles.selectPlaceholder]}>
-                {cityIsValid ? city : 'Seleziona comune'}
-              </Text>
-              <Text style={styles.selectChevron}>⌄</Text>
-            </Pressable>
+              <View style={styles.addressColumn}>
+                <Text style={styles.label}>Comune</Text>
+                <Pressable
+                  style={[styles.selectButton, !provinceIsValid && styles.selectButtonDisabled]}
+                  onPress={() => {
+                    if (!provinceIsValid) {
+                      if (typeof window !== 'undefined') {
+                        window.alert('Scegli prima la provincia.');
+                      }
+                      return;
+                    }
+                    setOpenSelect('city');
+                  }}
+                >
+                  <Text style={[styles.selectButtonText, !cityIsValid && styles.selectPlaceholder]}>
+                    {cityIsValid ? city : 'Seleziona'}
+                  </Text>
+                  <Text style={styles.selectChevron}>⌄</Text>
+                </Pressable>
+              </View>
+            </View>
 
             <View style={styles.twoColumnsRow}>
               <View style={styles.addressColumn}>
@@ -606,7 +621,7 @@ export default function CreateExperienceScreen() {
 
           <View style={[styles.formSection, styles.whenSection]}>
             <View style={styles.compactSectionHeaderRow}>
-              <Text style={styles.sectionTitle}>Quando</Text>
+              <Text style={styles.sectionTitle}>Quando e dettagli</Text>
             </View>
 
             <View style={styles.dateTimeRow}>
@@ -678,7 +693,7 @@ export default function CreateExperienceScreen() {
 
           <View style={styles.formSection}>
             <View style={styles.sectionHeaderRow}>
-              <Text style={styles.sectionTitle}>Dettagli</Text>
+              <Text style={styles.sectionTitle}>Categoria e partecipanti</Text>
             </View>
 
             <Text style={styles.label}>Categoria</Text>
@@ -868,11 +883,12 @@ export default function CreateExperienceScreen() {
           </Pressable>
         </Pressable>
       </Modal>
+      <BajujuBottomNav active="home" />
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
+const legacyStyles = StyleSheet.create({
   photoPicker: {
     width: '100%',
     height: 158,
@@ -1355,4 +1371,473 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
+});
+
+void legacyStyles;
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: BAJUJU_COLORS.background,
+  },
+  container: {
+    flexGrow: 1,
+    paddingHorizontal: 22,
+    paddingTop: 20,
+    paddingBottom: 132,
+    backgroundColor: BAJUJU_COLORS.background,
+  },
+  backButton: {
+    alignSelf: 'flex-start',
+    minHeight: 44,
+    marginBottom: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 17,
+    borderRadius: 999,
+    borderWidth: 2,
+    borderColor: BAJUJU_COLORS.palePink,
+    backgroundColor: '#FFFFFFE8',
+    ...BAJUJU_SHADOW,
+  },
+  backText: {
+    color: BAJUJU_COLORS.plum,
+    fontFamily: BAJUJU_FONTS.semiBold,
+    fontSize: 15,
+  },
+  header: {
+    marginBottom: 18,
+    minHeight: 186,
+    paddingVertical: 28,
+    paddingHorizontal: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    borderRadius: 30,
+    backgroundColor: '#FFFFFFDC',
+    borderWidth: 1.5,
+    borderColor: BAJUJU_COLORS.line,
+    ...BAJUJU_SHADOW,
+  },
+  headerBlob: {
+    position: 'absolute',
+    width: 104,
+    height: 76,
+    borderRadius: 52,
+    backgroundColor: BAJUJU_COLORS.palePink,
+    opacity: 0.76,
+  },
+  headerBlobTop: {
+    left: -27,
+    top: -25,
+    transform: [{ rotate: '-18deg' }],
+  },
+  headerBlobBottom: {
+    right: -34,
+    bottom: -28,
+    transform: [{ rotate: '18deg' }],
+  },
+  headerDoodle: {
+    position: 'absolute',
+    zIndex: 2,
+    color: BAJUJU_COLORS.brightPink,
+    fontFamily: BAJUJU_FONTS.bold,
+  },
+  headerDoodleLeft: {
+    left: 28,
+    top: 84,
+    fontSize: 24,
+    transform: [{ rotate: '-8deg' }],
+  },
+  headerDoodleRight: {
+    right: 27,
+    top: 24,
+    fontSize: 23,
+    transform: [{ rotate: '8deg' }],
+  },
+  pageTitle: {
+    zIndex: 1,
+    fontFamily: BAJUJU_FONTS.bold,
+    fontSize: 34,
+    lineHeight: 39,
+    letterSpacing: -0.9,
+    textAlign: 'center',
+  },
+  headerTitlePlum: {
+    color: BAJUJU_COLORS.plum,
+  },
+  headerTitlePink: {
+    color: BAJUJU_COLORS.brightPink,
+  },
+  subtitle: {
+    zIndex: 1,
+    marginTop: 7,
+    color: BAJUJU_COLORS.plum,
+    fontFamily: BAJUJU_FONTS.medium,
+    fontSize: 15,
+    lineHeight: 20,
+    textAlign: 'center',
+  },
+  card: {
+    width: '100%',
+    padding: 0,
+    backgroundColor: 'transparent',
+  },
+  formSection: {
+    padding: 19,
+    marginBottom: 18,
+    borderRadius: 27,
+    borderWidth: 2,
+    borderColor: BAJUJU_COLORS.palePink,
+    backgroundColor: '#FFFCFE',
+    shadowColor: '#9B1A5B',
+    shadowOpacity: 0.16,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 9 },
+    elevation: 5,
+  },
+  sectionHeaderRow: {
+    marginBottom: 13,
+  },
+  compactSectionHeaderRow: {
+    marginBottom: 13,
+  },
+  sectionTitle: {
+    color: BAJUJU_COLORS.plum,
+    fontFamily: BAJUJU_FONTS.bold,
+    fontSize: 20,
+    letterSpacing: -0.3,
+  },
+  label: {
+    marginBottom: 7,
+    color: BAJUJU_COLORS.plum,
+    fontFamily: BAJUJU_FONTS.semiBold,
+    fontSize: 13,
+  },
+  compactLabel: {
+    marginBottom: 7,
+    color: BAJUJU_COLORS.plum,
+    fontFamily: BAJUJU_FONTS.semiBold,
+    fontSize: 13,
+    textTransform: 'none',
+  },
+  input: {
+    minHeight: 56,
+    marginBottom: 13,
+    paddingHorizontal: 16,
+    borderRadius: 18,
+    borderWidth: 2,
+    borderColor: BAJUJU_COLORS.palePink,
+    backgroundColor: BAJUJU_COLORS.white,
+    color: BAJUJU_COLORS.plum,
+    fontFamily: BAJUJU_FONTS.medium,
+    fontSize: 15,
+  },
+  selectButton: {
+    minHeight: 56,
+    marginBottom: 13,
+    paddingHorizontal: 15,
+    borderRadius: 18,
+    borderWidth: 2,
+    borderColor: BAJUJU_COLORS.palePink,
+    backgroundColor: BAJUJU_COLORS.white,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  selectButtonText: {
+    flex: 1,
+    color: BAJUJU_COLORS.plum,
+    fontFamily: BAJUJU_FONTS.medium,
+    fontSize: 15,
+  },
+  selectPlaceholder: {
+    color: BAJUJU_COLORS.muted,
+  },
+  selectChevron: {
+    marginLeft: 8,
+    color: BAJUJU_COLORS.brightPink,
+    fontFamily: BAJUJU_FONTS.bold,
+    fontSize: 18,
+  },
+  selectButtonDisabled: {
+    opacity: 0.5,
+  },
+  twoColumnsRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  addressColumn: {
+    flex: 1,
+    minWidth: 0,
+  },
+  streetNumberColumn: {
+    width: 92,
+  },
+  helperText: {
+    marginBottom: 3,
+    color: BAJUJU_COLORS.muted,
+    fontFamily: BAJUJU_FONTS.regular,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  whenSection: {
+    paddingVertical: 19,
+  },
+  dateTimeRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  dateColumn: {
+    flex: 1,
+    minWidth: 0,
+  },
+  timeColumn: {
+    flex: 1,
+    minWidth: 0,
+  },
+  dateTimePickerButton: {
+    minHeight: 56,
+    paddingHorizontal: 15,
+    borderRadius: 18,
+    borderWidth: 2,
+    borderColor: BAJUJU_COLORS.palePink,
+    backgroundColor: BAJUJU_COLORS.white,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 7,
+  },
+  dateTimePickerButtonText: {
+    flex: 1,
+    color: BAJUJU_COLORS.plum,
+    fontFamily: BAJUJU_FONTS.medium,
+    fontSize: 14,
+  },
+  dateTimePickerPlaceholder: {
+    color: BAJUJU_COLORS.muted,
+  },
+  dateTimePickerIcon: {
+    color: BAJUJU_COLORS.brightPink,
+    fontFamily: BAJUJU_FONTS.bold,
+    fontSize: 17,
+  },
+  compactDetailsRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  participantsColumn: {
+    width: 132,
+  },
+  budgetColumn: {
+    width: 132,
+  },
+  textArea: {
+    minHeight: 112,
+    paddingTop: 14,
+    textAlignVertical: 'top',
+  },
+  compactTextArea: {
+    minHeight: 92,
+  },
+  photoPicker: {
+    width: '100%',
+    height: 176,
+    marginTop: 2,
+    marginBottom: 10,
+    overflow: 'hidden',
+    borderRadius: 23,
+    borderWidth: 2,
+    borderColor: '#F7A7CD',
+    backgroundColor: BAJUJU_COLORS.palePink,
+  },
+  photoPreview: {
+    width: '100%',
+    height: '100%',
+  },
+  photoPlaceholder: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+  },
+  photoPlaceholderTitle: {
+    color: BAJUJU_COLORS.plum,
+    fontFamily: BAJUJU_FONTS.bold,
+    fontSize: 16,
+  },
+  photoPlaceholderText: {
+    marginTop: 4,
+    color: BAJUJU_COLORS.muted,
+    fontFamily: BAJUJU_FONTS.medium,
+    fontSize: 12,
+  },
+  photoActions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 12,
+  },
+  photoActionButton: {
+    flex: 1,
+    minHeight: 42,
+    borderRadius: 21,
+    borderWidth: 1.5,
+    borderColor: BAJUJU_COLORS.line,
+    backgroundColor: BAJUJU_COLORS.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  photoActionText: {
+    color: BAJUJU_COLORS.brightPink,
+    fontFamily: BAJUJU_FONTS.semiBold,
+    fontSize: 13,
+  },
+  photoRemoveText: {
+    color: BAJUJU_COLORS.plum,
+    fontFamily: BAJUJU_FONTS.semiBold,
+    fontSize: 13,
+  },
+  photoHelper: {
+    marginBottom: 12,
+    color: BAJUJU_COLORS.muted,
+    fontFamily: BAJUJU_FONTS.regular,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  previewBox: {
+    marginTop: 2,
+    padding: 16,
+    borderRadius: 22,
+    borderWidth: 2,
+    borderColor: '#F7A7CD',
+    backgroundColor: BAJUJU_COLORS.palePink,
+  },
+  previewTitle: {
+    marginBottom: 7,
+    color: BAJUJU_COLORS.brightPink,
+    fontFamily: BAJUJU_FONTS.bold,
+    fontSize: 15,
+  },
+  previewText: {
+    marginBottom: 4,
+    color: BAJUJU_COLORS.plum,
+    fontFamily: BAJUJU_FONTS.bold,
+    fontSize: 18,
+  },
+  previewSmall: {
+    marginTop: 2,
+    color: BAJUJU_COLORS.muted,
+    fontFamily: BAJUJU_FONTS.medium,
+    fontSize: 13,
+  },
+  mainButton: {
+    minHeight: 54,
+    marginTop: 16,
+    borderRadius: 27,
+    backgroundColor: BAJUJU_COLORS.brightPink,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: BAJUJU_COLORS.brightPink,
+    shadowOpacity: 0.3,
+    shadowRadius: 15,
+    shadowOffset: { width: 0, height: 9 },
+    elevation: 7,
+  },
+  mainButtonDisabled: {
+    opacity: 0.45,
+  },
+  mainButtonText: {
+    color: BAJUJU_COLORS.white,
+    fontFamily: BAJUJU_FONTS.bold,
+    fontSize: 17,
+  },
+  note: {
+    marginTop: 13,
+    color: BAJUJU_COLORS.muted,
+    fontFamily: BAJUJU_FONTS.regular,
+    fontSize: 12,
+    lineHeight: 18,
+    textAlign: 'center',
+  },
+  modalBackdrop: {
+    flex: 1,
+    padding: 16,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(75, 12, 45, 0.34)',
+  },
+  modalSheet: {
+    maxHeight: '72%',
+    padding: 16,
+    borderRadius: 29,
+    borderWidth: 1.5,
+    borderColor: BAJUJU_COLORS.line,
+    backgroundColor: BAJUJU_COLORS.background,
+  },
+  modalHandle: {
+    alignSelf: 'center',
+    width: 44,
+    height: 5,
+    marginBottom: 14,
+    borderRadius: 999,
+    backgroundColor: BAJUJU_COLORS.line,
+  },
+  modalTitle: {
+    marginBottom: 11,
+    color: BAJUJU_COLORS.plum,
+    fontFamily: BAJUJU_FONTS.bold,
+    fontSize: 22,
+  },
+  modalOptions: {
+    maxHeight: 360,
+  },
+  modalOptionsContent: {
+    paddingBottom: 8,
+    gap: 8,
+  },
+  modalOption: {
+    minHeight: 50,
+    paddingHorizontal: 16,
+    borderRadius: 17,
+    borderWidth: 1.5,
+    borderColor: BAJUJU_COLORS.line,
+    backgroundColor: BAJUJU_COLORS.white,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  modalOptionActive: {
+    borderColor: BAJUJU_COLORS.brightPink,
+    backgroundColor: BAJUJU_COLORS.brightPink,
+  },
+  modalOptionText: {
+    color: BAJUJU_COLORS.plum,
+    fontFamily: BAJUJU_FONTS.medium,
+    fontSize: 15,
+  },
+  modalOptionTextActive: {
+    color: BAJUJU_COLORS.white,
+  },
+  modalCheck: {
+    color: BAJUJU_COLORS.white,
+    fontFamily: BAJUJU_FONTS.bold,
+    fontSize: 18,
+  },
+  modalCloseButton: {
+    minHeight: 46,
+    marginTop: 12,
+    borderRadius: 23,
+    borderWidth: 1.5,
+    borderColor: BAJUJU_COLORS.line,
+    backgroundColor: BAJUJU_COLORS.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalCloseText: {
+    color: BAJUJU_COLORS.brightPink,
+    fontFamily: BAJUJU_FONTS.bold,
+    fontSize: 15,
+  },
 });

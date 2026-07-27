@@ -1,4 +1,5 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
@@ -15,14 +16,22 @@ export const unstable_settings = {
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+  const [fontsLoaded, fontError] = useFonts({
+    FredokaRegular: require('../assets/fonts/Fredoka-400.ttf'),
+    FredokaMedium: require('../assets/fonts/Fredoka-500.ttf'),
+    FredokaSemiBold: require('../assets/fonts/Fredoka-600.ttf'),
+    FredokaBold: require('../assets/fonts/Fredoka-700.ttf'),
+  });
 
   useEffect(() => {
-    const timer = setTimeout(() => {
+    if (fontsLoaded || fontError) {
       SplashScreen.hideAsync().catch(() => {});
-    }, 2000);
+    }
+  }, [fontError, fontsLoaded]);
 
-    return () => clearTimeout(timer);
-  }, []);
+  if (!fontsLoaded && !fontError) {
+    return null;
+  }
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>

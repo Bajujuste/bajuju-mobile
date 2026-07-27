@@ -15,7 +15,7 @@ import {
 import BajujuMap, { BajujuMapItem } from '../components/BajujuMap';
 import { BajujuBottomNav } from '@/src/components/navigation/BajujuBottomNav';
 import { getExperienceCategoryIcon, normalizeExperienceCategory } from '@/src/constants/experienceCategories';
-import { BAJUJU_COLORS, BAJUJU_FONTS, BAJUJU_SHADOW } from '@/src/theme/bajujuTheme';
+import { BAJUJU_COLORS, BAJUJU_FONTS } from '@/src/theme/bajujuTheme';
 import { supabase } from '../src/lib/supabase';
 
 const PROVINCE_REGIONS = {
@@ -772,37 +772,46 @@ void legacyStyles;
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: BAJUJU_COLORS.background,
+    backgroundColor: BAJUJU_COLORS.softPink,
   },
   page: {
     flexGrow: 1,
     paddingTop: 20,
     paddingHorizontal: 22,
     paddingBottom: 132,
-    backgroundColor: BAJUJU_COLORS.background,
+    backgroundColor: BAJUJU_COLORS.softPink,
     gap: 14,
   },
   heroCard: {
     marginBottom: 10,
+    padding: 22,
+    borderRadius: 30,
+    backgroundColor: BAJUJU_COLORS.brightPink,
+    borderWidth: 2,
+    borderColor: '#FF9DCA',
+    shadowColor: BAJUJU_COLORS.brightPink,
+    shadowOpacity: 0.26,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 7,
   },
   backButton: {
     alignSelf: 'flex-start',
     minHeight: 44,
-    marginBottom: 20,
+    marginBottom: 16,
     paddingVertical: 10,
     paddingHorizontal: 17,
     borderRadius: 999,
-    borderWidth: 1.5,
-    borderColor: BAJUJU_COLORS.line,
+    borderWidth: 0,
     backgroundColor: BAJUJU_COLORS.white,
   },
   backButtonText: {
-    color: BAJUJU_COLORS.plum,
+    color: BAJUJU_COLORS.brightPink,
     fontFamily: BAJUJU_FONTS.semiBold,
     fontSize: 15,
   },
   title: {
-    color: BAJUJU_COLORS.plum,
+    color: BAJUJU_COLORS.white,
     fontFamily: BAJUJU_FONTS.bold,
     fontSize: 34,
     lineHeight: 39,
@@ -810,7 +819,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     marginTop: 7,
-    color: BAJUJU_COLORS.muted,
+    color: '#FFE8F3',
     fontFamily: BAJUJU_FONTS.medium,
     fontSize: 15,
     lineHeight: 20,
@@ -818,11 +827,15 @@ const styles = StyleSheet.create({
   card: {
     padding: 18,
     borderRadius: 25,
-    borderWidth: 1.5,
-    borderColor: BAJUJU_COLORS.line,
-    backgroundColor: BAJUJU_COLORS.white,
+    borderWidth: 2,
+    borderColor: BAJUJU_COLORS.palePink,
+    backgroundColor: '#FFFCFE',
     gap: 12,
-    ...BAJUJU_SHADOW,
+    shadowColor: '#9B1A5B',
+    shadowOpacity: 0.18,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 6,
   },
   sectionTitle: {
     color: BAJUJU_COLORS.plum,
@@ -832,9 +845,9 @@ const styles = StyleSheet.create({
   eventBox: {
     padding: 14,
     borderRadius: 20,
-    borderWidth: 1.5,
-    borderColor: BAJUJU_COLORS.line,
-    backgroundColor: BAJUJU_COLORS.background,
+    borderWidth: 2,
+    borderColor: BAJUJU_COLORS.palePink,
+    backgroundColor: BAJUJU_COLORS.softPink,
     gap: 8,
   },
   eventHeader: {
@@ -850,7 +863,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1.5,
     borderColor: BAJUJU_COLORS.line,
-    backgroundColor: BAJUJU_COLORS.softPink,
+    backgroundColor: BAJUJU_COLORS.white,
   },
   pinIcon: {
     fontSize: 18,

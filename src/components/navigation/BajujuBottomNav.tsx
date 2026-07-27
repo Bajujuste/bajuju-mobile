@@ -1,9 +1,12 @@
-import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { BAJUJU_COLORS, BAJUJU_FONTS } from '../../theme/bajujuTheme';
+import {
+  BajujuIcon,
+  BajujuIconName,
+} from '../icons/BajujuIcon';
 
 type NavKey = 'home' | 'find' | 'flash' | 'profile';
 
@@ -14,35 +17,35 @@ type BajujuBottomNavProps = {
 const ITEMS: {
   key: NavKey;
   label: string;
-  icon: React.ComponentProps<typeof Ionicons>['name'];
-  activeIcon: React.ComponentProps<typeof Ionicons>['name'];
+  icon: BajujuIconName;
+  activeIcon: BajujuIconName;
   route: '/home' | '/experiences' | '/flash' | '/profile';
 }[] = [
   {
     key: 'home',
     label: 'Home',
-    icon: 'home-outline',
+    icon: 'home',
     activeIcon: 'home',
     route: '/home',
   },
   {
     key: 'find',
     label: 'Trova',
-    icon: 'search-outline',
+    icon: 'search',
     activeIcon: 'search',
     route: '/experiences',
   },
   {
     key: 'flash',
     label: 'Flash',
-    icon: 'flash-outline',
-    activeIcon: 'flash',
+    icon: 'bolt',
+    activeIcon: 'bolt',
     route: '/flash',
   },
   {
     key: 'profile',
     label: 'Profilo',
-    icon: 'person-outline',
+    icon: 'person',
     activeIcon: 'person',
     route: '/profile',
   },
@@ -73,7 +76,7 @@ export function BajujuBottomNav({ active }: BajujuBottomNavProps) {
               pressed && styles.pressed,
             ]}
           >
-            <Ionicons
+            <BajujuIcon
               name={selected ? item.activeIcon : item.icon}
               size={27}
               color={color}

@@ -27,8 +27,7 @@ const LOCATION_OPTIONS = [
   'Milano',
   'Lecco',
   'Monza e Brianza',
-  'Brescia',
-  'Torino',
+  'Verona',
 ];
 
 const BAJUJU_CREATOR_EMAIL = 'royaleventi@gmail.com';
@@ -734,7 +733,11 @@ export default function ProfileScreen() {
         setNotificationsEnabled(notificationPreferencesResult.data.enabled !== false);
 
         const preferredProvince = notificationPreferencesResult.data.preferred_province;
-        if (typeof preferredProvince === 'string' && preferredProvince.trim()) {
+        if (
+          !loadedProvince &&
+          typeof preferredProvince === 'string' &&
+          preferredProvince.trim()
+        ) {
           setProvince(preferredProvince.trim());
         }
       }
@@ -974,12 +977,19 @@ export default function ProfileScreen() {
           }
         }
 
-        const preferencesResult = await supabase.from('notification_preferences').upsert({
-          user_id: user.id,
-          enabled: notificationsSuccessfullyEnabled,
-          preferred_province: cleanProvince,
-          updated_at: new Date().toISOString(),
-        });
+        const preferencesResult = await supabase
+          .from('notification_preferences')
+          .upsert(
+            {
+              user_id: user.id,
+              enabled: notificationsSuccessfullyEnabled,
+              preferred_province: cleanProvince,
+              updated_at: new Date().toISOString(),
+            },
+            {
+              onConflict: 'user_id',
+            }
+          );
 
         if (preferencesResult.error) {
           console.warn('Preferenze notifiche non salvate.');
@@ -1002,7 +1012,7 @@ export default function ProfileScreen() {
     } finally {
       setSaving(false);
     }
-  }, [ageRange, directContactsEnabled, gender, loadAll, notificationsEnabled, photoUrl, profile, profileIdField, profileIdValue, province, user]);
+  }, [ageRange, directContactsEnabled, gender, loadAll, notificationsEnabled, photoUrl, profile, profileIdField, profileIdValue, profileName, province, user]);
 
   const answerItem = useCallback(
     async (item: ContactItem | InviteItem, status: 'accepted' | 'rejected') => {

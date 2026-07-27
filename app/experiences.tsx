@@ -10,7 +10,9 @@ import {
   View,
 } from 'react-native';
 
+import { BajujuBottomNav } from '@/src/components/navigation/BajujuBottomNav';
 import { EXPERIENCE_CATEGORIES, getExperienceCategoryIcon, normalizeExperienceCategory } from '@/src/constants/experienceCategories';
+import { BAJUJU_COLORS, BAJUJU_FONTS, BAJUJU_SHADOW } from '@/src/theme/bajujuTheme';
 import { supabase } from '../src/lib/supabase';
 
 const bajujuLogo = require('../assets/brand/bajuju-logo.png');
@@ -218,37 +220,64 @@ export default function ExperiencesScreen() {
         </Pressable>
 
         <View style={styles.header}>
-          <Text style={styles.logoText}>Trova esperienza</Text>
-          <Text style={styles.subtitle}>
-            Scopri esperienze vere vicino a te: cena, sport, camminate, musica e momenti dal vivo.
+          <View style={[styles.headerBlob, styles.headerBlobTop]} />
+          <View style={[styles.headerBlob, styles.headerBlobBottom]} />
+          <Text style={[styles.headerDoodle, styles.headerDoodleLeft]}>‹‹</Text>
+          <Text style={[styles.headerDoodle, styles.headerDoodleRight]}>✦</Text>
+          <Text style={styles.logoText}>
+            <Text style={styles.headerTitlePlum}>Trova </Text>
+            <Text style={styles.headerTitlePink}>esperienza</Text>
           </Text>
+          <Text style={styles.subtitle}>Scopri esperienze vere vicino a te.</Text>
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.sectionEyebrow}>Categorie</Text>
-          <Text style={styles.title}>Cosa vuoi fare?</Text>
+          <Text style={styles.sectionEyebrow}>Cosa vuoi fare?</Text>
 
           <Pressable style={styles.mapOverviewButton} onPress={() => router.push('/experiences-map')}>
             <Text style={styles.mapOverviewIcon}>🗺️</Text>
             <View style={styles.mapOverviewTextBox}>
-              <Text style={styles.mapOverviewTitle}>Apri mappa esperienze</Text>
-              <Text style={styles.mapOverviewSubtitle}>Vedi gli eventi disponibili con i pin categoria</Text>
+              <Text style={styles.mapOverviewTitle}>Apri la mappa</Text>
+              <Text style={styles.mapOverviewSubtitle}>Guarda gli eventi con i pin</Text>
             </View>
+            <Text style={styles.mapOverviewArrow}>→</Text>
           </Pressable>
 
-          <Pressable
-            style={styles.categorySelectButton}
-            onPress={() => {
-              setProvinceMenuOpen(false);
-              setCategoryMenuOpen((value) => !value);
-            }}
-          >
-            <View style={styles.categorySelectTextBox}>
-              <Text style={styles.categorySelectLabel}>Categoria selezionata</Text>
-              <Text style={styles.categorySelectValue}>{selectedCategory}</Text>
+          <View style={styles.filtersRow}>
+            <View style={styles.filterColumn}>
+              <Text style={styles.filterLabel}>Categoria</Text>
+              <Pressable
+                style={styles.categorySelectButton}
+                onPress={() => {
+                  setProvinceMenuOpen(false);
+                  setCategoryMenuOpen((value) => !value);
+                }}
+              >
+                <View style={styles.categorySelectTextBox}>
+                  <Text style={styles.categorySelectValue}>{selectedCategory}</Text>
+                </View>
+                <Text style={styles.categorySelectArrow}>{categoryMenuOpen ? '⌃' : '⌄'}</Text>
+              </Pressable>
             </View>
-            <Text style={styles.categorySelectArrow}>{categoryMenuOpen ? '▲' : '▼'}</Text>
-          </Pressable>
+
+            <View style={styles.filterColumn}>
+              <Text style={styles.filterLabel}>Provincia</Text>
+              <Pressable
+                style={styles.categorySelectButton}
+                onPress={() => {
+                  setCategoryMenuOpen(false);
+                  setProvinceMenuOpen((value) => !value);
+                }}
+              >
+                <View style={styles.categorySelectTextBox}>
+                  <Text style={styles.categorySelectValue}>{selectedProvince}</Text>
+                </View>
+                <Text style={styles.categorySelectArrow}>
+                  {provinceMenuOpen ? '⌃' : '⌄'}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
 
           {categoryMenuOpen ? (
             <View style={styles.categoryDropdown}>
@@ -281,53 +310,36 @@ export default function ExperiencesScreen() {
             </View>
           ) : null}
 
+          {provinceMenuOpen ? (
+            <View style={styles.categoryDropdown}>
+              {PROVINCE_OPTIONS.map((province) => {
+                const isSelected = selectedProvince === province;
 
-            <Pressable
-              style={styles.categorySelectButton}
-              onPress={() => {
-                setCategoryMenuOpen(false);
-                setProvinceMenuOpen((value) => !value);
-              }}
-            >
-              <View style={styles.categorySelectTextBox}>
-                <Text style={styles.categorySelectLabel}>Provincia selezionata</Text>
-                <Text style={styles.categorySelectValue}>{selectedProvince}</Text>
-              </View>
-              <Text style={styles.categorySelectArrow}>
-                {provinceMenuOpen ? '▲' : '▼'}
-              </Text>
-            </Pressable>
-
-            {provinceMenuOpen ? (
-              <View style={styles.categoryDropdown}>
-                {PROVINCE_OPTIONS.map((province) => {
-                  const isSelected = selectedProvince === province;
-
-                  return (
-                    <Pressable
-                      key={province}
+                return (
+                  <Pressable
+                    key={province}
+                    style={[
+                      styles.categoryDropdownItem,
+                      isSelected && styles.categoryDropdownItemActive,
+                    ]}
+                    onPress={() => {
+                      setSelectedProvince(province);
+                      setProvinceMenuOpen(false);
+                    }}
+                  >
+                    <Text
                       style={[
-                        styles.categoryDropdownItem,
-                        isSelected && styles.categoryDropdownItemActive,
+                        styles.categoryDropdownText,
+                        isSelected && styles.categoryDropdownTextActive,
                       ]}
-                      onPress={() => {
-                        setSelectedProvince(province);
-                        setProvinceMenuOpen(false);
-                      }}
                     >
-                      <Text
-                        style={[
-                          styles.categoryDropdownText,
-                          isSelected && styles.categoryDropdownTextActive,
-                        ]}
-                      >
-                        {province}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            ) : null}
+                      {province}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          ) : null}
 
           <View style={styles.resultHeader}>
             <Text style={styles.resultTitle}>
@@ -435,367 +447,415 @@ export default function ExperiencesScreen() {
           </Pressable>
         </View>
       </ScrollView>
+      <BajujuBottomNav active="find" />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  mapOverviewSubtitle: {
-    color: '#7b4960',
-    fontSize: 12,
-    lineHeight: 17,
-    fontWeight: '800',
-    marginTop: 2,
+  safeArea: {
+    flex: 1,
+    backgroundColor: BAJUJU_COLORS.background,
   },
-  mapOverviewTitle: {
-    color: '#4b1430',
+  container: {
+    flexGrow: 1,
+    paddingHorizontal: 22,
+    paddingTop: 20,
+    paddingBottom: 132,
+    backgroundColor: BAJUJU_COLORS.background,
+  },
+  backButton: {
+    alignSelf: 'flex-start',
+    minHeight: 44,
+    marginBottom: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 17,
+    borderRadius: 999,
+    backgroundColor: '#FFFFFFE8',
+    borderWidth: 2,
+    borderColor: BAJUJU_COLORS.palePink,
+    ...BAJUJU_SHADOW,
+  },
+  backText: {
+    fontFamily: BAJUJU_FONTS.semiBold,
     fontSize: 15,
-    fontWeight: '900',
+    color: BAJUJU_COLORS.plum,
+  },
+  header: {
+    marginBottom: 18,
+    minHeight: 176,
+    paddingVertical: 28,
+    paddingHorizontal: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    borderRadius: 30,
+    backgroundColor: '#FFFFFFDC',
+    borderWidth: 1.5,
+    borderColor: BAJUJU_COLORS.line,
+    ...BAJUJU_SHADOW,
+  },
+  headerBlob: {
+    position: 'absolute',
+    width: 104,
+    height: 76,
+    borderRadius: 52,
+    backgroundColor: BAJUJU_COLORS.palePink,
+    opacity: 0.76,
+  },
+  headerBlobTop: {
+    left: -27,
+    top: -25,
+    transform: [{ rotate: '-18deg' }],
+  },
+  headerBlobBottom: {
+    right: -34,
+    bottom: -28,
+    transform: [{ rotate: '18deg' }],
+  },
+  headerDoodle: {
+    position: 'absolute',
+    zIndex: 2,
+    color: BAJUJU_COLORS.brightPink,
+    fontFamily: BAJUJU_FONTS.bold,
+  },
+  headerDoodleLeft: {
+    left: 28,
+    top: 78,
+    fontSize: 24,
+    transform: [{ rotate: '-8deg' }],
+  },
+  headerDoodleRight: {
+    right: 27,
+    top: 24,
+    fontSize: 23,
+    transform: [{ rotate: '8deg' }],
+  },
+  logoText: {
+    zIndex: 1,
+    fontSize: 34,
+    lineHeight: 39,
+    fontFamily: BAJUJU_FONTS.bold,
+    letterSpacing: -0.9,
+    textAlign: 'center',
+  },
+  headerTitlePlum: {
+    color: BAJUJU_COLORS.plum,
+  },
+  headerTitlePink: {
+    color: BAJUJU_COLORS.brightPink,
+  },
+  subtitle: {
+    zIndex: 1,
+    marginTop: 7,
+    fontSize: 15,
+    lineHeight: 20,
+    fontFamily: BAJUJU_FONTS.medium,
+    color: BAJUJU_COLORS.plum,
+    textAlign: 'center',
+  },
+  card: {
+    width: '100%',
+    borderRadius: 29,
+    padding: 22,
+    backgroundColor: '#FFFCFE',
+    borderWidth: 2,
+    borderColor: BAJUJU_COLORS.palePink,
+    shadowColor: '#9B1A5B',
+    shadowOpacity: 0.18,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 6,
+  },
+  sectionEyebrow: {
+    color: BAJUJU_COLORS.brightPink,
+    fontSize: 13,
+    fontFamily: BAJUJU_FONTS.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 1.1,
+    marginBottom: 16,
+  },
+  title: {
+    display: 'none',
+  },
+  mapOverviewButton: {
+    minHeight: 80,
+    marginBottom: 18,
+    paddingHorizontal: 16,
+    borderRadius: 23,
+    borderWidth: 1.5,
+    borderColor: BAJUJU_COLORS.line,
+    backgroundColor: BAJUJU_COLORS.softPink,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 13,
+  },
+  mapOverviewIcon: {
+    width: 42,
+    height: 42,
+    fontSize: 24,
+    textAlign: 'center',
+    textAlignVertical: 'center',
+    borderRadius: 21,
+    overflow: 'hidden',
+    backgroundColor: BAJUJU_COLORS.white,
   },
   mapOverviewTextBox: {
     flex: 1,
     minWidth: 0,
   },
-  mapOverviewIcon: {
-    fontSize: 22,
+  mapOverviewTitle: {
+    color: BAJUJU_COLORS.plum,
+    fontFamily: BAJUJU_FONTS.semiBold,
+    fontSize: 16,
   },
-  mapOverviewButton: {
-    backgroundColor: '#fff0f7',
-    borderWidth: 1,
-    borderColor: '#ffd3e6',
+  mapOverviewSubtitle: {
+    marginTop: 2,
+    color: BAJUJU_COLORS.muted,
+    fontFamily: BAJUJU_FONTS.medium,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  mapOverviewArrow: {
+    color: BAJUJU_COLORS.brightPink,
+    fontFamily: BAJUJU_FONTS.bold,
+    fontSize: 25,
+  },
+  filtersRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 4,
+  },
+  filterColumn: {
+    flex: 1,
+    minWidth: 0,
+  },
+  filterLabel: {
+    marginBottom: 7,
+    color: BAJUJU_COLORS.plum,
+    fontFamily: BAJUJU_FONTS.semiBold,
+    fontSize: 13,
+  },
+  categorySelectButton: {
+    minHeight: 56,
+    paddingHorizontal: 15,
     borderRadius: 18,
-    paddingVertical: 12,
-    paddingHorizontal: 13,
+    borderWidth: 2,
+    borderColor: BAJUJU_COLORS.palePink,
+    backgroundColor: BAJUJU_COLORS.white,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    marginBottom: 12,
-  },
-  categoryDropdownTextActive: {
-    color: '#ffffff',
-  },
-  categoryDropdownText: {
-    color: '#7b4960',
-    fontSize: 14,
-    fontWeight: '900',
-  },
-  categoryDropdownItemActive: {
-    backgroundColor: '#ef2d82',
-    borderColor: '#ef2d82',
-  },
-  categoryDropdownItem: {
-    borderRadius: 14,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    backgroundColor: '#fff8fb',
-    borderWidth: 1,
-    borderColor: '#fff0f7',
-  },
-  categoryDropdown: {
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#ffd3e6',
-    borderRadius: 18,
-    padding: 8,
-    marginBottom: 14,
-    gap: 6,
-  },
-  categorySelectArrow: {
-    color: '#e43f98',
-    fontSize: 14,
-    fontWeight: '900',
-  },
-  categorySelectValue: {
-    color: '#4b1430',
-    fontSize: 16,
-    fontWeight: '900',
-  },
-  categorySelectLabel: {
-    color: '#a95d86',
-    fontSize: 12,
-    fontWeight: '800',
-    marginBottom: 3,
+    justifyContent: 'space-between',
+    gap: 8,
   },
   categorySelectTextBox: {
     flex: 1,
     minWidth: 0,
   },
-  categorySelectButton: {
-    backgroundColor: '#fff8fb',
-    borderWidth: 1,
-    borderColor: '#ffd3e6',
-    borderRadius: 18,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 10,
-    marginBottom: 10,
-  },
-  mapButton: {
-    alignSelf: 'flex-start',
-    marginTop: 0,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 999,
-    backgroundColor: '#fff0f7',
-    borderWidth: 1,
-    borderColor: '#ffd3e7',
-  },
-  mapButtonText: {
-    color: '#9b1f61',
-    fontSize: 12,
-    fontWeight: '900',
-  },
-  editButton: {
-    alignSelf: 'flex-start',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 999,
-    backgroundColor: '#fff7db',
-    borderWidth: 1,
-    borderColor: '#ead18a',
-  },
-  editButtonText: {
-    color: '#7a5a00',
-    fontSize: 12,
-    fontWeight: '900',
-  },
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#fff8fb',
-  },
-  container: {
-    flexGrow: 1,
-    padding: 20,
-    paddingTop: 64,
-    paddingBottom: 32,
-    backgroundColor: '#fff8fb',
-  },
-  backButton: {
-    alignSelf: 'flex-start',
-    marginBottom: 18,
-    paddingVertical: 9,
-    paddingHorizontal: 13,
-    borderRadius: 999,
-    backgroundColor: '#fff2f8',
-    borderWidth: 1,
-    borderColor: '#ffd3e7',
-  },
-  backText: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#9b1f61',
-  },
-  header: {
-    marginBottom: 18,
-  },
-  logoText: {
-    fontSize: 34,
-    fontWeight: '900',
-    color: '#e43f98',
-    letterSpacing: -0.6,
-  },
-  subtitle: {
-    marginTop: 8,
+  categorySelectValue: {
+    color: BAJUJU_COLORS.muted,
+    fontFamily: BAJUJU_FONTS.medium,
     fontSize: 15,
-    lineHeight: 22,
-    fontWeight: '700',
-    color: '#6b3652',
   },
-  card: {
-    width: '100%',
-    borderRadius: 28,
-    padding: 16,
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#f6d7e4',
-    shadowColor: '#e43f98',
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 3,
+  categorySelectLabel: {
+    display: 'none',
   },
-  sectionEyebrow: {
-    color: '#9b1f61',
-    fontSize: 12,
-    fontWeight: '900',
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    marginBottom: 4,
+  categorySelectArrow: {
+    color: BAJUJU_COLORS.brightPink,
+    fontFamily: BAJUJU_FONTS.bold,
+    fontSize: 16,
   },
-  title: {
-    fontSize: 25,
-    fontWeight: '900',
-    color: '#331426',
+  categoryDropdown: {
+    marginTop: 8,
     marginBottom: 14,
-    letterSpacing: -0.4,
+    padding: 8,
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: BAJUJU_COLORS.line,
+    backgroundColor: BAJUJU_COLORS.white,
+    gap: 6,
   },
-  categoryGrid: {
-    display: 'none',
+  categoryDropdownItem: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: BAJUJU_COLORS.softPink,
+    backgroundColor: BAJUJU_COLORS.background,
   },
-  categoryButton: {
-    display: 'none',
+  categoryDropdownItemActive: {
+    borderColor: BAJUJU_COLORS.brightPink,
+    backgroundColor: BAJUJU_COLORS.brightPink,
   },
-  categoryButtonActive: {
-    backgroundColor: '#e43f98',
-    borderColor: '#e43f98',
+  categoryDropdownText: {
+    color: BAJUJU_COLORS.muted,
+    fontFamily: BAJUJU_FONTS.semiBold,
+    fontSize: 14,
   },
-  categoryText: {
-    color: '#7b4960',
-    fontSize: 13,
-    fontWeight: '900',
-  },
-  categoryTextActive: {
-    color: '#ffffff',
+  categoryDropdownTextActive: {
+    color: BAJUJU_COLORS.white,
   },
   resultHeader: {
+    marginTop: 20,
     marginBottom: 12,
   },
   resultTitle: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: '#e43f98',
+    color: BAJUJU_COLORS.brightPink,
+    fontFamily: BAJUJU_FONTS.bold,
+    fontSize: 22,
+    letterSpacing: -0.3,
   },
   resultCount: {
     marginTop: 3,
+    color: BAJUJU_COLORS.muted,
+    fontFamily: BAJUJU_FONTS.semiBold,
     fontSize: 13,
-    fontWeight: '700',
-    color: '#9b1f61',
   },
   emptyBox: {
-    borderRadius: 18,
-    backgroundColor: '#fff8fb',
-    borderWidth: 1,
-    borderColor: '#ffe2ef',
-    paddingVertical: 14,
-    paddingHorizontal: 14,
+    paddingVertical: 18,
+    paddingHorizontal: 15,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: BAJUJU_COLORS.line,
+    backgroundColor: BAJUJU_COLORS.softPink,
     alignItems: 'center',
-    shadowColor: '#e43f98',
-    shadowOpacity: 0.10,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 7 },
-    elevation: 3,
   },
   emptyText: {
-    color: '#9b1f61',
-    fontSize: 13,
-    fontWeight: '800',
+    color: BAJUJU_COLORS.muted,
+    fontFamily: BAJUJU_FONTS.medium,
+    fontSize: 14,
+    lineHeight: 19,
     textAlign: 'center',
   },
   experienceList: {
-    gap: 12,
+    gap: 14,
   },
   experienceCard: {
-    borderRadius: 26,
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#f6d7e4',
-    padding: 12,
+    minHeight: 194,
+    padding: 14,
+    borderRadius: 25,
+    borderWidth: 2,
+    borderColor: BAJUJU_COLORS.palePink,
+    backgroundColor: '#FFFCFE',
     flexDirection: 'row',
-    gap: 12,
+    gap: 14,
     alignItems: 'flex-start',
-    shadowColor: '#e43f98',
-    shadowOpacity: 0.10,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 7 },
-    elevation: 3,
+    shadowColor: '#9B1A5B',
+    shadowOpacity: 0.18,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 9 },
+    elevation: 6,
   },
   experienceImageBox: {
-    width: 82,
-    height: 82,
-    borderRadius: 18,
-    backgroundColor: '#fff2f8',
-    borderWidth: 1,
-    borderColor: '#ffd3e7',
+    width: 104,
+    height: 104,
+    borderRadius: 20,
+    backgroundColor: BAJUJU_COLORS.softPink,
+    borderWidth: 1.5,
+    borderColor: BAJUJU_COLORS.line,
     overflow: 'hidden',
     alignItems: 'center',
-    shadowColor: '#e43f98',
-    shadowOpacity: 0.10,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 7 },
-    elevation: 3,
     justifyContent: 'center',
   },
   experienceImage: {
     width: '100%',
     height: '100%',
   },
-
   experienceContent: {
     flex: 1,
   },
-
   experienceCategory: {
     alignSelf: 'flex-start',
-    backgroundColor: '#fff0f7',
-    borderWidth: 1,
-    borderColor: '#ffd3e7',
-    color: '#9b1f61',
-    fontSize: 11,
-    fontWeight: '900',
+    marginBottom: 8,
     paddingVertical: 4,
     paddingHorizontal: 9,
     borderRadius: 999,
     overflow: 'hidden',
-    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: BAJUJU_COLORS.line,
+    backgroundColor: BAJUJU_COLORS.softPink,
+    color: BAJUJU_COLORS.plum,
+    fontFamily: BAJUJU_FONTS.semiBold,
+    fontSize: 12,
   },
   experienceTitle: {
-    fontSize: 19,
-    lineHeight: 23,
-    fontWeight: '900',
-    color: '#331426',
-    marginBottom: 5,
+    marginBottom: 6,
+    color: BAJUJU_COLORS.plum,
+    fontFamily: BAJUJU_FONTS.bold,
+    fontSize: 18,
+    lineHeight: 22,
     letterSpacing: -0.3,
   },
   experienceMeta: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#6b3652',
     marginTop: 2,
+    color: BAJUJU_COLORS.muted,
+    fontFamily: BAJUJU_FONTS.medium,
+    fontSize: 13,
     flexShrink: 1,
   },
   experienceActionsRow: {
+    marginTop: 11,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginTop: 9,
+    flexWrap: 'wrap',
+  },
+  mapButton: {
+    alignSelf: 'flex-start',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    borderWidth: 1.5,
+    borderColor: '#F7A7CD',
+    backgroundColor: BAJUJU_COLORS.palePink,
+  },
+  mapButtonText: {
+    color: BAJUJU_COLORS.plum,
+    fontFamily: BAJUJU_FONTS.semiBold,
+    fontSize: 12,
+  },
+  editButton: {
+    alignSelf: 'flex-start',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#EAD18A',
+    backgroundColor: '#FFF7DB',
+  },
+  editButtonText: {
+    color: '#7A5A00',
+    fontFamily: BAJUJU_FONTS.semiBold,
+    fontSize: 12,
   },
   experienceFooter: {
-    marginTop: 0,
     alignSelf: 'flex-start',
-    borderRadius: 999,
-    backgroundColor: '#e43f98',
     paddingVertical: 7,
     paddingHorizontal: 16,
-    shadowColor: '#e43f98',
-    shadowOpacity: 0.18,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 3,
+    borderRadius: 999,
+    backgroundColor: BAJUJU_COLORS.brightPink,
   },
   openDetailText: {
-    color: '#ffffff',
+    color: BAJUJU_COLORS.white,
+    fontFamily: BAJUJU_FONTS.semiBold,
     fontSize: 12,
-    fontWeight: '900',
   },
   refreshButton: {
-    marginTop: 16,
+    marginTop: 18,
     height: 48,
-    borderRadius: 18,
-    backgroundColor: '#e43f98',
+    borderRadius: 24,
+    backgroundColor: BAJUJU_COLORS.brightPink,
     alignItems: 'center',
-    shadowColor: '#e43f98',
-    shadowOpacity: 0.10,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 7 },
-    elevation: 3,
     justifyContent: 'center',
+    shadowColor: BAJUJU_COLORS.brightPink,
+    shadowOpacity: 0.28,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 6,
   },
   refreshButtonText: {
-    color: '#ffffff',
+    color: BAJUJU_COLORS.white,
+    fontFamily: BAJUJU_FONTS.bold,
     fontSize: 15,
-    fontWeight: '900',
   },
 });

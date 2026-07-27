@@ -1,6 +1,19 @@
 import { router } from 'expo-router';
+import * as ImageManipulator from 'expo-image-manipulator';
+import * as ImagePicker from 'expo-image-picker';
 import React, { useState } from 'react';
-import { Alert, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  Pressable,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 
 import { supabase } from '../src/lib/supabase';
 
@@ -19,15 +32,17 @@ type ExperienceDraft = {
 export default function AdminCreateExperienceScreen() {
   const [dictationText, setDictationText] = useState('');
   const [analyzing, setAnalyzing] = useState(false);
-  const [analysisResult, setAnalysisResult] = useState<Record<string, unknown> | null>(null);
   const [experienceDraft, setExperienceDraft] = useState<ExperienceDraft | null>(null);
+  const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [idempotencyKey, setIdempotencyKey] = useState('');
 
   async function handleAnalyzeEvent() {
     if (dictationText.trim().length === 0 || analyzing) return;
 
     setAnalyzing(true);
-    setAnalysisResult(null);
     setExperienceDraft(null);
+    setIdempotencyKey('');
 
     try {
       const result = await supabase.functions.invoke('analyze-admin-experience', {
@@ -91,7 +106,6 @@ export default function AdminCreateExperienceScreen() {
         return;
       }
 
-      setAnalysisResult(response.experience);
       setExperienceDraft({
         title: String(response.experience.title ?? ''),
         description: String(response.experience.description ?? ''),
@@ -103,12 +117,203 @@ export default function AdminCreateExperienceScreen() {
         category: String(response.experience.category ?? ''),
         max_participants: String(response.experience.max_participants ?? ''),
       });
+      setIdempotencyKey(`admin-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`);
     } catch {
       console.log('Errore analisi evento Admin.');
 
       Alert.alert('Errore analisi', 'Non sono riuscito ad analizzare l’evento. Riprova.');
     } finally {
       setAnalyzing(false);
+    }
+  }
+
+  async function handlePickPhoto() {
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (!permission.granted) {
+        Alert.alert(
+          'Permesso necessario',
+          'Autorizza l’accesso alle immagini per scegliere la foto di presentazione.'
+        );
+        return;
+      }
+
+      const picked = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [16, 9],
+        quality: 0.9,
+      });
+
+      if (picked.canceled || !picked.assets?.[0]?.uri) return;
+
+      const resized = await ImageManipulator.manipulateAsync(
+        picked.assets[0].uri,
+        [{ resize: { width: 1280 } }],
+        {
+          compress: 0.72,
+          format: ImageManipulator.SaveFormat.JPEG,
+        }
+      );
+
+      setPhotoUri(resized.uri);
+    } catch (error: unknown) {
+      Alert.alert(
+        'Errore foto',
+        error instanceof Error
+          ? error.message
+          : 'Non sono riuscito a preparare la foto selezionata.'
+      );
+    }
+  }
+
+  async function handleCreateEvent() {
+    if (!experienceDraft || creating) return;
+
+    const maxParticipants = Number(experienceDraft.max_participants);
+    const payload = {
+      title: experienceDraft.title.trim(),
+      description: experienceDraft.description.trim(),
+      activity_date: experienceDraft.activity_date.trim(),
+      activity_time: experienceDraft.activity_time.trim(),
+      city: experienceDraft.city.trim(),
+      province: experienceDraft.province.trim(),
+      meeting_place: experienceDraft.meeting_place.trim(),
+      category: experienceDraft.category.trim(),
+      max_participants: maxParticipants,
+    };
+
+    if (
+      !payload.title ||
+      !payload.description ||
+      !payload.activity_date ||
+      !payload.activity_time ||
+      !payload.city ||
+      !payload.province ||
+      !payload.meeting_place ||
+      !payload.category ||
+      !Number.isInteger(maxParticipants) ||
+      maxParticipants < 1 ||
+      maxParticipants > 99
+    ) {
+      Alert.alert(
+        'Dati mancanti',
+        'Controlla tutti i campi e inserisci un numero di partecipanti tra 1 e 99.'
+      );
+      return;
+    }
+
+    setCreating(true);
+
+    try {
+      const authResult = await supabase.auth.getUser();
+      const creatorId = authResult.data.user?.id;
+
+      if (authResult.error || !creatorId) {
+        throw authResult.error || new Error('Devi accedere come amministratore.');
+      }
+
+      const stableKey =
+        idempotencyKey ||
+        `admin-${creatorId}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+
+      setIdempotencyKey(stableKey);
+
+      const result = await supabase.functions.invoke('admin-create-experience', {
+        body: {
+          idempotencyKey: stableKey,
+          payload,
+        },
+      });
+
+      if (result.error) {
+        throw result.error;
+      }
+
+      const response = (result.data || {}) as Record<string, any>;
+
+      if (response.ok === false) {
+        throw new Error(String(response.error || 'Creazione evento non riuscita.'));
+      }
+
+      const activityId = String(
+        response.activity_id ||
+          response.id ||
+          response.experience?.id ||
+          response.data?.id ||
+          ''
+      ).trim();
+
+      let photoWarning = '';
+
+      if (photoUri) {
+        if (!activityId) {
+          photoWarning =
+            'L’evento è stato creato, ma non ho ricevuto il suo identificativo per collegare la foto.';
+        } else {
+          try {
+            const photoResponse = await fetch(photoUri);
+            const photoBuffer = await photoResponse.arrayBuffer();
+            const filePath = `${activityId}/${creatorId}-admin-cover-${Date.now()}.jpg`;
+
+            const uploadResult = await supabase.storage
+              .from('event-photos')
+              .upload(filePath, photoBuffer, {
+                contentType: 'image/jpeg',
+                upsert: true,
+              });
+
+            if (uploadResult.error) throw uploadResult.error;
+
+            const publicUrl = supabase.storage
+              .from('event-photos')
+              .getPublicUrl(filePath).data.publicUrl;
+
+            if (!publicUrl) {
+              throw new Error('URL pubblico della foto non disponibile.');
+            }
+
+            const updateResult = await supabase
+              .from('activities')
+              .update({ photo_url: publicUrl })
+              .eq('id', activityId);
+
+            if (updateResult.error) throw updateResult.error;
+          } catch (error: unknown) {
+            photoWarning =
+              error instanceof Error
+                ? error.message
+                : 'La foto non è stata collegata correttamente.';
+          }
+        }
+      }
+
+      if (photoWarning) {
+        Alert.alert('Evento creato, foto non caricata', photoWarning);
+        return;
+      }
+
+      Alert.alert(
+        'Evento pubblicato',
+        photoUri
+          ? 'L’evento e la foto di presentazione sono stati pubblicati correttamente.'
+          : 'L’evento è stato pubblicato correttamente.'
+      );
+
+      setDictationText('');
+      setExperienceDraft(null);
+      setPhotoUri(null);
+      setIdempotencyKey('');
+    } catch (error: unknown) {
+      Alert.alert(
+        'Errore creazione',
+        error instanceof Error
+          ? error.message
+          : 'Non sono riuscito a pubblicare l’evento.'
+      );
+    } finally {
+      setCreating(false);
     }
   }
 
@@ -219,6 +424,61 @@ export default function AdminCreateExperienceScreen() {
               keyboardType="number-pad"
               style={styles.editableInput}
             />
+
+            <Text style={styles.label}>Foto di presentazione</Text>
+            <Pressable
+              style={styles.photoPicker}
+              onPress={handlePickPhoto}
+              disabled={creating}
+            >
+              {photoUri ? (
+                <Image
+                  source={{ uri: photoUri }}
+                  style={styles.photoPreview}
+                  resizeMode="cover"
+                />
+              ) : (
+                <View style={styles.photoPlaceholder}>
+                  <Text style={styles.photoPlaceholderTitle}>Scegli la foto</Text>
+                  <Text style={styles.photoPlaceholderText}>
+                    Verrà usata come copertina dell’evento
+                  </Text>
+                </View>
+              )}
+            </Pressable>
+
+            {photoUri ? (
+              <View style={styles.photoActions}>
+                <Pressable
+                  style={styles.photoActionButton}
+                  onPress={handlePickPhoto}
+                  disabled={creating}
+                >
+                  <Text style={styles.photoActionText}>Sostituisci</Text>
+                </Pressable>
+                <Pressable
+                  style={styles.photoActionButton}
+                  onPress={() => setPhotoUri(null)}
+                  disabled={creating}
+                >
+                  <Text style={styles.photoRemoveText}>Rimuovi</Text>
+                </Pressable>
+              </View>
+            ) : null}
+
+            <Pressable
+              style={[styles.publishButton, creating && styles.disabledButton]}
+              onPress={handleCreateEvent}
+              disabled={creating}
+            >
+              {creating ? (
+                <ActivityIndicator color="#ffffff" />
+              ) : (
+                <Text style={styles.publishButtonText}>
+                  Pubblica evento{photoUri ? ' con foto' : ''}
+                </Text>
+              )}
+            </Pressable>
           </View>
         ) : null}
 
@@ -246,6 +506,17 @@ const styles = StyleSheet.create({
   resultText: { color: '#4b1430', fontSize: 14, lineHeight: 20, fontWeight: '600' },
   editableInput: { backgroundColor: '#ffffff', borderRadius: 14, borderWidth: 1, borderColor: '#ffd3e6', paddingVertical: 11, paddingHorizontal: 12, color: '#4b1430', fontSize: 15, marginBottom: 14 },
   descriptionInput: { minHeight: 110 },
+  photoPicker: { width: '100%', aspectRatio: 16 / 9, overflow: 'hidden', backgroundColor: '#ffffff', borderRadius: 18, borderWidth: 1, borderColor: '#ffd3e6', marginBottom: 10 },
+  photoPreview: { width: '100%', height: '100%' },
+  photoPlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
+  photoPlaceholderTitle: { color: '#e43f98', fontSize: 18, fontWeight: '900', marginBottom: 6 },
+  photoPlaceholderText: { color: '#7b4960', fontSize: 13, fontWeight: '700', textAlign: 'center' },
+  photoActions: { flexDirection: 'row', gap: 10, marginBottom: 18 },
+  photoActionButton: { flex: 1, alignItems: 'center', backgroundColor: '#ffffff', borderRadius: 999, borderWidth: 1, borderColor: '#ffd3e6', paddingVertical: 10, paddingHorizontal: 12 },
+  photoActionText: { color: '#9b1f61', fontSize: 14, fontWeight: '900' },
+  photoRemoveText: { color: '#a03455', fontSize: 14, fontWeight: '900' },
+  publishButton: { minHeight: 52, alignItems: 'center', justifyContent: 'center', backgroundColor: '#ef2d82', borderRadius: 16, paddingVertical: 14, paddingHorizontal: 18 },
+  publishButtonText: { color: '#ffffff', fontSize: 16, fontWeight: '900' },
   button: { alignSelf: 'flex-start', backgroundColor: '#fff0f7', borderRadius: 999, paddingVertical: 10, paddingHorizontal: 14, borderWidth: 1, borderColor: '#ffd3e6' },
   buttonText: { color: '#9b1f61', fontSize: 14, fontWeight: '900' },
 });

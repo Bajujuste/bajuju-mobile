@@ -206,6 +206,51 @@ function getCoordinates(row: ActivityRow) {
   return { latitude, longitude };
 }
 
+async function geocodeEvent(row: ActivityRow) {
+  const address = getAddress(row);
+  const city = getCity(row);
+  const province = getProvince(row);
+
+  const queries = [
+    [address, city, province, 'Italia'].filter(Boolean).join(', '),
+    [city, province, 'Italia'].filter(Boolean).join(', '),
+  ].filter(Boolean);
+
+  for (const query of queries) {
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=it&q=${encodeURIComponent(query)}`;
+
+      const response = await fetch(url, {
+        headers: {
+          Accept: 'application/json',
+          'User-Agent': 'BajujuMobileApp/1.0',
+        },
+      });
+
+      if (!response.ok) continue;
+
+      const data = await response.json();
+
+      if (!Array.isArray(data) || data.length === 0) continue;
+
+      const latitude = Number(data[0].lat);
+      const longitude = Number(data[0].lon);
+
+      if (
+        Number.isFinite(latitude) &&
+        Number.isFinite(longitude) &&
+        !(latitude === 0 && longitude === 0)
+      ) {
+        return { latitude, longitude };
+      }
+    } catch {
+      console.log('Errore geocoding evento.');
+    }
+  }
+
+  return null;
+}
+
 function isDeleted(row: ActivityRow) {
   if (firstValue(row, ['deleted_at', 'removed_at', 'cancelled_at', 'canceled_at', 'archived_at'], '')) return true;
 
@@ -337,7 +382,43 @@ export default function ExperiencesMapScreen() {
           return dateA.localeCompare(dateB);
         });
 
-      setRows(cleanRows);
+      const enrichedRows: ActivityRow[] = [];
+
+      for (const row of cleanRows) {
+        if (getCoordinates(row)) {
+          enrichedRows.push(row);
+          continue;
+        }
+
+        const coordinates = await geocodeEvent(row);
+
+        if (!coordinates) {
+          enrichedRows.push(row);
+          continue;
+        }
+
+        const enrichedRow = {
+          ...row,
+          latitude: coordinates.latitude,
+          longitude: coordinates.longitude,
+        };
+
+        enrichedRows.push(enrichedRow);
+
+        const id = activityId(row);
+
+        if (id) {
+          await supabase
+            .from('activities')
+            .update({
+              latitude: coordinates.latitude,
+              longitude: coordinates.longitude,
+            })
+            .eq('id', id);
+        }
+      }
+
+      setRows(enrichedRows);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Errore imprevisto durante il caricamento della mappa.";
       setRows([]);
@@ -427,17 +508,9 @@ export default function ExperiencesMapScreen() {
         {!loading && !errorMessage ? (
           <BajujuMap
             items={mapItems}
-            mapTitle={
-              profileProvince
-                ? `Eventi in provincia di ${profileProvince}`
-                : 'Eventi sulla mappa'
-            }
+            mapTitle="Eventi disponibili"
             mapSubtitle="Tocca un marker per vedere l’anteprima."
-            emptyText={
-              profileProvince
-                ? `Nessuna esperienza con coordinate disponibile in provincia di ${profileProvince}.`
-                : 'Nessuna esperienza con coordinate disponibile.'
-            }
+            emptyText="Nessuna esperienza disponibile sulla mappa."
             previewActionText="Tocca questa anteprima per aprire l’esperienza"
             onOpenItem={openMapItem}
             fallbackRegion={provinceRegion}
@@ -461,9 +534,7 @@ export default function ExperiencesMapScreen() {
           <View style={styles.card}>
             <Text style={styles.emptyTitle}>Nessuna esperienza disponibile</Text>
             <Text style={styles.mutedText}>
-              {profileProvince
-                ? `Al momento non ci sono esperienze attive in provincia di ${profileProvince}.`
-                : 'Quando saranno presenti eventi attivi, li troverai qui.'}
+              {'Quando saranno presenti eventi attivi, li troverai qui.'}
             </Text>
           </View>
       ) : (

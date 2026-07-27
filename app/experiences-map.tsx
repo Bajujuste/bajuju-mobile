@@ -3,9 +3,9 @@ import React, { useCallback, useEffect, useState } from 'react';
 
 import {
   ActivityIndicator,
-  Image,
   Pressable,
   RefreshControl,
+  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -13,10 +13,10 @@ import {
 } from 'react-native';
 
 import BajujuMap, { BajujuMapItem } from '../components/BajujuMap';
+import { BajujuBottomNav } from '@/src/components/navigation/BajujuBottomNav';
 import { getExperienceCategoryIcon, normalizeExperienceCategory } from '@/src/constants/experienceCategories';
+import { BAJUJU_COLORS, BAJUJU_FONTS, BAJUJU_SHADOW } from '@/src/theme/bajujuTheme';
 import { supabase } from '../src/lib/supabase';
-
-const bajujuLogo = require('../assets/brand/bajuju-logo.png');
 
 const PROVINCE_REGIONS = {
   Bergamo: {
@@ -403,25 +403,19 @@ export default function ExperiencesMapScreen() {
   }
 
   return (
-    <ScrollView
-      contentContainerStyle={styles.page}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-    >
-      <View style={styles.heroCard}>
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView
+        contentContainerStyle={styles.page}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      >
+        <View style={styles.heroCard}>
         <Pressable style={styles.backButton} onPress={() => router.push('/experiences')}>
-          <Text style={styles.backButtonText}>← Trova esperienza</Text>
+          <Text style={styles.backButtonText}>← Trova</Text>
         </Pressable>
 
-        <View style={styles.logoCircle}>
-          <Image source={bajujuLogo} style={styles.logoImage} resizeMode="contain" />
-        </View>
-
-        <Text style={styles.kicker}>Bajuju</Text>
         <Text style={styles.title}>Mappa esperienze</Text>
-        <Text style={styles.subtitle}>
-          Ecco gli eventi disponibili: tocca un pin per aprire subito l’esperienza.
-        </Text>
-      </View>
+        <Text style={styles.subtitle}>Tocca un pin per aprire l’esperienza.</Text>
+        </View>
 
         {!loading && !errorMessage ? (
           <BajujuMap
@@ -504,11 +498,13 @@ export default function ExperiencesMapScreen() {
           })}
         </View>
       )}
-    </ScrollView>
+      </ScrollView>
+      <BajujuBottomNav active="find" />
+    </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
+const legacyStyles = StyleSheet.create({
 
 
 
@@ -769,4 +765,171 @@ const styles = StyleSheet.create({
     transform: [{ rotate: '17deg' }],
   },
 
+});
+
+void legacyStyles;
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: BAJUJU_COLORS.background,
+  },
+  page: {
+    flexGrow: 1,
+    paddingTop: 20,
+    paddingHorizontal: 22,
+    paddingBottom: 132,
+    backgroundColor: BAJUJU_COLORS.background,
+    gap: 14,
+  },
+  heroCard: {
+    marginBottom: 10,
+  },
+  backButton: {
+    alignSelf: 'flex-start',
+    minHeight: 44,
+    marginBottom: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 17,
+    borderRadius: 999,
+    borderWidth: 1.5,
+    borderColor: BAJUJU_COLORS.line,
+    backgroundColor: BAJUJU_COLORS.white,
+  },
+  backButtonText: {
+    color: BAJUJU_COLORS.plum,
+    fontFamily: BAJUJU_FONTS.semiBold,
+    fontSize: 15,
+  },
+  title: {
+    color: BAJUJU_COLORS.plum,
+    fontFamily: BAJUJU_FONTS.bold,
+    fontSize: 34,
+    lineHeight: 39,
+    letterSpacing: -0.9,
+  },
+  subtitle: {
+    marginTop: 7,
+    color: BAJUJU_COLORS.muted,
+    fontFamily: BAJUJU_FONTS.medium,
+    fontSize: 15,
+    lineHeight: 20,
+  },
+  card: {
+    padding: 18,
+    borderRadius: 25,
+    borderWidth: 1.5,
+    borderColor: BAJUJU_COLORS.line,
+    backgroundColor: BAJUJU_COLORS.white,
+    gap: 12,
+    ...BAJUJU_SHADOW,
+  },
+  sectionTitle: {
+    color: BAJUJU_COLORS.plum,
+    fontFamily: BAJUJU_FONTS.bold,
+    fontSize: 21,
+  },
+  eventBox: {
+    padding: 14,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: BAJUJU_COLORS.line,
+    backgroundColor: BAJUJU_COLORS.background,
+    gap: 8,
+  },
+  eventHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  pinCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: BAJUJU_COLORS.line,
+    backgroundColor: BAJUJU_COLORS.softPink,
+  },
+  pinIcon: {
+    fontSize: 18,
+  },
+  eventTextBox: {
+    flex: 1,
+    minWidth: 0,
+  },
+  eventTitle: {
+    color: BAJUJU_COLORS.plum,
+    fontFamily: BAJUJU_FONTS.bold,
+    fontSize: 16,
+    lineHeight: 21,
+  },
+  eventMeta: {
+    marginTop: 2,
+    color: BAJUJU_COLORS.brightPink,
+    fontFamily: BAJUJU_FONTS.semiBold,
+    fontSize: 12,
+  },
+  eventInfo: {
+    color: BAJUJU_COLORS.muted,
+    fontFamily: BAJUJU_FONTS.medium,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  addressText: {
+    padding: 10,
+    borderRadius: 14,
+    backgroundColor: BAJUJU_COLORS.white,
+    color: BAJUJU_COLORS.plum,
+    fontFamily: BAJUJU_FONTS.medium,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  mapButton: {
+    alignSelf: 'flex-start',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    backgroundColor: BAJUJU_COLORS.brightPink,
+  },
+  mapButtonText: {
+    color: BAJUJU_COLORS.white,
+    fontFamily: BAJUJU_FONTS.semiBold,
+    fontSize: 13,
+  },
+  mainButton: {
+    alignSelf: 'flex-start',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    backgroundColor: BAJUJU_COLORS.brightPink,
+  },
+  mainButtonText: {
+    color: BAJUJU_COLORS.white,
+    fontFamily: BAJUJU_FONTS.semiBold,
+    fontSize: 13,
+  },
+  mutedText: {
+    color: BAJUJU_COLORS.muted,
+    fontFamily: BAJUJU_FONTS.medium,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  emptyTitle: {
+    color: BAJUJU_COLORS.plum,
+    fontFamily: BAJUJU_FONTS.bold,
+    fontSize: 18,
+  },
+  errorTitle: {
+    color: '#B00020',
+    fontFamily: BAJUJU_FONTS.bold,
+    fontSize: 18,
+  },
+  errorText: {
+    color: BAJUJU_COLORS.muted,
+    fontFamily: BAJUJU_FONTS.medium,
+    fontSize: 14,
+    lineHeight: 20,
+  },
 });

@@ -1,14 +1,31 @@
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, ActivityIndicator, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, ActivityIndicator, Image, Pressable, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text as NativeText, TextInput, TextProps, View } from 'react-native';
 
 import BajujuMap, { BajujuMapItem } from '../components/BajujuMap';
+import { BajujuBottomNav } from '../src/components/navigation/BajujuBottomNav';
 import { supabase } from '../src/lib/supabase';
+import { BAJUJU_COLORS, BAJUJU_FONTS, BAJUJU_SHADOW } from '../src/theme/bajujuTheme';
 import { shareBajujuFlash } from '../src/utils/shareBajuju';
 import { sendBajujuPushNotification, buildFlashNotificationTitle } from '../src/utils/bajujuNotifications';
 import { ITALIAN_MUNICIPALITIES_BY_PROVINCE } from '../src/data/italianMunicipalities';
 
 const bajujuLogo = require('../assets/brand/bajuju-logo.png');
+
+function Text({ style, ...props }: TextProps) {
+  const flattenedStyle = StyleSheet.flatten(style);
+  const weight = String(flattenedStyle?.fontWeight || '');
+  const fontFamily =
+    ['800', '900', 'bold'].includes(weight)
+      ? BAJUJU_FONTS.bold
+      : ['600', '700'].includes(weight)
+        ? BAJUJU_FONTS.semiBold
+        : weight === '500'
+          ? BAJUJU_FONTS.medium
+          : BAJUJU_FONTS.regular;
+
+  return <NativeText {...props} style={[{ fontFamily }, style]} />;
+}
 
 type LooseRow = Record<string, any>;
 
@@ -1549,10 +1566,11 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
   }
 
   return (
-    <ScrollView
-      contentContainerStyle={styles.page}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-    >
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView
+        contentContainerStyle={styles.page}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      >
       {isMenuPage ? (
         <View style={styles.flashHeroCard}>
         <Pressable style={styles.flashBackButton} onPress={() => router.push(forcedSection ? '/flash' : '/home')}>
@@ -1562,13 +1580,7 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
         <View style={styles.flashHeroTopRow}>
           <View style={styles.flashHeroTextBlock}>
             <Text style={styles.kicker}>Bajuju Flash</Text>
-            <Text style={styles.flashHeroPhrase}>
-              Fatti vedere ed esci subito.
-            </Text>
-          </View>
-
-          <View style={styles.flashLogoCircle}>
-            <Image source={bajujuLogo} style={styles.flashLogoImage} resizeMode="contain" />
+            <Text style={styles.flashHeroPhrase}>Fatti vedere ed esci subito.</Text>
           </View>
         </View>
 
@@ -1580,7 +1592,8 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
         >
           <Text style={[styles.flashChoiceIcon, styles.flashMainChoiceIcon]}>FLASH</Text>
           <Text style={[styles.flashChoiceText, styles.flashMainChoiceText]}>Crea un nuovo Flash</Text>
-          <Text style={styles.flashMainChoiceSubtext}>Lancia un invito, raduna le persone, vivilo dal vivo.</Text>
+          <Text style={styles.flashMainChoiceSubtext}>Lancia un invito e raduna le persone.</Text>
+          <Text style={styles.flashChoiceArrow}>→</Text>
         </Pressable>
 
         <View style={styles.flashChoiceRow}>
@@ -1607,6 +1620,7 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
         >
           <Text style={[styles.flashChoiceIcon, styles.flashSecondaryChoiceIcon]}>LIVE</Text>
           <Text style={[styles.flashChoiceText, styles.flashSecondaryChoiceText]}>Guarda chi è disponibile</Text>
+          <Text style={styles.flashChoiceArrow}>→</Text>
         </Pressable>
         </View>
       ) : null}
@@ -1617,18 +1631,13 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
             <Text style={styles.flashBackText}>← Bajuju Flash</Text>
           </Pressable>
 
-          <View style={styles.flashDedicatedLogoCircle}>
-            <Image source={bajujuLogo} style={styles.flashLogoImage} resizeMode="contain" />
-          </View>
-
-          <Text style={styles.kicker}>Bajuju Flash</Text>
           <Text style={styles.flashDedicatedTitle}>
-            {isCreatePage ? 'Crea un Flash' : selectedSection === 'availability' ? 'Renditi disponibile' : selectedSection === 'available' ? 'Guarda chi è disponibile' : 'Trova Flash'}
+            {isCreatePage ? 'Crea un Flash' : selectedSection === 'availability' ? 'Renditi disponibile' : selectedSection === 'available' ? 'Chi è disponibile' : 'Trova Flash'}
           </Text>
           <Text style={styles.flashDedicatedText}>
             {isCreatePage
-              ? 'Compila pochi dati e pubblica subito il tuo Flash.'
-              : selectedSection === 'availability' ? 'Scegli dove vuoi farti trovare e per quanto tempo restare visibile.' : selectedSection === 'available' ? 'Scorri le persone disponibili ora e invita chi vuoi al tuo Flash.' : 'Guarda i Flash disponibili adesso e scegli a quale partecipare.'}
+              ? 'Compila pochi dati e pubblicalo subito.'
+              : selectedSection === 'availability' ? 'Scegli dove e per quanto tempo.' : selectedSection === 'available' ? 'Invita una persona al tuo Flash attivo.' : 'Guarda i Flash disponibili adesso.'}
           </Text>
         </View>
       ) : null}
@@ -1639,10 +1648,12 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
         ) : null}
 
         <View style={[styles.availabilityHeroCard, selectedSection !== 'availability' && styles.hiddenSection]}>
-          <Text style={styles.availabilityKicker}>La parte forte di Bajuju Flash</Text>
-          <Text style={styles.availabilityText}>
-            Scegli provincia, comune e durata. Gli altri potranno trovarti e invitarti a fare qualcosa dal vivo.
-          </Text>
+          <View style={styles.availabilityIntroBanner}>
+            <Text style={styles.availabilityKicker}>La parte forte di Bajuju Flash</Text>
+            <Text style={styles.availabilityText}>
+              Gli altri potranno trovarti e invitarti a fare qualcosa dal vivo.
+            </Text>
+          </View>
 
           <Text style={styles.availabilityLabel}>Provincia</Text>
           <View style={styles.choiceWrap}>
@@ -1800,9 +1811,14 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
               <Text style={styles.mutedText}>Cerco persone disponibili...</Text>
             </View>
           ) : availableRows.filter((row) => selectedProvince === 'Tutte' || firstText(row, ['province']) === selectedProvince).length === 0 ? (
-            <Text style={styles.availablePeopleEmpty}>
-              Nessuna persona disponibile ora con questi filtri. Renditi disponibile tu e apri il movimento.
-            </Text>
+            <View style={styles.availableEmptyState}>
+              <Text style={styles.availableEmptyIcon}>☻</Text>
+              <Text style={styles.availableEmptyTitle}>Ancora nessuno disponibile</Text>
+              <Text style={styles.availablePeopleEmpty}>Prova a cambiare provincia o filtri.</Text>
+              <Pressable style={styles.availableRefreshButton} onPress={loadAvailableUsers}>
+                <Text style={styles.availableRefreshButtonText}>Aggiorna la ricerca</Text>
+              </Pressable>
+            </View>
           ) : (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.availableCardsRow}>
               {availableRows
@@ -2250,29 +2266,98 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
           ))
         )}
       </View>
-    </ScrollView>
+      </ScrollView>
+      <BajujuBottomNav active="flash" />
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: BAJUJU_COLORS.background,
+  },
+  flashChoiceArrow: {
+    position: 'absolute',
+    right: 17,
+    top: '50%',
+    marginTop: -24,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    overflow: 'hidden',
+    textAlign: 'center',
+    textAlignVertical: 'center',
+    backgroundColor: BAJUJU_COLORS.softPink,
+    color: BAJUJU_COLORS.brightPink,
+    fontSize: 25,
+    fontWeight: '900',
+  },
+  availabilityIntroBanner: {
+    margin: -18,
+    marginBottom: 10,
+    paddingHorizontal: 18,
+    paddingVertical: 20,
+    borderRadius: 27,
+    backgroundColor: BAJUJU_COLORS.brightPink,
+  },
+  availableEmptyState: {
+    minHeight: 260,
+    paddingHorizontal: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  availableEmptyIcon: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    overflow: 'hidden',
+    textAlign: 'center',
+    textAlignVertical: 'center',
+    backgroundColor: BAJUJU_COLORS.softPink,
+    color: BAJUJU_COLORS.brightPink,
+    fontSize: 34,
+  },
+  availableEmptyTitle: {
+    marginTop: 16,
+    color: BAJUJU_COLORS.plum,
+    fontSize: 19,
+    fontWeight: '900',
+  },
+  availableRefreshButton: {
+    marginTop: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    borderRadius: 22,
+    borderWidth: 1.5,
+    borderColor: BAJUJU_COLORS.line,
+    backgroundColor: BAJUJU_COLORS.softPink,
+  },
+  availableRefreshButtonText: {
+    color: BAJUJU_COLORS.brightPink,
+    fontSize: 13,
+    fontWeight: '700',
+  },
   flashLiveWideButton: {
     width: '100%',
-    minHeight: 68,
-    marginTop: 10,
+    minHeight: 100,
+    marginTop: 14,
+    paddingRight: 72,
     alignItems: 'flex-start',
   },
   flashWideMainButton: {
     width: '100%',
-    minHeight: 112,
-    marginTop: 4,
-    marginBottom: 10,
+    minHeight: 130,
+    marginTop: 0,
+    marginBottom: 14,
+    paddingRight: 72,
     alignItems: 'flex-start',
   },
   flashMainChoiceSubtext: {
-    color: '#7b4960',
-    fontSize: 13,
+    color: BAJUJU_COLORS.muted,
+    fontSize: 14,
     fontWeight: '700',
-    lineHeight: 18,
+    lineHeight: 19,
     marginTop: 6,
   },
   flashMainChoiceIcon: {
@@ -2284,7 +2369,8 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
   },
   flashMainChoiceText: {
-    color: '#331426',
+    color: BAJUJU_COLORS.plum,
+    fontSize: 22,
   },
   flashHeroTopRow: {
     width: '100%',
@@ -2298,51 +2384,29 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   flashDedicatedText: {
-    color: '#7b4960',
-    fontSize: 14,
+    marginTop: 7,
+    color: BAJUJU_COLORS.muted,
+    fontSize: 15,
     lineHeight: 20,
-    fontWeight: '800',
-    textAlign: 'center',
-    paddingHorizontal: 4,
+    fontWeight: '500',
   },
   flashDedicatedTitle: {
-    color: '#4b1430',
-    fontSize: 25,
-    lineHeight: 30,
+    color: BAJUJU_COLORS.plum,
+    fontSize: 34,
+    lineHeight: 39,
     fontWeight: '900',
-    textAlign: 'center',
-  },
-  flashDedicatedLogoCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: '#fff0f7',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 8,
-    borderWidth: 1,
-    borderColor: '#ffd3e6',
-    overflow: 'hidden',
+    letterSpacing: -0.9,
   },
   flashDedicatedHeroCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 24,
-    paddingTop: 10,
-    paddingHorizontal: 16,
-    paddingBottom: 14,
-    borderWidth: 1,
-    borderColor: '#ffd3e6',
-    alignItems: 'center',
-    gap: 8,
-    overflow: 'hidden',
     width: '100%',
+    marginBottom: 10,
   },
   page: {
     flexGrow: 1,
-    backgroundColor: '#fff8fb',
-    paddingTop: 52,
-    paddingHorizontal: 16,
-    paddingBottom: 36,
+    backgroundColor: BAJUJU_COLORS.background,
+    paddingTop: 20,
+    paddingHorizontal: 22,
+    paddingBottom: 132,
     gap: 14,
   },
   hiddenSection: {
@@ -2350,32 +2414,22 @@ const styles = StyleSheet.create({
   },
   flashBackButton: {
     alignSelf: 'flex-start',
-    backgroundColor: '#fff0f7',
+    minHeight: 44,
+    marginBottom: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 17,
     borderRadius: 999,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderWidth: 1,
-    borderColor: '#ffd3e6',
-    marginTop: 0,
-    marginBottom: 4,
+    borderWidth: 1.5,
+    borderColor: BAJUJU_COLORS.line,
+    backgroundColor: BAJUJU_COLORS.white,
   },
   flashBackText: {
-    color: '#9b1f61',
-    fontSize: 13,
-    fontWeight: '900',
+    color: BAJUJU_COLORS.plum,
+    fontSize: 15,
+    fontWeight: '700',
   },
   flashHeroCard: {
-    borderRadius: 32,
-    padding: 18,
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#f7d4e3',
     alignItems: 'stretch',
-    shadowColor: '#8b2d5a',
-    shadowOpacity: 0.12,
-    shadowRadius: 26,
-    shadowOffset: { width: 0, height: 14 },
-    elevation: 4,
   },
   flashLogoCircle: {
     width: 62,
@@ -2395,13 +2449,11 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   flashHeroPhrase: {
-    color: '#331426',
-    fontSize: 26,
-    lineHeight: 30,
-    fontWeight: '900',
-    textAlign: 'left',
-    marginTop: 4,
-    letterSpacing: -0.6,
+    marginTop: 7,
+    color: BAJUJU_COLORS.muted,
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: '500',
   },
   flashHeroText: {
     color: '#43152f',
@@ -2414,38 +2466,29 @@ const styles = StyleSheet.create({
   flashChoiceRow: {
     width: '100%',
     flexDirection: 'row',
-    gap: 12,
-    marginTop: 4,
+    gap: 13,
   },
   flashChoiceButton: {
+    position: 'relative',
     flex: 1,
-    minHeight: 104,
-    borderRadius: 24,
-    alignItems: 'center',
+    minHeight: 124,
+    borderRadius: 27,
+    alignItems: 'flex-start',
     justifyContent: 'center',
-    padding: 14,
-    borderWidth: 2,
+    padding: 18,
+    borderWidth: 1.5,
   },
   flashCreateChoiceButton: {
-    backgroundColor: '#ffffff',
-    borderColor: '#f5d4e2',
+    backgroundColor: BAJUJU_COLORS.white,
+    borderColor: BAJUJU_COLORS.line,
   },
   flashMainChoiceButton: {
-    minHeight: 118,
-    shadowColor: '#8b2d5a',
-    shadowOpacity: 0.10,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 3,
+    ...BAJUJU_SHADOW,
   },
   flashFindChoiceButton: {
-    backgroundColor: '#ffffff',
-    shadowColor: '#8b2d5a',
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 2,
-    borderColor: '#f5d4e2',
+    backgroundColor: BAJUJU_COLORS.white,
+    borderColor: BAJUJU_COLORS.line,
+    ...BAJUJU_SHADOW,
   },
   flashSecondaryChoiceIcon: {
     color: '#ef2d82',
@@ -2456,7 +2499,8 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
   },
   flashSecondaryChoiceText: {
-    color: '#331426',
+    color: BAJUJU_COLORS.plum,
+    fontSize: 19,
   },
   flashChoiceIcon: {
     fontSize: 11,
@@ -2465,10 +2509,10 @@ const styles = StyleSheet.create({
     letterSpacing: 0.7,
   },
   flashChoiceText: {
-    color: '#ffffff',
+    color: BAJUJU_COLORS.plum,
     fontSize: 16,
     fontWeight: '900',
-    textAlign: 'center',
+    textAlign: 'left',
   },
   flashAvailabilityHeroButton: {
     width: '100%',
@@ -2505,25 +2549,21 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   availabilityHeroCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 28,
+    backgroundColor: BAJUJU_COLORS.white,
+    borderRadius: 29,
     padding: 18,
     marginBottom: 18,
-    borderWidth: 1,
-    borderColor: '#ffd3e6',
-    shadowColor: '#e43f98',
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 3,
+    borderWidth: 1.5,
+    borderColor: BAJUJU_COLORS.line,
+    ...BAJUJU_SHADOW,
     gap: 10,
   },
   availabilityKicker: {
-    color: '#ef2d82',
-    fontSize: 12,
+    color: BAJUJU_COLORS.white,
+    fontSize: 13,
     fontWeight: '900',
     textTransform: 'uppercase',
-    letterSpacing: 0.6,
+    letterSpacing: 0.9,
   },
   availabilityTitle: {
     color: '#ffffff',
@@ -2532,16 +2572,17 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   availabilityText: {
-    color: '#7b4960',
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '800',
+    marginTop: 8,
+    color: BAJUJU_COLORS.white,
+    fontSize: 15,
+    lineHeight: 21,
+    fontWeight: '500',
   },
   availabilityLabel: {
-    color: '#4b1430',
-    fontSize: 13,
-    fontWeight: '900',
-    marginTop: 6,
+    color: BAJUJU_COLORS.plum,
+    fontSize: 14,
+    fontWeight: '700',
+    marginTop: 8,
   },
   availabilityHelpText: {
     color: '#ffe5f1',
@@ -2551,8 +2592,8 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   availabilityMainButton: {
-    backgroundColor: '#ef2d82',
-    borderRadius: 18,
+    backgroundColor: BAJUJU_COLORS.brightPink,
+    borderRadius: 24,
     paddingVertical: 14,
     paddingHorizontal: 16,
     alignItems: 'center',
@@ -2610,25 +2651,20 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   choiceChip: {
-    backgroundColor: '#fff0f7',
+    backgroundColor: BAJUJU_COLORS.softPink,
     borderRadius: 999,
-    paddingVertical: 11,
+    paddingVertical: 10,
     paddingHorizontal: 14,
-    borderWidth: 2,
-    borderColor: '#ffd3e6',
+    borderWidth: 1.5,
+    borderColor: BAJUJU_COLORS.line,
   },
   choiceChipActive: {
-    backgroundColor: '#ef2d82',
-    borderColor: '#7a1248',
-    borderWidth: 4,
-    shadowColor: '#ef2d82',
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 6,
+    backgroundColor: BAJUJU_COLORS.brightPink,
+    borderColor: BAJUJU_COLORS.brightPink,
+    borderWidth: 1.5,
   },
   choiceChipText: {
-    color: '#9b1f61',
+    color: BAJUJU_COLORS.plum,
     fontSize: 13,
     fontWeight: '900',
   },
@@ -2637,22 +2673,17 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   durationChip: {
-    backgroundColor: '#fff0f7',
+    backgroundColor: BAJUJU_COLORS.softPink,
     borderRadius: 999,
     paddingVertical: 12,
     paddingHorizontal: 15,
-    borderWidth: 2,
-    borderColor: '#ffd3e6',
+    borderWidth: 1.5,
+    borderColor: BAJUJU_COLORS.line,
   },
   durationChipActive: {
-    backgroundColor: '#ef2d82',
-    borderColor: '#7a1248',
-    borderWidth: 4,
-    shadowColor: '#ef2d82',
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 6,
+    backgroundColor: BAJUJU_COLORS.brightPink,
+    borderColor: BAJUJU_COLORS.brightPink,
+    borderWidth: 1.5,
   },
   durationChipText: {
     color: '#9b1f61',
@@ -2694,10 +2725,10 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   municipalityDropdownButton: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FFFAFC',
     borderRadius: 18,
-    borderWidth: 3,
-    borderColor: '#ffd3e6',
+    borderWidth: 1.5,
+    borderColor: BAJUJU_COLORS.line,
     paddingVertical: 14,
     paddingHorizontal: 14,
     marginTop: 4,
@@ -2708,9 +2739,9 @@ const styles = StyleSheet.create({
   },
   municipalityDropdownText: {
     flex: 1,
-    color: '#9b1f61',
+    color: BAJUJU_COLORS.muted,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '500',
   },
   municipalityDropdownTextSelected: {
     color: '#ef2d82',
@@ -2756,18 +2787,14 @@ const styles = StyleSheet.create({
   },
 
   availablePeopleSection: {
-    backgroundColor: '#ffffff',
-    borderRadius: 28,
-    borderWidth: 1,
-    borderColor: '#ffd3e6',
-    padding: 15,
+    backgroundColor: BAJUJU_COLORS.white,
+    borderRadius: 29,
+    borderWidth: 1.5,
+    borderColor: BAJUJU_COLORS.line,
+    padding: 22,
     marginBottom: 18,
     gap: 13,
-    shadowColor: '#e43f98',
-    shadowOpacity: 0.06,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 2,
+    ...BAJUJU_SHADOW,
   },
   availablePeopleHeader: {
     flexDirection: 'row',
@@ -2780,27 +2807,29 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   availablePeopleTitle: {
-    color: '#4b1430',
-    fontSize: 21,
+    color: BAJUJU_COLORS.plum,
+    fontSize: 18,
     fontWeight: '900',
   },
   availablePeopleSubtitle: {
-    color: '#7b4960',
+    color: BAJUJU_COLORS.muted,
     fontSize: 13,
     lineHeight: 18,
     fontWeight: '800',
     marginTop: 3,
   },
   availablePeopleCount: {
-    color: '#e43f98',
+    color: BAJUJU_COLORS.brightPink,
     fontSize: 28,
     fontWeight: '900',
   },
   availablePeopleEmpty: {
-    color: '#7b4960',
+    marginTop: 7,
+    color: BAJUJU_COLORS.muted,
     fontSize: 14,
     lineHeight: 20,
-    fontWeight: '800',
+    fontWeight: '500',
+    textAlign: 'center',
   },
   availableCardsRow: {
     gap: 14,
@@ -2871,9 +2900,9 @@ const styles = StyleSheet.create({
   },
 
   sectionTitleSmall: {
-    color: '#86104f',
+    color: BAJUJU_COLORS.plum,
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '700',
     marginBottom: 10,
   },
 
@@ -2928,31 +2957,31 @@ const styles = StyleSheet.create({
   },
 
   card: {
-    backgroundColor: '#ffffff',
-    borderRadius: 24,
+    backgroundColor: BAJUJU_COLORS.white,
+    borderRadius: 29,
     padding: 22,
-    borderWidth: 1,
-    borderColor: '#ffd3e6',
+    borderWidth: 1.5,
+    borderColor: BAJUJU_COLORS.line,
+    ...BAJUJU_SHADOW,
   },
   flashInstructions: {
-    backgroundColor: '#fff0f7',
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: '#ffd3e6',
-    color: '#7b4960',
-    fontSize: 14,
-    fontWeight: '800',
+    backgroundColor: BAJUJU_COLORS.brightPink,
+    borderRadius: 24,
+    color: BAJUJU_COLORS.white,
+    fontSize: 15,
+    fontWeight: '500',
     lineHeight: 21,
-    marginBottom: 12,
-    marginTop: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    marginBottom: 18,
+    marginTop: 4,
+    paddingHorizontal: 18,
+    paddingVertical: 17,
   },
   kicker: {
-    color: '#ef2d82',
+    color: BAJUJU_COLORS.plum,
     fontWeight: '900',
-    fontSize: 15,
-    marginBottom: 8,
+    fontSize: 34,
+    lineHeight: 39,
+    letterSpacing: -0.9,
   },
   title: {
     color: '#e43f98',
@@ -2967,7 +2996,7 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
   button: {
-    backgroundColor: '#ef2d82',
+    backgroundColor: BAJUJU_COLORS.brightPink,
     borderRadius: 24,
     paddingVertical: 14,
     alignItems: 'center',
@@ -2978,12 +3007,12 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   secondaryButton: {
-    backgroundColor: '#fff0f7',
+    backgroundColor: BAJUJU_COLORS.softPink,
     borderRadius: 24,
     paddingVertical: 14,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#ffd3e6',
+    borderWidth: 1.5,
+    borderColor: BAJUJU_COLORS.line,
     marginTop: 10,
   },
   secondaryButtonText: {
@@ -2995,9 +3024,9 @@ const styles = StyleSheet.create({
     opacity: 0.65,
   },
   label: {
-    color: '#4b1430',
+    color: BAJUJU_COLORS.plum,
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '700',
     marginBottom: 7,
   },
   flashDescriptionInput: {
@@ -3023,17 +3052,17 @@ const styles = StyleSheet.create({
   },
   input: {
     minHeight: 58,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#ffd3e6',
-    backgroundColor: '#fff0f7',
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: BAJUJU_COLORS.line,
+    backgroundColor: '#FFFAFC',
     paddingHorizontal: 14,
     fontSize: 16,
-    color: '#4b1430',
+    color: BAJUJU_COLORS.plum,
     marginBottom: 14,
   },
   formNote: {
-    color: '#7b4960',
+    color: BAJUJU_COLORS.muted,
     fontSize: 13,
     lineHeight: 19,
     marginTop: 10,
@@ -3043,17 +3072,17 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   durationButton: {
-    borderRadius: 16,
+    borderRadius: 999,
     paddingVertical: 12,
     paddingHorizontal: 14,
-    backgroundColor: '#fff0f7',
-    borderWidth: 1,
-    borderColor: '#ffd3e6',
+    backgroundColor: BAJUJU_COLORS.softPink,
+    borderWidth: 1.5,
+    borderColor: BAJUJU_COLORS.line,
     alignItems: 'center',
   },
   durationButtonActive: {
-    backgroundColor: '#ef2d82',
-    borderColor: '#ef2d82',
+    backgroundColor: BAJUJU_COLORS.brightPink,
+    borderColor: BAJUJU_COLORS.brightPink,
   },
   durationText: {
     color: '#7b4960',
@@ -3064,7 +3093,7 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
   sectionTitle: {
-    color: '#4b1430',
+    color: BAJUJU_COLORS.plum,
     fontSize: 20,
     fontWeight: '900',
     marginBottom: 12,
@@ -3077,18 +3106,18 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingHorizontal: 14,
     paddingVertical: 9,
-    backgroundColor: '#fff0f7',
-    borderWidth: 1,
-    borderColor: '#ffd3e6',
+    backgroundColor: BAJUJU_COLORS.softPink,
+    borderWidth: 1.5,
+    borderColor: BAJUJU_COLORS.line,
   },
   chipActive: {
-    backgroundColor: '#ef2d82',
-    borderColor: '#ef2d82',
+    backgroundColor: BAJUJU_COLORS.brightPink,
+    borderColor: BAJUJU_COLORS.brightPink,
   },
   chipText: {
-    color: '#7b4960',
-    fontSize: 14,
-    fontWeight: '900',
+    color: BAJUJU_COLORS.plum,
+    fontSize: 13,
+    fontWeight: '700',
   },
   chipTextActive: {
     color: '#ffffff',
@@ -3102,17 +3131,17 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 36,
     borderRadius: 999,
-    borderWidth: 1,
-    borderColor: '#ef8fbe',
-    backgroundColor: '#fff0f7',
+    borderWidth: 1.5,
+    borderColor: BAJUJU_COLORS.line,
+    backgroundColor: BAJUJU_COLORS.softPink,
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 7,
     paddingHorizontal: 8,
   },
   tabButtonActive: {
-    backgroundColor: '#ffe3f0',
-    borderColor: '#ef2d82',
+    backgroundColor: BAJUJU_COLORS.brightPink,
+    borderColor: BAJUJU_COLORS.brightPink,
   },
   tabText: {
     color: '#86104f',
@@ -3121,14 +3150,14 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   tabTextActive: {
-    color: '#ef2d82',
+    color: BAJUJU_COLORS.white,
   },
   emptyBox: {
-    backgroundColor: '#fff0f7',
+    backgroundColor: BAJUJU_COLORS.softPink,
     borderRadius: 24,
     padding: 20,
-    borderWidth: 1,
-    borderColor: '#ffd3e6',
+    borderWidth: 1.5,
+    borderColor: BAJUJU_COLORS.line,
     gap: 8,
   },
   emptyTitle: {

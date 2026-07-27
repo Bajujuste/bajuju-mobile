@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BAJUJU_COLORS, BAJUJU_FONTS } from '../../theme/bajujuTheme';
 import {
@@ -52,8 +53,15 @@ const ITEMS: {
 ];
 
 export function BajujuBottomNav({ active }: BajujuBottomNavProps) {
+  const insets = useSafeAreaInsets();
+
   return (
-    <View style={styles.bottomNav}>
+    <View
+      style={[
+        styles.bottomNav,
+        { bottom: Math.max(13, insets.bottom + 7) },
+      ]}
+    >
       {ITEMS.map((item) => {
         const selected = item.key === active;
         const color = selected

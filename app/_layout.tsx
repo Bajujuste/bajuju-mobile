@@ -17,8 +17,6 @@ export const unstable_settings = {
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const [fontsLoaded, fontError] = useFonts({
-    ionicons: require('../assets/fonts/Ionicons.ttf'),
-    'material-community': require('../assets/fonts/MaterialCommunityIcons.ttf'),
     FredokaRegular: require('../assets/fonts/Fredoka-400.ttf'),
     FredokaMedium: require('../assets/fonts/Fredoka-500.ttf'),
     FredokaSemiBold: require('../assets/fonts/Fredoka-600.ttf'),

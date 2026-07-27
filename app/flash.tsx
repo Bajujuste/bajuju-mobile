@@ -1539,6 +1539,18 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
   const isCreatePage = forcedSection === 'create';
   const isFindPage = forcedSection === 'find';
   const isMenuPage = !forcedSection;
+  const dedicatedTitleLead =
+    isCreatePage
+      ? 'Crea un '
+      : selectedSection === 'availability'
+        ? 'Renditi '
+        : selectedSection === 'available'
+          ? 'Chi è '
+          : 'Trova ';
+  const dedicatedTitleAccent =
+    selectedSection === 'availability' || selectedSection === 'available'
+      ? 'disponibile'
+      : 'Flash';
 
   const flashMapItems: BajujuMapItem[] = filteredRows.flatMap((row) => {
     const id = flashId(row);
@@ -1573,13 +1585,20 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
       >
       {isMenuPage ? (
         <View style={styles.flashHeroCard}>
+        <View style={[styles.flashHeroBlob, styles.flashHeroBlobTop]} />
+        <View style={[styles.flashHeroBlob, styles.flashHeroBlobBottom]} />
+        <Text style={[styles.flashHeroDoodle, styles.flashHeroDoodleLeft]}>‹‹</Text>
+        <Text style={[styles.flashHeroDoodle, styles.flashHeroDoodleRight]}>✦</Text>
         <Pressable style={styles.flashBackButton} onPress={() => router.push(forcedSection ? '/flash' : '/home')}>
           <Text style={styles.flashBackText}>{forcedSection ? '← Bajuju Flash' : '← Home'}</Text>
         </Pressable>
 
         <View style={styles.flashHeroTopRow}>
           <View style={styles.flashHeroTextBlock}>
-            <Text style={styles.kicker}>Bajuju Flash</Text>
+            <Text style={styles.kicker}>
+              <Text style={styles.flashHeroTitlePlum}>Bajuju </Text>
+              <Text style={styles.flashHeroTitlePink}>Flash</Text>
+            </Text>
             <Text style={styles.flashHeroPhrase}>Fatti vedere ed esci subito.</Text>
           </View>
         </View>
@@ -1627,12 +1646,17 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
 
       {!isMenuPage ? (
         <View style={styles.flashDedicatedHeroCard}>
+          <View style={[styles.flashHeroBlob, styles.flashHeroBlobTop]} />
+          <View style={[styles.flashHeroBlob, styles.flashHeroBlobBottom]} />
+          <Text style={[styles.flashHeroDoodle, styles.flashHeroDoodleLeft]}>‹‹</Text>
+          <Text style={[styles.flashHeroDoodle, styles.flashHeroDoodleRight]}>✦</Text>
           <Pressable style={styles.flashBackButton} onPress={() => router.push('/flash')}>
             <Text style={styles.flashBackText}>← Bajuju Flash</Text>
           </Pressable>
 
           <Text style={styles.flashDedicatedTitle}>
-            {isCreatePage ? 'Crea un Flash' : selectedSection === 'availability' ? 'Renditi disponibile' : selectedSection === 'available' ? 'Chi è disponibile' : 'Trova Flash'}
+            <Text style={styles.flashHeroTitlePlum}>{dedicatedTitleLead}</Text>
+            <Text style={styles.flashHeroTitlePink}>{dedicatedTitleAccent}</Text>
           </Text>
           <Text style={styles.flashDedicatedText}>
             {isCreatePage
@@ -2275,7 +2299,7 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: BAJUJU_COLORS.softPink,
+    backgroundColor: BAJUJU_COLORS.background,
   },
   flashChoiceArrow: {
     position: 'absolute',
@@ -2384,36 +2408,41 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   flashDedicatedText: {
+    zIndex: 1,
     marginTop: 7,
-    color: '#FFE8F3',
+    color: BAJUJU_COLORS.plum,
     fontSize: 15,
     lineHeight: 20,
     fontWeight: '500',
+    textAlign: 'center',
   },
   flashDedicatedTitle: {
-    color: BAJUJU_COLORS.white,
+    zIndex: 1,
     fontSize: 34,
     lineHeight: 39,
     fontWeight: '900',
     letterSpacing: -0.9,
+    textAlign: 'center',
   },
   flashDedicatedHeroCard: {
     width: '100%',
     marginBottom: 10,
-    padding: 22,
+    minHeight: 206,
+    padding: 20,
+    overflow: 'hidden',
     borderRadius: 30,
-    backgroundColor: BAJUJU_COLORS.brightPink,
-    borderWidth: 2,
-    borderColor: '#FF9DCA',
-    shadowColor: BAJUJU_COLORS.brightPink,
-    shadowOpacity: 0.28,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 7,
+    backgroundColor: '#FFFFFFDC',
+    borderWidth: 1.5,
+    borderColor: BAJUJU_COLORS.line,
+    shadowColor: '#9B1A5B',
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 3,
   },
   page: {
     flexGrow: 1,
-    backgroundColor: BAJUJU_COLORS.softPink,
+    backgroundColor: BAJUJU_COLORS.background,
     paddingTop: 20,
     paddingHorizontal: 22,
     paddingBottom: 132,
@@ -2423,6 +2452,7 @@ const styles = StyleSheet.create({
     display: 'none',
   },
   flashBackButton: {
+    zIndex: 3,
     alignSelf: 'flex-start',
     minHeight: 44,
     marginBottom: 16,
@@ -2441,14 +2471,57 @@ const styles = StyleSheet.create({
     alignItems: 'stretch',
     padding: 22,
     borderRadius: 32,
-    backgroundColor: BAJUJU_COLORS.brightPink,
-    borderWidth: 2,
-    borderColor: '#FF9DCA',
-    shadowColor: BAJUJU_COLORS.brightPink,
-    shadowOpacity: 0.3,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 11 },
-    elevation: 8,
+    overflow: 'hidden',
+    backgroundColor: '#FFFFFFDC',
+    borderWidth: 1.5,
+    borderColor: BAJUJU_COLORS.line,
+    shadowColor: '#9B1A5B',
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 3,
+  },
+  flashHeroBlob: {
+    position: 'absolute',
+    width: 112,
+    height: 80,
+    borderRadius: 56,
+    backgroundColor: BAJUJU_COLORS.palePink,
+    opacity: 0.76,
+  },
+  flashHeroBlobTop: {
+    left: -30,
+    top: -26,
+    transform: [{ rotate: '-18deg' }],
+  },
+  flashHeroBlobBottom: {
+    right: -38,
+    bottom: -30,
+    transform: [{ rotate: '18deg' }],
+  },
+  flashHeroDoodle: {
+    position: 'absolute',
+    zIndex: 2,
+    color: BAJUJU_COLORS.brightPink,
+    fontWeight: '900',
+  },
+  flashHeroDoodleLeft: {
+    left: 28,
+    top: 111,
+    fontSize: 24,
+    transform: [{ rotate: '-8deg' }],
+  },
+  flashHeroDoodleRight: {
+    right: 27,
+    top: 24,
+    fontSize: 23,
+    transform: [{ rotate: '8deg' }],
+  },
+  flashHeroTitlePlum: {
+    color: BAJUJU_COLORS.plum,
+  },
+  flashHeroTitlePink: {
+    color: BAJUJU_COLORS.brightPink,
   },
   flashLogoCircle: {
     width: 62,
@@ -2469,13 +2542,13 @@ const styles = StyleSheet.create({
   },
   flashHeroPhrase: {
     marginTop: 7,
-    color: '#FFE8F3',
+    color: BAJUJU_COLORS.plum,
     fontSize: 15,
     lineHeight: 20,
     fontWeight: '500',
   },
   flashHeroText: {
-    color: BAJUJU_COLORS.white,
+    color: BAJUJU_COLORS.plum,
     fontSize: 14,
     lineHeight: 21,
     fontWeight: '700',
@@ -2944,9 +3017,9 @@ const styles = StyleSheet.create({
   mapHighlightButton: {
     width: '100%',
     borderRadius: 24,
-    backgroundColor: BAJUJU_COLORS.brightPink,
+    backgroundColor: BAJUJU_COLORS.softPink,
     borderWidth: 2,
-    borderColor: '#FF9DCA',
+    borderColor: BAJUJU_COLORS.line,
     paddingVertical: 15,
     paddingHorizontal: 14,
     marginTop: 12,
@@ -2962,13 +3035,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   mapHighlightTitle: {
-    color: BAJUJU_COLORS.white,
+    color: BAJUJU_COLORS.brightPink,
     fontSize: 16,
     fontWeight: '900',
     marginBottom: 3,
   },
   mapHighlightSubtitle: {
-    color: '#FFE8F3',
+    color: BAJUJU_COLORS.plum,
     fontSize: 12,
     lineHeight: 17,
     fontWeight: '700',
@@ -3004,7 +3077,8 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   flashInstructions: {
-    backgroundColor: '#FFFFFFE8',
+    zIndex: 1,
+    backgroundColor: BAJUJU_COLORS.softPink,
     borderRadius: 24,
     color: BAJUJU_COLORS.plum,
     fontSize: 15,
@@ -3016,7 +3090,7 @@ const styles = StyleSheet.create({
     paddingVertical: 17,
   },
   kicker: {
-    color: BAJUJU_COLORS.white,
+    zIndex: 1,
     fontWeight: '900',
     fontSize: 34,
     lineHeight: 39,

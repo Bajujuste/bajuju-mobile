@@ -4,12 +4,15 @@ import React from 'react';
 import {
   Image,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 
 import {
   BajujuIcon,
@@ -57,13 +60,18 @@ export function BajujuHomeView({
   onOpenPrivacy,
   onLogout,
 }: BajujuHomeViewProps) {
+  const insets = useSafeAreaInsets();
+
   return (
-    <SafeAreaView style={styles.screen}>
+    <SafeAreaView style={styles.screen} edges={['top', 'left', 'right']}>
       <StatusBar style="dark" backgroundColor={COLORS.background} />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: 138 + insets.bottom },
+        ]}
       >
         <View style={styles.header}>
           <View style={styles.brandGroup}>
@@ -277,7 +285,12 @@ export function BajujuHomeView({
         </View>
       </ScrollView>
 
-      <View style={styles.bottomNav}>
+      <View
+        style={[
+          styles.bottomNav,
+          { bottom: Math.max(13, insets.bottom + 7) },
+        ]}
+      >
         <NavItem active icon="home" label="Home" onPress={() => undefined} />
         <NavItem icon="search" label="Trova" onPress={onFind} />
         <NavItem icon="bolt" label="Flash" onPress={onFlash} />

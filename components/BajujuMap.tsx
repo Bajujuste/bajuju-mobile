@@ -12,7 +12,7 @@ import MapView, {
   Region,
 } from 'react-native-maps';
 
-import { BAJUJU_COLORS, BAJUJU_FONTS, BAJUJU_SHADOW } from '../src/theme/bajujuTheme';
+import { BAJUJU_COLORS, BAJUJU_FONTS } from '../src/theme/bajujuTheme';
 
 export type BajujuMapItem = {
   id: string;
@@ -402,12 +402,16 @@ const styles = StyleSheet.create({
   card: {
     padding: 22,
     borderRadius: 29,
-    borderWidth: 1.5,
-    borderColor: BAJUJU_COLORS.line,
-    backgroundColor: BAJUJU_COLORS.white,
+    borderWidth: 2,
+    borderColor: BAJUJU_COLORS.palePink,
+    backgroundColor: '#FFFCFE',
     gap: 14,
     overflow: 'hidden',
-    ...BAJUJU_SHADOW,
+    shadowColor: '#9B1A5B',
+    shadowOpacity: 0.18,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 6,
   },
   header: {
     flexDirection: 'row',
@@ -439,8 +443,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     textAlign: 'center',
     textAlignVertical: 'center',
-    backgroundColor: BAJUJU_COLORS.softPink,
-    color: BAJUJU_COLORS.brightPink,
+    backgroundColor: BAJUJU_COLORS.brightPink,
+    color: BAJUJU_COLORS.white,
     fontFamily: BAJUJU_FONTS.bold,
     fontSize: 23,
   },
@@ -455,9 +459,14 @@ const styles = StyleSheet.create({
     height: 430,
     borderRadius: 24,
     overflow: 'hidden',
-    borderWidth: 1.5,
-    borderColor: BAJUJU_COLORS.line,
+    borderWidth: 2,
+    borderColor: '#F7A7CD',
     backgroundColor: BAJUJU_COLORS.mapGreen,
+    shadowColor: '#9B1A5B',
+    shadowOpacity: 0.16,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 7 },
+    elevation: 4,
   },
   map: {
     width: '100%',
@@ -470,10 +479,14 @@ const styles = StyleSheet.create({
     bottom: 12,
     padding: 13,
     borderRadius: 20,
-    borderWidth: 1.5,
-    borderColor: BAJUJU_COLORS.line,
+    borderWidth: 2,
+    borderColor: BAJUJU_COLORS.palePink,
     backgroundColor: BAJUJU_COLORS.white,
-    ...BAJUJU_SHADOW,
+    shadowColor: '#9B1A5B',
+    shadowOpacity: 0.22,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 9 },
+    elevation: 7,
   },
   previewHeader: {
     flexDirection: 'row',

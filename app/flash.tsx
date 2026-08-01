@@ -338,11 +338,19 @@ function availableUserId(row: LooseRow) {
 }
 
 function availableProfileName(profile: LooseRow | null | undefined) {
-  return firstText(profile, ['nickname'], 'Utente Bajuju');
+  return firstText(
+    profile,
+    ['nickname', 'username', 'display_name', 'full_name', 'name', 'nome'],
+    'Utente Bajuju'
+  );
 }
 
 function availableProfilePhoto(profile: LooseRow | null | undefined) {
-  return firstText(profile, ['avatar_url'], '');
+  return firstText(
+    profile,
+    ['avatar_url', 'photo_url', 'profile_photo_url', 'profile_image_url', 'image_url', 'foto'],
+    ''
+  );
 }
 
 function availabilityRemainingText(row: LooseRow) {
@@ -792,7 +800,7 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
       if (profileIds.length > 0) {
         const profilesResult = await supabase
           .from('profiles')
-          .select('id,nickname,avatar_url,city,is_admin,age')
+          .select('id,nickname,avatar_url,city,is_admin')
           .in('id', profileIds);
 
         if (!profilesResult.error) {
@@ -1095,6 +1103,7 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
         sender_id: currentUserId,
         receiver_id: cleanTargetUserId,
         activity_id: ownFlashId,
+        contact_value: ownFlashId,
         contact_type: 'flash_invite',
         status: 'pending',
         message: `Ti invito al mio Bajuju Flash “${flashTitle(ownFlash)}”. Ti ho visto disponibile: ti va di partecipare?`,

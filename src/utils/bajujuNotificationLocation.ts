@@ -10,12 +10,12 @@ export async function refreshBajujuNotificationLocation(userId: string) {
     const existingPermission = await Location.getForegroundPermissionsAsync();
     let status = existingPermission.status;
 
-    if (status !== Location.PermissionStatus.GRANTED && existingPermission.canAskAgain) {
+    if (status !== 'granted' && existingPermission.canAskAgain) {
       const requestedPermission = await Location.requestForegroundPermissionsAsync();
       status = requestedPermission.status;
     }
 
-    if (status !== Location.PermissionStatus.GRANTED) {
+    if (status !== 'granted') {
       return { ok: false, reason: 'Permesso posizione non concesso.' };
     }
 

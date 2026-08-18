@@ -205,7 +205,7 @@ Deno.serve(async (req) => {
     );
 
     if (activityId) {
-      void notifyNearbyExperience(
+      await notifyNearbyExperience(
         supabaseUrl,
         supabaseAnonKey,
         authorization,

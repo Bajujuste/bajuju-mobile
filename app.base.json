@@ -13,7 +13,8 @@
       "bundleIdentifier": "it.bajuju.mobile",
       "buildNumber": "5",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSLocationWhenInUseUsageDescription": "Bajuju usa la tua posizione mentre usi l’app per mostrarti e notificarti esperienze vicine a te."
       }
     },
     "android": {
@@ -68,6 +69,12 @@
         {
           "icon": "./assets/notification-icon.png",
           "color": "#e43f98"
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Bajuju usa la tua posizione mentre usi l’app per mostrarti e notificarti esperienze vicine a te."
         }
       ],
       "expo-secure-store",

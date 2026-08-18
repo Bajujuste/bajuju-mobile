@@ -5,6 +5,7 @@ import { router, useFocusEffect } from 'expo-router';
 
 import { BajujuHomeView } from '../src/components/home/BajujuHomeView';
 import { supabase } from '../src/lib/supabase';
+import { refreshBajujuNotificationLocation } from '../src/utils/bajujuLocation';
 import { shareBajujuHome } from '../src/utils/shareBajuju';
 import { registerForBajujuPushNotifications } from '../src/utils/bajujuNotifications';
 
@@ -30,6 +31,21 @@ export default function HomeScreen() {
   React.useEffect(() => {
     let active = true;
 
+    async function activateNotificationServices(userId: string) {
+      const registerResult = await registerForBajujuPushNotifications(userId);
+
+      if (!registerResult.ok) {
+        console.log('Attivazione notifiche non completata.');
+        return;
+      }
+
+      const locationResult = await refreshBajujuNotificationLocation(userId);
+
+      if (!locationResult.ok) {
+        console.log('Posizione notifiche non aggiornata.');
+      }
+    }
+
     async function setupBajujuNotifications() {
       try {
         const authResult = await supabase.auth.getUser();
@@ -42,16 +58,28 @@ export default function HomeScreen() {
         const localChoiceKey = `bajuju-notification-choice-v2:${userId}`;
         const localChoice = await AsyncStorage.getItem(localChoiceKey);
 
-        if (!active || localChoice === 'accepted' || localChoice === 'declined') return;
+        if (!active) return;
+
+        if (localChoice === 'accepted') {
+          await activateNotificationServices(userId);
+          return;
+        }
+
+        if (localChoice === 'declined' || notificationPromptRunningRef.current) {
+          return;
+        }
+
+        notificationPromptRunningRef.current = true;
 
         Alert.alert(
           'Notifiche Bajuju',
-          'Vuoi ricevere notifiche per nuove esperienze, Flash, partecipazioni e richieste?',
+          'Vuoi ricevere notifiche per nuove esperienze vicine a te, Flash, partecipazioni e richieste?',
           [
             {
               text: 'No',
               style: 'cancel',
               onPress: () => {
+                notificationPromptRunningRef.current = false;
                 void (async () => {
                   await AsyncStorage.setItem(localChoiceKey, 'declined');
                   const saveResult = await supabase.from('notification_preferences').upsert(
@@ -72,19 +100,17 @@ export default function HomeScreen() {
             {
               text: 'Sì',
               onPress: () => {
+                notificationPromptRunningRef.current = false;
                 void (async () => {
                   await AsyncStorage.setItem(localChoiceKey, 'accepted');
-                  const registerResult = await registerForBajujuPushNotifications(userId);
-
-                  if (!registerResult.ok) {
-                    console.log('Attivazione notifiche non completata.');
-                  }
+                  await activateNotificationServices(userId);
                 })();
               },
             },
           ]
         );
       } catch {
+        notificationPromptRunningRef.current = false;
         console.log('Errore registrazione notifiche Bajuju.');
       }
     }
@@ -178,7 +204,7 @@ export default function HomeScreen() {
         setProfilePhotoUrl(
           firstText(
             profileResult.data as ProfileRow | null,
-          ['avatar_url', 'photo_url', 'profile_photo_url', 'profile_image_url', 'image_url', 'foto'],
+            ['avatar_url', 'photo_url', 'profile_photo_url', 'profile_image_url', 'image_url', 'foto'],
             ''
           )
         );

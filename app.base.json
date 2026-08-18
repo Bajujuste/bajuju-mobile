@@ -2,7 +2,7 @@
   "expo": {
     "name": "Bajuju",
     "slug": "bajuju-mobile",
-    "version": "1.0.1",
+    "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "bajuju",
@@ -11,7 +11,11 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "it.bajuju.mobile",
-      "buildNumber": "5",
+      "associatedDomains": [
+        "applinks:bajuju.it",
+        "applinks:bajuju.netlify.app"
+      ],
+      "buildNumber": "8",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -35,6 +39,11 @@
               "scheme": "https",
               "host": "bajuju.it",
               "pathPrefix": "/experience-detail"
+            },
+            {
+              "scheme": "https",
+              "host": "bajuju.netlify.app",
+              "pathPrefix": "/experience-detail"
             }
           ],
           "category": [
@@ -43,7 +52,7 @@
           ]
         }
       ],
-      "versionCode": 6
+      "versionCode": 14
     },
     "web": {
       "output": "static",
@@ -79,6 +88,12 @@
           "cameraPermission": false,
           "microphonePermission": false
         }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Bajuju usa la tua posizione per mostrarti persone ed eventi vicini."
+        }
       ]
     ],
     "experiments": {
@@ -90,6 +105,12 @@
       "eas": {
         "projectId": "56e5c74b-9d60-49d5-bec0-70ea0bb2704a"
       }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/56e5c74b-9d60-49d5-bec0-70ea0bb2704a"
     }
   }
 }

@@ -156,7 +156,7 @@ Deno.serve(async (req) => {
     "Non inventare informazioni assenti.",
     "Usa null per i valori mancanti.",
     "Inserisci in missing_fields i nomi dei campi obbligatori mancanti.",
-    "La provincia deve essere il nome completo, per esempio Bergamo, Milano, Lecco o Monza e Brianza.",
+    "La provincia deve essere una tra Bergamo, Milano, Lecco, Monza e Brianza o Verona.",
     "La categoria deve essere una tra Cena, Aperitivo, Camminata, Sport, Cultura, Musica, Cinema/Teatro, Gita, Giochi o Altro.",
   ].join(" ");
 

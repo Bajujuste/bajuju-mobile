@@ -1,6 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   RefreshControl,
   SafeAreaView,
@@ -123,13 +124,15 @@ export default function NotificationsScreen() {
     async (notification: NotificationRow) => {
       if (!notification.is_read) {
         try {
-          const { error } = await supabase
+          const { data: updatedRow, error } = await supabase
             .from('push_notification_logs')
             .update({ is_read: true })
-            .eq('id', notification.id);
+            .eq('id', notification.id)
+            .select('id')
+            .maybeSingle();
 
-          if (error) {
-            throw error;
+          if (error || !updatedRow) {
+            throw error || new Error('NOTIFICATION_NOT_UPDATED');
           }
 
           setNotifications((currentNotifications) =>
@@ -153,6 +156,7 @@ export default function NotificationsScreen() {
         typeof notificationData.activityId === 'string'
           ? notificationData.activityId
           : '';
+      const section = typeof notificationData.section === "string" ? notificationData.section : "";
 
       switch (screen) {
         case 'experience':
@@ -186,7 +190,8 @@ export default function NotificationsScreen() {
           return;
 
         case 'profile':
-          router.push('/profile' as any);
+          if (section) router.push({ pathname: '/profile' as any, params: { section } });
+          else router.push('/profile' as any);
           return;
 
         default:
@@ -195,6 +200,68 @@ export default function NotificationsScreen() {
     },
     []
   );
+
+  const deleteNotification = useCallback((notificationId: string) => {
+    Alert.alert('Elimina notifica', 'Vuoi eliminare questa notifica?', [
+      { text: 'Annulla', style: 'cancel' },
+      {
+        text: 'Elimina',
+        style: 'destructive',
+        onPress: () => {
+          void (async () => {
+            const { data: deletedRow, error } = await supabase
+              .from('push_notification_logs')
+              .delete()
+              .eq('id', notificationId)
+              .select('id')
+              .maybeSingle();
+
+            if (error || !deletedRow) {
+              Alert.alert('Errore', 'Non sono riuscito a eliminare la notifica.');
+              return;
+            }
+
+            setNotifications((current) => current.filter((item) => item.id !== notificationId));
+          })();
+        },
+      },
+    ]);
+  }, []);
+
+  const deleteAllNotifications = useCallback(() => {
+    Alert.alert('Elimina tutte', 'Vuoi eliminare tutte le notifiche?', [
+      { text: 'Annulla', style: 'cancel' },
+      {
+        text: 'Elimina tutte',
+        style: 'destructive',
+        onPress: () => {
+          void (async () => {
+            const { data: userData, error: userError } = await supabase.auth.getUser();
+            const userId = userData.user?.id;
+
+            if (userError || !userId) {
+              Alert.alert('Errore', 'Utente non autenticato.');
+              return;
+            }
+
+            const { data: deletedRows, error } = await supabase
+              .from('push_notification_logs')
+              .delete()
+              .eq('user_id', userId)
+              .select('id');
+
+            if (error) {
+              Alert.alert('Errore', 'Non sono riuscito a eliminare le notifiche.');
+              return;
+            }
+
+            const deletedIds = new Set((deletedRows || []).map((row) => String(row.id)));
+            setNotifications((current) => current.filter((item) => !deletedIds.has(item.id)));
+          })();
+        },
+      },
+    ]);
+  }, []);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -255,7 +322,17 @@ export default function NotificationsScreen() {
               </Text>
             </View>
           ) : (
-            notifications.map((notification) => (
+            <>
+              <Pressable
+                style={styles.deleteAllButton}
+                onPress={deleteAllNotifications}
+                accessibilityRole="button"
+                accessibilityLabel="Elimina tutte le notifiche"
+              >
+                <Text style={styles.deleteAllButtonText}>Elimina tutte</Text>
+              </Pressable>
+
+              {notifications.map((notification) => (
               <Pressable
                 key={notification.id}
                 style={[
@@ -291,8 +368,20 @@ export default function NotificationsScreen() {
                     {formatNotificationDate(notification.sent_at)}
                   </Text>
                 </View>
+                  <Pressable
+                    style={styles.deleteNotificationButton}
+                    onPress={(event) => {
+                      event.stopPropagation();
+                      deleteNotification(notification.id);
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Elimina notifica: ${notification.title}`}
+                  >
+                    <Text style={styles.deleteNotificationButtonText}>Elimina</Text>
+                  </Pressable>
               </Pressable>
-            ))
+              ))}
+            </>
           )}
         </ScrollView>
       )}
@@ -439,6 +528,21 @@ const styles = StyleSheet.create({
     color: TEXT,
     textAlign: 'center',
   },
+  deleteAllButton: {
+    alignSelf: 'flex-end',
+    marginBottom: 10,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    backgroundColor: WHITE,
+    borderWidth: 1,
+    borderColor: BORDER,
+  },
+  deleteAllButtonText: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: PINK_DARK,
+  },
   notificationCard: {
     marginBottom: 10,
     borderRadius: 24,
@@ -501,5 +605,17 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '800',
     color: MUTED,
+  },
+  deleteNotificationButton: {
+    alignSelf: 'flex-start',
+    marginTop: 8,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  deleteNotificationButtonText: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: PINK_DARK,
+    textDecorationLine: 'underline',
   },
 });

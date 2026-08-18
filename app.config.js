@@ -26,7 +26,12 @@ module.exports = () => {
         },
       },
 
-      versionCode: 11,
+      versionCode: 14,
+    },
+
+    ios: {
+      ...baseConfig.expo.ios,
+      buildNumber: '7',
     },
   };
 };

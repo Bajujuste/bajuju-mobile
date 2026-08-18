@@ -13,6 +13,8 @@ import {
 
 import { supabase } from '../src/lib/supabase';
 
+const BAJUJU_CREATOR_EMAIL = 'royaleventi@gmail.com';
+
 type LooseRow = Record<string, any>;
 
 type ActivityItem = {
@@ -22,6 +24,9 @@ type ActivityItem = {
   date: string;
   dateObject: Date | null;
   organizerId: string;
+  organizerName: string;
+  organizerEmail: string;
+  organizerType: 'ADMIN' | 'UTENTE' | 'N/D';
   participantsCount: number;
   raw: LooseRow;
 };
@@ -117,6 +122,19 @@ function booleanFromRow(row: LooseRow | null | undefined, keys: string[], fallba
   }
 
   return fallback;
+}
+
+function isAdminProfile(row: LooseRow | null | undefined) {
+  if (!row) return false;
+
+  const email = firstText(row, ['email'], '').toLowerCase().trim();
+  const role = firstText(row, ['role', 'ruolo', 'user_role'], '').toLowerCase().trim();
+
+  return (
+    email === BAJUJU_CREATOR_EMAIL ||
+    booleanFromRow(row, ['is_admin', 'admin', 'is_master', 'master'], false) ||
+    ['admin', 'master', 'superadmin'].includes(role)
+  );
 }
 
 function isDeletedActivity(row: LooseRow) {
@@ -235,12 +253,21 @@ export default function AdminEventsScreen() {
   const [selectedActivity, setSelectedActivity] = useState<ActivityItem | null>(null);
   const [participants, setParticipants] = useState<ParticipantItem[]>([]);
   const [dateFilter, setDateFilter] = useState('disponibili');
+  const [creatorFilter, setCreatorFilter] = useState('tutti');
 
   const filteredActivities = useMemo(() => {
     const now = new Date();
 
     return activities.filter((item) => {
       if (isDeletedActivity(item.raw)) return false;
+
+      if (creatorFilter === 'utenti' && item.organizerType !== 'UTENTE') {
+        return false;
+      }
+
+      if (creatorFilter === 'admin' && item.organizerType !== 'ADMIN') {
+        return false;
+      }
 
       const date = item.dateObject;
 
@@ -269,7 +296,7 @@ export default function AdminEventsScreen() {
 
       return true;
     });
-  }, [activities, dateFilter]);
+  }, [activities, creatorFilter, dateFilter]);
 
   const loadActivities = useCallback(async () => {
     try {
@@ -287,6 +314,34 @@ export default function AdminEventsScreen() {
 
     const rows = (result.data || []) as LooseRow[];
     const mapped: ActivityItem[] = [];
+
+    const organizerIds = Array.from(
+      new Set(
+        rows
+          .map((row) => activityOrganizerId(row))
+          .filter(Boolean)
+      )
+    );
+
+    const profilesById = new Map<string, LooseRow>();
+
+    if (organizerIds.length > 0) {
+      const profilesResult = await supabase
+        .from('profiles')
+        .select('*')
+        .in('id', organizerIds)
+        .limit(250);
+
+      if (!profilesResult.error && Array.isArray(profilesResult.data)) {
+        (profilesResult.data as LooseRow[]).forEach((profile) => {
+          const profileId = String(firstValue(profile, ['id', 'user_id', 'profile_id']) || '').trim();
+
+          if (profileId) {
+            profilesById.set(profileId, profile);
+          }
+        });
+      }
+    }
 
     for (const row of rows) {
       const id = String(firstValue(row, ['id', 'activity_id']) || '');
@@ -306,6 +361,17 @@ export default function AdminEventsScreen() {
       }
 
       const dateValue = activityDateValue(row);
+      const organizerId = activityOrganizerId(row);
+      const organizerProfile = organizerId
+        ? profilesById.get(organizerId) || null
+        : null;
+
+      const organizerType: 'ADMIN' | 'UTENTE' | 'N/D' =
+        organizerProfile
+          ? isAdminProfile(organizerProfile)
+            ? 'ADMIN'
+            : 'UTENTE'
+          : 'N/D';
 
       mapped.push({
         id,
@@ -313,7 +379,16 @@ export default function AdminEventsScreen() {
         city: activityCity(row),
         date: formatDate(dateValue),
         dateObject: parseDate(dateValue),
-        organizerId: activityOrganizerId(row),
+        organizerId,
+        organizerName: organizerProfile
+          ? profileName(organizerProfile, 'Utente Bajuju')
+          : 'Profilo non disponibile',
+        organizerEmail: firstText(
+          organizerProfile,
+          ['email'],
+          ''
+        ),
+        organizerType,
         participantsCount,
         raw: row,
       });
@@ -493,6 +568,34 @@ export default function AdminEventsScreen() {
             </Pressable>
           ))}
         </View>
+
+        <Text style={styles.filterLabel}>Creato da</Text>
+
+        <View style={styles.filterRow}>
+          {[
+            ['tutti', 'Tutti'],
+            ['utenti', 'Utenti'],
+            ['admin', 'Admin'],
+          ].map(([value, label]) => (
+            <Pressable
+              key={value}
+              style={[
+                styles.filterChip,
+                creatorFilter === value && styles.filterChipActive,
+              ]}
+              onPress={() => setCreatorFilter(value)}
+            >
+              <Text
+                style={[
+                  styles.filterChipText,
+                  creatorFilter === value && styles.filterChipTextActive,
+                ]}
+              >
+                {label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
       </View>
 
       {loading ? (
@@ -512,6 +615,28 @@ export default function AdminEventsScreen() {
             <Pressable key={item.id} style={styles.listRow} onPress={() => router.push(`/admin-event-detail?id=${item.id}`)}>
               <View style={styles.listTextBox}>
                 <Text style={styles.listTitle}>{item.title}</Text>
+
+                <View style={styles.creatorRow}>
+                  <View
+                    style={[
+                      styles.creatorBadge,
+                      item.organizerType === 'ADMIN'
+                        ? styles.creatorBadgeAdmin
+                        : item.organizerType === 'UTENTE'
+                          ? styles.creatorBadgeUser
+                          : styles.creatorBadgeUnknown,
+                    ]}
+                  >
+                    <Text style={styles.creatorBadgeText}>
+                      {item.organizerType}
+                    </Text>
+                  </View>
+
+                  <Text style={styles.creatorName} numberOfLines={1}>
+                    Creato da {item.organizerName}
+                  </Text>
+                </View>
+
                 <Text style={styles.listSubtitle}>{item.city} · {item.date}</Text>
                 <Text style={styles.listSubtitle}>{item.participantsCount} partecipanti</Text>
               </View>
@@ -596,6 +721,13 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     marginBottom: 12,
   },
+  filterLabel: {
+    color: '#9b1f61',
+    fontSize: 13,
+    fontWeight: '900',
+    marginTop: 14,
+    marginBottom: 8,
+  },
   filterRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -654,6 +786,37 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '900',
     marginBottom: 4,
+  },
+  creatorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    marginBottom: 6,
+  },
+  creatorBadge: {
+    borderRadius: 999,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  creatorBadgeAdmin: {
+    backgroundColor: '#4b1430',
+  },
+  creatorBadgeUser: {
+    backgroundColor: '#e43f98',
+  },
+  creatorBadgeUnknown: {
+    backgroundColor: '#7b4960',
+  },
+  creatorBadgeText: {
+    color: '#ffffff',
+    fontSize: 10,
+    fontWeight: '900',
+  },
+  creatorName: {
+    color: '#9b1f61',
+    fontSize: 12,
+    fontWeight: '800',
+    flexShrink: 1,
   },
   listSubtitle: {
     color: '#7b4960',

@@ -4,17 +4,27 @@
     "appVersionSource": "local"
   },
   "build": {
-    "preview": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
       "android": {
         "buildType": "apk"
       },
       "environment": "production"
     },
+    "preview": {
+      "android": {
+        "buildType": "apk"
+      },
+      "environment": "production",
+      "channel": "preview"
+    },
     "production": {
       "android": {
         "buildType": "app-bundle"
       },
-      "environment": "production"
+      "environment": "production",
+      "channel": "production"
     },
     "ios-simulator": {
       "ios": {

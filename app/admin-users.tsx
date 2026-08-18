@@ -25,6 +25,7 @@ type UserItem = {
   age: number | null;
   gender: string;
   status: string;
+  createdAt: string;
   raw: LooseRow;
 };
 
@@ -63,6 +64,14 @@ function formatDate(value: any) {
     month: '2-digit',
     year: 'numeric',
   });
+}
+
+function userCreatedAt(row: LooseRow) {
+  return firstText(
+    row,
+    ['created_at', 'registered_at', 'signup_at'],
+    ''
+  );
 }
 
 function userName(row: LooseRow) {
@@ -183,6 +192,11 @@ export default function AdminUsersScreen() {
   const [users, setUsers] = useState<UserItem[]>([]);
   const [genderFilter, setGenderFilter] = useState('tutti');
   const [ageFilter, setAgeFilter] = useState('tutte');
+  const [signupStats, setSignupStats] = useState({
+    day: 0,
+    week: 0,
+    month: 0,
+  });
 
   const filteredUsers = useMemo(() => {
     const normalizedSearchQuery = searchQuery.trim().toLowerCase();
@@ -222,7 +236,59 @@ export default function AdminUsersScreen() {
         throw result.error;
       }
 
-      const mapped = ((result.data || []) as LooseRow[])
+      const allRows = (result.data || []) as LooseRow[];
+
+      const now = new Date();
+
+      const startOfDay = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate()
+      );
+
+      const startOfWeek = new Date(startOfDay);
+      const dayOfWeek = startOfWeek.getDay();
+      const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+      startOfWeek.setDate(startOfWeek.getDate() - daysFromMonday);
+
+      const startOfMonth = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        1
+      );
+
+      let dayCount = 0;
+      let weekCount = 0;
+      let monthCount = 0;
+
+      allRows.forEach((row) => {
+        const rawCreatedAt = userCreatedAt(row);
+        if (!rawCreatedAt) return;
+
+        const createdAt = new Date(rawCreatedAt);
+        if (Number.isNaN(createdAt.getTime())) return;
+        if (createdAt.getTime() > now.getTime()) return;
+
+        if (createdAt >= startOfDay) {
+          dayCount += 1;
+        }
+
+        if (createdAt >= startOfWeek) {
+          weekCount += 1;
+        }
+
+        if (createdAt >= startOfMonth) {
+          monthCount += 1;
+        }
+      });
+
+      setSignupStats({
+        day: dayCount,
+        week: weekCount,
+        month: monthCount,
+      });
+
+      const mapped = allRows
       .filter((row) => !isDeletedUser(row))
       .map((row) => ({
         id: userId(row),
@@ -239,6 +305,7 @@ export default function AdminUsersScreen() {
         age: userAge(row),
         gender: userGender(row),
         status: userStatus(row),
+        createdAt: userCreatedAt(row),
         raw: row,
       }))
         .filter((item) => Boolean(item.id));
@@ -418,6 +485,27 @@ export default function AdminUsersScreen() {
         </Pressable>
       </View>
 
+      <View style={styles.statsCard}>
+        <Text style={styles.sectionTitle}>Nuove iscrizioni</Text>
+
+        <View style={styles.statsGrid}>
+          <View style={styles.statBox}>
+            <Text style={styles.statNumber}>{signupStats.day}</Text>
+            <Text style={styles.statLabel}>Oggi</Text>
+          </View>
+
+          <View style={styles.statBox}>
+            <Text style={styles.statNumber}>{signupStats.week}</Text>
+            <Text style={styles.statLabel}>Questa settimana</Text>
+          </View>
+
+          <View style={styles.statBox}>
+            <Text style={styles.statNumber}>{signupStats.month}</Text>
+            <Text style={styles.statLabel}>Questo mese</Text>
+          </View>
+        </View>
+      </View>
+
       <View style={styles.filtersCard}>
         <Text style={styles.sectionTitle}>Filtri</Text>
 
@@ -480,6 +568,9 @@ export default function AdminUsersScreen() {
               <View style={styles.listTextBox}>
                 <Text style={styles.listTitle}>{item.name}</Text>
                 <Text style={styles.listSubtitle}>{item.email}</Text>
+                <Text style={styles.registrationDate}>
+                  Iscritto il {item.createdAt ? formatDate(item.createdAt) : 'data non disponibile'}
+                </Text>
                 <Text style={styles.listSubtitle}>
                   {item.city} · {item.age || 'età n.d.'} · {item.gender} · {item.status}
                 </Text>
@@ -545,6 +636,43 @@ const styles = StyleSheet.create({
   detailCard: {
     backgroundColor: '#fff3f9',
     borderColor: '#ef2d82',
+  },
+  statsCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 24,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#ffd3e6',
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  statBox: {
+    flexGrow: 1,
+    flexBasis: 90,
+    minHeight: 92,
+    borderRadius: 18,
+    backgroundColor: '#fff0f7',
+    borderWidth: 1,
+    borderColor: '#ffd3e6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 10,
+  },
+  statNumber: {
+    color: '#e43f98',
+    fontSize: 28,
+    fontWeight: '900',
+  },
+  statLabel: {
+    color: '#7b4960',
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '900',
+    textAlign: 'center',
+    marginTop: 4,
   },
   filtersCard: {
     backgroundColor: '#ffffff',
@@ -662,6 +790,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '900',
     marginBottom: 4,
+  },
+  registrationDate: {
+    color: '#e43f98',
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: '900',
+    marginBottom: 2,
   },
   listSubtitle: {
     color: '#7b4960',

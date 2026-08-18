@@ -17,9 +17,11 @@ import {
   View,
 } from 'react-native';
 
+import { AddressAutocompleteField } from '../src/components/AddressAutocompleteField';
 import { BajujuBottomNav } from '../src/components/navigation/BajujuBottomNav';
 import { EXPERIENCE_CREATION_CATEGORIES } from '../src/constants/experienceCategories';
 import { ITALIAN_MUNICIPALITIES_BY_PROVINCE } from '../src/data/italianMunicipalities';
+import type { ResolvedAddress } from '../src/lib/addressAutocomplete';
 import { supabase } from '../src/lib/supabase';
 import { BAJUJU_COLORS, BAJUJU_FONTS, BAJUJU_SHADOW } from '../src/theme/bajujuTheme';
 import { sendBajujuPushNotification, buildExperienceNotificationTitle } from '../src/utils/bajujuNotifications';
@@ -29,8 +31,7 @@ const LOCATION_OPTIONS = [
   'Milano',
   'Lecco',
   'Monza e Brianza',
-  'Brescia',
-  'Torino',
+  'Verona',
 ];
 
 function categoryToDatabaseValue(value: string) {
@@ -165,6 +166,7 @@ export default function CreateExperienceScreen() {
   const [city, setCity] = useState('');
   const [meetingPlace, setMeetingPlace] = useState('');
   const [streetNumber, setStreetNumber] = useState('');
+  const [resolvedAddress, setResolvedAddress] = useState<ResolvedAddress | null>(null);
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
   const [openSelect, setOpenSelect] = useState<null | 'province' | 'city' | 'category'>(null);
@@ -238,6 +240,7 @@ export default function CreateExperienceScreen() {
     provinceIsValid &&
     cityIsValid &&
     meetingPlace.trim().length > 0 &&
+      resolvedAddress !== null &&
     description.trim().length > 0 &&
     category.trim().length > 0 &&
     Boolean(isoDate) &&
@@ -330,19 +333,12 @@ export default function CreateExperienceScreen() {
     const cleanCategory = category.trim();
     const databaseCategory = categoryToDatabaseValue(cleanCategory);
 
-    if (!cleanCity || !cleanMeetingPlace) {
-      if (typeof window !== 'undefined') {
-        window.alert('Compila provincia, comune e indirizzo.');
+      if (!resolvedAddress) {
+        if (typeof window !== 'undefined') {
+          window.alert('Seleziona un indirizzo completo dai suggerimenti.');
+        }
+        return;
       }
-      return;
-    }
-
-    if (!provinceMunicipalities.includes(cleanCity as never)) {
-      if (typeof window !== 'undefined') {
-        window.alert('Seleziona un comune valido dalla lista ufficiale.');
-      }
-      return;
-    }
 
     if (!isoDate || !cleanTime) {
       if (typeof window !== 'undefined') {
@@ -369,23 +365,7 @@ export default function CreateExperienceScreen() {
         return;
       }
 
-      const coordinates = await geocodeAddress(cleanMeetingPlace, cleanStreetNumber, cleanCity, cleanProvince);
-
-      if (!coordinates) {
-        if (typeof window !== 'undefined') {
-          window.alert('Non sono riuscito a trovare nemmeno il centro del comune selezionato. Controlla il comune e riprova.');
-        }
-        return;
-      }
-
-      const addressAlreadyHasStreetNumber =
-        cleanStreetNumber.length > 0 &&
-        new RegExp(`\\b${cleanStreetNumber.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}\\b`, 'i').test(cleanMeetingPlace);
-
-      const finalMeetingPlace =
-        cleanStreetNumber && !addressAlreadyHasStreetNumber
-          ? `${cleanMeetingPlace} ${cleanStreetNumber}`
-          : cleanMeetingPlace;
+        const finalMeetingPlace = `${resolvedAddress.street} ${resolvedAddress.streetNumber}`;
 
       const payload = {
         creator_id: creatorId,
@@ -402,8 +382,8 @@ export default function CreateExperienceScreen() {
         budget_amount: needsBudget ? cleanBudgetAmount : null,
         is_flash: false,
         expires_at: null,
-        latitude: coordinates.latitude,
-        longitude: coordinates.longitude,
+          latitude: resolvedAddress.latitude,
+          longitude: resolvedAddress.longitude,
       };
 
       const result = await supabase.from('activities').insert(payload).select('*').single();
@@ -554,69 +534,22 @@ export default function CreateExperienceScreen() {
               <Text style={styles.sectionTitle}>Dove si svolge</Text>
             </View>
 
-            <View style={styles.twoColumnsRow}>
-              <View style={styles.addressColumn}>
-                <Text style={styles.label}>Provincia</Text>
-                <Pressable style={styles.selectButton} onPress={() => setOpenSelect('province')}>
-                  <Text style={[styles.selectButtonText, !province.trim() && styles.selectPlaceholder]}>
-                    {province.trim() || 'Seleziona'}
-                  </Text>
-                  <Text style={styles.selectChevron}>⌄</Text>
-                </Pressable>
-              </View>
+              <AddressAutocompleteField
+                value={meetingPlace}
+                resolvedAddress={resolvedAddress}
+                onValueChange={setMeetingPlace}
+                onResolvedAddressChange={(address) => {
+                  setResolvedAddress(address);
+                  setProvince(address?.province ?? '');
+                  setCity(address?.city ?? '');
+                  setStreetNumber(address?.streetNumber ?? '');
+                }}
+                disabled={saving}
+              />
 
-              <View style={styles.addressColumn}>
-                <Text style={styles.label}>Comune</Text>
-                <Pressable
-                  style={[styles.selectButton, !provinceIsValid && styles.selectButtonDisabled]}
-                  onPress={() => {
-                    if (!provinceIsValid) {
-                      if (typeof window !== 'undefined') {
-                        window.alert('Scegli prima la provincia.');
-                      }
-                      return;
-                    }
-                    setOpenSelect('city');
-                  }}
-                >
-                  <Text style={[styles.selectButtonText, !cityIsValid && styles.selectPlaceholder]}>
-                    {cityIsValid ? city : 'Seleziona'}
-                  </Text>
-                  <Text style={styles.selectChevron}>⌄</Text>
-                </Pressable>
-              </View>
-            </View>
-
-            <View style={styles.twoColumnsRow}>
-              <View style={styles.addressColumn}>
-                <Text style={styles.label}>Indirizzo</Text>
-                <TextInput
-                  value={meetingPlace}
-                  onChangeText={setMeetingPlace}
-                  placeholder="Indirizzo"
-                  placeholderTextColor="#9c7b8b"
-                  style={styles.input}
-                  maxLength={100}
-                />
-              </View>
-
-              <View style={styles.streetNumberColumn}>
-                <Text style={styles.label}>N. civico</Text>
-                <TextInput
-                  value={streetNumber}
-                  onChangeText={(value) => setStreetNumber(value.replace(/[^0-9a-zA-Z\/\-]/g, '').slice(0, 8))}
-                  placeholder="12"
-                  placeholderTextColor="#9c7b8b"
-                  style={styles.input}
-                  maxLength={8}
-                />
-              </View>
-            </View>
-
-            <Text style={styles.helperText}>
-              L’indirizzo serve solo per posizionare correttamente l’esperienza sulla mappa.
-              Se l’indirizzo inserito non viene trovato correttamente, verrà utilizzato il centro del comune selezionato.
-            </Text>
+              <Text style={styles.helperText}>
+                Inizia a scrivere l’indirizzo e seleziona quello corretto dai suggerimenti.
+              </Text>
           </View>
 
           <View style={[styles.formSection, styles.whenSection]}>

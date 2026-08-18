@@ -1,9 +1,12 @@
 import { router } from 'expo-router';
+import * as Location from 'expo-location';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, ActivityIndicator, Image, Pressable, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text as NativeText, TextInput, TextProps, View } from 'react-native';
 
 import BajujuMap, { BajujuMapItem } from '../components/BajujuMap';
+import { AddressAutocompleteField } from '../src/components/AddressAutocompleteField';
 import { BajujuBottomNav } from '../src/components/navigation/BajujuBottomNav';
+import type { ResolvedAddress } from '../src/lib/addressAutocomplete';
 import { supabase } from '../src/lib/supabase';
 import { BAJUJU_COLORS, BAJUJU_FONTS } from '../src/theme/bajujuTheme';
 import { shareBajujuFlash } from '../src/utils/shareBajuju';
@@ -29,12 +32,17 @@ function Text({ style, ...props }: TextProps) {
 
 type LooseRow = Record<string, any>;
 
+type Coordinates = {
+  latitude: number;
+  longitude: number;
+};
+
 type FlashTab = 'all' | 'mine' | 'joined';
-type FlashDuration = 1 | 2 | 3;
-type AvailabilityDuration = FlashDuration | 'evening';
+type FlashDuration = 3 | 5 | 8 | 12;
+type AvailabilityDuration = 1 | 2 | 3 | 'evening';
 type FlashSection = 'create' | 'find' | 'availability' | 'available' | null;
 
-const ACTIVE_PROVINCES = ['Bergamo', 'Milano', 'Lecco', 'Monza e Brianza', 'Brescia', 'Torino'] as const;
+const ACTIVE_PROVINCES = ['Bergamo', 'Milano', 'Lecco', 'Monza e Brianza', 'Verona'] as const;
 
 function normalizeMunicipalitySearch(value: string) {
   return value
@@ -329,6 +337,25 @@ function getCoordinates(row: LooseRow) {
   return { latitude, longitude };
 }
 
+function distanceKmBetween(a: Coordinates, b: Coordinates) {
+  const toRad = (value: number) => (value * Math.PI) / 180;
+  const earthRadiusKm = 6371;
+  const dLat = toRad(b.latitude - a.latitude);
+  const dLon = toRad(b.longitude - a.longitude);
+  const lat1 = toRad(a.latitude);
+  const lat2 = toRad(b.latitude);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+  return earthRadiusKm * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+}
+
+function availabilityDistanceText(row: LooseRow, viewer: Coordinates | null) {
+  if (viewer === null) return "Distanza non disponibile";
+  const other = getCoordinates(row);
+  if (other === null) return "Distanza non disponibile";
+  const km = distanceKmBetween(viewer, other);
+  return "~" + km.toFixed(1).replace(".", ",") + " km da te";
+}
+
 function flashId(row: LooseRow) {
   return String(firstValue(row, ['id', 'activity_id'], '') || '');
 }
@@ -349,6 +376,14 @@ function availableProfilePhoto(profile: LooseRow | null | undefined) {
   return firstText(
     profile,
     ['avatar_url', 'photo_url', 'profile_photo_url', 'profile_image_url', 'image_url', 'foto'],
+    ''
+  );
+}
+
+function availableProfileAge(profile: LooseRow | null | undefined) {
+  return firstText(
+    profile,
+    ['age', 'eta', 'età', 'user_age', 'age_range', 'fascia_eta', 'age_band', 'eta_range'],
     ''
   );
 }
@@ -450,6 +485,7 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
   const [availableRows, setAvailableRows] = useState<LooseRow[]>([]);
   const [availableProfiles, setAvailableProfiles] = useState<Record<string, LooseRow>>({});
   const [myActiveAvailability, setMyActiveAvailability] = useState<LooseRow | null>(null);
+  const [viewerCoordinates, setViewerCoordinates] = useState<Coordinates | null>(null);
   const [cancellingAvailability, setCancellingAvailability] = useState(false);
   const [loadingAvailableUsers, setLoadingAvailableUsers] = useState(false);
   const [sendingAvailabilityInviteTo, setSendingAvailabilityInviteTo] = useState<string | null>(null);
@@ -470,7 +506,8 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
   const [showNewMunicipalityList, setShowNewMunicipalityList] = useState(false);
   const [newPlace, setNewPlace] = useState('');
   const [newStreetNumber, setNewStreetNumber] = useState('');
-  const [newDurationHours, setNewDurationHours] = useState<FlashDuration>(2);
+  const [newResolvedAddress, setNewResolvedAddress] = useState<ResolvedAddress | null>(null);
+  const [newDurationHours, setNewDurationHours] = useState<FlashDuration>(3);
   const [availabilityProvince, setAvailabilityProvince] = useState('Bergamo');
   const [availabilityCity, setAvailabilityCity] = useState('');
   const [showAvailabilityMunicipalityList, setShowAvailabilityMunicipalityList] = useState(false);
@@ -511,7 +548,6 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
   }, [newProvince]);
 
   useEffect(() => {
-    setAvailabilityCity('');
   }, [availabilityProvince]);
 
   useEffect(() => {
@@ -546,7 +582,8 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
           (ACTIVE_PROVINCES as readonly string[]).includes(preferredProvince.trim())
         ) {
           const cleanProvince = preferredProvince.trim();
-          setSelectedProvince(cleanProvince);
+          // La provincia preferita aiuta solo nella creazione.
+          // "Guarda chi è disponibile" deve partire sempre da Tutte.
           setNewProvince(cleanProvince);
           setAvailabilityProvince(cleanProvince);
         }
@@ -569,6 +606,8 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
       const result = await supabase
         .from('activities')
         .select('*')
+        .eq('is_flash', true)
+        .order('created_at', { ascending: false })
         .limit(120);
 
       if (result.error) {
@@ -729,7 +768,7 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
       if (currentUserId) {
         const myActiveResult = await supabase
           .from('user_availability')
-          .select('id,user_id,province,city,expires_at,created_at')
+          .select('id,user_id,province,city,latitude,longitude,expires_at,created_at')
           .eq('user_id', currentUserId)
           .gt('expires_at', nowIso)
           .order('created_at', { ascending: false })
@@ -746,7 +785,7 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
 
       const result = await supabase
         .from('user_availability')
-        .select('id,user_id,province,city,expires_at,created_at')
+        .select('id,user_id,province,city,latitude,longitude,expires_at,created_at')
         .gt('expires_at', nowIso)
         .order('created_at', { ascending: false })
         .limit(100);
@@ -798,15 +837,38 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
       const profileMap: Record<string, LooseRow> = {};
 
       if (profileIds.length > 0) {
-        const profilesResult = await supabase
+        const profilesByIdResult = await supabase
           .from('profiles')
-          .select('id,nickname,avatar_url,city,is_admin')
+          .select('*')
           .in('id', profileIds);
 
-        if (!profilesResult.error) {
-          (profilesResult.data || []).forEach((profile: LooseRow) => {
-            profileMap[String(profile.id)] = profile;
+        if (!profilesByIdResult.error) {
+          (profilesByIdResult.data || []).forEach((profile: LooseRow) => {
+            const profileId = String(firstValue(profile, ['id'], '') || '');
+            const profileUserId = String(firstValue(profile, ['user_id'], '') || '');
+
+            if (profileId) profileMap[profileId] = profile;
+            if (profileUserId) profileMap[profileUserId] = profile;
           });
+        }
+
+        const missingProfileIds = profileIds.filter((id) => !profileMap[id]);
+
+        if (missingProfileIds.length > 0) {
+          const profilesByUserIdResult = await supabase
+            .from('profiles')
+            .select('*')
+            .in('user_id', missingProfileIds);
+
+          if (!profilesByUserIdResult.error) {
+            (profilesByUserIdResult.data || []).forEach((profile: LooseRow) => {
+              const profileId = String(firstValue(profile, ['id'], '') || '');
+              const profileUserId = String(firstValue(profile, ['user_id'], '') || '');
+
+              if (profileId) profileMap[profileId] = profile;
+              if (profileUserId) profileMap[profileUserId] = profile;
+            });
+          }
         }
       }
 
@@ -831,6 +893,39 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
     loadAvailableUsers();
   }, [loadAvailableUsers]);
 
+  useEffect(() => {
+    if (selectedSection !== "available") return;
+    let active = true;
+
+    async function loadViewerLocation() {
+      const permission = await Location.requestForegroundPermissionsAsync();
+      if (permission.status !== "granted") {
+        if (active) setViewerCoordinates(null);
+        return;
+      }
+      const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      if (active) setViewerCoordinates({ latitude: position.coords.latitude, longitude: position.coords.longitude });
+    }
+
+    loadViewerLocation().catch(() => {
+      if (active) setViewerCoordinates(null);
+    });
+
+    return () => { active = false; };
+  }, [selectedSection]);
+
+  const availableRowsByDistance = useMemo(() => {
+    return [...availableRows].sort((a, b) => {
+      if (viewerCoordinates === null) return 0;
+      const aCoordinates = getCoordinates(a);
+      const bCoordinates = getCoordinates(b);
+      if (aCoordinates === null && bCoordinates === null) return 0;
+      if (aCoordinates === null) return 1;
+      if (bCoordinates === null) return -1;
+      return distanceKmBetween(viewerCoordinates, aCoordinates) - distanceKmBetween(viewerCoordinates, bCoordinates);
+    });
+  }, [availableRows, viewerCoordinates]);
+
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await Promise.all([loadFlashRows(), loadAvailableUsers()]);
@@ -853,22 +948,6 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
       return;
     }
 
-    const cleanProvince = availabilityProvince.trim();
-    const cleanCity = availabilityCity.trim();
-
-    if (!cleanProvince || !cleanCity) {
-      if (typeof window !== 'undefined') {
-        window.alert('Scegli provincia e seleziona il comune da cui parti.');
-      }
-      return;
-    }
-
-    if (!availabilityMunicipalities.includes(cleanCity as never)) {
-      if (typeof window !== 'undefined') {
-        window.alert('Seleziona un comune valido dalla lista ufficiale. Il comune serve solo per indicare da dove parti.');
-      }
-      return;
-    }
 
     setSavingAvailability(true);
 
@@ -885,7 +964,7 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
 
       const existingAvailabilityResult = await supabase
         .from('user_availability')
-        .select('id,user_id,province,city,expires_at,created_at')
+        .select('id,user_id,province,city,latitude,longitude,expires_at,created_at')
         .eq('user_id', authUserId)
         .gt('expires_at', new Date().toISOString())
         .order('created_at', { ascending: false })
@@ -899,7 +978,19 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
         return;
       }
 
-      const now = new Date();
+      const permission = await Location.requestForegroundPermissionsAsync();
+
+  if (permission.status !== "granted") {
+    Alert.alert("Posizione necessaria", "Per renderti disponibile devi consentire a Bajuju di usare la posizione.");
+    return;
+  }
+
+  const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+  const latitude = position.coords.latitude;
+  const longitude = position.coords.longitude;
+  setViewerCoordinates({ latitude, longitude });
+
+  const now = new Date();
       const expiresAtDate =
         availabilityDurationHours === 'evening'
           ? new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 0, 0)
@@ -908,8 +999,10 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
 
       const result = await supabase.from('user_availability').insert({
         user_id: authUserId,
-        province: cleanProvince,
-        city: cleanCity,
+        province: null,
+        city: 'Posizione GPS',
+    latitude: Math.round(latitude * 200) / 200,
+    longitude: Math.round(longitude * 200) / 200,
         expires_at: expiresAt,
       });
 
@@ -920,8 +1013,6 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
         return;
       }
 
-      setSelectedProvince(cleanProvince);
-      setAvailabilityCity('');
       await loadAvailableUsers();
 
       if (typeof window !== 'undefined') {
@@ -1124,6 +1215,7 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
         body: `Una persona ti invita al suo Flash: ${flashTitle(ownFlash)}.`,
         data: {
           screen: 'profile',
+            section: 'flash-invites',
           activityId: ownFlashId,
         },
       }).catch((error) => {
@@ -1154,16 +1246,9 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
     const cleanCity = newCity.trim();
     const cleanPlace = newPlace.trim();
     const cleanStreetNumber = newStreetNumber.trim();
-    if (!cleanTitle || !cleanProvince || !cleanCity || !cleanPlace) {
-      if (typeof window !== 'undefined') {
-        window.alert('Compila titolo, provincia, comune e indirizzo. Il numero civico è separato e consigliato.');
-      }
-      return;
-    }
-
-    if (!newMunicipalities.includes(cleanCity as never)) {
-      if (typeof window !== 'undefined') {
-        window.alert('Seleziona un comune valido dalla lista ufficiale.');
+    if (!cleanTitle || !newResolvedAddress) {
+      if (typeof window !== "undefined") {
+        window.alert("Compila il titolo e seleziona un indirizzo completo dai suggerimenti.");
       }
       return;
     }
@@ -1219,21 +1304,7 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
       const cleanTime = now.toTimeString().slice(0, 8);
       const expiresAt = new Date(now.getTime() + newDurationHours * 60 * 60 * 1000).toISOString();
 
-      const coordinates = await geocodeAddress(cleanPlace, cleanStreetNumber, cleanCity, cleanProvince);
-
-      if (!coordinates) {
-        if (typeof window !== 'undefined') {
-          window.alert('Non sono riuscito a trovare nemmeno il centro del comune selezionato. Controlla il comune e riprova.');
-        }
-        return;
-      }
-
-      const addressAlreadyHasStreetNumber =
-        cleanStreetNumber.length > 0 &&
-        new RegExp(`\\b${cleanStreetNumber.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}\\b`, 'i').test(cleanPlace);
-
-      const finalMeetingPlace =
-        cleanStreetNumber && !addressAlreadyHasStreetNumber ? `${cleanPlace} ${cleanStreetNumber}` : cleanPlace;
+        const finalMeetingPlace = `${newResolvedAddress.street} ${newResolvedAddress.streetNumber}`;
 
       const payload = {
         creator_id: creatorId,
@@ -1249,8 +1320,8 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
         max_participants: 10,
         is_flash: true,
         expires_at: expiresAt,
-        latitude: coordinates?.latitude ?? null,
-        longitude: coordinates?.longitude ?? null,
+          latitude: newResolvedAddress.latitude,
+          longitude: newResolvedAddress.longitude,
       };
 
       const result = await supabase.from('activities').insert(payload).select('*').single();
@@ -1282,6 +1353,7 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
       setNewDescription('');
       setNewCity('');
       setNewPlace('');
+      setNewResolvedAddress(null);
       setNewStreetNumber('');
       setSelectedProvince('Tutte');
       setSelectedTab('all');
@@ -1289,8 +1361,11 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
 
       await loadFlashRows();
 
-      if (typeof window !== 'undefined') {
-        window.alert('Flash creato correttamente.');
+      const createdFlashId = String(result.data?.id || "").trim();
+      if (createdFlashId) {
+        router.push({ pathname: "/flash-detail", params: { id: createdFlashId } });
+      } else if (typeof window !== "undefined") {
+        window.alert("Flash creato correttamente.");
       }
     } catch (error: unknown) {
       const message =
@@ -1302,7 +1377,7 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
     } finally {
       setSavingFlash(false);
     }
-  }, [loadFlashRows, newCity, newDescription, newDurationHours, newMunicipalities, newPlace, newProvince, newStreetNumber, newTitle, savingFlash]);
+  }, [loadFlashRows, newCity, newDescription, newDurationHours, newMunicipalities, newPlace, newProvince, newResolvedAddress, newStreetNumber, newTitle, savingFlash]);
 
   const joinFlash = useCallback(async (row: LooseRow) => {
     const activityId = String(firstValue(row, ['id', 'activity_id'], ''));
@@ -1521,14 +1596,15 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
   const filteredRows = useMemo(() => {
     return rows
       .filter((row) => {
+        const activityId = String(firstValue(row, ['id', 'activity_id'], ''));
+
+        if (selectedTab === 'mine') return rowBelongsToUser(row, userId);
+
         if (selectedProvince !== 'Tutte') {
           const province = flashProvince(row).toLowerCase().trim();
           if (province !== selectedProvince.toLowerCase().trim()) return false;
         }
 
-        const activityId = String(firstValue(row, ['id', 'activity_id'], ''));
-
-        if (selectedTab === 'mine') return rowBelongsToUser(row, userId);
         if (selectedTab === 'joined') return rowBelongsToUser(row, userId) || joinedActivityIds.has(activityId);
 
         return true;
@@ -1688,82 +1764,6 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
             </Text>
           </View>
 
-          <Text style={styles.availabilityLabel}>Provincia</Text>
-          <View style={styles.choiceWrap}>
-            {ACTIVE_PROVINCES.map((province) => (
-              <Pressable
-                key={`availability-province-${province}`}
-                style={[
-                  styles.choiceChip,
-                  availabilityProvince === province && styles.choiceChipActive,
-                ]}
-                onPress={() => setAvailabilityProvince(province)}
-              >
-                <Text
-                  style={[
-                    styles.choiceChipText,
-                    availabilityProvince === province && styles.choiceChipTextActive,
-                  ]}
-                >
-                  {availabilityProvince === province ? `✓ ${province}` : province}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-
-          <Text style={styles.availabilityLabel}>Seleziona comune</Text>
-
-          <Pressable
-            style={styles.municipalityDropdownButton}
-            onPress={() => setShowAvailabilityMunicipalityList((value) => !value)}
-          >
-            <Text
-              style={[
-                styles.municipalityDropdownText,
-                hasSelectedValidAvailabilityCity && styles.municipalityDropdownTextSelected,
-              ]}
-              numberOfLines={1}
-            >
-              {hasSelectedValidAvailabilityCity ? availabilityCity : 'Seleziona comune'}
-            </Text>
-            <Text style={styles.municipalityDropdownArrow}>
-              {showAvailabilityMunicipalityList ? '⌃' : '⌄'}
-            </Text>
-          </Pressable>
-
-          {showAvailabilityMunicipalityList ? (
-            <ScrollView
-              style={styles.municipalitySelectBox}
-              contentContainerStyle={styles.municipalitySelectContent}
-              nestedScrollEnabled
-              keyboardShouldPersistTaps="handled"
-              showsVerticalScrollIndicator
-            >
-              {availabilityMunicipalities.map((city) => (
-                <Pressable
-                  key={`availability-city-${city}`}
-                  style={[
-                    styles.municipalitySelectItem,
-                    availabilityCity === city && styles.municipalitySelectItemActive,
-                  ]}
-                  onPress={() => {
-                    setAvailabilityCity(city);
-                    setShowAvailabilityMunicipalityList(false);
-                  }}
-                >
-                  <Text
-                    style={[
-                      styles.municipalitySelectItemText,
-                      availabilityCity === city && styles.municipalitySelectItemTextActive,
-                    ]}
-                  >
-                    {availabilityCity === city ? `✓ ${city}` : city}
-                  </Text>
-                </Pressable>
-              ))}
-            </ScrollView>
-          ) : null}
-
           <Text style={styles.availabilityLabel}>Per quanto tempo vuoi farti vedere?</Text>
           <View style={styles.choiceRow}>
             {[
@@ -1834,7 +1834,7 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
               <Text style={styles.availablePeopleSubtitle}>Scorri chi è disponibile ora. Per invitare una persona devi avere un tuo Flash attivo.</Text>
             </View>
             <Text style={styles.availablePeopleCount}>
-              {availableRows.filter((row) => selectedProvince === 'Tutte' || firstText(row, ['province']) === selectedProvince).length}
+              {availableRowsByDistance.length}
             </Text>
           </View>
 
@@ -1843,7 +1843,7 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
               <ActivityIndicator />
               <Text style={styles.mutedText}>Cerco persone disponibili...</Text>
             </View>
-          ) : availableRows.filter((row) => selectedProvince === 'Tutte' || firstText(row, ['province']) === selectedProvince).length === 0 ? (
+          ) : availableRowsByDistance.length === 0 ? (
             <View style={styles.availableEmptyState}>
               <Text style={styles.availableEmptyIcon}>☻</Text>
               <Text style={styles.availableEmptyTitle}>Ancora nessuno disponibile</Text>
@@ -1854,8 +1854,7 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
             </View>
           ) : (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.availableCardsRow}>
-              {availableRows
-                .filter((row) => selectedProvince === 'Tutte' || firstText(row, ['province']) === selectedProvince)
+              {availableRowsByDistance
                 .map((row, index) => {
                   const profile = availableProfiles[availableUserId(row)];
                   const photo = availableProfilePhoto(profile);
@@ -1872,10 +1871,10 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
 
                       <Text style={styles.availableName} numberOfLines={1}>
                         {availableProfileName(profile)}
-                        {firstValue(profile, ['age'], null) ? ` · ${firstValue(profile, ['age'], '')} anni` : ''}
+                        {availableProfileAge(profile) ? ` · ${availableProfileAge(profile)} anni` : ''}
                       </Text>
                       <Text style={styles.availableZone} numberOfLines={1}>
-                        {[firstText(row, ['city']), firstText(row, ['province'])].filter(Boolean).join(' · ')}
+                        {availabilityDistanceText(row, viewerCoordinates)}
                       </Text>
                       <Text style={styles.availableTime}>{availabilityRemainingText(row)}</Text>
 
@@ -1980,95 +1979,26 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
               {newDescription.length}/140
             </Text>
 
-            <Text style={styles.label}>Provincia</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
-              {ACTIVE_PROVINCES.map((province) => (
-                <Pressable
-                  key={province}
-                  style={[styles.chip, newProvince === province && styles.chipActive]}
-                  onPress={() => {
-                    setNewProvince(province);
-                    setNewCity('');
-                  }}
-                >
-                  <Text style={[styles.chipText, newProvince === province && styles.chipTextActive]}>
-                    {province}
-                  </Text>
-                </Pressable>
-              ))}
-            </ScrollView>
+              <AddressAutocompleteField
+                value={newPlace}
+                resolvedAddress={newResolvedAddress}
+                onValueChange={setNewPlace}
+                onResolvedAddressChange={(address) => {
+                  setNewResolvedAddress(address);
+                  setNewProvince(address?.province ?? '');
+                  setNewCity(address?.city ?? '');
+                  setNewStreetNumber(address?.streetNumber ?? '');
+                }}
+                disabled={savingFlash}
+              />
 
-            <Text style={styles.label}>Comune</Text>
-            <Pressable
-              style={styles.municipalityDropdownButton}
-              onPress={() => setShowNewMunicipalityList((value) => !value)}
-            >
-              <Text
-                style={[
-                  styles.municipalityDropdownText,
-                  hasSelectedValidNewCity && styles.municipalityDropdownTextSelected,
-                ]}
-                numberOfLines={1}
-              >
-                {hasSelectedValidNewCity ? newCity : 'Seleziona comune'}
+              <Text style={styles.formNote}>
+                Inizia a scrivere l’indirizzo e seleziona quello corretto dai suggerimenti.
               </Text>
-              <Text style={styles.municipalityDropdownArrow}>
-                {showNewMunicipalityList ? '⌃' : '⌄'}
-              </Text>
-            </Pressable>
-
-            {showNewMunicipalityList ? (
-              <ScrollView style={styles.municipalitySelectBox} nestedScrollEnabled>
-                {newMunicipalities.map((city) => (
-                  <Pressable
-                    key={`new-flash-city-${city}`}
-                    style={[
-                      styles.municipalitySelectItem,
-                      newCity === city && styles.municipalitySelectItemActive,
-                    ]}
-                    onPress={() => {
-                      setNewCity(city);
-                      setShowNewMunicipalityList(false);
-                    }}
-                  >
-                    <Text
-                      style={[
-                        styles.municipalitySelectItemText,
-                        newCity === city && styles.municipalitySelectItemTextActive,
-                      ]}
-                    >
-                      {newCity === city ? `✓ ${city}` : city}
-                    </Text>
-                  </Pressable>
-                ))}
-              </ScrollView>
-            ) : null}
-
-            <Text style={styles.label}>Indirizzo</Text>
-            <TextInput
-              value={newPlace}
-              onChangeText={setNewPlace}
-              placeholder="Es. Via Roma"
-              placeholderTextColor="#a36a86"
-              style={styles.input}
-            />
-
-            <Text style={styles.addressFallbackText}>
-              Se l’indirizzo inserito non viene trovato correttamente, verrà utilizzato il centro del comune selezionato.
-            </Text>
-
-            <Text style={styles.label}>Numero civico</Text>
-            <TextInput
-              value={newStreetNumber}
-              onChangeText={(value) => setNewStreetNumber(value.replace(/[^0-9a-zA-Z\/\-]/g, '').slice(0, 8))}
-              placeholder="Es. 12"
-              placeholderTextColor="#a36a86"
-              style={styles.input}
-            />
 
             <Text style={styles.label}>Disponibilità</Text>
             <View style={styles.durationRow}>
-              {[1, 2, 3].map((hours) => (
+              {[3, 5, 8, 12].map((hours) => (
                 <Pressable
                   key={hours}
                   style={[styles.durationButton, newDurationHours === hours && styles.durationButtonActive]}
@@ -2083,7 +2013,6 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
 
             <Text style={styles.formNote}>
               Per i Flash non devi inserire data e ora: partono subito e restano disponibili per il tempo scelto.
-              Inserisci via e numero civico separati: se il civico non viene trovato, Bajuju prova comunque a cercare la via.
             </Text>
 
             <Pressable
@@ -2102,9 +2031,10 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
                 setNewDescription('');
                 setNewCity('');
                 setNewPlace('');
+                setNewResolvedAddress(null);
                 setNewStreetNumber('');
                 setNewProvince('Bergamo');
-                setNewDurationHours(2);
+                setNewDurationHours(3);
                 setShowCreateForm(false);
               }}
             >

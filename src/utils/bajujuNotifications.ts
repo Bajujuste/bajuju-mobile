@@ -62,18 +62,10 @@ function getProjectId() {
 }
 
 async function savePushToken(userId: string, token: string) {
-  const upsertResult = await supabase.from('push_tokens').upsert(
-    {
-      user_id: userId,
-      expo_push_token: token,
-      platform: Platform.OS,
-      is_active: true,
-      last_seen_at: new Date().toISOString(),
-    },
-    {
-      onConflict: 'expo_push_token',
-    }
-  );
+  const upsertResult = await supabase.rpc('claim_push_token_for_current_user' as any, {
+    p_token: token,
+    p_platform: Platform.OS,
+  });
 
   if (!upsertResult.error) {
     const existingPreferencesResult = await supabase
@@ -126,9 +118,14 @@ async function savePushToken(userId: string, token: string) {
   ];
 
   for (const update of attempts) {
-    const result = await supabase.from('profiles').update(update).eq('id', userId);
+    const result = await supabase
+      .from('profiles')
+      .update(update)
+      .eq('id', userId)
+      .select('id')
+      .maybeSingle();
 
-    if (!result.error) {
+    if (!result.error && result.data) {
       return { ok: true, table: 'profiles', column: Object.keys(update)[0] };
     }
   }
@@ -159,6 +156,13 @@ export async function registerForBajujuPushNotifications(userId?: string | null)
     return {
       ok: false,
       reason: 'Serve un telefono fisico per testare le notifiche push.',
+    };
+  }
+
+  if (__DEV__) {
+    return {
+      ok: false,
+      reason: "Notifiche push disattivate nella Development Build.",
     };
   }
 

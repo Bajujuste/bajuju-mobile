@@ -1,5 +1,5 @@
-import { useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import {
     ActivityIndicator,
@@ -384,8 +384,13 @@ async function safeUpdateStatus(table: string, id: string, status: string) {
 
   for (const payload of attempts) {
     try {
-      const result = await supabase.from(table).update(payload).eq('id', id);
-      if (!result.error) return true;
+      const result = await supabase
+        .from(table)
+        .update(payload)
+        .eq('id', id)
+        .select('id')
+        .maybeSingle();
+      if (!result.error && result.data) return true;
     } catch {
       // Prova il prossimo nome campo.
     }
@@ -396,6 +401,10 @@ async function safeUpdateStatus(table: string, id: string, status: string) {
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ section?: string }>();
+  const scrollRef = useRef<any>(null);
+  const [flashInvitesOffsetY, setFlashInvitesOffsetY] = useState<number | null>(null);
+  const [dateInvitesOffsetY, setDateInvitesOffsetY] = useState<number | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -410,6 +419,7 @@ export default function ProfileScreen() {
 
   const [profileName, setProfileName] = useState('');
   const [province, setProvince] = useState('');
+  const [homeCity, setHomeCity] = useState('');
   const [ageRange, setAgeRange] = useState('');
   const [gender, setGender] = useState('');
   const [directContactsEnabled, setDirectContactsEnabled] = useState(true);
@@ -440,6 +450,26 @@ export default function ProfileScreen() {
   const profileIdValue = useMemo(() => {
     return profile?.id || user?.id;
   }, [profile, user]);
+  useEffect(() => {
+    if (params.section !== "flash-invites" || flashInvitesOffsetY === null || loading) return;
+
+    const timeout = setTimeout(() => {
+      scrollRef.current?.scrollTo({ y: Math.max(0, flashInvitesOffsetY - 12), animated: true });
+    }, 100);
+
+    return () => clearTimeout(timeout);
+  }, [flashInvitesOffsetY, loading, params.section]);
+  useEffect(() => {
+    if (params.section !== "date-invites" || dateInvitesOffsetY === null || loading) return;
+
+    const timeout = setTimeout(() => {
+      scrollRef.current?.scrollTo({ y: Math.max(0, dateInvitesOffsetY - 12), animated: true });
+    }, 100);
+
+    return () => clearTimeout(timeout);
+  }, [dateInvitesOffsetY, loading, params.section]);
+
+
 
   const checkAdmin = useCallback(async (currentUser: LooseRow, currentProfile: LooseRow | null) => {
     const directAdmin =
@@ -527,13 +557,13 @@ export default function ProfileScreen() {
         (firstText(item.raw, ['contact_type', 'type'], '').toLowerCase() === 'flash_invite' || firstText(item.raw, ['message'], '').toLowerCase().includes('bajuju flash'))
     );
 
-    const regularItems = allContactItems.filter(
-      (item) =>
-        !(
-          item.table === 'direct_contact_requests' &&
-          (firstText(item.raw, ['contact_type', 'type'], '').toLowerCase() === 'flash_invite' || firstText(item.raw, ['message'], '').toLowerCase().includes('bajuju flash'))
-        )
-    );
+      const regularItems = allContactItems.filter(
+        (item) =>
+          !(
+            item.table === 'direct_contact_requests' &&
+            (['flash_invite', 'experience_invite'].includes(firstText(item.raw, ['contact_type', 'type'], '').toLowerCase()) || firstText(item.raw, ['message'], '').toLowerCase().includes('bajuju flash'))
+          )
+      );
 
     setFlashInvites(flashItems);
     setContactRequests(regularItems);
@@ -541,7 +571,7 @@ export default function ProfileScreen() {
 
   const loadInvites = useCallback(async (userId: string) => {
     const blockedIds = await blockedUserIdsForCurrentUser(userId);
-    const tables = ['activity_invitations', 'activity_invites', 'event_invites', 'invitations'];
+      const tables = ['activity_invitations', 'activity_invites', 'event_invites', 'invitations', 'direct_contact_requests'];
     const columns = ['receiver_id', 'recipient_id', 'to_user_id', 'invited_user_id', 'user_id', 'profile_id'];
     const collected: InviteItem[] = [];
 
@@ -551,6 +581,7 @@ export default function ProfileScreen() {
         .filter((row) => {
           const status = firstText(row, ['status', 'stato', 'invite_status'], 'pending').toLowerCase();
           const otherUserId = inviteOtherUserId(row);
+            if (result.table === 'direct_contact_requests' && firstText(row, ['contact_type', 'type'], '').toLowerCase() !== 'experience_invite') return false;
           return ['pending', 'in_attesa', 'attesa', 'invited', 'new', 'nuova'].includes(status) && !blockedIds.has(otherUserId);
         })
         .map((row) => ({
@@ -712,6 +743,13 @@ export default function ProfileScreen() {
     const loadedProvince = firstText(currentProfile, ['province', 'provincia', 'location_province', 'preferred_province'], '');
 
     setProvince(loadedProvince);
+    setHomeCity(
+      firstText(
+        currentProfile,
+        ['city', 'citta', 'comune', 'location_city'],
+        ''
+      ).slice(0, 10)
+    );
     setAgeRange(firstText(currentProfile, ['age', 'eta', 'età', 'user_age', 'age_range', 'fascia_eta', 'age_band', 'eta_range'], ''));
     setGender(firstText(currentProfile, ['gender', 'genere', 'sex'], ''));
     setDirectContactsEnabled(
@@ -884,6 +922,7 @@ export default function ProfileScreen() {
     if (!user) return;
 
     const cleanProvince = province.trim();
+    const cleanHomeCity = homeCity.trim().slice(0, 10);
     const cleanAge = ageRange.trim();
     const cleanProfileName = profileName.trim();
 
@@ -897,13 +936,8 @@ export default function ProfileScreen() {
       return;
     }
 
-    if (!cleanProvince || !cleanAge) {
-      Alert.alert('Dati mancanti', 'Scegli provincia ed età.');
-      return;
-    }
-
-    if (!LOCATION_OPTIONS.includes(cleanProvince)) {
-      Alert.alert('Provincia non valida', 'Scegli una provincia dall’elenco.');
+    if (!cleanAge) {
+      Alert.alert('Dati mancanti', 'Inserisci la tua età.');
       return;
     }
 
@@ -917,6 +951,7 @@ export default function ProfileScreen() {
     setSaving(true);
 
     const provinceField = firstKey(profile, ['province', 'provincia', 'location_province'], 'province');
+    const cityField = firstKey(profile, ['city', 'citta', 'comune', 'location_city'], 'city');
     const ageField = firstKey(profile, ['age', 'eta', 'età', 'user_age', 'age_range', 'fascia_eta', 'age_band', 'eta_range'], 'age');
     const genderField = firstKey(profile, ['gender', 'genere', 'sex'], 'gender');
     const nameField = firstKey(
@@ -938,6 +973,7 @@ export default function ProfileScreen() {
     };
 
     payload[provinceField] = cleanProvince;
+    payload[cityField] = cleanHomeCity;
 
     if (profile && Object.prototype.hasOwnProperty.call(profile, directContactsField)) {
       payload[directContactsField] = directContactsEnabled;
@@ -1012,7 +1048,7 @@ export default function ProfileScreen() {
     } finally {
       setSaving(false);
     }
-  }, [ageRange, directContactsEnabled, gender, loadAll, notificationsEnabled, photoUrl, profile, profileIdField, profileIdValue, profileName, province, user]);
+  }, [ageRange, directContactsEnabled, gender, homeCity, loadAll, notificationsEnabled, photoUrl, profile, profileIdField, profileIdValue, profileName, province, user]);
 
   const answerItem = useCallback(
     async (item: ContactItem | InviteItem, status: 'accepted' | 'rejected') => {
@@ -1061,7 +1097,7 @@ export default function ProfileScreen() {
             const participantResult = await supabase.from('activity_participants').insert({
               activity_id: flashActivityId,
               user_id: user.id,
-              status: 'accepted',
+              status: 'partecipo',
             });
 
             if (participantResult.error) {
@@ -1087,11 +1123,16 @@ export default function ProfileScreen() {
             console.log('Errore notifica contatto accettato.');
           });
         }
+        if (isFlashInvite && flashActivityId) {
+          await loadAll();
+          router.push({ pathname: "/flash-detail", params: { id: flashActivityId } });
+          return;
+        }
       }
 
       await loadAll();
     },
-    [loadAll, user?.id]
+    [loadAll, router, user?.id]
   );
 
   const removeItemFromList = useCallback(
@@ -1211,6 +1252,7 @@ export default function ProfileScreen() {
 
   return (
     <ScrollView
+      ref={scrollRef}
       style={styles.page}
       contentContainerStyle={styles.content}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
@@ -1295,29 +1337,17 @@ export default function ProfileScreen() {
           autoCapitalize="words"
         />
 
-        <View style={styles.locationInfoBox}>
-          <Text style={styles.locationInfoTitle}>Dove ti trovi</Text>
-          <Text style={styles.locationInfoText}>
-            Scegli la provincia. Riceverai notifiche per le nuove esperienze create nella tua provincia. Puoi cambiarla quando ti sposti.
-          </Text>
-        </View>
-
-        <Text style={styles.label}>Provincia</Text>
-        <View style={styles.optionWrap}>
-          {LOCATION_OPTIONS.map((item) => (
-            <Pressable
-              key={item}
-              style={[styles.locationOption, province === item && styles.optionActive]}
-              onPress={() => {
-                setProvince(item);
-              }}
-            >
-              <Text style={[styles.optionText, province === item && styles.optionTextActive]}>
-                {item}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
+        <Text style={styles.label}>Di dove sei</Text>
+        <TextInput
+          value={homeCity}
+          onChangeText={(value) => setHomeCity(value.slice(0, 10))}
+          placeholder="Es. Bergamo"
+          placeholderTextColor="#b26a91"
+          style={styles.input}
+          maxLength={10}
+          autoCapitalize="words"
+          autoCorrect={false}
+        />
 
         <Text style={styles.label}>Età</Text>
         <TextInput
@@ -1382,7 +1412,7 @@ export default function ProfileScreen() {
         </Pressable>
       </View>
 
-      <View style={[styles.card, styles.flashInviteCard]}>
+      <View style={[styles.card, styles.flashInviteCard]} onLayout={(event) => setFlashInvitesOffsetY(event.nativeEvent.layout.y)}>
         <View style={styles.sectionHeaderRow}>
           <View style={[styles.sectionIconBubble, styles.flashInviteIconBubble]}>
             <Text style={styles.sectionIconText}>⚡</Text>
@@ -1460,7 +1490,7 @@ export default function ProfileScreen() {
         )}
       </View>
 
-      <View style={[styles.card, styles.dateInviteCard]}>
+      <View style={[styles.card, styles.dateInviteCard]} onLayout={(event) => setDateInvitesOffsetY(event.nativeEvent.layout.y)}>
         <View style={styles.sectionHeaderRow}>
           <View style={[styles.sectionIconBubble, styles.dateInviteIconBubble]}>
             <Text style={styles.sectionIconText}>💗</Text>

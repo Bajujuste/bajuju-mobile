@@ -4,7 +4,9 @@ import * as ImagePicker from 'expo-image-picker';
 import {
   Alert,
   Image,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -210,6 +212,7 @@ function canInviteOutAfterExperience(experience: ActivityRow | null) {
 }
 
 export default function ExperienceDetailScreen() {
+  const pageScrollRef = useRef<any>(null);
   const params = useLocalSearchParams<{ id?: string }>();
   const experienceId = params.id;
 
@@ -380,7 +383,7 @@ export default function ExperienceDetailScreen() {
       .map((item) => String(item.user_id || ''))
       .filter(Boolean);
 
-    const sourceExperience = loadedExperience || experience;
+      const sourceExperience = loadedExperience ?? null;
     const creatorId = getExperienceCreatorId(sourceExperience);
 
     if (creatorId && !userIds.includes(creatorId)) {
@@ -426,7 +429,7 @@ export default function ExperienceDetailScreen() {
     }
 
     setProfiles(nextProfiles);
-  }, []);
+  }, [currentUserId]);
 
   const loadMessages = useCallback(async (activityId: string) => {
     const messagesResult = await supabase
@@ -502,6 +505,30 @@ export default function ExperienceDetailScreen() {
   useEffect(() => {
     loadExperience();
   }, [loadExperience]);
+  useEffect(() => {
+    if (!experienceId) return;
+
+    const channel = supabase
+      .channel(`experience-messages-${experienceId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'activity_messages',
+          filter: `activity_id=eq.${experienceId}`,
+        },
+        () => {
+          void loadMessages(experienceId);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [experienceId, loadMessages]);
+
 
   async function joinExperience() {
     if (!experienceId || joining) return;
@@ -668,9 +695,11 @@ export default function ExperienceDetailScreen() {
                 const result = await supabase
                   .from('activities')
                   .update(payload)
-                  .eq('id', experienceId);
+                  .eq('id', experienceId)
+                  .select('id')
+                  .maybeSingle();
 
-                if (!result.error) {
+                if (!result.error && result.data) {
                   const participantsResult = await supabase
                     .from('activity_participants')
                     .select('user_id')
@@ -784,6 +813,7 @@ export default function ExperienceDetailScreen() {
         sender_id: currentUserId,
         receiver_id: targetUserId,
         activity_id: experienceId,
+          contact_value: experienceId,
         contact_type: 'experience_invite',
         status: 'pending',
         message: 'Vorrei invitarti a uscire dopo aver partecipato alla stessa esperienza Bajuju.',
@@ -804,6 +834,7 @@ export default function ExperienceDetailScreen() {
         body: 'Hai ricevuto un invito a uscire da una persona della tua esperienza.',
         data: {
           screen: 'profile',
+          section: 'date-invites',
           activityId: experienceId,
         },
       }).catch((error) => {
@@ -984,8 +1015,6 @@ export default function ExperienceDetailScreen() {
   const uploadAlbumPhoto = useCallback(async () => {
     if (!experienceId || !currentUserId || uploadingAlbumPhoto || albumUploadLockRef.current) return;
 
-    albumUploadLockRef.current = true;
-
     if (!canUseAlbum) {
       window.alert('Solo organizzatore e partecipanti possono caricare foto nella galleria evento.');
       return;
@@ -1001,6 +1030,7 @@ export default function ExperienceDetailScreen() {
       return;
     }
 
+    albumUploadLockRef.current = true;
     setUploadingAlbumPhoto(true);
 
     try {
@@ -1148,7 +1178,16 @@ export default function ExperienceDetailScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.container}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
+        <ScrollView
+          ref={pageScrollRef}
+          contentContainerStyle={styles.container}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+        >
         <Pressable style={styles.backButton} onPress={() => router.replace('/experiences')}>
           <Text style={styles.backText}>← Trova esperienza</Text>
         </Pressable>
@@ -1462,6 +1501,11 @@ export default function ExperienceDetailScreen() {
                         placeholderTextColor="#b36a91"
                         style={styles.chatInput}
                         multiline
+                        onFocus={() => {
+                          setTimeout(() => {
+                            pageScrollRef.current?.scrollToEnd({ animated: true });
+                          }, 250);
+                        }}
                       />
 
                       <Pressable
@@ -1535,7 +1579,8 @@ export default function ExperienceDetailScreen() {
             <Text style={styles.messageText}>Esperienza non trovata.</Text>
           )}
         </View>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

@@ -31,7 +31,37 @@ export default function WelcomeScreen() {
       }
 
       if (data.session) {
-        router.replace('/home');
+        const userId = data.session.user.id;
+        const profileResult = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .maybeSingle();
+
+        if (profileResult.error) {
+          throw profileResult.error;
+        }
+
+        const profile = profileResult.data as Record<string, unknown> | null;
+        const profileProvince = String(
+          profile?.province ||
+            profile?.provincia ||
+            profile?.location_province ||
+            ''
+        ).trim();
+        const profileAge = String(
+          profile?.age ||
+            profile?.eta ||
+            profile?.['età'] ||
+            profile?.user_age ||
+            profile?.age_range ||
+            profile?.fascia_eta ||
+            profile?.age_band ||
+            profile?.eta_range ||
+            ''
+        ).trim();
+
+        router.replace(profile && profileProvince && profileAge ? '/home' : '/profile');
       }
     } catch (error: unknown) {
       console.error('Errore controllo sessione Bajuju.');

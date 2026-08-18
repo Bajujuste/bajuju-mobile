@@ -342,7 +342,7 @@ export default function UserProfileScreen() {
   }
 
   const name = firstText(profile, ['nickname', 'username', 'display_name', 'full_name', 'name', 'nome'], 'Utente Bajuju');
-  const city = firstText(profile, ['city', 'citta', 'comune', 'location_city'], '');
+  const homeCity = firstText(profile, ['city', 'citta', 'comune', 'location_city'], '').slice(0, 10);
   const age = firstText(profile, ['age', 'eta', 'età', 'user_age', 'age_range', 'fascia_eta', 'age_band', 'eta_range'], '');
   const gender = firstText(profile, ['gender', 'genere'], '');
   const photo = firstPhoto(profile);
@@ -457,8 +457,8 @@ export default function UserProfileScreen() {
             <Text style={styles.sectionTitle}>Informazioni</Text>
 
             <View style={styles.infoBox}>
-              <Text style={styles.label}>Città</Text>
-              <Text style={styles.value}>{city || 'Non indicata'}</Text>
+              <Text style={styles.label}>Di dove sei</Text>
+              <Text style={styles.value}>{homeCity || 'Non indicato'}</Text>
             </View>
 
             <View style={styles.infoBox}>

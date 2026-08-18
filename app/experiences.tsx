@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Image,
+  Modal,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -23,19 +24,23 @@ const PROVINCE_OPTIONS = [
   'Milano',
   'Lecco',
   'Monza e Brianza',
-  'Brescia',
-  'Torino',
+  'Verona',
 ] as const;
 
 type ActivityRow = {
   id?: string;
   creator_id?: string | null;
+  organizer_id?: string | null;
+  created_by?: string | null;
+  user_id?: string | null;
+  profile_id?: string | null;
   title?: string | null;
   category?: string | null;
   city?: string | null;
   province?: string | null;
   activity_date?: string | null;
   activity_time?: string | null;
+  max_participants?: number | null;
   is_flash?: boolean | null;
   image_url?: string | null;
   photo_url?: string | null;
@@ -45,6 +50,41 @@ type ActivityRow = {
   deleted_at?: string | null;
   status?: string | null;
 };
+
+type ParticipantRow = {
+  activity_id?: string | null;
+  user_id?: string | null;
+  status?: string | null;
+};
+
+function participantIsActive(row: ParticipantRow) {
+  const status = String(row.status || '').toLowerCase().trim();
+
+  return ![
+    'rejected',
+    'rifiutato',
+    'declined',
+    'annullato',
+    'annullata',
+    'deleted',
+    'eliminato',
+    'eliminata',
+    'removed',
+    'cancellato',
+    'cancellata',
+  ].includes(status);
+}
+
+function getExperienceCreatorId(row: ActivityRow) {
+  return String(
+    row.creator_id ||
+      row.organizer_id ||
+      row.created_by ||
+      row.user_id ||
+      row.profile_id ||
+      ''
+  ).trim();
+}
 
 function normalizeCategory(value: string | null | undefined) {
   return normalizeExperienceCategory(value).toLowerCase();
@@ -85,17 +125,22 @@ function getExperienceAddress(row: ActivityRow) {
   ).trim();
 }
 
-function activityImageSource(row: ActivityRow) {
-  const imageUrl =
+function activityImageUrl(row: ActivityRow) {
+  return String(
     row.image_url ||
-    row.photo_url ||
-    row.cover_url ||
-    row.activity_image_url ||
-    row.thumbnail_url ||
-    '';
+      row.photo_url ||
+      row.cover_url ||
+      row.activity_image_url ||
+      row.thumbnail_url ||
+      ''
+  ).trim();
+}
 
-  if (imageUrl && imageUrl.trim().length > 0) {
-    return { uri: imageUrl.trim() };
+function activityImageSource(row: ActivityRow) {
+  const imageUrl = activityImageUrl(row);
+
+  if (imageUrl) {
+    return { uri: imageUrl };
   }
 
   return bajujuLogo;
@@ -147,6 +192,8 @@ export default function ExperiencesScreen() {
   const [selectedProvince, setSelectedProvince] = useState('Tutte');
   const [provinceMenuOpen, setProvinceMenuOpen] = useState(false);
   const [activities, setActivities] = useState<ActivityRow[]>([]);
+  const [participantCounts, setParticipantCounts] = useState<Record<string, number>>({});
+  const [selectedPosterUrl, setSelectedPosterUrl] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState('');
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -180,6 +227,52 @@ export default function ExperiencesScreen() {
           return dateA.localeCompare(dateB);
         });
 
+      const activityIds = cleanRows
+        .map((row) => String(row.id || '').trim())
+        .filter(Boolean);
+
+      const participantSets: Record<string, Set<string>> = {};
+
+      cleanRows.forEach((row) => {
+        const activityId = String(row.id || '').trim();
+        if (!activityId) return;
+
+        participantSets[activityId] = new Set<string>();
+
+        const creatorId = getExperienceCreatorId(row);
+        if (creatorId) {
+          participantSets[activityId].add(creatorId);
+        }
+      });
+
+      if (activityIds.length > 0) {
+        const participantsResult = await supabase
+          .from('activity_participants')
+          .select('activity_id,user_id,status')
+          .in('activity_id', activityIds)
+          .limit(5000);
+
+        if (!participantsResult.error) {
+          ((participantsResult.data || []) as ParticipantRow[])
+            .filter(participantIsActive)
+            .forEach((participant) => {
+              const activityId = String(participant.activity_id || '').trim();
+              const userId = String(participant.user_id || '').trim();
+
+              if (!activityId || !userId || !participantSets[activityId]) return;
+
+              participantSets[activityId].add(userId);
+            });
+        }
+      }
+
+      const nextParticipantCounts: Record<string, number> = {};
+
+      Object.entries(participantSets).forEach(([activityId, users]) => {
+        nextParticipantCounts[activityId] = users.size;
+      });
+
+      setParticipantCounts(nextParticipantCounts);
       setActivities(cleanRows);
     } catch (error: unknown) {
       const message =
@@ -375,13 +468,23 @@ export default function ExperiencesScreen() {
                     params: { id: item.id || '' },
                   })}
                 >
-                  <View style={styles.experienceImageBox}>
+                  <Pressable
+                    style={styles.experienceImageBox}
+                    onPress={(event) => {
+                      event.stopPropagation();
+
+                      const posterUrl = activityImageUrl(item);
+                      if (posterUrl) {
+                        setSelectedPosterUrl(posterUrl);
+                      }
+                    }}
+                  >
                     <Image
                       source={activityImageSource(item)}
                       style={styles.experienceImage}
                       resizeMode="contain"
                     />
-                  </View>
+                  </Pressable>
 
                   <View style={styles.experienceContent}>
                     <Text style={styles.experienceCategory}>
@@ -398,6 +501,13 @@ export default function ExperiencesScreen() {
 
                     <Text style={styles.experienceMeta}>
                       🗓️ {formatDateItalian(item.activity_date)} · {item.activity_time ? String(item.activity_time).slice(0, 5) : 'Ora da definire'}
+                    </Text>
+
+                    <Text style={styles.participantMeta}>
+                      👥 Partecipanti {participantCounts[String(item.id || '')] ?? (getExperienceCreatorId(item) ? 1 : 0)}
+                      {Number(item.max_participants || 0) > 0
+                        ? `/${Number(item.max_participants)}`
+                        : ''}
                     </Text>
 
                     <View style={styles.experienceActionsRow}>
@@ -447,6 +557,32 @@ export default function ExperiencesScreen() {
           </Pressable>
         </View>
       </ScrollView>
+
+      <Modal
+        visible={Boolean(selectedPosterUrl)}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => setSelectedPosterUrl(null)}
+      >
+        <View style={styles.posterModalBackdrop}>
+          <Pressable
+            style={styles.posterCloseButton}
+            onPress={() => setSelectedPosterUrl(null)}
+          >
+            <Text style={styles.posterCloseButtonText}>×</Text>
+          </Pressable>
+
+          {selectedPosterUrl ? (
+            <Image
+              source={{ uri: selectedPosterUrl }}
+              style={styles.posterLargeImage}
+              resizeMode="contain"
+            />
+          ) : null}
+        </View>
+      </Modal>
+
       <BajujuBottomNav active="find" />
     </SafeAreaView>
   );
@@ -793,6 +929,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     flexShrink: 1,
   },
+  participantMeta: {
+    marginTop: 7,
+    color: BAJUJU_COLORS.plum,
+    fontFamily: BAJUJU_FONTS.semiBold,
+    fontSize: 13,
+  },
   experienceActionsRow: {
     marginTop: 11,
     flexDirection: 'row',
@@ -839,6 +981,35 @@ const styles = StyleSheet.create({
     color: BAJUJU_COLORS.white,
     fontFamily: BAJUJU_FONTS.semiBold,
     fontSize: 12,
+  },
+  posterModalBackdrop: {
+    flex: 1,
+    backgroundColor: '#000000EE',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 18,
+  },
+  posterLargeImage: {
+    width: '100%',
+    height: '88%',
+  },
+  posterCloseButton: {
+    position: 'absolute',
+    zIndex: 10,
+    top: 48,
+    right: 20,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  posterCloseButtonText: {
+    color: '#222222',
+    fontSize: 32,
+    lineHeight: 34,
+    fontFamily: BAJUJU_FONTS.bold,
   },
   refreshButton: {
     marginTop: 18,

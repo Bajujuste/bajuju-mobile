@@ -111,9 +111,17 @@ to authenticated
 using (auth.uid() = user_id)
 with check (auth.uid() = user_id);
 
+drop policy if exists "push_notification_logs_delete_own" on public.push_notification_logs;
+create policy "push_notification_logs_delete_own"
+on public.push_notification_logs
+for delete
+to authenticated
+using (auth.uid() = user_id);
+
 create index if not exists push_tokens_user_id_idx on public.push_tokens(user_id);
 create index if not exists push_tokens_token_idx on public.push_tokens(expo_push_token);
 create index if not exists notification_preferences_enabled_idx on public.notification_preferences(enabled);
+create index if not exists push_notification_logs_user_sent_idx on public.push_notification_logs(user_id, sent_at desc);
 
 create or replace function public.set_updated_at()
 returns trigger

@@ -15,7 +15,10 @@ import {
   View,
 } from 'react-native';
 
+import { resolveAddressText } from '../src/lib/addressAutocomplete';
 import { supabase } from '../src/lib/supabase';
+
+const ACTIVE_PROVINCES = ['Bergamo', 'Milano', 'Lecco', 'Monza e Brianza', 'Verona'] as const;
 
 type ExperienceDraft = {
   title: string;
@@ -193,6 +196,7 @@ export default function AdminCreateExperienceScreen() {
       !payload.province ||
       !payload.meeting_place ||
       !payload.category ||
+      !(ACTIVE_PROVINCES as readonly string[]).includes(payload.province) ||
       !Number.isInteger(maxParticipants) ||
       maxParticipants < 1 ||
       maxParticipants > 99
@@ -214,6 +218,15 @@ export default function AdminCreateExperienceScreen() {
         throw authResult.error || new Error('Devi accedere come amministratore.');
       }
 
+      const resolvedLocation = await resolveAddressText(
+        [payload.meeting_place, payload.city, payload.province, 'Italia'].join(', ')
+      );
+      const geolocatedPayload = {
+        ...payload,
+        latitude: resolvedLocation.latitude,
+        longitude: resolvedLocation.longitude,
+      };
+
       const stableKey =
         idempotencyKey ||
         `admin-${creatorId}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
@@ -223,7 +236,7 @@ export default function AdminCreateExperienceScreen() {
       const result = await supabase.functions.invoke('admin-create-experience', {
         body: {
           idempotencyKey: stableKey,
-          payload,
+          payload: geolocatedPayload,
         },
       });
 

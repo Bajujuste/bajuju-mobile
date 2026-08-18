@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -15,7 +15,10 @@ import {
 } from 'react-native';
 
 import { EXPERIENCE_CATEGORIES } from '@/src/constants/experienceCategories';
+import { resolveAddressText } from '../src/lib/addressAutocomplete';
 import { supabase } from '../src/lib/supabase';
+
+const ACTIVE_PROVINCES = ['Bergamo', 'Milano', 'Lecco', 'Monza e Brianza', 'Verona'] as const;
 
 type ActivityRow = {
   id: string;
@@ -31,6 +34,8 @@ type ActivityRow = {
   max_participants: number | null;
   budget_amount: number | null;
   is_flash: boolean | null;
+  latitude: number | null;
+  longitude: number | null;
 };
 
 function cleanTime(value: string) {
@@ -70,6 +75,7 @@ export default function EditExperienceScreen() {
   const [category, setCategory] = useState('');
   const [maxParticipants, setMaxParticipants] = useState('');
   const [budgetAmount, setBudgetAmount] = useState('');
+  const originalLocationRef = useRef({ signature: '', latitude: null as number | null, longitude: null as number | null });
 
   const loadExperience = useCallback(async () => {
     setLoading(true);
@@ -91,7 +97,7 @@ export default function EditExperienceScreen() {
 
       const result = await supabase
         .from('activities')
-        .select('id,creator_id,title,description,activity_date,activity_time,city,province,meeting_place,category,max_participants,budget_amount,is_flash')
+        .select('id,creator_id,title,description,activity_date,activity_time,city,province,meeting_place,category,max_participants,budget_amount,is_flash,latitude,longitude')
         .eq('id', experienceId)
         .eq('creator_id', userId)
         .eq('is_flash', false)
@@ -133,6 +139,11 @@ export default function EditExperienceScreen() {
       setCategory(String(row.category || ''));
       setMaxParticipants(row.max_participants ? String(row.max_participants) : '');
       setBudgetAmount(row.budget_amount !== null && row.budget_amount !== undefined ? String(row.budget_amount) : '');
+      originalLocationRef.current = {
+        signature: [String(row.meeting_place || '').trim(), String(row.city || '').trim(), String(row.province || '').trim()].join('|').toLowerCase(),
+        latitude: row.latitude,
+        longitude: row.longitude,
+      };
     } catch (error: any) {
       setErrorText(error?.message || 'Errore durante il caricamento dell’evento.');
     } finally {
@@ -158,6 +169,11 @@ export default function EditExperienceScreen() {
 
     if (!cleanTitle || !cleanDescription || !cleanCity || !cleanProvince || !cleanMeetingPlace || !category) {
       Alert.alert('Campi mancanti', 'Completa titolo, descrizione, luogo, comune, provincia e categoria.');
+      return;
+    }
+
+    if (!(ACTIVE_PROVINCES as readonly string[]).includes(cleanProvince)) {
+      Alert.alert('Provincia non valida', 'Scegli una provincia attiva su Bajuju.');
       return;
     }
 
@@ -187,6 +203,30 @@ export default function EditExperienceScreen() {
     setSaving(true);
 
     try {
+      const nextLocationSignature = [cleanMeetingPlace, cleanCity, cleanProvince].join('|').toLowerCase();
+      let latitude = originalLocationRef.current.latitude;
+      let longitude = originalLocationRef.current.longitude;
+
+      if (
+        nextLocationSignature !== originalLocationRef.current.signature ||
+        latitude === null ||
+        longitude === null
+      ) {
+        try {
+          const resolved = await resolveAddressText(
+            [cleanMeetingPlace, cleanCity, cleanProvince, 'Italia'].join(', ')
+          );
+          latitude = resolved.latitude;
+          longitude = resolved.longitude;
+        } catch {
+          Alert.alert(
+            'Luogo non trovato',
+            'Non riesco a geolocalizzare il nuovo luogo. Controlla indirizzo, comune e provincia prima di salvare.'
+          );
+          return;
+        }
+      }
+
       const result = await supabase
         .from('activities')
         .update({
@@ -200,6 +240,8 @@ export default function EditExperienceScreen() {
           category,
           max_participants: parsedMax,
           budget_amount: parsedBudget,
+          latitude,
+          longitude,
         })
         .eq('id', experienceId)
         .eq('creator_id', authorizedUserId)
@@ -216,6 +258,12 @@ export default function EditExperienceScreen() {
         Alert.alert('Modifica non autorizzata', 'L’evento non è stato modificato perché non risulta creato da questo account.');
         return;
       }
+
+      originalLocationRef.current = {
+        signature: [cleanMeetingPlace, cleanCity, cleanProvince].join('|').toLowerCase(),
+        latitude,
+        longitude,
+      };
 
       Alert.alert('Evento aggiornato', 'Le modifiche sono state salvate.', [
         {

@@ -133,6 +133,38 @@ if (fs.existsSync(appConfigPath)) {
   }
 }
 
+
+function requireContent(relativePath, needle, label) {
+  const fullPath = path.join(root, relativePath);
+  if (!fs.existsSync(fullPath)) {
+    fail(`File mancante per controllo: ${relativePath}`);
+    return;
+  }
+  const content = fs.readFileSync(fullPath, 'utf8');
+  if (!content.includes(needle)) fail(label);
+  else success(label.replace(/^Manca /, 'Presente '));
+}
+
+function forbidContent(relativePath, needle, label) {
+  const fullPath = path.join(root, relativePath);
+  if (!fs.existsSync(fullPath)) return;
+  const content = fs.readFileSync(fullPath, 'utf8');
+  if (content.includes(needle)) fail(label);
+  else success(label.replace(/^È ancora presente /, 'Assente '));
+}
+
+requireContent('app/experiences-map.tsx', 'showUserLocation={viewerCoordinates !== null}', 'Manca protezione permesso GPS prima della posizione utente');
+requireContent('components/BajujuMap.tsx', 'viewportKey?: string', 'Manca protezione dai ricentramenti ripetuti della mappa');
+requireContent('app/admin-create-experience.tsx', 'resolveAddressText', 'Manca geolocalizzazione eventi Admin/ChatGPT');
+requireContent('app/edit-experience.tsx', 'latitude,\n          longitude,', 'Manca aggiornamento coordinate durante modifica evento');
+requireContent('app/notifications.tsx', 'deleteAllNotifications', 'Manca eliminazione notifiche');
+requireContent('app/_layout.tsx', 'addNotificationResponseReceivedListener', 'Manca apertura destinazione al tap della push');
+requireContent('app/experience-detail.tsx', 'experience-messages-${experienceId}', 'Manca realtime chat esperienze');
+requireContent('app/flash-detail.tsx', 'flash-messages-${flashId}', 'Manca realtime chat Flash');
+forbidContent('app/create-experience.tsx', "'Brescia',", 'È ancora presente Brescia tra le province attive di Crea esperienza');
+forbidContent('app/create-experience.tsx', "'Torino',", 'È ancora presente Torino tra le province attive di Crea esperienza');
+requireContent('app/create-experience.tsx', "'Verona',", 'Manca Verona tra le province attive di Crea esperienza');
+
 if (failed) {
   console.error('\nCONTROLLO PRE-BUILD NON SUPERATO');
   process.exit(1);

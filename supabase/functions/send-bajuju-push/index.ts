@@ -100,11 +100,29 @@ Deno.serve(async (request) => {
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
 
-  if (!supabaseUrl || !serviceRoleKey) {
+  if (!supabaseUrl || !serviceRoleKey || !anonKey) {
     return jsonResponse({ error: 'Missing Supabase env vars' }, 500);
   }
 
+  const authorization = request.headers.get('Authorization') || '';
+
+  if (!authorization.toLowerCase().startsWith('bearer ')) {
+    return jsonResponse({ error: 'Authentication required' }, 401);
+  }
+
+  const authClient = createClient(supabaseUrl, anonKey, {
+    global: { headers: { Authorization: authorization } },
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const { data: userData, error: userError } = await authClient.auth.getUser();
+
+  if (userError || !userData.user) {
+    return jsonResponse({ error: 'Authentication required' }, 401);
+  }
+
+  const authenticatedUserId = userData.user.id;
   const supabase = createClient(supabaseUrl, serviceRoleKey);
 
   let payload: PushRequest;
@@ -137,7 +155,11 @@ Deno.serve(async (request) => {
   }
 
   const prefColumn = preferenceColumn(type);
-  const actorUserId = payload.actorUserId || null;
+  if (payload.actorUserId && payload.actorUserId !== authenticatedUserId) {
+    return jsonResponse({ error: 'Actor non autorizzato' }, 403);
+  }
+
+  const actorUserId = authenticatedUserId;
   const targetUserId = payload.targetUserId || null;
   const province = payload.province ? String(payload.province).trim() : null;
 
@@ -178,7 +200,10 @@ Deno.serve(async (request) => {
     .map((pref: Record<string, unknown>) => String(pref.user_id));
 
   if (matchingUserIds.length === 0) {
-    return jsonResponse({ ok: true, sent: 0, reason: 'Nessun utente compatibile.' });
+    if (targetUserId) {
+      await supabase.from("push_notification_logs").insert({ user_id: targetUserId, notification_type: type, title, body, data: payload.data || {}, success: false, error_message: "Push non abilitata per questo utente." });
+    }
+    return jsonResponse({ ok: true, sent: 0, reason: "Nessun utente compatibile." });
   }
 
   const { data: tokens, error: tokensError } = await supabase
@@ -210,7 +235,8 @@ Deno.serve(async (request) => {
     }));
 
   if (messages.length === 0) {
-    return jsonResponse({ ok: true, sent: 0, reason: 'Nessun push token valido.' });
+    await supabase.from("push_notification_logs").insert(matchingUserIds.map((userId) => ({ user_id: userId, notification_type: type, title, body, data: payload.data || {}, success: false, error_message: "Nessun push token valido." })));
+    return jsonResponse({ ok: true, sent: 0, reason: "Nessun push token valido." });
   }
 
   let expoResult: unknown;

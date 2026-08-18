@@ -11,6 +11,7 @@ type RequestBody = {
 
 const MAX_TEXT_LENGTH = 500;
 const MAX_LONG_TEXT_LENGTH = 4000;
+const ACTIVE_PROVINCES = new Set(['Bergamo', 'Milano', 'Lecco', 'Monza e Brianza', 'Verona']);
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -59,6 +60,7 @@ function validateEventPayload(payload: EventPayload) {
   const time = cleanString(payload.activity_time || payload.time);
   const city = cleanString(payload.city || payload.citta);
   const province = cleanString(payload.province || payload.provincia);
+  const meetingPlace = cleanString(payload.meeting_place || payload.place || payload.address);
   const description = cleanString(payload.description || payload.activity_description || '');
   const latitude = optionalNumber(payload.latitude);
   const longitude = optionalNumber(payload.longitude);
@@ -69,9 +71,10 @@ function validateEventPayload(payload: EventPayload) {
   if (!date || !isValidIsoDate(date)) return 'INVALID_ACTIVITY_DATE';
   if (!time || !isValidTime(time)) return 'INVALID_ACTIVITY_TIME';
   if (!city || city.length > MAX_TEXT_LENGTH) return 'INVALID_CITY';
-  if (!province || province.length > 100) return 'INVALID_PROVINCE';
-  if (latitude !== null && (Number.isNaN(latitude) || latitude < -90 || latitude > 90)) return 'INVALID_LATITUDE';
-  if (longitude !== null && (Number.isNaN(longitude) || longitude < -180 || longitude > 180)) return 'INVALID_LONGITUDE';
+  if (!province || province.length > 100 || !ACTIVE_PROVINCES.has(province)) return 'INVALID_PROVINCE';
+  if (!meetingPlace || meetingPlace.length > MAX_TEXT_LENGTH) return 'INVALID_MEETING_PLACE';
+  if (latitude === null || Number.isNaN(latitude) || latitude < -90 || latitude > 90) return 'INVALID_LATITUDE';
+  if (longitude === null || Number.isNaN(longitude) || longitude < -180 || longitude > 180) return 'INVALID_LONGITUDE';
   if (maxParticipants !== null && (Number.isNaN(maxParticipants) || !Number.isInteger(maxParticipants) || maxParticipants < 1 || maxParticipants > 10000)) {
     return 'INVALID_MAX_PARTICIPANTS';
   }

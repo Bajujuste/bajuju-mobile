@@ -33,6 +33,11 @@ type BajujuMapProps = {
   previewActionText: string;
   onOpenItem: (item: BajujuMapItem) => void;
   fallbackRegion?: Region;
+  preferFallbackRegion?: boolean;
+  showUserLocation?: boolean;
+  hideHeader?: boolean;
+  viewportKey?: string;
+  onInteractionChange?: (active: boolean) => void;
 };
 
 const DEFAULT_REGION: Region = {
@@ -41,6 +46,74 @@ const DEFAULT_REGION: Region = {
   latitudeDelta: 0.32,
   longitudeDelta: 0.44,
 };
+
+type DisplayMarker = {
+  latitude: number;
+  longitude: number;
+  index: number;
+  total: number;
+};
+
+function buildDisplayMarkers(items: BajujuMapItem[]) {
+  const groups = new Map<string, BajujuMapItem[]>();
+
+  items.forEach((item) => {
+    const key =
+      `${item.latitude.toFixed(6)}|${item.longitude.toFixed(6)}`;
+
+    const group = groups.get(key) || [];
+    group.push(item);
+    groups.set(key, group);
+  });
+
+  const result = new Map<string, DisplayMarker>();
+
+  groups.forEach((group) => {
+    if (group.length === 1) {
+      const item = group[0];
+
+      result.set(item.id, {
+        latitude: item.latitude,
+        longitude: item.longitude,
+        index: 0,
+        total: 1,
+      });
+
+      return;
+    }
+
+    const baseLatitude = group[0].latitude;
+    const baseLongitude = group[0].longitude;
+
+    // Spostamento SOLO grafico di circa 20 metri.
+    // Le coordinate reali dell'evento non vengono modificate.
+    const radius = 0.0002;
+
+    const longitudeScale = Math.max(
+      Math.cos((baseLatitude * Math.PI) / 180),
+      0.3
+    );
+
+    group.forEach((item, index) => {
+      const angle =
+        -Math.PI / 2 +
+        (2 * Math.PI * index) / group.length;
+
+      result.set(item.id, {
+        latitude:
+          baseLatitude +
+          Math.cos(angle) * radius,
+        longitude:
+          baseLongitude +
+          (Math.sin(angle) * radius) / longitudeScale,
+        index,
+        total: group.length,
+      });
+    });
+  });
+
+  return result;
+}
 
 function buildInitialRegion(items: BajujuMapItem[]): Region {
   if (items.length === 0) return DEFAULT_REGION;
@@ -78,18 +151,30 @@ export default function BajujuMap({
   previewActionText,
   onOpenItem,
   fallbackRegion,
+  preferFallbackRegion = false,
+  showUserLocation = false,
+  hideHeader = false,
+  viewportKey,
+  onInteractionChange,
 }: BajujuMapProps) {
   const mapRef = useRef<MapView | null>(null);
   const [mapReady, setMapReady] = useState(false);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const preferredRegionKeyRef = useRef("");
+  const fittedViewportKeyRef = useRef("");
 
   const initialRegion = useMemo(
-    () => (items.length > 0 ? buildInitialRegion(items) : fallbackRegion || DEFAULT_REGION),
-    [fallbackRegion, items]
+    () => (preferFallbackRegion && fallbackRegion ? fallbackRegion : items.length > 0 ? buildInitialRegion(items) : fallbackRegion || DEFAULT_REGION),
+    [fallbackRegion, items, preferFallbackRegion]
   );
 
   const selectedItem =
     items.find((item) => item.id === selectedItemId) ?? null;
+
+  const displayMarkers = useMemo(
+    () => buildDisplayMarkers(items),
+    [items]
+  );
 
   useEffect(() => {
     if (selectedItemId && !items.some((item) => item.id === selectedItemId)) {
@@ -99,6 +184,17 @@ export default function BajujuMap({
 
   useEffect(() => {
     if (!mapReady || !mapRef.current) return;
+
+    if (preferFallbackRegion && fallbackRegion) {
+      const regionKey = `${fallbackRegion.latitude}:${fallbackRegion.longitude}:${fallbackRegion.latitudeDelta}:${fallbackRegion.longitudeDelta}`;
+      if (preferredRegionKeyRef.current !== regionKey) {
+        preferredRegionKeyRef.current = regionKey;
+        mapRef.current.animateToRegion(fallbackRegion, 350);
+      }
+      return;
+    }
+
+    if (viewportKey && fittedViewportKeyRef.current === viewportKey) return;
 
     if (items.length === 0) {
       mapRef.current.animateToRegion(
@@ -118,6 +214,7 @@ export default function BajujuMap({
         },
         350
       );
+      if (viewportKey) fittedViewportKeyRef.current = viewportKey;
       return;
     }
 
@@ -136,18 +233,51 @@ export default function BajujuMap({
         animated: true,
       }
     );
-  }, [fallbackRegion, items, mapReady]);
+    if (viewportKey) fittedViewportKeyRef.current = viewportKey;
+  }, [fallbackRegion, items, mapReady, preferFallbackRegion, viewportKey]);
+
+  const changeZoom = async (delta: number) => {
+    if (!mapRef.current) return;
+
+    try {
+      const camera = await mapRef.current.getCamera();
+
+      const currentZoom =
+        typeof camera.zoom === 'number'
+          ? camera.zoom
+          : 12;
+
+      const nextZoom = Math.max(
+        4,
+        Math.min(20, currentZoom + delta)
+      );
+
+      mapRef.current.animateCamera(
+        {
+          ...camera,
+          zoom: nextZoom,
+        },
+        {
+          duration: 220,
+        }
+      );
+    } catch {
+      // Il pinch zoom rimane comunque disponibile.
+    }
+  };
 
   return (
     <View style={styles.card}>
-      <View style={styles.header}>
-        <View style={styles.headerText}>
-          <Text style={styles.title}>{mapTitle}</Text>
-          <Text style={styles.subtitle}>{mapSubtitle}</Text>
-        </View>
+        {!hideHeader ? (
+          <View style={styles.header}>
+            <View style={styles.headerText}>
+              <Text style={styles.title}>{mapTitle}</Text>
+              <Text style={styles.subtitle}>{mapSubtitle}</Text>
+            </View>
 
-        <Text style={styles.count}>{items.length}</Text>
-      </View>
+            <Text style={styles.count}>{items.length}</Text>
+          </View>
+        ) : null}
 
       <View style={styles.mapShell}>
         <MapView
@@ -168,33 +298,85 @@ export default function BajujuMap({
           }}
           showsCompass
           showsScale
+          showsUserLocation={showUserLocation}
+          zoomEnabled={true}
+          scrollEnabled={true}
+          minZoomLevel={4}
+          maxZoomLevel={20}
           zoomControlEnabled
           toolbarEnabled={false}
           moveOnMarkerPress={false}
+          onTouchStart={() => onInteractionChange?.(true)}
+          onTouchEnd={() => onInteractionChange?.(false)}
+          onTouchCancel={() => onInteractionChange?.(false)}
+          onRegionChangeComplete={() => onInteractionChange?.(false)}
           onPress={() => setSelectedItemId(null)}
         >
           {items.map((item) => {
             const selected = selectedItemId === item.id;
 
+            const displayMarker =
+              displayMarkers.get(item.id) || {
+                latitude: item.latitude,
+                longitude: item.longitude,
+                index: 0,
+                total: 1,
+              };
+
             return (
               <Marker
                 key={item.id}
                 coordinate={{
-                  latitude: item.latitude,
-                  longitude: item.longitude,
+                  latitude: displayMarker.latitude,
+                  longitude: displayMarker.longitude,
                 }}
                 anchor={{ x: 0.5, y: 0.5 }}
-                image={require('../assets/map-marker-bajuju.png')}
-                tracksViewChanges={false}
-                opacity={selected ? 1 : 0.9}
+                tracksViewChanges={Platform.OS === "android"}
+                opacity={selected ? 1 : 0.96}
+                zIndex={selected ? 20 : 1}
                 onPress={(event) => {
                   event.stopPropagation();
                   setSelectedItemId(item.id);
                 }}
-              />
+              >
+                <View
+                  style={[
+                    styles.mapMarker,
+                    selected && styles.mapMarkerSelected,
+                  ]}
+                >
+                  <Text style={styles.mapMarkerIcon}>
+                    {item.icon}
+                  </Text>
+
+                  {displayMarker.total > 1 ? (
+                    <View style={styles.duplicateBadge}>
+                      <Text style={styles.duplicateBadgeText}>
+                        {displayMarker.index + 1}
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
+              </Marker>
             );
           })}
         </MapView>
+
+        <View style={styles.zoomButtons}>
+          <Pressable
+            style={styles.zoomButton}
+            onPress={() => changeZoom(1)}
+          >
+            <Text style={styles.zoomButtonText}>+</Text>
+          </Pressable>
+
+          <Pressable
+            style={styles.zoomButton}
+            onPress={() => changeZoom(-1)}
+          >
+            <Text style={styles.zoomButtonText}>−</Text>
+          </Pressable>
+        </View>
 
         {selectedItem ? (
           <Pressable
@@ -471,6 +653,77 @@ const styles = StyleSheet.create({
   map: {
     width: '100%',
     height: '100%',
+  },
+  mapMarker: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: BAJUJU_COLORS.white,
+    backgroundColor: BAJUJU_COLORS.brightPink,
+    shadowColor: '#4B1430',
+    shadowOpacity: 0.28,
+    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 6,
+  },
+  mapMarkerSelected: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 3,
+    borderColor: BAJUJU_COLORS.plum,
+  },
+  mapMarkerIcon: {
+    fontSize: 15,
+  },
+  duplicateBadge: {
+    position: 'absolute',
+    top: -7,
+    right: -7,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: BAJUJU_COLORS.plum,
+    borderWidth: 1,
+    borderColor: BAJUJU_COLORS.white,
+  },
+  duplicateBadgeText: {
+    color: BAJUJU_COLORS.white,
+    fontFamily: BAJUJU_FONTS.bold,
+    fontSize: 10,
+  },
+  zoomButtons: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    gap: 7,
+  },
+  zoomButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: BAJUJU_COLORS.white,
+    borderWidth: 1.5,
+    borderColor: BAJUJU_COLORS.palePink,
+    shadowColor: '#4B1430',
+    shadowOpacity: 0.18,
+    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 5,
+  },
+  zoomButtonText: {
+    color: BAJUJU_COLORS.plum,
+    fontFamily: BAJUJU_FONTS.bold,
+    fontSize: 25,
+    lineHeight: 27,
   },
   preview: {
     position: 'absolute',

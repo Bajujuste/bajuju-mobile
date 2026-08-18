@@ -1,5 +1,6 @@
 import { Share } from 'react-native';
 
+const BAJUJU_EVENT_LINK = 'https://bajuju.netlify.app';
 const BAJUJU_LINK = 'https://bajuju.it';
 
 type ShareExperienceParams = {
@@ -27,7 +28,7 @@ export async function shareBajujuExperience(params: ShareExperienceParams) {
   const when = [params.date, params.time].filter(Boolean).join(' alle ');
   const id = String(params.id || params.activityId || '').trim();
   const eventLink = id
-    ? `${BAJUJU_LINK}/experience-detail?id=${encodeURIComponent(id)}`
+    ? `${BAJUJU_EVENT_LINK}/experience-detail?id=${encodeURIComponent(id)}`
     : BAJUJU_LINK;
 
   const lines = [

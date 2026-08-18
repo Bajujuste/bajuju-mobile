@@ -241,6 +241,30 @@ export default function FlashDetailScreen() {
   useEffect(() => {
     loadFlash();
   }, [loadFlash]);
+  useEffect(() => {
+    if (!flashId) return;
+
+    const channel = supabase
+      .channel(`flash-messages-${flashId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'activity_messages',
+          filter: `activity_id=eq.${flashId}`,
+        },
+        () => {
+          void loadMessages(flashId);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [flashId, loadMessages]);
+
 
   const displayedParticipants = useMemo(() => {
     const creatorId = flashCreatorId(flash);

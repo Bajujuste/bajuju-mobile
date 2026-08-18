@@ -82,6 +82,45 @@ function validateEventPayload(payload: EventPayload) {
   return null;
 }
 
+async function notifyNearbyExperience(
+  supabaseUrl: string,
+  supabaseAnonKey: string,
+  authorization: string,
+  userId: string,
+  activityId: string,
+  title: string,
+  province: string
+) {
+  try {
+    const response = await fetch(`${supabaseUrl}/functions/v1/send-bajuju-push`, {
+      method: 'POST',
+      headers: {
+        apikey: supabaseAnonKey,
+        Authorization: authorization,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        type: 'new_experience',
+        actorUserId: userId,
+        title: `Nuova esperienza: ${title}`,
+        body: `${province}: nuova esperienza su Bajuju.`,
+        province,
+        data: {
+          screen: 'experience',
+          activityId,
+          title,
+        },
+      }),
+    });
+
+    if (!response.ok) {
+      console.log('Push nuova esperienza Admin non inviata:', response.status);
+    }
+  } catch {
+    console.log('Push nuova esperienza Admin non disponibile.');
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -156,6 +195,27 @@ Deno.serve(async (req) => {
 
   const result = (data || {}) as Record<string, unknown>;
   const status = typeof result.status === 'number' ? result.status : result.ok === false ? 400 : 200;
+
+  if (status >= 200 && status < 300 && result.ok !== false) {
+    const activityId = cleanString(
+      result.activity_id ||
+      result.id ||
+      (result.experience as Record<string, unknown> | undefined)?.id ||
+      (result.data as Record<string, unknown> | undefined)?.id
+    );
+
+    if (activityId) {
+      await notifyNearbyExperience(
+        supabaseUrl,
+        supabaseAnonKey,
+        authorization,
+        userData.user.id,
+        activityId,
+        cleanString(payload.title || payload.activity_title || payload.name),
+        cleanString(payload.province || payload.provincia)
+      );
+    }
+  }
 
   return jsonResponse(result, status);
 });

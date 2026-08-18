@@ -31,8 +31,15 @@ create table if not exists public.notification_preferences (
 
   preferred_province text,
   preferred_city text,
+  latitude double precision,
+  longitude double precision,
+  location_updated_at timestamptz,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  constraint notification_preferences_latitude_check
+    check (latitude is null or latitude between -90 and 90),
+  constraint notification_preferences_longitude_check
+    check (longitude is null or longitude between -180 and 180)
 );
 
 create table if not exists public.push_notification_logs (
@@ -121,6 +128,9 @@ using (auth.uid() = user_id);
 create index if not exists push_tokens_user_id_idx on public.push_tokens(user_id);
 create index if not exists push_tokens_token_idx on public.push_tokens(expo_push_token);
 create index if not exists notification_preferences_enabled_idx on public.notification_preferences(enabled);
+create index if not exists notification_preferences_new_experience_enabled_idx
+  on public.notification_preferences(enabled, notify_new_experience)
+  where enabled = true and notify_new_experience = true;
 create index if not exists push_notification_logs_user_sent_idx on public.push_notification_logs(user_id, sent_at desc);
 
 create or replace function public.set_updated_at()

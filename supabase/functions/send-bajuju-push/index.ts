@@ -20,6 +20,8 @@ type PushRequest = {
   city?: string | null;
 };
 
+const NEARBY_EXPERIENCE_RADIUS_KM = 25;
+
 const ALLOWED_TYPES = new Set([
   'new_experience',
   'new_flash',
@@ -69,10 +71,41 @@ function preferenceColumn(type: string) {
   }
 }
 
-async function sendExpoPush(messages: Array<Record<string, unknown>>) {
-  if (messages.length === 0) {
-    return [];
+function asFiniteNumber(value: unknown) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function toRadians(value: number) {
+  return (value * Math.PI) / 180;
+}
+
+function distanceKm(lat1: number, lon1: number, lat2: number, lon2: number) {
+  const earthRadiusKm = 6371.0088;
+  const dLat = toRadians(lat2 - lat1);
+  const dLon = toRadians(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRadians(lat1)) *
+      Math.cos(toRadians(lat2)) *
+      Math.sin(dLon / 2) ** 2;
+
+  return earthRadiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function firstText(row: Record<string, unknown> | null, keys: string[], fallback: string) {
+  if (!row) return fallback;
+
+  for (const key of keys) {
+    const value = row[key];
+    if (typeof value === 'string' && value.trim()) return value.trim();
   }
+
+  return fallback;
+}
+
+async function sendExpoPush(messages: Array<Record<string, unknown>>) {
+  if (messages.length === 0) return [];
 
   const response = await fetch('https://exp.host/--/api/v2/push/send', {
     method: 'POST',
@@ -129,21 +162,80 @@ Deno.serve(async (request) => {
     return jsonResponse({ error: `Tipo notifica non consentito: ${type}` }, 400);
   }
 
-  const title = String(payload.title || '').trim();
-  const body = String(payload.body || '').trim();
+  let title = String(payload.title || '').trim();
+  let body = String(payload.body || '').trim();
+  const prefColumn = preferenceColumn(type);
+  let actorUserId = payload.actorUserId || null;
+  const targetUserId = payload.targetUserId || null;
+  const province = payload.province ? String(payload.province).trim() : null;
+
+  let experienceLatitude: number | null = null;
+  let experienceLongitude: number | null = null;
+
+  if (type === 'new_experience' && !targetUserId) {
+    const activityId = String(payload.data?.activityId || '').trim();
+
+    if (!activityId) {
+      return jsonResponse({ error: 'activityId obbligatorio per una nuova esperienza.' }, 400);
+    }
+
+    const activityResult = await supabase
+      .from('activities')
+      .select('*')
+      .eq('id', activityId)
+      .maybeSingle();
+
+    if (activityResult.error) {
+      return jsonResponse({ error: activityResult.error.message }, 500);
+    }
+
+    if (!activityResult.data) {
+      return jsonResponse({ error: 'Esperienza non trovata.' }, 404);
+    }
+
+    const activity = activityResult.data as Record<string, unknown>;
+    experienceLatitude = asFiniteNumber(activity.latitude);
+    experienceLongitude = asFiniteNumber(activity.longitude);
+    actorUserId = String(activity.creator_id || actorUserId || '').trim() || null;
+
+    if (experienceLatitude === null || experienceLongitude === null) {
+      return jsonResponse({
+        ok: true,
+        sent: 0,
+        reason: 'Esperienza senza coordinate: notifica geografica non inviata.',
+      });
+    }
+
+    const experienceTitle = firstText(activity, ['title', 'titolo', 'name', 'nome'], 'una nuova esperienza');
+    let organizerName = 'Un utente';
+
+    if (actorUserId) {
+      const profileResult = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', actorUserId)
+        .maybeSingle();
+
+      if (!profileResult.error && profileResult.data) {
+        organizerName = firstText(
+          profileResult.data as Record<string, unknown>,
+          ['username', 'nickname', 'display_name', 'full_name', 'name', 'nome'],
+          organizerName
+        );
+      }
+    }
+
+    title = 'Nuova esperienza vicino a te';
+    body = `${organizerName} ha organizzato “${experienceTitle}” vicino a te.`;
+  }
 
   if (!title || !body) {
     return jsonResponse({ error: 'Titolo e testo notifica obbligatori' }, 400);
   }
 
-  const prefColumn = preferenceColumn(type);
-  const actorUserId = payload.actorUserId || null;
-  const targetUserId = payload.targetUserId || null;
-  const province = payload.province ? String(payload.province).trim() : null;
-
   let preferencesQuery = supabase
     .from('notification_preferences')
-    .select('user_id, enabled, preferred_province, notify_chat_messages, ' + prefColumn)
+    .select('user_id, enabled, preferred_province, notify_chat_messages, latitude, longitude, location_updated_at, ' + prefColumn)
     .eq('enabled', true)
     .eq(prefColumn, true)
     .eq('notify_chat_messages', false);
@@ -164,21 +256,50 @@ Deno.serve(async (request) => {
 
       if (!userId) return false;
       if (actorUserId && userId === actorUserId) return false;
-
-      // Per notifiche personali basta il target.
       if (targetUserId) return true;
 
-      // Per nuove esperienze/Flash filtriamo per provincia se l'utente ha preferenze.
-      const preferredProvince = pref.preferred_province ? String(pref.preferred_province).trim().toLowerCase() : '';
+      if (type === 'new_experience') {
+        const userLatitude = asFiniteNumber(pref.latitude);
+        const userLongitude = asFiniteNumber(pref.longitude);
 
-      if (preferredProvince && province && preferredProvince !== province.toLowerCase()) return false;
+        if (
+          userLatitude === null ||
+          userLongitude === null ||
+          experienceLatitude === null ||
+          experienceLongitude === null
+        ) {
+          return false;
+        }
+
+        return (
+          distanceKm(
+            experienceLatitude,
+            experienceLongitude,
+            userLatitude,
+            userLongitude
+          ) <= NEARBY_EXPERIENCE_RADIUS_KM
+        );
+      }
+
+      const preferredProvince = pref.preferred_province
+        ? String(pref.preferred_province).trim().toLowerCase()
+        : '';
+
+      if (preferredProvince && province && preferredProvince !== province.toLowerCase()) {
+        return false;
+      }
 
       return true;
     })
     .map((pref: Record<string, unknown>) => String(pref.user_id));
 
   if (matchingUserIds.length === 0) {
-    return jsonResponse({ ok: true, sent: 0, reason: 'Nessun utente compatibile.' });
+    return jsonResponse({
+      ok: true,
+      sent: 0,
+      radiusKm: type === 'new_experience' ? NEARBY_EXPERIENCE_RADIUS_KM : undefined,
+      reason: 'Nessun utente compatibile.',
+    });
   }
 
   const { data: tokens, error: tokensError } = await supabase
@@ -249,6 +370,7 @@ Deno.serve(async (request) => {
     ok: true,
     sent: messages.length,
     users: matchingUserIds.length,
+    radiusKm: type === 'new_experience' ? NEARBY_EXPERIENCE_RADIUS_KM : undefined,
     expoResult,
   });
 });

@@ -1,8 +1,9 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
-import { Stack, usePathname } from 'expo-router';
+import * as Notifications from 'expo-notifications';
+import { Stack, usePathname, useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -19,6 +20,8 @@ export const unstable_settings = {
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const pathname = usePathname();
+  const router = useRouter();
+  const lastOpenedNotificationRef = useRef('');
   const homeAlreadyHandlesSafeArea = pathname === '/home';
   const [fontsLoaded, fontError] = useFonts({
     FredokaRegular: require('../assets/fonts/Fredoka-400.ttf'),
@@ -32,6 +35,39 @@ export default function RootLayout() {
       SplashScreen.hideAsync().catch(() => {});
     }
   }, [fontError, fontsLoaded]);
+
+  useEffect(() => {
+    function openNotificationResponse(response: Notifications.NotificationResponse | null) {
+      if (!response) return;
+
+      const notificationId = String(response.notification.request.identifier || '');
+      if (notificationId && lastOpenedNotificationRef.current === notificationId) return;
+
+      const data = response.notification.request.content.data || {};
+      const type = String(data.type || '');
+      const activityId = String(data.activityId || '').trim();
+
+      if (type !== 'new_experience' || !activityId) return;
+
+      lastOpenedNotificationRef.current = notificationId;
+      router.push(`/experience-detail?id=${encodeURIComponent(activityId)}` as never);
+    }
+
+    const subscription = Notifications.addNotificationResponseReceivedListener(
+      openNotificationResponse
+    );
+
+    void Notifications.getLastNotificationResponseAsync()
+      .then((response) => {
+        openNotificationResponse(response);
+        return Notifications.clearLastNotificationResponseAsync();
+      })
+      .catch(() => {});
+
+    return () => {
+      subscription.remove();
+    };
+  }, [router]);
 
   if (!fontsLoaded && !fontError) {
     return null;

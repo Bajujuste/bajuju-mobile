@@ -1045,8 +1045,8 @@ export default function ProfileScreen() {
         // Se la tabella notifiche non è ancora pronta, il profilo resta comunque salvato.
       }
 
-      Alert.alert('Profilo salvato', 'Le modifiche sono state registrate.');
       await loadAll();
+      router.replace('/home');
     } catch (error: unknown) {
       console.log('Errore salvataggio profilo:', error);
 

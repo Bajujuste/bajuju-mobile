@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -87,6 +88,14 @@ function formatDate(value: any) {
 
 function profileName(row: LooseRow | null) {
   return firstText(row, ['nickname', 'username', 'display_name', 'full_name', 'name', 'nome', 'email'], 'Utente Bajuju');
+}
+
+function profilePhoto(row: LooseRow | null) {
+  return firstText(
+    row,
+    ['avatar_url', 'photo_url', 'profile_photo_url', 'profile_image_url', 'image_url', 'foto'],
+    ''
+  );
 }
 
 function profileStatus(row: LooseRow | null) {
@@ -249,6 +258,7 @@ export default function AdminUserDetailScreen() {
   }, [loadProfile]);
 
   const currentProfileId = String(firstValue(profile, ['id', 'user_id']) || userId);
+  const photoUrl = profilePhoto(profile);
   const premiumColumn = firstExistingColumn(profile, ['is_premium_organizer', 'is_premium', 'premium', 'premium_user']);
   const locationColumn = firstExistingColumn(profile, ['is_location_organizer', 'is_location', 'location', 'location_user']);
   const canManagePremium = Boolean(premiumColumn);
@@ -667,21 +677,56 @@ export default function AdminUserDetailScreen() {
       {profile ? (
         <>
           <View style={styles.card}>
-            <Text style={styles.name}>{profileName(profile)}</Text>
-            <Text style={styles.email}>{firstText(profile, ['email'], 'Email non disponibile')}</Text>
+            <View style={styles.profileHeader}>
+              {photoUrl ? (
+                <Image
+                  source={{ uri: photoUrl }}
+                  style={styles.profilePhoto}
+                  resizeMode="cover"
+                />
+              ) : (
+                <View style={styles.profilePhotoPlaceholder}>
+                  <Text style={styles.profilePhotoPlaceholderText}>Nessuna foto</Text>
+                </View>
+              )}
+
+              <View style={styles.profileHeaderText}>
+                <Text style={styles.name}>{profileName(profile)}</Text>
+                <Text style={styles.profileSubtitle}>Dati utente</Text>
+              </View>
+            </View>
+
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Email</Text>
+              <Text style={styles.detailValue}>
+                {firstText(profile, ['email'], 'Email non disponibile')}
+              </Text>
+            </View>
+
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Età</Text>
+              <Text style={styles.detailValue}>
+                {firstText(profile, ['age', 'eta', 'età'], 'Età non indicata')}
+              </Text>
+            </View>
+
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Sesso</Text>
+              <Text style={styles.detailValue}>
+                {firstText(profile, ['gender', 'genere', 'sex'], 'Non indicato')}
+              </Text>
+            </View>
+
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Città</Text>
+              <Text style={styles.detailValue}>
+                {firstText(profile, ['city', 'citta', 'comune'], 'Città non indicata')}
+              </Text>
+            </View>
 
             <View style={styles.detailRow}>
               <Text style={styles.detailLabel}>Stato</Text>
               <Text style={styles.detailValue}>{profileStatus(profile)}</Text>
-            </View>
-
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Città / Età / Genere</Text>
-              <Text style={styles.detailValue}>
-                {firstText(profile, ['city', 'citta', 'comune'], 'Città non indicata')} ·{' '}
-                {firstText(profile, ['age', 'eta', 'età'], 'età non indicata')} ·{' '}
-                {firstText(profile, ['gender', 'genere', 'sex'], 'genere non indicato')}
-              </Text>
             </View>
 
             <View style={styles.detailRow}>
@@ -970,6 +1015,46 @@ const styles = StyleSheet.create({
   emptyText: {
     color: '#7b4960',
     fontSize: 15,
+    fontWeight: '800',
+  },
+  profileHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    marginBottom: 8,
+  },
+  profileHeaderText: {
+    flex: 1,
+  },
+  profilePhoto: {
+    width: 104,
+    height: 104,
+    borderRadius: 52,
+    backgroundColor: '#fff0f7',
+    borderWidth: 2,
+    borderColor: '#ffd3e6',
+  },
+  profilePhotoPlaceholder: {
+    width: 104,
+    height: 104,
+    borderRadius: 52,
+    backgroundColor: '#fff0f7',
+    borderWidth: 2,
+    borderColor: '#ffd3e6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 10,
+  },
+  profilePhotoPlaceholderText: {
+    color: '#a95d86',
+    fontSize: 12,
+    fontWeight: '900',
+    textAlign: 'center',
+  },
+  profileSubtitle: {
+    marginTop: 4,
+    color: '#7b4960',
+    fontSize: 13,
     fontWeight: '800',
   },
   name: {

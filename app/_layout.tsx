@@ -9,6 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { supabase } from '../src/lib/supabase';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 function openPushNotification(data: Record<string, unknown>) {
@@ -36,6 +37,69 @@ function openPushNotification(data: Record<string, unknown>) {
 }
 
 
+type RequiredProfileRow = Record<string, unknown>;
+
+function requiredProfileText(row: RequiredProfileRow | null, keys: string[]) {
+  if (!row) return '';
+
+  for (const key of keys) {
+    const value = row[key];
+
+    if (typeof value === 'string' && value.trim()) return value.trim();
+    if (typeof value === 'number') return String(value);
+  }
+
+  return '';
+}
+
+function hasCompleteRequiredProfile(profile: RequiredProfileRow | null) {
+  if (!profile) return false;
+
+  const photo = requiredProfileText(
+    profile,
+    ['avatar_url', 'photo_url', 'profile_photo_url', 'profile_image_url', 'image_url', 'foto']
+  );
+
+  const city = requiredProfileText(
+    profile,
+    ['city', 'citta', 'comune', 'location_city']
+  );
+
+  const rawAge = requiredProfileText(
+    profile,
+    ['age', 'eta', 'età', 'user_age', 'age_range', 'fascia_eta', 'age_band', 'eta_range']
+  );
+
+  const gender = requiredProfileText(
+    profile,
+    ['gender', 'genere', 'sex']
+  ).toLowerCase();
+
+  const age = Number(rawAge);
+
+  const validGender = [
+    'maschio',
+    'uomo',
+    'male',
+    'femmina',
+    'donna',
+    'female',
+    'non_binario',
+    'non binario',
+    'non-binary',
+    'nonbinary',
+  ].includes(gender);
+
+  return Boolean(
+    photo &&
+    city &&
+    Number.isInteger(age) &&
+    age >= 18 &&
+    age <= 99 &&
+    validGender
+  );
+}
+
 export const unstable_settings = {
   anchor: '(tabs)',
 };
@@ -51,6 +115,54 @@ export default function RootLayout() {
     FredokaBold: require('../assets/fonts/Fredoka-700.ttf'),
   });
 
+
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+
+    const allowedPaths = new Set([
+      '/',
+      '/login',
+      '/register',
+      '/forgot-password',
+      '/reset-password',
+      '/auth/callback',
+      '/profile',
+      '/privacy',
+      '/rules',
+    ]);
+
+    if (allowedPaths.has(pathname)) return;
+
+    let active = true;
+
+    void (async () => {
+      try {
+        const authResult = await supabase.auth.getUser();
+        if (authResult.error) return;
+
+        const userId = authResult.data.user?.id;
+        if (!active || !userId) return;
+
+        const profileResult = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .maybeSingle();
+
+        if (!active || profileResult.error) return;
+
+        if (!hasCompleteRequiredProfile(profileResult.data as RequiredProfileRow | null)) {
+          router.replace('/profile');
+        }
+      } catch {
+        console.log('Controllo completamento profilo non disponibile.');
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [pathname]);
 
   useEffect(() => {
     if (Platform.OS === 'web') return;

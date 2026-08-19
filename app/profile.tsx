@@ -63,6 +63,7 @@ type ActivityItem = {
 const GENDER_OPTIONS = [
   { value: 'maschio', label: 'Uomo' },
   { value: 'femmina', label: 'Donna' },
+  { value: 'non_binario', label: 'Non binario' },
 ];
 
 const PROFILE_TABLE = 'profiles';
@@ -748,7 +749,7 @@ export default function ProfileScreen() {
         currentProfile,
         ['city', 'citta', 'comune', 'location_city'],
         ''
-      ).slice(0, 10)
+      ).slice(0, 40)
     );
     setAgeRange(firstText(currentProfile, ['age', 'eta', 'età', 'user_age', 'age_range', 'fascia_eta', 'age_band', 'eta_range'], ''));
     setGender(firstText(currentProfile, ['gender', 'genere', 'sex'], ''));
@@ -922,7 +923,7 @@ export default function ProfileScreen() {
     if (!user) return;
 
     const cleanProvince = province.trim();
-    const cleanHomeCity = homeCity.trim().slice(0, 10);
+    const cleanHomeCity = homeCity.trim().slice(0, 40);
     const cleanAge = ageRange.trim();
     const cleanProfileName = profileName.trim();
 
@@ -936,6 +937,11 @@ export default function ProfileScreen() {
       return;
     }
 
+    if (!cleanHomeCity) {
+      Alert.alert('Dato obbligatorio', 'Inserisci da dove vieni.');
+      return;
+    }
+
     if (!cleanAge) {
       Alert.alert('Dati mancanti', 'Inserisci la tua età.');
       return;
@@ -945,6 +951,11 @@ export default function ProfileScreen() {
 
     if (!Number.isInteger(numericAge) || numericAge < 18 || numericAge > 99) {
       Alert.alert('Età non valida', 'Inserisci un’età reale. Bajuju è riservato a utenti maggiorenni.');
+      return;
+    }
+
+    if (!['maschio', 'femmina', 'non_binario'].includes(gender)) {
+      Alert.alert('Sesso obbligatorio', 'Seleziona Uomo, Donna oppure Non binario.');
       return;
     }
 
@@ -1340,11 +1351,11 @@ export default function ProfileScreen() {
         <Text style={styles.label}>Di dove sei</Text>
         <TextInput
           value={homeCity}
-          onChangeText={(value) => setHomeCity(value.slice(0, 10))}
+          onChangeText={(value) => setHomeCity(value.slice(0, 40))}
           placeholder="Es. Bergamo"
           placeholderTextColor="#b26a91"
           style={styles.input}
-          maxLength={10}
+          maxLength={40}
           autoCapitalize="words"
           autoCorrect={false}
         />
@@ -1370,15 +1381,6 @@ export default function ProfileScreen() {
             </Pressable>
           ))}
         </View>
-
-        <Pressable
-          style={[styles.genderOptionSmall, gender === 'preferisco_non_specificarlo' && styles.optionActive]}
-          onPress={() => setGender('preferisco_non_specificarlo')}
-        >
-          <Text style={[styles.genderOptionSmallText, gender === 'preferisco_non_specificarlo' && styles.optionTextActive]}>
-            Preferisco non specificarlo
-          </Text>
-        </Pressable>
 
         <View style={[styles.toggleRow, notificationsEnabled && styles.toggleRowActive]}>
           <View style={{ flex: 1 }}>

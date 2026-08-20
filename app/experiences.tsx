@@ -14,18 +14,15 @@ import {
 import { BajujuBottomNav } from '@/src/components/navigation/BajujuBottomNav';
 import { EXPERIENCE_CATEGORIES, getExperienceCategoryIcon, normalizeExperienceCategory } from '@/src/constants/experienceCategories';
 import { BAJUJU_COLORS, BAJUJU_FONTS, BAJUJU_SHADOW } from '@/src/theme/bajujuTheme';
+import { ITALIAN_MUNICIPALITIES_BY_PROVINCE } from '../src/data/italianMunicipalities';
 import { supabase } from '../src/lib/supabase';
 
 const bajujuLogo = require('../assets/brand/bajuju-logo.png');
 
 const PROVINCE_OPTIONS = [
   'Tutte',
-  'Bergamo',
-  'Milano',
-  'Lecco',
-  'Monza e Brianza',
-  'Verona',
-] as const;
+  ...Object.keys(ITALIAN_MUNICIPALITIES_BY_PROVINCE).sort((a, b) => a.localeCompare(b, 'it')),
+];
 
 type ActivityRow = {
   id?: string;
@@ -89,7 +86,6 @@ function getExperienceCreatorId(row: ActivityRow) {
 function normalizeCategory(value: string | null | undefined) {
   return normalizeExperienceCategory(value).toLowerCase();
 }
-
 
 function getExperienceCoordinates(row: ActivityRow) {
   const latitude = Number(

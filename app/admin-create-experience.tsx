@@ -18,8 +18,6 @@ import {
 import { resolveAddressText } from '../src/lib/addressAutocomplete';
 import { supabase } from '../src/lib/supabase';
 
-const ACTIVE_PROVINCES = ['Bergamo', 'Milano', 'Lecco', 'Monza e Brianza', 'Verona'] as const;
-
 type ExperienceDraft = {
   title: string;
   description: string;
@@ -196,7 +194,6 @@ export default function AdminCreateExperienceScreen() {
       !payload.province ||
       !payload.meeting_place ||
       !payload.category ||
-      !(ACTIVE_PROVINCES as readonly string[]).includes(payload.province) ||
       !Number.isInteger(maxParticipants) ||
       maxParticipants < 1 ||
       maxParticipants > 99

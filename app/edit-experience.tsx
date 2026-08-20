@@ -18,8 +18,6 @@ import { EXPERIENCE_CATEGORIES } from '@/src/constants/experienceCategories';
 import { resolveAddressText } from '../src/lib/addressAutocomplete';
 import { supabase } from '../src/lib/supabase';
 
-const ACTIVE_PROVINCES = ['Bergamo', 'Milano', 'Lecco', 'Monza e Brianza', 'Verona'] as const;
-
 type ActivityRow = {
   id: string;
   creator_id: string;
@@ -169,11 +167,6 @@ export default function EditExperienceScreen() {
 
     if (!cleanTitle || !cleanDescription || !cleanCity || !cleanProvince || !cleanMeetingPlace || !category) {
       Alert.alert('Campi mancanti', 'Completa titolo, descrizione, luogo, comune, provincia e categoria.');
-      return;
-    }
-
-    if (!(ACTIVE_PROVINCES as readonly string[]).includes(cleanProvince)) {
-      Alert.alert('Provincia non valida', 'Scegli una provincia attiva su Bajuju.');
       return;
     }
 

@@ -237,8 +237,8 @@ export default function CreateExperienceScreen() {
 
   const canCreateExperience =
     title.trim().length > 0 &&
-    provinceIsValid &&
-    cityIsValid &&
+    province.trim().length > 0 &&
+    city.trim().length > 0 &&
     meetingPlace.trim().length > 0 &&
       resolvedAddress !== null &&
     description.trim().length > 0 &&

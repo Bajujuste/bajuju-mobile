@@ -14,9 +14,16 @@ import {
 } from 'react-native';
 
 import { supabase } from '../src/lib/supabase';
+import {
+  ORGANIZER_GRADE_OPTIONS,
+  effectiveOrganizerGrade,
+  isOrganizerGradeLabel,
+  organizerGradeFromCount,
+  organizerGradeFromLabel,
+  type OrganizerGradeLabel,
+} from '../src/utils/organizerGrade';
 
 type LooseRow = Record<string, any>;
-
 
 function booleanFromRow(row: LooseRow | null | undefined, keys: string[], fallback = false) {
   const value = firstValue(row, keys);
@@ -37,20 +44,25 @@ function booleanFromRow(row: LooseRow | null | undefined, keys: string[], fallba
 
 function firstText(row: LooseRow | null | undefined, keys: string[], fallback = '') {
   if (!row) return fallback;
+
   for (const key of keys) {
     const value = row[key];
+
     if (typeof value === 'string' && value.trim().length > 0) return value.trim();
     if (typeof value === 'number') return String(value);
     if (typeof value === 'boolean') return value ? 'Sì' : 'No';
   }
+
   return fallback;
 }
 
 function firstValue(row: LooseRow | null | undefined, keys: string[]) {
   if (!row) return undefined;
+
   for (const key of keys) {
     if (row[key] !== undefined && row[key] !== null) return row[key];
   }
+
   return undefined;
 }
 
@@ -77,8 +89,10 @@ function firstExistingColumn(row: LooseRow | null | undefined, keys: string[]) {
 
 function formatDate(value: any) {
   if (!value) return 'Non impostato';
+
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return String(value);
+
   return date.toLocaleString('it-IT', {
     day: '2-digit',
     month: '2-digit',
@@ -87,7 +101,11 @@ function formatDate(value: any) {
 }
 
 function profileName(row: LooseRow | null) {
-  return firstText(row, ['nickname', 'username', 'display_name', 'full_name', 'name', 'nome', 'email'], 'Utente Bajuju');
+  return firstText(
+    row,
+    ['nickname', 'username', 'display_name', 'full_name', 'name', 'nome', 'email'],
+    'Utente Bajuju'
+  );
 }
 
 function profilePhoto(row: LooseRow | null) {
@@ -115,24 +133,26 @@ async function tryUpdateProfile(id: string, payloads: LooseRow[]) {
   for (const payload of payloads) {
     try {
       const result = await supabase.from('profiles').update(payload).eq('id', id);
-      if (!result.error) return { ok: true, message: '' };
+
+      if (!result.error) {
+        return { ok: true, message: '' };
+      }
     } catch {
-      // Prova successiva.
+      // Prova il payload successivo.
     }
   }
 
-  return { ok: false, message: 'Aggiornamento non riuscito. Probabile policy Supabase o colonne mancanti.' };
+  return {
+    ok: false,
+    message: 'Aggiornamento non riuscito. Probabile policy Supabase o colonne mancanti.',
+  };
 }
-
 
 async function trySoftDeleteProfile(profileId: string, profile: LooseRow | null) {
   const realProfileId = String(firstValue(profile, ['id']) || profileId).trim();
 
   if (!realProfileId) {
-    return {
-      ok: false,
-      message: 'ID profilo non disponibile.',
-    };
+    return { ok: false, message: 'ID profilo non disponibile.' };
   }
 
   const result = await supabase
@@ -166,62 +186,74 @@ export default function AdminUserDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [profile, setProfile] = useState<LooseRow | null>(null);
-  const [gradeValue, setGradeValue] = useState('');
+  const [gradeOverride, setGradeOverride] = useState<OrganizerGradeLabel | ''>('');
+  const [organizedCount, setOrganizedCount] = useState(0);
   const [locationText, setLocationText] = useState('');
   const [savingRole, setSavingRole] = useState(false);
 
   const loadProfile = useCallback(async () => {
-    if (userId.length === 0) {
+    if (!userId) {
       setProfile(null);
+      setOrganizedCount(0);
       return;
     }
 
     try {
       const byId = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", userId)
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
         .maybeSingle();
 
       if (byId.error) {
         throw byId.error;
       }
 
-      if (byId.data === null) {
+      if (!byId.data) {
         setProfile(null);
+        setOrganizedCount(0);
         return;
       }
 
       const loadedProfile = byId.data as LooseRow;
+      const profileId = String(firstValue(loadedProfile, ['id']) || userId).trim();
+      const rawOverride = firstText(loadedProfile, ['organizer_grade_override'], '');
 
       setProfile(loadedProfile);
-      setGradeValue(
-        firstText(
-          loadedProfile,
-          ["user_grade", "grade", "grado", "organizer_grade"],
-          ""
-        )
-      );
+      setGradeOverride(isOrganizerGradeLabel(rawOverride) ? rawOverride : '');
       setLocationText(
         firstText(
           loadedProfile,
           [
-            "location_profile_text",
-            "location_description",
-            "location_text",
-            "descrizione_location",
+            'location_profile_text',
+            'location_description',
+            'location_text',
+            'descrizione_location',
           ],
-          ""
+          ''
         )
       );
+
+      const activitiesResult = await supabase
+        .from('activities')
+        .select('id,deleted_at')
+        .eq('creator_id', profileId)
+        .is('deleted_at', null);
+
+      if (!activitiesResult.error && Array.isArray(activitiesResult.data)) {
+        setOrganizedCount(activitiesResult.data.length);
+      } else {
+        setOrganizedCount(0);
+      }
     } catch (error: unknown) {
       const message =
         error instanceof Error
           ? error.message
-          : "Non sono riuscito a caricare il profilo.";
+          : 'Non sono riuscito a caricare il profilo.';
 
       setProfile(null);
-      Alert.alert("Errore", message);
+      setOrganizedCount(0);
+      Alert.alert('Errore', message);
     }
   }, [userId]);
 
@@ -240,9 +272,9 @@ export default function AdminUserDetailScreen() {
       }
     }
 
-    start();
+    void start();
 
-  return () => {
+    return () => {
       mounted = false;
     };
   }, [loadProfile]);
@@ -259,21 +291,39 @@ export default function AdminUserDetailScreen() {
 
   const currentProfileId = String(firstValue(profile, ['id', 'user_id']) || userId);
   const photoUrl = profilePhoto(profile);
-  const premiumColumn = firstExistingColumn(profile, ['is_premium_organizer', 'is_premium', 'premium', 'premium_user']);
-  const locationColumn = firstExistingColumn(profile, ['is_location_organizer', 'is_location', 'location', 'location_user']);
+  const premiumColumn = firstExistingColumn(
+    profile,
+    ['is_premium_organizer', 'is_premium', 'premium', 'premium_user']
+  );
+  const locationColumn = firstExistingColumn(
+    profile,
+    ['is_location_organizer', 'is_location', 'location', 'location_user']
+  );
   const canManagePremium = Boolean(premiumColumn);
   const canManageLocation = Boolean(locationColumn);
+  const automaticGrade = organizerGradeFromCount(organizedCount);
+  const visibleGrade = effectiveOrganizerGrade(organizedCount, gradeOverride);
   const canReactivateProfile = Boolean(
     profile &&
       (
-        firstValue(profile, ['deleted_at', 'removed_at', 'archived_at', 'blocked_until', 'suspended_until', 'suspended_at']) ||
-        booleanFromRow(profile, ['is_deleted', 'deleted', 'is_removed', 'removed', 'archived', 'blocked', 'suspended', 'is_blocked'], false) ||
+        firstValue(profile, [
+          'deleted_at',
+          'removed_at',
+          'archived_at',
+          'blocked_until',
+          'suspended_until',
+          'suspended_at',
+        ]) ||
+        booleanFromRow(
+          profile,
+          ['is_deleted', 'deleted', 'is_removed', 'removed', 'archived', 'blocked', 'suspended', 'is_blocked'],
+          false
+        ) ||
         ['deleted', 'removed', 'archived', 'blocked', 'suspended', 'eliminato', 'rimosso', 'archiviato', 'bloccato', 'sospeso'].includes(
           firstText(profile, ['status', 'account_status', 'stato'], '').toLowerCase().trim()
         )
       )
   );
-
 
   const reactivateUser = useCallback(async () => {
     if (!profile) return;
@@ -315,7 +365,7 @@ export default function AdminUserDetailScreen() {
 
             const result = await tryUpdateProfile(currentProfileId, payloads);
 
-            if (result.ok === false) {
+            if (!result.ok) {
               Alert.alert(
                 'Errore riattivazione',
                 result.message || 'Non sono riuscito a riattivare questo utente.'
@@ -338,93 +388,123 @@ export default function AdminUserDetailScreen() {
     ]);
   }, [currentProfileId, loadProfile, profile]);
 
-  const updateAdminRoleFields = useCallback(async (payload: LooseRow, successMessage: string) => {
-    if (!profile) return;
+  const updateAdminRoleFields = useCallback(
+    async (payload: LooseRow, successMessage: string) => {
+      if (!profile) return false;
 
-    setSavingRole(true);
+      setSavingRole(true);
 
-    try {
-      const safePayload = pickExistingPayload(profile, payload);
-      const safePayloadWithDate = pickExistingPayload(profile, {
-        ...payload,
-        updated_at: new Date().toISOString(),
-      });
+      try {
+        const safePayload = pickExistingPayload(profile, payload);
+        const safePayloadWithDate = pickExistingPayload(profile, {
+          ...payload,
+          updated_at: new Date().toISOString(),
+        });
 
-      const payloads = [safePayloadWithDate, safePayload].filter((item) => Object.keys(item).length > 0);
+        const payloads = [safePayloadWithDate, safePayload].filter(
+          (item) => Object.keys(item).length > 0
+        );
 
-      if (payloads.length === 0) {
-        Alert.alert('Colonna mancante', 'Nessuna delle colonne richieste esiste nel profilo caricato.');
-        return;
+        if (payloads.length === 0) {
+          Alert.alert('Colonna mancante', 'Nessuna delle colonne richieste esiste nel profilo caricato.');
+          return false;
+        }
+
+        const result = await tryUpdateProfile(currentProfileId, payloads);
+
+        if (!result.ok) {
+          Alert.alert(
+            'Errore aggiornamento',
+            result.message || 'Non sono riuscito ad aggiornare il profilo.'
+          );
+          return false;
+        }
+
+        Alert.alert('Aggiornato', successMessage);
+        await loadProfile();
+        return true;
+      } catch (error: unknown) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : 'Non sono riuscito ad aggiornare il profilo.';
+
+        Alert.alert('Errore aggiornamento', message);
+        return false;
+      } finally {
+        setSavingRole(false);
       }
-
-      const result = await tryUpdateProfile(currentProfileId, payloads);
-
-      if (!result.ok) {
-        Alert.alert('Errore aggiornamento', result.message || 'Non sono riuscito ad aggiornare il profilo.');
-        return;
-      }
-
-      Alert.alert('Aggiornato', successMessage);
-      await loadProfile();
-    } catch (error: unknown) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : 'Non sono riuscito ad aggiornare il profilo.';
-
-      Alert.alert('Errore aggiornamento', message);
-    } finally {
-      setSavingRole(false);
-    }
-  }, [currentProfileId, loadProfile, profile]);
+    },
+    [currentProfileId, loadProfile, profile]
+  );
 
   const togglePremium = useCallback(() => {
-    const active = booleanFromRow(profile, ['is_premium_organizer', 'is_premium', 'premium', 'premium_user'], false);
-    const column = firstExistingColumn(profile, ['is_premium_organizer', 'is_premium', 'premium', 'premium_user']);
+    const active = booleanFromRow(
+      profile,
+      ['is_premium_organizer', 'is_premium', 'premium', 'premium_user'],
+      false
+    );
+    const column = firstExistingColumn(
+      profile,
+      ['is_premium_organizer', 'is_premium', 'premium', 'premium_user']
+    );
 
     if (!column) {
       Alert.alert('Colonna mancante', 'Nel profilo caricato non trovo una colonna Premium esistente.');
       return;
     }
 
-    updateAdminRoleFields(
-      {
-        [column]: !active,
-      },
+    void updateAdminRoleFields(
+      { [column]: !active },
       !active ? 'Premium attivato.' : 'Premium disattivato.'
     );
   }, [profile, updateAdminRoleFields]);
 
   const toggleLocation = useCallback(() => {
-    const active = booleanFromRow(profile, ['is_location_organizer', 'is_location', 'location', 'location_user'], false);
-    const column = firstExistingColumn(profile, ['is_location_organizer', 'is_location', 'location', 'location_user']);
+    const active = booleanFromRow(
+      profile,
+      ['is_location_organizer', 'is_location', 'location', 'location_user'],
+      false
+    );
+    const column = firstExistingColumn(
+      profile,
+      ['is_location_organizer', 'is_location', 'location', 'location_user']
+    );
 
     if (!column) {
       Alert.alert('Colonna mancante', 'Nel profilo caricato non trovo una colonna Location esistente.');
       return;
     }
 
-    updateAdminRoleFields(
-      {
-        [column]: !active,
-      },
+    void updateAdminRoleFields(
+      { [column]: !active },
       !active ? 'Location attivato.' : 'Location disattivato.'
     );
   }, [profile, updateAdminRoleFields]);
 
-  const saveGrade = useCallback(() => {
-    updateAdminRoleFields(
-      {
-        user_grade: gradeValue.trim(),
-        grade: gradeValue.trim(),
-        grado: gradeValue.trim(),
-      },
-      'Grado utente aggiornato.'
+  const promoteToGrade = useCallback(
+    (grade: OrganizerGradeLabel) => {
+      const requested = organizerGradeFromLabel(grade);
+
+      if (!requested) return;
+
+      void updateAdminRoleFields(
+        { organizer_grade_override: grade },
+        `${grade} impostato. Colore e dicitura si aggiornano insieme.`
+      );
+    },
+    [updateAdminRoleFields]
+  );
+
+  const restoreAutomaticGrade = useCallback(() => {
+    void updateAdminRoleFields(
+      { organizer_grade_override: null },
+      'Promozione manuale rimossa. Il grado torna completamente automatico.'
     );
-  }, [gradeValue, updateAdminRoleFields]);
+  }, [updateAdminRoleFields]);
 
   const saveLocationText = useCallback(() => {
-    updateAdminRoleFields(
+    void updateAdminRoleFields(
       {
         location_profile_text: locationText.trim().slice(0, 200),
         location_description: locationText.trim().slice(0, 200),
@@ -433,7 +513,6 @@ export default function AdminUserDetailScreen() {
       'Testo Location aggiornato.'
     );
   }, [locationText, updateAdminRoleFields]);
-
 
   const suspendUser = useCallback(() => {
     if (!profile) return;
@@ -444,33 +523,33 @@ export default function AdminUserDetailScreen() {
         text: 'Sospendi',
         style: 'destructive',
         onPress: async () => {
-            try {
-          const farFuture = '2099-12-31T23:59:59.000Z';
+          try {
+            const farFuture = '2099-12-31T23:59:59.000Z';
 
-          const result = await tryUpdateProfile(currentProfileId, [
-            { suspended_until: farFuture, status: 'suspended' },
-            { suspended_until: farFuture },
-            { blocked_until: farFuture, status: 'suspended' },
-            { blocked_until: farFuture },
-            { is_blocked: true, blocked_until: farFuture },
-            { bloccato_fino: farFuture },
-          ]);
+            const result = await tryUpdateProfile(currentProfileId, [
+              { suspended_until: farFuture, status: 'suspended' },
+              { suspended_until: farFuture },
+              { blocked_until: farFuture, status: 'suspended' },
+              { blocked_until: farFuture },
+              { is_blocked: true, blocked_until: farFuture },
+              { bloccato_fino: farFuture },
+            ]);
 
-          if (!result.ok) {
-            Alert.alert('Errore', result.message);
-            return;
-          }
-
-          Alert.alert('Fatto', 'Utente sospeso.');
-          await loadProfile();
-            } catch (error: unknown) {
-              const message =
-                error instanceof Error
-                  ? error.message
-                  : "Non è stato possibile sospendere l’utente.";
-
-              Alert.alert("Errore", message);
+            if (!result.ok) {
+              Alert.alert('Errore', result.message);
+              return;
             }
+
+            Alert.alert('Fatto', 'Utente sospeso.');
+            await loadProfile();
+          } catch (error: unknown) {
+            const message =
+              error instanceof Error
+                ? error.message
+                : 'Non è stato possibile sospendere l’utente.';
+
+            Alert.alert('Errore', message);
+          }
         },
       },
     ]);
@@ -485,31 +564,31 @@ export default function AdminUserDetailScreen() {
         text: 'Blocca 7 giorni',
         style: 'destructive',
         onPress: async () => {
-            try {
-          const blockedUntil = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+          try {
+            const blockedUntil = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
-          const result = await tryUpdateProfile(currentProfileId, [
-            { blocked_until: blockedUntil, status: 'blocked' },
-            { blocked_until: blockedUntil },
-            { is_blocked: true, blocked_until: blockedUntil },
-            { bloccato_fino: blockedUntil },
-          ]);
+            const result = await tryUpdateProfile(currentProfileId, [
+              { blocked_until: blockedUntil, status: 'blocked' },
+              { blocked_until: blockedUntil },
+              { is_blocked: true, blocked_until: blockedUntil },
+              { bloccato_fino: blockedUntil },
+            ]);
 
-          if (!result.ok) {
-            Alert.alert('Errore', result.message);
-            return;
-          }
-
-          Alert.alert('Fatto', 'Utente bloccato per 7 giorni.');
-          await loadProfile();
-            } catch (error: unknown) {
-              const message =
-                error instanceof Error
-                  ? error.message
-                  : "Non è stato possibile bloccare l’utente.";
-
-              Alert.alert("Errore", message);
+            if (!result.ok) {
+              Alert.alert('Errore', result.message);
+              return;
             }
+
+            Alert.alert('Fatto', 'Utente bloccato per 7 giorni.');
+            await loadProfile();
+          } catch (error: unknown) {
+            const message =
+              error instanceof Error
+                ? error.message
+                : 'Non è stato possibile bloccare l’utente.';
+
+            Alert.alert('Errore', message);
+          }
         },
       },
     ]);
@@ -523,32 +602,32 @@ export default function AdminUserDetailScreen() {
       {
         text: 'Sblocca',
         onPress: async () => {
-            try {
-          const result = await tryUpdateProfile(currentProfileId, [
-            { blocked_until: null, suspended_until: null, status: 'active', is_blocked: false },
-            { blocked_until: null, suspended_until: null, is_blocked: false },
-            { blocked_until: null, status: 'active' },
-            { blocked_until: null },
-            { suspended_until: null },
-            { is_blocked: false },
-            { bloccato_fino: null },
-          ]);
+          try {
+            const result = await tryUpdateProfile(currentProfileId, [
+              { blocked_until: null, suspended_until: null, status: 'active', is_blocked: false },
+              { blocked_until: null, suspended_until: null, is_blocked: false },
+              { blocked_until: null, status: 'active' },
+              { blocked_until: null },
+              { suspended_until: null },
+              { is_blocked: false },
+              { bloccato_fino: null },
+            ]);
 
-          if (!result.ok) {
-            Alert.alert('Errore', result.message);
-            return;
-          }
-
-          Alert.alert('Fatto', 'Utente sbloccato.');
-          await loadProfile();
-            } catch (error: unknown) {
-              const message =
-                error instanceof Error
-                  ? error.message
-                  : "Non è stato possibile sbloccare l’utente.";
-
-              Alert.alert("Errore", message);
+            if (!result.ok) {
+              Alert.alert('Errore', result.message);
+              return;
             }
+
+            Alert.alert('Fatto', 'Utente sbloccato.');
+            await loadProfile();
+          } catch (error: unknown) {
+            const message =
+              error instanceof Error
+                ? error.message
+                : 'Non è stato possibile sbloccare l’utente.';
+
+            Alert.alert('Errore', message);
+          }
         },
       },
     ]);
@@ -557,33 +636,37 @@ export default function AdminUserDetailScreen() {
   const deleteUser = useCallback(() => {
     if (!profile) return;
 
-    Alert.alert('Disattivare utente', `Vuoi disattivare ${profileName(profile)}? L’account resterà recuperabile.`, [
-      { text: 'Annulla', style: 'cancel' },
-      {
-        text: 'Disattiva',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            const result = await trySoftDeleteProfile(currentProfileId, profile);
+    Alert.alert(
+      'Disattivare utente',
+      `Vuoi disattivare ${profileName(profile)}? L’account resterà recuperabile.`,
+      [
+        { text: 'Annulla', style: 'cancel' },
+        {
+          text: 'Disattiva',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const result = await trySoftDeleteProfile(currentProfileId, profile);
 
-            if (!result.ok) {
-              Alert.alert('Errore', result.message);
-              return;
+              if (!result.ok) {
+                Alert.alert('Errore', result.message);
+                return;
+              }
+
+              Alert.alert('Fatto', 'Utente disattivato.');
+              router.replace('/admin-users');
+            } catch (error: unknown) {
+              const message =
+                error instanceof Error
+                  ? error.message
+                  : 'Non è stato possibile disattivare l’utente.';
+
+              Alert.alert('Errore', message);
             }
-
-            Alert.alert('Fatto', 'Utente disattivato.');
-            router.replace('/admin-users');
-          } catch (error: unknown) {
-            const message =
-              error instanceof Error
-                ? error.message
-                : 'Non è stato possibile disattivare l’utente.';
-
-            Alert.alert('Errore', message);
-          }
+          },
         },
-      },
-    ]);
+      ]
+    );
   }, [currentProfileId, profile]);
 
   const hardDeleteUser = useCallback(() => {
@@ -615,7 +698,10 @@ export default function AdminUserDetailScreen() {
                       });
 
                       if (result.error) {
-                        Alert.alert('Errore eliminazione', result.error.message || 'Eliminazione non riuscita.');
+                        Alert.alert(
+                          'Errore eliminazione',
+                          result.error.message || 'Eliminazione non riuscita.'
+                        );
                         return;
                       }
 
@@ -627,7 +713,10 @@ export default function AdminUserDetailScreen() {
                         return;
                       }
 
-                      Alert.alert('Utente eliminato', 'Account eliminato definitivamente e email liberata.');
+                      Alert.alert(
+                        'Utente eliminato',
+                        'Account eliminato definitivamente e email liberata.'
+                      );
                       router.replace('/admin-users');
                     } catch (error: unknown) {
                       const message =
@@ -679,11 +768,7 @@ export default function AdminUserDetailScreen() {
           <View style={styles.card}>
             <View style={styles.profileHeader}>
               {photoUrl ? (
-                <Image
-                  source={{ uri: photoUrl }}
-                  style={styles.profilePhoto}
-                  resizeMode="cover"
-                />
+                <Image source={{ uri: photoUrl }} style={styles.profilePhoto} resizeMode="cover" />
               ) : (
                 <View style={styles.profilePhotoPlaceholder}>
                   <Text style={styles.profilePhotoPlaceholderText}>Nessuna foto</Text>
@@ -741,21 +826,40 @@ export default function AdminUserDetailScreen() {
             ) : null}
 
             <View style={styles.roleCard}>
-              <Text style={styles.roleTitle}>Gestione Premium / Location / Grado</Text>
+              <Text style={styles.roleTitle}>Premium / Location / Grado</Text>
 
               <View style={styles.roleButtonsRow}>
                 {canManagePremium ? (
                   <Pressable
                     style={[
                       styles.roleButton,
-                      booleanFromRow(profile, ['is_premium_organizer', 'is_premium', 'premium', 'premium_user'], false) && styles.roleButtonActive,
+                      booleanFromRow(
+                        profile,
+                        ['is_premium_organizer', 'is_premium', 'premium', 'premium_user'],
+                        false
+                      ) && styles.roleButtonActive,
                       savingRole && styles.roleButtonDisabled,
                     ]}
                     onPress={togglePremium}
                     disabled={savingRole}
                   >
-                    <Text style={styles.roleButtonText}>
-                      {booleanFromRow(profile, ['is_premium_organizer', 'is_premium', 'premium', 'premium_user'], false) ? 'Premium ON' : 'Premium OFF'}
+                    <Text
+                      style={[
+                        styles.roleButtonText,
+                        booleanFromRow(
+                          profile,
+                          ['is_premium_organizer', 'is_premium', 'premium', 'premium_user'],
+                          false
+                        ) && styles.roleButtonTextActive,
+                      ]}
+                    >
+                      {booleanFromRow(
+                        profile,
+                        ['is_premium_organizer', 'is_premium', 'premium', 'premium_user'],
+                        false
+                      )
+                        ? 'Premium ON'
+                        : 'Premium OFF'}
                     </Text>
                   </Pressable>
                 ) : (
@@ -768,14 +872,33 @@ export default function AdminUserDetailScreen() {
                   <Pressable
                     style={[
                       styles.roleButton,
-                      booleanFromRow(profile, ['is_location_organizer', 'is_location', 'location', 'location_user'], false) && styles.roleButtonActive,
+                      booleanFromRow(
+                        profile,
+                        ['is_location_organizer', 'is_location', 'location', 'location_user'],
+                        false
+                      ) && styles.roleButtonActive,
                       savingRole && styles.roleButtonDisabled,
                     ]}
                     onPress={toggleLocation}
                     disabled={savingRole}
                   >
-                    <Text style={styles.roleButtonText}>
-                      {booleanFromRow(profile, ['is_location_organizer', 'is_location', 'location', 'location_user'], false) ? 'Location ON' : 'Location OFF'}
+                    <Text
+                      style={[
+                        styles.roleButtonText,
+                        booleanFromRow(
+                          profile,
+                          ['is_location_organizer', 'is_location', 'location', 'location_user'],
+                          false
+                        ) && styles.roleButtonTextActive,
+                      ]}
+                    >
+                      {booleanFromRow(
+                        profile,
+                        ['is_location_organizer', 'is_location', 'location', 'location_user'],
+                        false
+                      )
+                        ? 'Location ON'
+                        : 'Location OFF'}
                     </Text>
                   </Pressable>
                 ) : (
@@ -785,17 +908,80 @@ export default function AdminUserDetailScreen() {
                 )}
               </View>
 
-              <Text style={styles.roleLabel}>Grado utente</Text>
-              <TextInput
-                value={gradeValue}
-                onChangeText={setGradeValue}
-                placeholder="Es. Organizzatore top, Partner, Staff"
-                placeholderTextColor="#a95d86"
-                style={styles.roleInput}
-              />
-              <Pressable style={[styles.roleSaveButton, savingRole && styles.roleButtonDisabled]} onPress={saveGrade} disabled={savingRole}>
-                <Text style={styles.roleSaveButtonText}>Salva grado</Text>
-              </Pressable>
+              <View style={styles.gradeSection}>
+                <Text style={styles.roleLabel}>Grado organizzatore</Text>
+
+                <View style={styles.gradeSummaryBox}>
+                  <Text style={styles.gradeSummaryLabel}>Automatico</Text>
+                  <Text style={styles.gradeSummaryValue}>
+                    {automaticGrade.label} · {organizedCount} eventi
+                  </Text>
+
+                  <Text style={[styles.gradeSummaryLabel, styles.gradeSummarySecondLabel]}>Visualizzato</Text>
+                  <Text style={styles.gradeSummaryValue}>{visibleGrade.label}</Text>
+
+                  {gradeOverride ? (
+                    <Text style={styles.manualPromotionText}>
+                      Promozione manuale: {gradeOverride}
+                    </Text>
+                  ) : (
+                    <Text style={styles.automaticText}>Nessuna promozione manuale.</Text>
+                  )}
+                </View>
+
+                <Text style={styles.gradeInstruction}>
+                  Scegli un grado: la dicitura e il colore del profilo cambiano insieme.
+                </Text>
+
+                <View style={styles.gradeChoices}>
+                  {ORGANIZER_GRADE_OPTIONS.map((grade) => {
+                    const info = organizerGradeFromLabel(grade);
+                    const isSelected = gradeOverride === grade;
+                    const isEarnedOrLower = Boolean(info && info.index <= automaticGrade.index);
+
+                    return (
+                      <Pressable
+                        key={grade}
+                        style={[
+                          styles.gradeChoice,
+                          info?.level === 'base' && styles.gradeChoiceBase,
+                          info?.level === 'active' && styles.gradeChoiceActive,
+                          info?.level === 'expert' && styles.gradeChoiceExpert,
+                          info?.level === 'top' && styles.gradeChoiceTop,
+                          isSelected && styles.gradeChoiceSelected,
+                          savingRole && styles.roleButtonDisabled,
+                        ]}
+                        onPress={() => promoteToGrade(grade)}
+                        disabled={savingRole}
+                      >
+                        <Text style={styles.gradeChoiceTitle}>{grade}</Text>
+                        <Text style={styles.gradeChoiceMeta}>
+                          {info?.level === 'base'
+                            ? 'Bianco'
+                            : info?.level === 'active'
+                              ? 'Verde'
+                              : info?.level === 'expert'
+                                ? 'Rosso'
+                                : 'Oro'}
+                          {isEarnedOrLower ? ' · già raggiunto' : ''}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+
+                <Pressable
+                  style={[styles.autoGradeButton, savingRole && styles.roleButtonDisabled]}
+                  onPress={restoreAutomaticGrade}
+                  disabled={savingRole || !gradeOverride}
+                >
+                  <Text style={styles.autoGradeButtonText}>Torna al grado automatico</Text>
+                </Pressable>
+
+                <Text style={styles.gradeRuleText}>
+                  La promozione manuale può solo alzare il grado. Se l’utente raggiunge un livello superiore con gli eventi, avanzerà comunque automaticamente.
+                </Text>
+              </View>
 
               <Text style={styles.roleLabel}>Testo Location max 200 caratteri</Text>
               <TextInput
@@ -807,11 +993,14 @@ export default function AdminUserDetailScreen() {
                 multiline
               />
               <Text style={styles.roleCounter}>{locationText.length}/200</Text>
-              <Pressable style={[styles.roleSaveButton, savingRole && styles.roleButtonDisabled]} onPress={saveLocationText} disabled={savingRole}>
+              <Pressable
+                style={[styles.roleSaveButton, savingRole && styles.roleButtonDisabled]}
+                onPress={saveLocationText}
+                disabled={savingRole}
+              >
                 <Text style={styles.roleSaveButtonText}>Salva testo Location</Text>
               </Pressable>
             </View>
-
           </View>
 
           <View style={styles.card}>
@@ -844,121 +1033,6 @@ export default function AdminUserDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  reactivateButton: {
-    marginTop: 14,
-    marginBottom: 4,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderRadius: 999,
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#2fb36d',
-    alignItems: 'center',
-  },
-  reactivateButtonText: {
-    color: '#197a45',
-    fontSize: 13,
-    fontWeight: '900',
-  },
-  roleCard: {
-    marginTop: 18,
-    padding: 16,
-    borderRadius: 22,
-    backgroundColor: '#fff8fb',
-    borderWidth: 1,
-    borderColor: '#ffd3e7',
-    gap: 10,
-  },
-  roleTitle: {
-    color: '#9b1f61',
-    fontSize: 16,
-    fontWeight: '900',
-  },
-  roleButtonsRow: {
-    flexDirection: 'row',
-    gap: 10,
-    flexWrap: 'wrap',
-  },
-  roleButton: {
-    flexGrow: 1,
-    minWidth: 130,
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    borderRadius: 16,
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#ffd3e7',
-    alignItems: 'center',
-  },
-  roleNotice: {
-    flexGrow: 1,
-    minWidth: 130,
-    paddingVertical: 11,
-    paddingHorizontal: 12,
-    borderRadius: 16,
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#ffd3e7',
-  },
-  roleNoticeText: {
-    color: '#a95d86',
-    fontSize: 12,
-    fontWeight: '800',
-    textAlign: 'center',
-    lineHeight: 17,
-  },
-  roleButtonActive: {
-    backgroundColor: '#e43f98',
-    borderColor: '#e43f98',
-  },
-  roleButtonDisabled: {
-    opacity: 0.65,
-  },
-  roleButtonText: {
-    color: '#9b1f61',
-    fontSize: 13,
-    fontWeight: '900',
-    textAlign: 'center',
-  },
-  roleLabel: {
-    marginTop: 8,
-    color: '#9b1f61',
-    fontSize: 13,
-    fontWeight: '900',
-  },
-  roleInput: {
-    borderWidth: 1,
-    borderColor: '#ffd3e7',
-    borderRadius: 16,
-    paddingVertical: 11,
-    paddingHorizontal: 13,
-    backgroundColor: '#ffffff',
-    color: '#4a1230',
-    fontSize: 14,
-    fontWeight: '800',
-  },
-  roleTextArea: {
-    minHeight: 86,
-    textAlignVertical: 'top',
-  },
-  roleCounter: {
-    alignSelf: 'flex-end',
-    color: '#a95d86',
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  roleSaveButton: {
-    alignSelf: 'flex-start',
-    paddingVertical: 10,
-    paddingHorizontal: 15,
-    borderRadius: 999,
-    backgroundColor: '#e43f98',
-  },
-  roleSaveButtonText: {
-    color: '#ffffff',
-    fontSize: 13,
-    fontWeight: '900',
-  },
   page: {
     flexGrow: 1,
     backgroundColor: '#fff8fb',
@@ -1062,12 +1136,6 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '900',
   },
-  email: {
-    color: '#7b4960',
-    fontSize: 14,
-    fontWeight: '800',
-    marginBottom: 8,
-  },
   sectionTitle: {
     color: '#4b1430',
     fontSize: 21,
@@ -1092,6 +1160,227 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
     lineHeight: 20,
+  },
+  reactivateButton: {
+    marginTop: 14,
+    marginBottom: 4,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#2fb36d',
+    alignItems: 'center',
+  },
+  reactivateButtonText: {
+    color: '#197a45',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  roleCard: {
+    marginTop: 18,
+    padding: 16,
+    borderRadius: 22,
+    backgroundColor: '#fff8fb',
+    borderWidth: 1,
+    borderColor: '#ffd3e7',
+    gap: 10,
+  },
+  roleTitle: {
+    color: '#9b1f61',
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  roleButtonsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    flexWrap: 'wrap',
+  },
+  roleButton: {
+    flexGrow: 1,
+    minWidth: 130,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#ffd3e7',
+    alignItems: 'center',
+  },
+  roleNotice: {
+    flexGrow: 1,
+    minWidth: 130,
+    paddingVertical: 11,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#ffd3e7',
+  },
+  roleNoticeText: {
+    color: '#a95d86',
+    fontSize: 12,
+    fontWeight: '800',
+    textAlign: 'center',
+    lineHeight: 17,
+  },
+  roleButtonActive: {
+    backgroundColor: '#e43f98',
+    borderColor: '#e43f98',
+  },
+  roleButtonDisabled: {
+    opacity: 0.55,
+  },
+  roleButtonText: {
+    color: '#9b1f61',
+    fontSize: 13,
+    fontWeight: '900',
+    textAlign: 'center',
+  },
+  roleButtonTextActive: {
+    color: '#ffffff',
+  },
+  roleLabel: {
+    marginTop: 8,
+    color: '#9b1f61',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  gradeSection: {
+    marginTop: 4,
+    gap: 10,
+  },
+  gradeSummaryBox: {
+    borderRadius: 16,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#ffd3e7',
+    padding: 13,
+  },
+  gradeSummaryLabel: {
+    color: '#a95d86',
+    fontSize: 11,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
+  gradeSummarySecondLabel: {
+    marginTop: 9,
+  },
+  gradeSummaryValue: {
+    color: '#4b1430',
+    fontSize: 15,
+    fontWeight: '900',
+    marginTop: 2,
+  },
+  manualPromotionText: {
+    marginTop: 9,
+    color: '#6e31a8',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  automaticText: {
+    marginTop: 9,
+    color: '#197a45',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  gradeInstruction: {
+    color: '#6b3652',
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: '800',
+  },
+  gradeChoices: {
+    gap: 8,
+  },
+  gradeChoice: {
+    borderRadius: 16,
+    borderWidth: 2,
+    paddingVertical: 11,
+    paddingHorizontal: 13,
+    backgroundColor: '#ffffff',
+  },
+  gradeChoiceBase: {
+    borderColor: '#e9dfe4',
+  },
+  gradeChoiceActive: {
+    borderColor: '#2fb36d',
+    backgroundColor: '#f2fff7',
+  },
+  gradeChoiceExpert: {
+    borderColor: '#e44848',
+    backgroundColor: '#fff7f7',
+  },
+  gradeChoiceTop: {
+    borderColor: '#d9a441',
+    backgroundColor: '#fffaf0',
+  },
+  gradeChoiceSelected: {
+    borderWidth: 3,
+  },
+  gradeChoiceTitle: {
+    color: '#4b1430',
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  gradeChoiceMeta: {
+    color: '#7b4960',
+    fontSize: 12,
+    fontWeight: '800',
+    marginTop: 3,
+  },
+  autoGradeButton: {
+    alignSelf: 'flex-start',
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#9b1f61',
+    backgroundColor: '#ffffff',
+    paddingVertical: 9,
+    paddingHorizontal: 13,
+  },
+  autoGradeButtonText: {
+    color: '#9b1f61',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  gradeRuleText: {
+    color: '#7b4960',
+    fontSize: 11,
+    lineHeight: 17,
+    fontWeight: '700',
+  },
+  roleInput: {
+    borderWidth: 1,
+    borderColor: '#ffd3e7',
+    borderRadius: 16,
+    paddingVertical: 11,
+    paddingHorizontal: 13,
+    backgroundColor: '#ffffff',
+    color: '#4a1230',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  roleTextArea: {
+    minHeight: 86,
+    textAlignVertical: 'top',
+  },
+  roleCounter: {
+    alignSelf: 'flex-end',
+    color: '#a95d86',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  roleSaveButton: {
+    alignSelf: 'flex-start',
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderRadius: 999,
+    backgroundColor: '#e43f98',
+  },
+  roleSaveButtonText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '900',
   },
   warningButton: {
     backgroundColor: '#9b1f61',

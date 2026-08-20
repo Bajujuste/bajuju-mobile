@@ -11,7 +11,6 @@ type RequestBody = {
 
 const MAX_TEXT_LENGTH = 500;
 const MAX_LONG_TEXT_LENGTH = 4000;
-const ACTIVE_PROVINCES = new Set(['Bergamo', 'Milano', 'Lecco', 'Monza e Brianza', 'Verona']);
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -71,7 +70,7 @@ function validateEventPayload(payload: EventPayload) {
   if (!date || !isValidIsoDate(date)) return 'INVALID_ACTIVITY_DATE';
   if (!time || !isValidTime(time)) return 'INVALID_ACTIVITY_TIME';
   if (!city || city.length > MAX_TEXT_LENGTH) return 'INVALID_CITY';
-  if (!province || province.length > 100 || !ACTIVE_PROVINCES.has(province)) return 'INVALID_PROVINCE';
+  if (!province || province.length > 100) return 'INVALID_PROVINCE';
   if (!meetingPlace || meetingPlace.length > MAX_TEXT_LENGTH) return 'INVALID_MEETING_PLACE';
   if (latitude === null || Number.isNaN(latitude) || latitude < -90 || latitude > 90) return 'INVALID_LATITUDE';
   if (longitude === null || Number.isNaN(longitude) || longitude < -180 || longitude > 180) return 'INVALID_LONGITUDE';

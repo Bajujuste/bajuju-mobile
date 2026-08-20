@@ -12,6 +12,10 @@ import {
 } from 'react-native';
 
 import { supabase } from '../src/lib/supabase';
+import {
+  effectiveOrganizerGrade,
+  organizerGradeHint,
+} from '../src/utils/organizerGrade';
 
 const bajujuLogo = require('../assets/brand/bajuju-logo.png');
 
@@ -22,12 +26,15 @@ type LooseRow = Record<string, any>;
 
 function firstText(row: LooseRow | null | undefined, keys: string[], fallback = '') {
   if (!row) return fallback;
+
   for (const key of keys) {
     const value = row[key];
+
     if (value !== null && value !== undefined && String(value).trim()) {
       return String(value).trim();
     }
   }
+
   return fallback;
 }
 
@@ -39,13 +46,6 @@ function firstPhoto(row: LooseRow | null | undefined) {
   );
 }
 
-function organizerGrade(count: number) {
-  if (count > 20) return 'Organizzatore top';
-  if (count > 10) return 'Organizzatore esperto';
-  if (count > 5) return 'Organizzatore attivo';
-  return 'Organizzatore base';
-}
-
 function booleanFromRow(row: LooseRow | null | undefined, keys: string[], fallback = false) {
   if (!row) return fallback;
 
@@ -53,11 +53,14 @@ function booleanFromRow(row: LooseRow | null | undefined, keys: string[], fallba
     const value = row[key];
 
     if (typeof value === 'boolean') return value;
+
     if (typeof value === 'string') {
       const normalized = value.trim().toLowerCase();
+
       if (['true', '1', 'yes', 'si', 'sì'].includes(normalized)) return true;
       if (['false', '0', 'no'].includes(normalized)) return false;
     }
+
     if (typeof value === 'number') return value === 1;
   }
 
@@ -72,27 +75,26 @@ function isCreatorProfile(profile: LooseRow | null) {
 function isAdminProfile(profile: LooseRow | null) {
   return (
     booleanFromRow(profile, ['is_admin', 'admin', 'is_master', 'master'], false) ||
-    ['admin', 'master', 'superadmin'].includes(firstText(profile, ['role', 'ruolo', 'user_role'], '').toLowerCase())
+    ['admin', 'master', 'superadmin'].includes(
+      firstText(profile, ['role', 'ruolo', 'user_role'], '').toLowerCase()
+    )
   );
 }
 
-function organizerGradeHint(count: number) {
-  if (count > 20) return 'Ha organizzato molte esperienze Bajuju.';
-  if (count > 10) return 'Ha già una buona esperienza come organizzatore.';
-  if (count > 5) return 'Partecipa attivamente alla vita della community.';
-  return 'Sta iniziando il suo percorso su Bajuju.';
-}
-
-async function safeFetchRows(table: string, column: string, userId: string) {
+async function fetchOrganizedExperienceIds(userId: string) {
   const result = await supabase
-    .from(table)
-    .select('id,activity_id,deleted_at')
-    .eq(column, userId)
+    .from('activities')
+    .select('id,deleted_at')
+    .eq('creator_id', userId)
     .is('deleted_at', null);
 
-  if (result.error || !result.data) return [];
+  if (result.error || !result.data) return new Set<string>();
 
-  return result.data as LooseRow[];
+  return new Set(
+    (result.data as LooseRow[])
+      .map((row) => String(row.id || '').trim())
+      .filter(Boolean)
+  );
 }
 
 async function safeFetchParticipantRows(userId: string) {
@@ -105,6 +107,7 @@ async function safeFetchParticipantRows(userId: string) {
 
   return (result.data as LooseRow[]).filter((row) => {
     const status = String(row.status || '').toLowerCase();
+
     return !['cancelled', 'canceled', 'rejected', 'left', 'deleted'].includes(status);
   });
 }
@@ -155,11 +158,10 @@ export default function UserProfileScreen() {
       }
 
       if (!userId) {
+        setProfile(null);
         setErrorText('Profilo non trovato.');
         return;
       }
-
-      let loadedProfile: LooseRow | null = null;
 
       const byId = await supabase
         .from('profiles')
@@ -167,34 +169,29 @@ export default function UserProfileScreen() {
         .eq('id', userId)
         .maybeSingle();
 
-      if (!byId.error && byId.data) {
-        loadedProfile = byId.data;
+      if (byId.error) {
+        throw byId.error;
       }
 
-      if (!loadedProfile) {
+      if (!byId.data) {
+        setProfile(null);
         setErrorText('Profilo non trovato.');
         return;
       }
 
+      const loadedProfile = byId.data as LooseRow;
       setProfile(loadedProfile);
 
       const profileId = String(loadedProfile.id || userId).trim();
-      const profileUserId = profileId;
-
-      const organizedIds = new Set<string>();
-
-      const organizedByCreatorId = await safeFetchRows('activities', 'creator_id', profileId || profileUserId);
-      organizedByCreatorId.forEach((row) => {
-        if (row.id) organizedIds.add(String(row.id));
-      });
-
+      const organizedIds = await fetchOrganizedExperienceIds(profileId);
       setOrganizedCount(organizedIds.size);
 
-      const participatedRows = await safeFetchParticipantRows(profileUserId);
+      const participatedRows = await safeFetchParticipantRows(profileId);
       const participatedIds = new Set<string>();
 
       participatedRows.forEach((row) => {
         const activityId = String(row.activity_id || '').trim();
+
         if (activityId && !organizedIds.has(activityId)) {
           participatedIds.add(activityId);
         }
@@ -207,6 +204,7 @@ export default function UserProfileScreen() {
           ? error.message
           : 'Errore durante il caricamento del profilo.';
 
+      setProfile(null);
       setErrorText(message);
     } finally {
       setLoading(false);
@@ -214,7 +212,7 @@ export default function UserProfileScreen() {
   }, [userId]);
 
   useEffect(() => {
-    loadProfile();
+    void loadProfile();
   }, [loadProfile]);
 
   async function reportUser() {
@@ -233,7 +231,11 @@ export default function UserProfileScreen() {
     setReportingUser(true);
 
     try {
-      const reportedName = firstText(profile, ['nickname', 'username', 'display_name', 'full_name', 'name', 'nome'], 'Utente Bajuju');
+      const reportedName = firstText(
+        profile,
+        ['nickname', 'username', 'display_name', 'full_name', 'name', 'nome'],
+        'Utente Bajuju'
+      );
 
       const result = await supabase.from('user_reports').insert({
         reporter_id: currentUserId,
@@ -328,7 +330,10 @@ export default function UserProfileScreen() {
       }
 
       setIsBlockedByMe(true);
-      Alert.alert('Utente bloccato', 'L’utente è stato bloccato. Non potrà più interagire con te e non riceverà notifiche relative alle tue attività.');
+      Alert.alert(
+        'Utente bloccato',
+        'L’utente è stato bloccato. Non potrà più interagire con te e non riceverà notifiche relative alle tue attività.'
+      );
     } catch (error: unknown) {
       const message =
         error instanceof Error
@@ -341,27 +346,53 @@ export default function UserProfileScreen() {
     }
   }
 
-  const name = firstText(profile, ['nickname', 'username', 'display_name', 'full_name', 'name', 'nome'], 'Utente Bajuju');
-  const homeCity = firstText(profile, ['city', 'citta', 'comune', 'location_city'], '').slice(0, 10);
+  const name = firstText(
+    profile,
+    ['nickname', 'username', 'display_name', 'full_name', 'name', 'nome'],
+    'Utente Bajuju'
+  );
+  const homeCity = firstText(profile, ['city', 'citta', 'comune', 'location_city'], '').slice(0, 40);
   const age = firstText(profile, ['age', 'eta', 'età', 'user_age', 'age_range', 'fascia_eta', 'age_band', 'eta_range'], '');
   const gender = firstText(profile, ['gender', 'genere'], '');
   const photo = firstPhoto(profile);
   const isCreator = isCreatorProfile(profile);
   const isAdmin = isAdminProfile(profile);
   const isAdminOrCreator = isCreator || isAdmin;
-  const isPremium = booleanFromRow(profile, ['is_premium_organizer', 'is_premium', 'premium', 'premium_user'], false);
-  const grade = isCreator
+  const isPremium = booleanFromRow(
+    profile,
+    ['is_premium_organizer', 'is_premium', 'premium', 'premium_user'],
+    false
+  );
+  const manualGrade = firstText(profile, ['organizer_grade_override'], '');
+  const gradeInfo = effectiveOrganizerGrade(organizedCount, manualGrade);
+  const gradeLabel = isCreator
     ? 'Creatore app'
     : isAdmin
       ? 'Admin'
-      : isPremium
-        ? 'Organizzatore premium'
-        : organizerGrade(organizedCount);
+      : gradeInfo.label;
   const gradeHint = isAdminOrCreator
     ? 'Profilo ufficiale Bajuju'
-    : isPremium
-      ? 'Organizzatore Premium verificato da Bajuju.'
-      : organizerGradeHint(organizedCount);
+    : organizerGradeHint(gradeInfo);
+
+  const photoFrameStyle = isAdminOrCreator
+    ? styles.photoFrameAdmin
+    : gradeInfo.level === 'top'
+      ? styles.photoFrameGold
+      : gradeInfo.level === 'expert'
+        ? styles.photoFrameExpert
+        : gradeInfo.level === 'active'
+          ? styles.photoFrameGreen
+          : styles.photoFrameBase;
+
+  const gradeBadgeStyle = isAdminOrCreator
+    ? styles.gradeBadgeAdmin
+    : gradeInfo.level === 'top'
+      ? styles.gradeBadgeGold
+      : gradeInfo.level === 'expert'
+        ? styles.gradeBadgeExpert
+        : gradeInfo.level === 'active'
+          ? styles.gradeBadgeGreen
+          : styles.gradeBadgeBase;
 
   return (
     <ScrollView style={styles.page} contentContainerStyle={styles.content}>
@@ -382,56 +413,50 @@ export default function UserProfileScreen() {
       ) : (
         <>
           <View style={styles.card}>
-            <View
-              style={[
-                styles.photoFrame,
-                isAdminOrCreator
-                  ? styles.photoFrameAdmin
-                  : isPremium
-                    ? styles.photoFrameStrong
-                    : organizedCount > 20
-                      ? styles.photoFrameGold
-                      : organizedCount > 10
-                        ? styles.photoFrameStrong
-                        : organizedCount > 5
-                          ? styles.photoFrameGreen
-                          : styles.photoFrameBase,
-              ]}
-            >
-              <Image source={photo ? { uri: photo } : bajujuLogo} style={styles.photo} resizeMode="cover" />
+            <View style={[styles.photoFrame, photoFrameStyle]}>
+              <Image
+                source={photo ? { uri: photo } : bajujuLogo}
+                style={styles.photo}
+                resizeMode="cover"
+              />
             </View>
 
             <Text style={styles.name}>{name}</Text>
 
-            <View
-              style={[
-                styles.gradeBadge,
-                isAdminOrCreator
-                  ? styles.gradeBadgeAdmin
-                  : isPremium
-                    ? styles.gradeBadgeStrong
-                    : organizedCount > 20
-                      ? styles.gradeBadgeGold
-                      : organizedCount > 10
-                        ? styles.gradeBadgeStrong
-                        : organizedCount > 5
-                          ? styles.gradeBadgeGreen
-                          : styles.gradeBadgeBase,
-              ]}
-            >
-              <Text style={styles.gradeText}>{grade}</Text>
+            <View style={[styles.gradeBadge, gradeBadgeStyle]}>
+              <Text style={styles.gradeText}>{gradeLabel}</Text>
             </View>
+
+            {!isAdminOrCreator && isPremium ? (
+              <View style={styles.premiumBadge}>
+                <Text style={styles.premiumBadgeText}>Organizzatore Premium</Text>
+              </View>
+            ) : null}
 
             <Text style={styles.gradeHint}>{gradeHint}</Text>
 
+            {!isAdminOrCreator && isPremium ? (
+              <Text style={styles.premiumHint}>Premium verificato direttamente da Bajuju.</Text>
+            ) : null}
+
             {currentUserId && currentUserId !== userId ? (
               <>
-                <Pressable style={styles.reportUserButton} onPress={reportUser} disabled={reportingUser}>
-                  <Text style={styles.reportUserText}>{reportingUser ? 'Invio segnalazione...' : 'Segnala utente'}</Text>
+                <Pressable
+                  style={styles.reportUserButton}
+                  onPress={reportUser}
+                  disabled={reportingUser}
+                >
+                  <Text style={styles.reportUserText}>
+                    {reportingUser ? 'Invio segnalazione...' : 'Segnala utente'}
+                  </Text>
                 </Pressable>
 
                 {!isAdminOrCreator ? (
-                  <Pressable style={styles.blockUserButton} onPress={blockUser} disabled={blockingUser}>
+                  <Pressable
+                    style={styles.blockUserButton}
+                    onPress={blockUser}
+                    disabled={blockingUser}
+                  >
                     <Text style={styles.blockUserText}>
                       {blockingUser ? 'Aggiorno...' : isBlockedByMe ? 'Sblocca utente' : 'Blocca utente'}
                     </Text>
@@ -519,9 +544,9 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     backgroundColor: '#ffffff',
   },
-  photoFrameBase: { borderWidth: 3, borderColor: '#ffffff' },
+  photoFrameBase: { borderWidth: 3, borderColor: '#e9dfe4' },
   photoFrameGreen: { borderWidth: 3, borderColor: '#2fb36d' },
-  photoFrameStrong: { borderWidth: 3, borderColor: '#e44848' },
+  photoFrameExpert: { borderWidth: 3, borderColor: '#e44848' },
   photoFrameAdmin: { borderWidth: 3, borderColor: BAJUJU_PINK },
   photoFrameGold: { borderWidth: 3, borderColor: '#d9a441' },
   photo: {
@@ -542,22 +567,45 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 14,
     marginBottom: 8,
+    borderWidth: 1,
   },
-  gradeBadgeBase: { backgroundColor: '#fff0f7' },
-  gradeBadgeGreen: { backgroundColor: '#e8fff2' },
-  gradeBadgeStrong: { backgroundColor: '#fff1f1' },
-  gradeBadgeAdmin: { backgroundColor: '#ffe3f0' },
-  gradeBadgeGold: { backgroundColor: '#fff7db' },
+  gradeBadgeBase: { backgroundColor: '#ffffff', borderColor: '#e9dfe4' },
+  gradeBadgeGreen: { backgroundColor: '#e8fff2', borderColor: '#b8e8cb' },
+  gradeBadgeExpert: { backgroundColor: '#fff1f1', borderColor: '#f0b9b9' },
+  gradeBadgeAdmin: { backgroundColor: '#ffe3f0', borderColor: '#ffc3df' },
+  gradeBadgeGold: { backgroundColor: '#fff7db', borderColor: '#ead58a' },
   gradeText: {
     fontSize: 14,
     fontWeight: '900',
-    color: '#9b1f61',
+    color: '#6b3652',
+  },
+  premiumBadge: {
+    borderRadius: 999,
+    paddingVertical: 7,
+    paddingHorizontal: 13,
+    marginBottom: 8,
+    backgroundColor: '#f4eaff',
+    borderWidth: 1,
+    borderColor: '#cfa8f4',
+  },
+  premiumBadgeText: {
+    color: '#6e31a8',
+    fontSize: 13,
+    fontWeight: '900',
   },
   gradeHint: {
     fontSize: 14,
     lineHeight: 20,
     fontWeight: '700',
     color: '#6b3652',
+    textAlign: 'center',
+  },
+  premiumHint: {
+    marginTop: 4,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '800',
+    color: '#6e31a8',
     textAlign: 'center',
   },
   reportUserButton: {

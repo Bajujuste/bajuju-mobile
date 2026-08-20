@@ -4,7 +4,7 @@ import DateTimePicker, {
 import { router } from 'expo-router';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import {
   Image,
   Modal,
@@ -20,19 +20,10 @@ import {
 import { AddressAutocompleteField } from '../src/components/AddressAutocompleteField';
 import { BajujuBottomNav } from '../src/components/navigation/BajujuBottomNav';
 import { EXPERIENCE_CREATION_CATEGORIES } from '../src/constants/experienceCategories';
-import { ITALIAN_MUNICIPALITIES_BY_PROVINCE } from '../src/data/italianMunicipalities';
 import type { ResolvedAddress } from '../src/lib/addressAutocomplete';
 import { supabase } from '../src/lib/supabase';
 import { BAJUJU_COLORS, BAJUJU_FONTS, BAJUJU_SHADOW } from '../src/theme/bajujuTheme';
 import { sendBajujuPushNotification, buildExperienceNotificationTitle } from '../src/utils/bajujuNotifications';
-
-const LOCATION_OPTIONS = [
-  'Bergamo',
-  'Milano',
-  'Lecco',
-  'Monza e Brianza',
-  'Verona',
-];
 
 function categoryToDatabaseValue(value: string) {
   switch (value) {
@@ -169,7 +160,7 @@ export default function CreateExperienceScreen() {
   const [resolvedAddress, setResolvedAddress] = useState<ResolvedAddress | null>(null);
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
-  const [openSelect, setOpenSelect] = useState<null | 'province' | 'city' | 'category'>(null);
+  const [openSelect, setOpenSelect] = useState<null | 'category'>(null);
 
   const [day, setDay] = useState('');
   const [month, setMonth] = useState('');
@@ -226,21 +217,12 @@ export default function CreateExperienceScreen() {
       cleanBudgetAmount <= 9999
     );
 
-  const provinceMunicipalities = useMemo(() => {
-    return ITALIAN_MUNICIPALITIES_BY_PROVINCE[
-      province.trim() as keyof typeof ITALIAN_MUNICIPALITIES_BY_PROVINCE
-    ] ?? [];
-  }, [province]);
-
-  const provinceIsValid = LOCATION_OPTIONS.includes(province.trim());
-  const cityIsValid = provinceMunicipalities.includes(city.trim() as never);
-
   const canCreateExperience =
     title.trim().length > 0 &&
-    provinceIsValid &&
-    cityIsValid &&
+    province.trim().length > 0 &&
+    city.trim().length > 0 &&
     meetingPlace.trim().length > 0 &&
-      resolvedAddress !== null &&
+    resolvedAddress !== null &&
     description.trim().length > 0 &&
     category.trim().length > 0 &&
     Boolean(isoDate) &&
@@ -333,12 +315,12 @@ export default function CreateExperienceScreen() {
     const cleanCategory = category.trim();
     const databaseCategory = categoryToDatabaseValue(cleanCategory);
 
-      if (!resolvedAddress) {
-        if (typeof window !== 'undefined') {
-          window.alert('Seleziona un indirizzo completo dai suggerimenti.');
-        }
-        return;
+    if (!resolvedAddress) {
+      if (typeof window !== 'undefined') {
+        window.alert('Seleziona un indirizzo completo dai suggerimenti.');
       }
+      return;
+    }
 
     if (!isoDate || !cleanTime) {
       if (typeof window !== 'undefined') {
@@ -365,7 +347,7 @@ export default function CreateExperienceScreen() {
         return;
       }
 
-        const finalMeetingPlace = `${resolvedAddress.street} ${resolvedAddress.streetNumber}`;
+      const finalMeetingPlace = `${resolvedAddress.street} ${resolvedAddress.streetNumber}`;
 
       const payload = {
         creator_id: creatorId,
@@ -382,8 +364,8 @@ export default function CreateExperienceScreen() {
         budget_amount: needsBudget ? cleanBudgetAmount : null,
         is_flash: false,
         expires_at: null,
-          latitude: resolvedAddress.latitude,
-          longitude: resolvedAddress.longitude,
+        latitude: resolvedAddress.latitude,
+        longitude: resolvedAddress.longitude,
       };
 
       const result = await supabase.from('activities').insert(payload).select('*').single();
@@ -534,22 +516,22 @@ export default function CreateExperienceScreen() {
               <Text style={styles.sectionTitle}>Dove si svolge</Text>
             </View>
 
-              <AddressAutocompleteField
-                value={meetingPlace}
-                resolvedAddress={resolvedAddress}
-                onValueChange={setMeetingPlace}
-                onResolvedAddressChange={(address) => {
-                  setResolvedAddress(address);
-                  setProvince(address?.province ?? '');
-                  setCity(address?.city ?? '');
-                  setStreetNumber(address?.streetNumber ?? '');
-                }}
-                disabled={saving}
-              />
+            <AddressAutocompleteField
+              value={meetingPlace}
+              resolvedAddress={resolvedAddress}
+              onValueChange={setMeetingPlace}
+              onResolvedAddressChange={(address) => {
+                setResolvedAddress(address);
+                setProvince(address?.province ?? '');
+                setCity(address?.city ?? '');
+                setStreetNumber(address?.streetNumber ?? '');
+              }}
+              disabled={saving}
+            />
 
-              <Text style={styles.helperText}>
-                Inizia a scrivere l’indirizzo e seleziona quello corretto dai suggerimenti.
-              </Text>
+            <Text style={styles.helperText}>
+              Inizia a scrivere l’indirizzo e seleziona quello corretto dai suggerimenti.
+            </Text>
           </View>
 
           <View style={[styles.formSection, styles.whenSection]}>
@@ -678,38 +660,38 @@ export default function CreateExperienceScreen() {
               maxLength={500}
             />
 
-              <Text style={styles.label}>Foto esperienza</Text>
+            <Text style={styles.label}>Foto esperienza</Text>
 
-              <Pressable style={styles.photoPicker} onPress={handlePickPhoto}>
-                {photoUri ? (
-                  <Image
-                    source={{ uri: photoUri }}
-                    style={styles.photoPreview}
-                    resizeMode="cover"
-                  />
-                ) : (
-                  <View style={styles.photoPlaceholder}>
-                    <Text style={styles.photoPlaceholderTitle}>Aggiungi una foto</Text>
-                    <Text style={styles.photoPlaceholderText}>Formato panoramico 16:9</Text>
-                  </View>
-                )}
-              </Pressable>
-
+            <Pressable style={styles.photoPicker} onPress={handlePickPhoto}>
               {photoUri ? (
-                <View style={styles.photoActions}>
-                  <Pressable style={styles.photoActionButton} onPress={handlePickPhoto}>
-                    <Text style={styles.photoActionText}>Sostituisci</Text>
-                  </Pressable>
-
-                  <Pressable style={styles.photoActionButton} onPress={() => setPhotoUri(null)}>
-                    <Text style={styles.photoRemoveText}>Rimuovi</Text>
-                  </Pressable>
-                </View>
+                <Image
+                  source={{ uri: photoUri }}
+                  style={styles.photoPreview}
+                  resizeMode="cover"
+                />
               ) : (
-                <Text style={styles.photoHelper}>
-                  Facoltativa. La foto viene adattata automaticamente.
-                </Text>
+                <View style={styles.photoPlaceholder}>
+                  <Text style={styles.photoPlaceholderTitle}>Aggiungi una foto</Text>
+                  <Text style={styles.photoPlaceholderText}>Formato panoramico 16:9</Text>
+                </View>
               )}
+            </Pressable>
+
+            {photoUri ? (
+              <View style={styles.photoActions}>
+                <Pressable style={styles.photoActionButton} onPress={handlePickPhoto}>
+                  <Text style={styles.photoActionText}>Sostituisci</Text>
+                </Pressable>
+
+                <Pressable style={styles.photoActionButton} onPress={() => setPhotoUri(null)}>
+                  <Text style={styles.photoRemoveText}>Rimuovi</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <Text style={styles.photoHelper}>
+                Facoltativa. La foto viene adattata automaticamente.
+              </Text>
+            )}
           </View>
 
           <View style={styles.previewBox}>
@@ -764,39 +746,20 @@ export default function CreateExperienceScreen() {
         <Pressable style={styles.modalBackdrop} onPress={() => setOpenSelect(null)}>
           <Pressable style={styles.modalSheet} onPress={() => {}}>
             <View style={styles.modalHandle} />
-            <Text style={styles.modalTitle}>
-              {openSelect === 'province'
-                ? 'Seleziona provincia'
-                : openSelect === 'city'
-                  ? 'Seleziona comune'
-                  : 'Seleziona categoria'}
-            </Text>
+            <Text style={styles.modalTitle}>Seleziona categoria</Text>
 
             <ScrollView style={styles.modalOptions} contentContainerStyle={styles.modalOptionsContent}>
-              {(openSelect === 'province'
-                ? LOCATION_OPTIONS
-                : openSelect === 'city'
-                  ? provinceMunicipalities
-                  : EXPERIENCE_CREATION_CATEGORIES
-              ).map((item) => {
-                const isSelected =
-                  openSelect === 'province' ? province === item : openSelect === 'city' ? city === item : category === item;
+              {EXPERIENCE_CREATION_CATEGORIES.map((item) => {
+                const isSelected = category === item;
 
                 return (
                   <Pressable
                     key={item}
                     style={[styles.modalOption, isSelected && styles.modalOptionActive]}
                     onPress={() => {
-                      if (openSelect === 'province') {
-                        setProvince(item);
-                        setCity('');
-                      } else if (openSelect === 'city') {
-                        setCity(item);
-                      } else {
-                        setCategory(item);
-                        if (item !== 'Gita' && item !== 'Vacanza') {
-                          setBudgetAmount('');
-                        }
+                      setCategory(item);
+                      if (item !== 'Gita' && item !== 'Vacanza') {
+                        setBudgetAmount('');
                       }
                       setOpenSelect(null);
                     }}

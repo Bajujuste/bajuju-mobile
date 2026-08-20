@@ -17,42 +17,13 @@ import BajujuMap, { BajujuMapItem } from '../components/BajujuMap';
 import { BajujuBottomNav } from '@/src/components/navigation/BajujuBottomNav';
 import { EXPERIENCE_CATEGORIES, getExperienceCategoryIcon, normalizeExperienceCategory } from '@/src/constants/experienceCategories';
 import { BAJUJU_COLORS, BAJUJU_FONTS, BAJUJU_SHADOW } from '@/src/theme/bajujuTheme';
+import { ITALIAN_MUNICIPALITIES_BY_PROVINCE } from '../src/data/italianMunicipalities';
 import { supabase } from '../src/lib/supabase';
 
-const PROVINCE_REGIONS = {
-  Bergamo: {
-    latitude: 45.6983,
-    longitude: 9.6773,
-    latitudeDelta: 0.42,
-    longitudeDelta: 0.52,
-  },
-  Milano: {
-    latitude: 45.4642,
-    longitude: 9.19,
-    latitudeDelta: 0.46,
-    longitudeDelta: 0.58,
-  },
-  Lecco: {
-    latitude: 45.8566,
-    longitude: 9.3977,
-    latitudeDelta: 0.38,
-    longitudeDelta: 0.48,
-  },
-  'Monza e Brianza': {
-    latitude: 45.5845,
-    longitude: 9.2744,
-    latitudeDelta: 0.34,
-    longitudeDelta: 0.44,
-  },
-  Verona: {
-    latitude: 45.4384,
-    longitude: 10.9916,
-    latitudeDelta: 0.48,
-    longitudeDelta: 0.58,
-  },
-} as const;
-
-const PROVINCE_OPTIONS = ['Tutte', 'Bergamo', 'Milano', 'Lecco', 'Monza e Brianza', 'Verona'] as const;
+const PROVINCE_OPTIONS = [
+  'Tutte',
+  ...Object.keys(ITALIAN_MUNICIPALITIES_BY_PROVINCE).sort((a, b) => a.localeCompare(b, 'it')),
+];
 const WHEN_OPTIONS = ['Tutte', 'Oggi', 'Domani', 'Questo weekend', 'Prossimi 7 giorni'] as const;
 
 type ActivityRow = Record<string, any>;

@@ -1317,7 +1317,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: 22,
     paddingTop: 20,
-    paddingBottom: 132,
+    paddingBottom: 190,
     backgroundColor: BAJUJU_COLORS.background,
   },
   backButton: {

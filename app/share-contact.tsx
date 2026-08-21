@@ -296,7 +296,7 @@ export default function ShareContactScreen() {
         </Pressable>
 
         <View style={styles.card}>
-          <Text style={styles.title}>Condividi contatto</Text>
+          <Text style={styles.title}>Invia WhatsApp o Telegram</Text>
           <Text style={styles.subtitle}>Con {targetName}. Il dato sarà visibile solo dopo l’accettazione.</Text>
 
           {loading ? (

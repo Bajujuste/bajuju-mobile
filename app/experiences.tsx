@@ -1,6 +1,8 @@
-import { router } from 'expo-router';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import * as Location from 'expo-location';
+import { router, useFocusEffect } from 'expo-router';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   Image,
   Modal,
   Pressable,
@@ -12,25 +14,19 @@ import {
 } from 'react-native';
 
 import { BajujuBottomNav } from '@/src/components/navigation/BajujuBottomNav';
-import { EXPERIENCE_CATEGORIES, getExperienceCategoryIcon, normalizeExperienceCategory } from '@/src/constants/experienceCategories';
-import { BAJUJU_COLORS, BAJUJU_FONTS, BAJUJU_SHADOW } from '@/src/theme/bajujuTheme';
-import { ITALIAN_MUNICIPALITIES_BY_PROVINCE } from '../src/data/italianMunicipalities';
+import { getExperienceCategoryIcon, normalizeExperienceCategory } from '@/src/constants/experienceCategories';
 import { supabase } from '../src/lib/supabase';
 
 const bajujuLogo = require('../assets/brand/bajuju-logo.png');
+const PAGE_SIZE = 20;
+const NEARBY_RADIUS_KM = 25;
+const PAST_RETENTION_DAYS = 30;
 
-const PROVINCE_OPTIONS = [
-  'Tutte',
-  ...Object.keys(ITALIAN_MUNICIPALITIES_BY_PROVINCE).sort((a, b) => a.localeCompare(b, 'it')),
-];
+type Mode = 'nearby' | 'joined' | 'past';
 
 type ActivityRow = {
   id?: string;
   creator_id?: string | null;
-  organizer_id?: string | null;
-  created_by?: string | null;
-  user_id?: string | null;
-  profile_id?: string | null;
   title?: string | null;
   category?: string | null;
   city?: string | null;
@@ -39,13 +35,13 @@ type ActivityRow = {
   activity_time?: string | null;
   max_participants?: number | null;
   is_flash?: boolean | null;
-  image_url?: string | null;
   photo_url?: string | null;
+  image_url?: string | null;
   cover_url?: string | null;
-  activity_image_url?: string | null;
-  thumbnail_url?: string | null;
   deleted_at?: string | null;
   status?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
 };
 
 type ParticipantRow = {
@@ -54,975 +50,441 @@ type ParticipantRow = {
   status?: string | null;
 };
 
+type Coordinates = { latitude: number; longitude: number };
+
+type ExperienceWithDistance = ActivityRow & { distanceKm?: number | null };
+
 function participantIsActive(row: ParticipantRow) {
-  const status = String(row.status || '').toLowerCase().trim();
-
-  return ![
-    'rejected',
-    'rifiutato',
-    'declined',
-    'annullato',
-    'annullata',
-    'deleted',
-    'eliminato',
-    'eliminata',
-    'removed',
-    'cancellato',
-    'cancellata',
-  ].includes(status);
-}
-
-function getExperienceCreatorId(row: ActivityRow) {
-  return String(
-    row.creator_id ||
-      row.organizer_id ||
-      row.created_by ||
-      row.user_id ||
-      row.profile_id ||
-      ''
-  ).trim();
-}
-
-function normalizeCategory(value: string | null | undefined) {
-  return normalizeExperienceCategory(value).toLowerCase();
-}
-
-function getExperienceCoordinates(row: ActivityRow) {
-  const latitude = Number(
-    (row as any).latitude ??
-      (row as any).lat ??
-      (row as any).location_latitude ??
-      (row as any).meeting_latitude
-  );
-
-  const longitude = Number(
-    (row as any).longitude ??
-      (row as any).lng ??
-      (row as any).lon ??
-      (row as any).location_longitude ??
-      (row as any).meeting_longitude
-  );
-
-  if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
-    return { latitude, longitude };
-  }
-
-  return null;
-}
-
-function getExperienceAddress(row: ActivityRow) {
-  return String(
-    (row as any).meeting_place ||
-      (row as any).place ||
-      (row as any).luogo ||
-      (row as any).address ||
-      (row as any).indirizzo ||
-      ''
-  ).trim();
-}
-
-function activityImageUrl(row: ActivityRow) {
-  return String(
-    row.image_url ||
-      row.photo_url ||
-      row.cover_url ||
-      row.activity_image_url ||
-      row.thumbnail_url ||
-      ''
-  ).trim();
-}
-
-function activityImageSource(row: ActivityRow) {
-  const imageUrl = activityImageUrl(row);
-
-  if (imageUrl) {
-    return { uri: imageUrl };
-  }
-
-  return bajujuLogo;
-}
-
-function formatDateItalian(value: string | null | undefined) {
-  if (!value) return 'Data da definire';
-
-  const parts = value.split('-');
-  if (parts.length !== 3) return value;
-
-  const [year, month, day] = parts;
-  return `${day}/${month}/${year}`;
-}
-
-function isFutureOrToday(row: ActivityRow) {
-  if (!row.activity_date) return true;
-
-  const activityTime = row.activity_time || '23:59';
-  const date = new Date(`${row.activity_date}T${activityTime}`);
-
-  if (Number.isNaN(date.getTime())) return true;
-
-  return date.getTime() >= new Date().getTime();
+  return !['annullato', 'annullata', 'rejected', 'rifiutato', 'declined', 'deleted', 'removed']
+    .includes(String(row.status || '').trim().toLowerCase());
 }
 
 function isDeleted(row: ActivityRow) {
   if (row.deleted_at) return true;
+  return ['deleted', 'eliminato', 'eliminata', 'removed', 'cancelled', 'canceled', 'annullato', 'annullata', 'archived', 'closed']
+    .includes(String(row.status || '').trim().toLowerCase());
+}
 
-  const status = String(row.status || '').toLowerCase().trim();
+function activityMoment(row: ActivityRow) {
+  if (!row.activity_date) return null;
+  const value = new Date(`${row.activity_date}T${row.activity_time || '23:59'}`);
+  return Number.isNaN(value.getTime()) ? null : value;
+}
 
-  return [
-    'deleted',
-    'eliminato',
-    'eliminata',
-    'removed',
-    'cancelled',
-    'canceled',
-    'annullato',
-    'annullata',
-    'archived',
-    'closed',
-  ].includes(status);
+function formatDate(row: ActivityRow) {
+  const moment = activityMoment(row);
+  if (!moment) return 'Data da definire';
+  return moment.toLocaleString('it-IT', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+function imageUrl(row: ActivityRow) {
+  return String(row.photo_url || row.image_url || row.cover_url || '').trim();
+}
+
+function toRadians(value: number) {
+  return value * Math.PI / 180;
+}
+
+function distanceKm(from: Coordinates, to: Coordinates) {
+  const earthRadius = 6371.0088;
+  const dLat = toRadians(to.latitude - from.latitude);
+  const dLon = toRadians(to.longitude - from.longitude);
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRadians(from.latitude)) * Math.cos(toRadians(to.latitude)) * Math.sin(dLon / 2) ** 2;
+  return earthRadius * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function rowCoordinates(row: ActivityRow): Coordinates | null {
+  const latitude = Number(row.latitude);
+  const longitude = Number(row.longitude);
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+  return { latitude, longitude };
 }
 
 export default function ExperiencesScreen() {
-  const [selectedCategory, setSelectedCategory] = useState('Tutti');
-  const [categoryMenuOpen, setCategoryMenuOpen] = useState(false);
-  const [selectedProvince, setSelectedProvince] = useState('Tutte');
-  const [provinceMenuOpen, setProvinceMenuOpen] = useState(false);
+  const [mode, setMode] = useState<Mode>('nearby');
   const [activities, setActivities] = useState<ActivityRow[]>([]);
+  const [myActivityIds, setMyActivityIds] = useState<Set<string>>(new Set());
   const [participantCounts, setParticipantCounts] = useState<Record<string, number>>({});
-  const [selectedPosterUrl, setSelectedPosterUrl] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState('');
+  const [coordinates, setCoordinates] = useState<Coordinates | null>(null);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [selectedPosterUrl, setSelectedPosterUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState('');
 
-  const loadExperiences = useCallback(async () => {
+  const loadAll = useCallback(async () => {
     setLoading(true);
-    setErrorMessage(null);
+    setErrorMessage('');
 
     try {
       const authResult = await supabase.auth.getUser();
-      setCurrentUserId(authResult.data.user?.id || '');
+      const userId = authResult.data.user?.id || '';
+      setCurrentUserId(userId);
 
-      const result = await supabase
-        .from('activities')
-        .select('*')
-        .limit(150);
+      let resolvedCoordinates: Coordinates | null = null;
 
-      if (result.error) {
-        setActivities([]);
-        setErrorMessage(result.error.message || 'Non sono riuscito a caricare le esperienze.');
-        return;
+      if (userId) {
+        const preferenceResult = await supabase
+          .from('notification_preferences')
+          .select('latitude,longitude')
+          .eq('user_id', userId)
+          .maybeSingle();
+
+        const savedLatitude = Number(preferenceResult.data?.latitude);
+        const savedLongitude = Number(preferenceResult.data?.longitude);
+        if (Number.isFinite(savedLatitude) && Number.isFinite(savedLongitude)) {
+          resolvedCoordinates = { latitude: savedLatitude, longitude: savedLongitude };
+        }
       }
 
-      const cleanRows = ((result.data || []) as ActivityRow[])
-        .filter((row) => row.is_flash !== true)
-        .filter((row) => !isDeleted(row))
-        .filter(isFutureOrToday)
-        .sort((a, b) => {
-          const dateA = `${a.activity_date || '9999-12-31'}T${a.activity_time || '23:59'}`;
-          const dateB = `${b.activity_date || '9999-12-31'}T${b.activity_time || '23:59'}`;
-          return dateA.localeCompare(dateB);
-        });
-
-      const activityIds = cleanRows
-        .map((row) => String(row.id || '').trim())
-        .filter(Boolean);
-
-      const participantSets: Record<string, Set<string>> = {};
-
-      cleanRows.forEach((row) => {
-        const activityId = String(row.id || '').trim();
-        if (!activityId) return;
-
-        participantSets[activityId] = new Set<string>();
-
-        const creatorId = getExperienceCreatorId(row);
-        if (creatorId) {
-          participantSets[activityId].add(creatorId);
+      try {
+        const permission = await Location.getForegroundPermissionsAsync();
+        if (permission.status === 'granted') {
+          const lastKnown = await Location.getLastKnownPositionAsync({ maxAge: 6 * 60 * 60 * 1000 });
+          const location = lastKnown || await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+          resolvedCoordinates = {
+            latitude: Number(location.coords.latitude),
+            longitude: Number(location.coords.longitude),
+          };
         }
+      } catch {
+        // Se il GPS non risponde usiamo le ultime coordinate notifiche salvate.
+      }
+
+      setCoordinates(resolvedCoordinates);
+
+      const activitiesResult = await supabase
+        .from('activities')
+        .select('*')
+        .neq('is_flash', true)
+        .limit(500);
+
+      if (activitiesResult.error) throw activitiesResult.error;
+
+      const cleanActivities = ((activitiesResult.data || []) as ActivityRow[])
+        .filter((row) => !isDeleted(row));
+      setActivities(cleanActivities);
+
+      const activityIds = cleanActivities.map((row) => String(row.id || '')).filter(Boolean);
+      const participationSet = new Set<string>();
+      const countSets: Record<string, Set<string>> = {};
+
+      cleanActivities.forEach((row) => {
+        const activityId = String(row.id || '');
+        if (!activityId) return;
+        countSets[activityId] = new Set<string>();
+        const creatorId = String(row.creator_id || '');
+        if (creatorId) countSets[activityId].add(creatorId);
+        if (userId && creatorId === userId) participationSet.add(activityId);
       });
 
       if (activityIds.length > 0) {
-        const participantsResult = await supabase
+        const participantResult = await supabase
           .from('activity_participants')
           .select('activity_id,user_id,status')
           .in('activity_id', activityIds)
-          .limit(5000);
+          .limit(10000);
 
-        if (!participantsResult.error) {
-          ((participantsResult.data || []) as ParticipantRow[])
+        if (!participantResult.error) {
+          ((participantResult.data || []) as ParticipantRow[])
             .filter(participantIsActive)
-            .forEach((participant) => {
-              const activityId = String(participant.activity_id || '').trim();
-              const userId = String(participant.user_id || '').trim();
-
-              if (!activityId || !userId || !participantSets[activityId]) return;
-
-              participantSets[activityId].add(userId);
+            .forEach((row) => {
+              const activityId = String(row.activity_id || '');
+              const participantUserId = String(row.user_id || '');
+              if (!activityId || !participantUserId) return;
+              countSets[activityId]?.add(participantUserId);
+              if (userId && participantUserId === userId) participationSet.add(activityId);
             });
         }
       }
 
-      const nextParticipantCounts: Record<string, number> = {};
-
-      Object.entries(participantSets).forEach(([activityId, users]) => {
-        nextParticipantCounts[activityId] = users.size;
+      const nextCounts: Record<string, number> = {};
+      Object.entries(countSets).forEach(([activityId, users]) => {
+        nextCounts[activityId] = users.size;
       });
 
-      setParticipantCounts(nextParticipantCounts);
-      setActivities(cleanRows);
+      setParticipantCounts(nextCounts);
+      setMyActivityIds(participationSet);
     } catch (error: unknown) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : 'Errore imprevisto durante il caricamento delle esperienze.';
-
-      setActivities([]);
-      setErrorMessage(message);
+      setErrorMessage(error instanceof Error ? error.message : 'Non sono riuscito a caricare le esperienze.');
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    loadExperiences();
-  }, [loadExperiences]);
+  useFocusEffect(
+    useCallback(() => {
+      void loadAll();
+    }, [loadAll])
+  );
 
-  const filteredActivities = useMemo(() => {
-    return activities.filter((item) => {
-      const matchesCategory =
-        selectedCategory === 'Tutti' ||
-        normalizeCategory(item.category) === normalizeCategory(selectedCategory);
+  const nearbyActivities = useMemo<ExperienceWithDistance[]>(() => {
+    const now = Date.now();
+    if (!coordinates) return [];
 
-      const matchesProvince =
-        selectedProvince === 'Tutte' ||
-        String(item.province || '').trim() === selectedProvince;
+    return activities
+      .filter((row) => {
+        const moment = activityMoment(row);
+        return !moment || moment.getTime() >= now;
+      })
+      .map((row) => {
+        const target = rowCoordinates(row);
+        return { ...row, distanceKm: target ? distanceKm(coordinates, target) : null };
+      })
+      .filter((row) => row.distanceKm !== null && Number(row.distanceKm) <= NEARBY_RADIUS_KM)
+      .sort((a, b) => Number(a.distanceKm || 9999) - Number(b.distanceKm || 9999));
+  }, [activities, coordinates]);
 
-      return matchesCategory && matchesProvince;
-    });
-  }, [activities, selectedCategory, selectedProvince]);
+  const joinedActivities = useMemo(() => {
+    const now = Date.now();
+    return activities
+      .filter((row) => myActivityIds.has(String(row.id || '')))
+      .filter((row) => {
+        const moment = activityMoment(row);
+        return !moment || moment.getTime() >= now;
+      })
+      .sort((a, b) => (activityMoment(a)?.getTime() || Number.MAX_SAFE_INTEGER) - (activityMoment(b)?.getTime() || Number.MAX_SAFE_INTEGER));
+  }, [activities, myActivityIds]);
+
+  const pastActivities = useMemo(() => {
+    const now = Date.now();
+    const oldestAllowed = now - PAST_RETENTION_DAYS * 24 * 60 * 60 * 1000;
+
+    return activities
+      .filter((row) => myActivityIds.has(String(row.id || '')))
+      .filter((row) => {
+        const moment = activityMoment(row);
+        if (!moment) return false;
+        const time = moment.getTime();
+        return time < now && time >= oldestAllowed;
+      })
+      .sort((a, b) => (activityMoment(b)?.getTime() || 0) - (activityMoment(a)?.getTime() || 0));
+  }, [activities, myActivityIds]);
+
+  const selectedActivities = mode === 'nearby'
+    ? nearbyActivities
+    : mode === 'joined'
+      ? joinedActivities
+      : pastActivities;
+
+  const visibleActivities = selectedActivities.slice(0, visibleCount);
+
+  function selectMode(nextMode: Mode) {
+    setMode(nextMode);
+    setVisibleCount(PAGE_SIZE);
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.container}>
+      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <Pressable style={styles.backButton} onPress={() => router.replace('/home')}>
           <Text style={styles.backText}>← Home</Text>
         </Pressable>
 
-        <View style={styles.header}>
-          <View style={[styles.headerBlob, styles.headerBlobTop]} />
-          <View style={[styles.headerBlob, styles.headerBlobBottom]} />
-          <Text style={[styles.headerDoodle, styles.headerDoodleLeft]}>‹‹</Text>
-          <Text style={[styles.headerDoodle, styles.headerDoodleRight]}>✦</Text>
-          <Text style={styles.logoText}>
-            <Text style={styles.headerTitlePlum}>Trova </Text>
-            <Text style={styles.headerTitlePink}>esperienza</Text>
-          </Text>
-          <Text style={styles.subtitle}>Scopri esperienze vere vicino a te.</Text>
+        <View style={styles.headerCard}>
+          <Text style={styles.title}>Trova esperienze</Text>
+          <Text style={styles.subtitle}>Vicino a te, quelle che vivi e i ricordi degli ultimi 30 giorni.</Text>
         </View>
 
-        <View style={styles.card}>
-          <Text style={styles.sectionEyebrow}>Cosa vuoi fare?</Text>
-
-          <Pressable style={styles.mapOverviewButton} onPress={() => router.push('/experiences-map')}>
-            <Text style={styles.mapOverviewIcon}>🗺️</Text>
-            <View style={styles.mapOverviewTextBox}>
-              <Text style={styles.mapOverviewTitle}>Apri la mappa</Text>
-              <Text style={styles.mapOverviewSubtitle}>Guarda gli eventi con i pin</Text>
-            </View>
-            <Text style={styles.mapOverviewArrow}>→</Text>
-          </Pressable>
-
-          <View style={styles.filtersRow}>
-            <View style={styles.filterColumn}>
-              <Text style={styles.filterLabel}>Categoria</Text>
-              <Pressable
-                style={styles.categorySelectButton}
-                onPress={() => {
-                  setProvinceMenuOpen(false);
-                  setCategoryMenuOpen((value) => !value);
-                }}
-              >
-                <View style={styles.categorySelectTextBox}>
-                  <Text style={styles.categorySelectValue}>{selectedCategory}</Text>
-                </View>
-                <Text style={styles.categorySelectArrow}>{categoryMenuOpen ? '⌃' : '⌄'}</Text>
-              </Pressable>
-            </View>
-
-            <View style={styles.filterColumn}>
-              <Text style={styles.filterLabel}>Provincia</Text>
-              <Pressable
-                style={styles.categorySelectButton}
-                onPress={() => {
-                  setCategoryMenuOpen(false);
-                  setProvinceMenuOpen((value) => !value);
-                }}
-              >
-                <View style={styles.categorySelectTextBox}>
-                  <Text style={styles.categorySelectValue}>{selectedProvince}</Text>
-                </View>
-                <Text style={styles.categorySelectArrow}>
-                  {provinceMenuOpen ? '⌃' : '⌄'}
-                </Text>
-              </Pressable>
-            </View>
+        <Pressable style={styles.mapButton} onPress={() => router.push('/experiences-map')}>
+          <Text style={styles.mapIcon}>🗺️</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.mapTitle}>Apri la mappa</Text>
+            <Text style={styles.mapSubtitle}>Guarda gli eventi intorno a te</Text>
           </View>
+          <Text style={styles.mapArrow}>→</Text>
+        </Pressable>
 
-          {categoryMenuOpen ? (
-            <View style={styles.categoryDropdown}>
-              {EXPERIENCE_CATEGORIES.map((category) => {
-                const isSelected = selectedCategory === category;
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabsRow}>
+          <TabButton active={mode === 'nearby'} label="Vicino a te" onPress={() => selectMode('nearby')} />
+          <TabButton active={mode === 'joined'} label="A cui partecipi" onPress={() => selectMode('joined')} />
+          <TabButton active={mode === 'past'} label="Eventi passati" onPress={() => selectMode('past')} />
+        </ScrollView>
+
+        <View style={styles.sectionHeader}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.sectionTitle}>
+              {mode === 'nearby' ? 'Entro 25 km da te' : mode === 'joined' ? 'Le tue esperienze' : 'I tuoi eventi passati'}
+            </Text>
+            <Text style={styles.sectionSubtitle}>
+              {mode === 'nearby'
+                ? coordinates ? 'Dal più vicino al più lontano.' : 'Attiva la posizione per vedere gli eventi entro 25 km.'
+                : mode === 'joined'
+                  ? 'Qui trovi ciò a cui partecipi e ciò che organizzi.'
+                  : 'Foto, chat e dettagli restano disponibili per 30 giorni.'}
+            </Text>
+          </View>
+          <View style={styles.counterPill}>
+            <Text style={styles.counterText}>{selectedActivities.length}</Text>
+          </View>
+        </View>
+
+        {mode === 'past' ? (
+          <View style={styles.retentionNote}>
+            <Text style={styles.retentionText}>
+              Gli eventi passati restano disponibili per 30 giorni. Dopo 30 giorni evento, chat e fotografie possono essere eliminati definitivamente.
+            </Text>
+          </View>
+        ) : null}
+
+        {loading ? (
+          <View style={styles.emptyCard}>
+            <ActivityIndicator color="#e43f98" />
+            <Text style={styles.emptyText}>Caricamento esperienze…</Text>
+          </View>
+        ) : errorMessage ? (
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyText}>{errorMessage}</Text>
+            <Pressable style={styles.retryButton} onPress={() => void loadAll()}>
+              <Text style={styles.retryText}>Riprova</Text>
+            </Pressable>
+          </View>
+        ) : visibleActivities.length === 0 ? (
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyTitle}>
+              {mode === 'nearby' ? 'Nessuna esperienza vicina' : mode === 'joined' ? 'Nessuna esperienza in programma' : 'Nessun evento passato'}
+            </Text>
+            <Text style={styles.emptyText}>
+              {mode === 'nearby'
+                ? 'Quando nascerà qualcosa entro 25 km da te lo troverai qui.'
+                : mode === 'joined'
+                  ? 'Quando partecipi o organizzi un’esperienza la ritrovi qui.'
+                  : 'Gli eventi conclusi a cui hai partecipato compariranno qui per 30 giorni.'}
+            </Text>
+          </View>
+        ) : (
+          <>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.cardsRow}>
+              {visibleActivities.map((item) => {
+                const activityId = String(item.id || '');
+                const poster = imageUrl(item);
+                const organizedByMe = currentUserId && String(item.creator_id || '') === currentUserId;
+                const distance = 'distanceKm' in item && typeof item.distanceKm === 'number'
+                  ? item.distanceKm
+                  : null;
 
                 return (
                   <Pressable
-                    key={category}
-                    style={[
-                      styles.categoryDropdownItem,
-                      isSelected && styles.categoryDropdownItemActive,
-                    ]}
-                    onPress={() => {
-                      setSelectedCategory(category);
-                      setCategoryMenuOpen(false);
-                    }}
+                    key={activityId}
+                    style={styles.experienceCard}
+                    onPress={() => router.push({ pathname: '/experience-detail' as any, params: { id: activityId } })}
                   >
-                    <Text
-                      style={[
-                        styles.categoryDropdownText,
-                        isSelected && styles.categoryDropdownTextActive,
-                      ]}
+                    <Pressable
+                      style={styles.imageBox}
+                      onPress={(event) => {
+                        event.stopPropagation();
+                        if (poster) setSelectedPosterUrl(poster);
+                      }}
                     >
-                      {category}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          ) : null}
+                      <Image source={poster ? { uri: poster } : bajujuLogo} style={styles.image} resizeMode="cover" />
+                    </Pressable>
 
-          {provinceMenuOpen ? (
-            <View style={styles.categoryDropdown}>
-              {PROVINCE_OPTIONS.map((province) => {
-                const isSelected = selectedProvince === province;
+                    <View style={styles.cardBody}>
+                      <View style={styles.badgesRow}>
+                        <Text style={styles.categoryBadge}>
+                          {getExperienceCategoryIcon(item.category)} {normalizeExperienceCategory(item.category)}
+                        </Text>
+                        {organizedByMe ? <Text style={styles.organizerBadge}>Organizzi tu</Text> : null}
+                      </View>
 
-                return (
-                  <Pressable
-                    key={province}
-                    style={[
-                      styles.categoryDropdownItem,
-                      isSelected && styles.categoryDropdownItemActive,
-                    ]}
-                    onPress={() => {
-                      setSelectedProvince(province);
-                      setProvinceMenuOpen(false);
-                    }}
-                  >
-                    <Text
-                      style={[
-                        styles.categoryDropdownText,
-                        isSelected && styles.categoryDropdownTextActive,
-                      ]}
-                    >
-                      {province}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          ) : null}
+                      <Text style={styles.cardTitle} numberOfLines={2}>{item.title || 'Esperienza Bajuju'}</Text>
+                      <Text style={styles.cardMeta}>{item.city || item.province || 'Luogo da definire'}</Text>
+                      <Text style={styles.cardMeta}>{formatDate(item)}</Text>
+                      {distance !== null ? <Text style={styles.distanceText}>{distance < 1 ? `${Math.round(distance * 1000)} m` : `${distance.toFixed(1)} km`} da te</Text> : null}
 
-          <View style={styles.resultHeader}>
-            <Text style={styles.resultTitle}>
-              {selectedCategory === 'Tutti' ? 'Esperienze disponibili' : selectedCategory}
-            </Text>
-            <Text style={styles.resultCount}>
-              {filteredActivities.length} risultati
-            </Text>
-          </View>
-
-          {loading ? (
-            <View style={styles.emptyBox}>
-              <Text style={styles.emptyText}>Caricamento esperienze...</Text>
-            </View>
-          ) : errorMessage ? (
-            <View style={styles.emptyBox}>
-              <Text style={styles.emptyText}>{errorMessage}</Text>
-            </View>
-          ) : filteredActivities.length === 0 ? (
-            <View style={styles.emptyBox}>
-              <Text style={styles.emptyText}>
-                Qui non c’è ancora nulla. Crea tu la prima esperienza e fai partire qualcosa dal vivo.
-              </Text>
-            </View>
-          ) : (
-            <View style={styles.experienceList}>
-              {filteredActivities.map((item) => (
-                <Pressable
-                  key={item.id || `${item.title}-${item.activity_date}`}
-                  style={styles.experienceCard}
-                  onPress={() => router.push({
-                    pathname: '/experience-detail' as any,
-                    params: { id: item.id || '' },
-                  })}
-                >
-                  <Pressable
-                    style={styles.experienceImageBox}
-                    onPress={(event) => {
-                      event.stopPropagation();
-
-                      const posterUrl = activityImageUrl(item);
-                      if (posterUrl) {
-                        setSelectedPosterUrl(posterUrl);
-                      }
-                    }}
-                  >
-                    <Image
-                      source={activityImageSource(item)}
-                      style={styles.experienceImage}
-                      resizeMode="contain"
-                    />
-                  </Pressable>
-
-                  <View style={styles.experienceContent}>
-                    <Text style={styles.experienceCategory}>
-                      {getExperienceCategoryIcon(item.category)} {normalizeExperienceCategory(item.category)}
-                    </Text>
-
-                    <Text style={styles.experienceTitle}>
-                      {item.title || 'Esperienza senza titolo'}
-                    </Text>
-
-                    <Text style={styles.experienceMeta}>
-                      📍 {item.city || 'Comune'} · {item.province || 'Provincia'}
-                    </Text>
-
-                    <Text style={styles.experienceMeta}>
-                      🗓️ {formatDateItalian(item.activity_date)} · {item.activity_time ? String(item.activity_time).slice(0, 5) : 'Ora da definire'}
-                    </Text>
-
-                    <Text style={styles.participantMeta}>
-                      👥 Partecipanti {participantCounts[String(item.id || '')] ?? (getExperienceCreatorId(item) ? 1 : 0)}
-                      {Number(item.max_participants || 0) > 0
-                        ? `/${Number(item.max_participants)}`
-                        : ''}
-                    </Text>
-
-                    <View style={styles.experienceActionsRow}>
-                      <Pressable style={styles.mapButton} onPress={(event) => {
-                          event.stopPropagation();
-                          router.push('/experiences-map');
-                        }}>
-                        <Text style={styles.mapButtonText}>🗺️ Mappa</Text>
-                      </Pressable>
-
-                      {currentUserId && item.creator_id === currentUserId ? (
-                        <Pressable
-                          style={styles.editButton}
-                          onPress={(event) => {
-                            event.stopPropagation();
-                            router.push({
-                              pathname: '/edit-experience' as any,
-                              params: { id: item.id || '' },
-                            });
-                          }}
-                        >
-                          <Text style={styles.editButtonText}>✏️ Modifica</Text>
-                        </Pressable>
-                      ) : null}
-
-                      <Pressable
-                        style={styles.experienceFooter}
-                        onPress={(event) => {
-                          event.stopPropagation();
-                          router.push({
-                            pathname: '/experience-detail' as any,
-                            params: { id: item.id || '' },
-                          });
-                        }}
-                      >
-                        <Text style={styles.openDetailText}>Apri</Text>
-                      </Pressable>
+                      <View style={styles.cardFooter}>
+                        <Text style={styles.participantsText}>
+                          Partecipanti {participantCounts[activityId] || 0}/{item.max_participants || '∞'}
+                        </Text>
+                        <Text style={styles.openText}>Apri →</Text>
+                      </View>
                     </View>
-                  </View>
-                </Pressable>
-              ))}
-            </View>
-          )}
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
 
-          <Pressable style={styles.refreshButton} onPress={loadExperiences}>
-            <Text style={styles.refreshButtonText}>Aggiorna</Text>
-          </Pressable>
-        </View>
+            {visibleCount < selectedActivities.length ? (
+              <Pressable style={styles.moreButton} onPress={() => setVisibleCount((value) => value + PAGE_SIZE)}>
+                <Text style={styles.moreButtonText}>Mostra altri {Math.min(PAGE_SIZE, selectedActivities.length - visibleCount)}</Text>
+              </Pressable>
+            ) : null}
+          </>
+        )}
       </ScrollView>
 
-      <Modal
-        visible={Boolean(selectedPosterUrl)}
-        transparent
-        animationType="fade"
-        statusBarTranslucent
-        onRequestClose={() => setSelectedPosterUrl(null)}
-      >
-        <View style={styles.posterModalBackdrop}>
-          <Pressable
-            style={styles.posterCloseButton}
-            onPress={() => setSelectedPosterUrl(null)}
-          >
-            <Text style={styles.posterCloseButtonText}>×</Text>
-          </Pressable>
+      <BajujuBottomNav active="experiences" />
 
-          {selectedPosterUrl ? (
-            <Image
-              source={{ uri: selectedPosterUrl }}
-              style={styles.posterLargeImage}
-              resizeMode="contain"
-            />
-          ) : null}
-        </View>
+      <Modal visible={Boolean(selectedPosterUrl)} transparent animationType="fade" onRequestClose={() => setSelectedPosterUrl(null)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setSelectedPosterUrl(null)}>
+          {selectedPosterUrl ? <Image source={{ uri: selectedPosterUrl }} style={styles.modalImage} resizeMode="contain" /> : null}
+        </Pressable>
       </Modal>
-
-      <BajujuBottomNav active="find" />
     </SafeAreaView>
   );
 }
 
+function TabButton({ active, label, onPress }: { active: boolean; label: string; onPress: () => void }) {
+  return (
+    <Pressable style={[styles.tabButton, active && styles.tabButtonActive]} onPress={onPress}>
+      <Text style={[styles.tabText, active && styles.tabTextActive]}>{label}</Text>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: BAJUJU_COLORS.background,
-  },
-  container: {
-    flexGrow: 1,
-    paddingHorizontal: 22,
-    paddingTop: 20,
-    paddingBottom: 132,
-    backgroundColor: BAJUJU_COLORS.background,
-  },
-  backButton: {
-    alignSelf: 'flex-start',
-    minHeight: 44,
-    marginBottom: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 17,
-    borderRadius: 999,
-    backgroundColor: '#FFFFFFE8',
-    borderWidth: 2,
-    borderColor: BAJUJU_COLORS.palePink,
-    ...BAJUJU_SHADOW,
-  },
-  backText: {
-    fontFamily: BAJUJU_FONTS.semiBold,
-    fontSize: 15,
-    color: BAJUJU_COLORS.plum,
-  },
-  header: {
-    marginBottom: 18,
-    minHeight: 176,
-    paddingVertical: 28,
-    paddingHorizontal: 21,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-    borderRadius: 30,
-    backgroundColor: '#FFFFFFDC',
-    borderWidth: 1.5,
-    borderColor: BAJUJU_COLORS.line,
-    ...BAJUJU_SHADOW,
-  },
-  headerBlob: {
-    position: 'absolute',
-    width: 104,
-    height: 76,
-    borderRadius: 52,
-    backgroundColor: BAJUJU_COLORS.palePink,
-    opacity: 0.76,
-  },
-  headerBlobTop: {
-    left: -27,
-    top: -25,
-    transform: [{ rotate: '-18deg' }],
-  },
-  headerBlobBottom: {
-    right: -34,
-    bottom: -28,
-    transform: [{ rotate: '18deg' }],
-  },
-  headerDoodle: {
-    position: 'absolute',
-    zIndex: 2,
-    color: BAJUJU_COLORS.brightPink,
-    fontFamily: BAJUJU_FONTS.bold,
-  },
-  headerDoodleLeft: {
-    left: 28,
-    top: 78,
-    fontSize: 24,
-    transform: [{ rotate: '-8deg' }],
-  },
-  headerDoodleRight: {
-    right: 27,
-    top: 24,
-    fontSize: 23,
-    transform: [{ rotate: '8deg' }],
-  },
-  logoText: {
-    zIndex: 1,
-    fontSize: 34,
-    lineHeight: 39,
-    fontFamily: BAJUJU_FONTS.bold,
-    letterSpacing: -0.9,
-    textAlign: 'center',
-  },
-  headerTitlePlum: {
-    color: BAJUJU_COLORS.plum,
-  },
-  headerTitlePink: {
-    color: BAJUJU_COLORS.brightPink,
-  },
-  subtitle: {
-    zIndex: 1,
-    marginTop: 7,
-    fontSize: 15,
-    lineHeight: 20,
-    fontFamily: BAJUJU_FONTS.medium,
-    color: BAJUJU_COLORS.plum,
-    textAlign: 'center',
-  },
-  card: {
-    width: '100%',
-    borderRadius: 29,
-    padding: 22,
-    backgroundColor: '#FFFCFE',
-    borderWidth: 2,
-    borderColor: BAJUJU_COLORS.palePink,
-    shadowColor: '#9B1A5B',
-    shadowOpacity: 0.18,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 6,
-  },
-  sectionEyebrow: {
-    color: BAJUJU_COLORS.brightPink,
-    fontSize: 13,
-    fontFamily: BAJUJU_FONTS.bold,
-    textTransform: 'uppercase',
-    letterSpacing: 1.1,
-    marginBottom: 16,
-  },
-  title: {
-    display: 'none',
-  },
-  mapOverviewButton: {
-    minHeight: 80,
-    marginBottom: 18,
-    paddingHorizontal: 16,
-    borderRadius: 23,
-    borderWidth: 1.5,
-    borderColor: BAJUJU_COLORS.line,
-    backgroundColor: BAJUJU_COLORS.softPink,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 13,
-  },
-  mapOverviewIcon: {
-    width: 42,
-    height: 42,
-    fontSize: 24,
-    textAlign: 'center',
-    textAlignVertical: 'center',
-    borderRadius: 21,
-    overflow: 'hidden',
-    backgroundColor: BAJUJU_COLORS.white,
-  },
-  mapOverviewTextBox: {
-    flex: 1,
-    minWidth: 0,
-  },
-  mapOverviewTitle: {
-    color: BAJUJU_COLORS.plum,
-    fontFamily: BAJUJU_FONTS.semiBold,
-    fontSize: 16,
-  },
-  mapOverviewSubtitle: {
-    marginTop: 2,
-    color: BAJUJU_COLORS.muted,
-    fontFamily: BAJUJU_FONTS.medium,
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  mapOverviewArrow: {
-    color: BAJUJU_COLORS.brightPink,
-    fontFamily: BAJUJU_FONTS.bold,
-    fontSize: 25,
-  },
-  filtersRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 4,
-  },
-  filterColumn: {
-    flex: 1,
-    minWidth: 0,
-  },
-  filterLabel: {
-    marginBottom: 7,
-    color: BAJUJU_COLORS.plum,
-    fontFamily: BAJUJU_FONTS.semiBold,
-    fontSize: 13,
-  },
-  categorySelectButton: {
-    minHeight: 56,
-    paddingHorizontal: 15,
-    borderRadius: 18,
-    borderWidth: 2,
-    borderColor: BAJUJU_COLORS.palePink,
-    backgroundColor: BAJUJU_COLORS.white,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
-  },
-  categorySelectTextBox: {
-    flex: 1,
-    minWidth: 0,
-  },
-  categorySelectValue: {
-    color: BAJUJU_COLORS.muted,
-    fontFamily: BAJUJU_FONTS.medium,
-    fontSize: 15,
-  },
-  categorySelectLabel: {
-    display: 'none',
-  },
-  categorySelectArrow: {
-    color: BAJUJU_COLORS.brightPink,
-    fontFamily: BAJUJU_FONTS.bold,
-    fontSize: 16,
-  },
-  categoryDropdown: {
-    marginTop: 8,
-    marginBottom: 14,
-    padding: 8,
-    borderRadius: 18,
-    borderWidth: 1.5,
-    borderColor: BAJUJU_COLORS.line,
-    backgroundColor: BAJUJU_COLORS.white,
-    gap: 6,
-  },
-  categoryDropdownItem: {
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: BAJUJU_COLORS.softPink,
-    backgroundColor: BAJUJU_COLORS.background,
-  },
-  categoryDropdownItemActive: {
-    borderColor: BAJUJU_COLORS.brightPink,
-    backgroundColor: BAJUJU_COLORS.brightPink,
-  },
-  categoryDropdownText: {
-    color: BAJUJU_COLORS.muted,
-    fontFamily: BAJUJU_FONTS.semiBold,
-    fontSize: 14,
-  },
-  categoryDropdownTextActive: {
-    color: BAJUJU_COLORS.white,
-  },
-  resultHeader: {
-    marginTop: 20,
-    marginBottom: 12,
-  },
-  resultTitle: {
-    color: BAJUJU_COLORS.brightPink,
-    fontFamily: BAJUJU_FONTS.bold,
-    fontSize: 22,
-    letterSpacing: -0.3,
-  },
-  resultCount: {
-    marginTop: 3,
-    color: BAJUJU_COLORS.muted,
-    fontFamily: BAJUJU_FONTS.semiBold,
-    fontSize: 13,
-  },
-  emptyBox: {
-    paddingVertical: 18,
-    paddingHorizontal: 15,
-    borderRadius: 20,
-    borderWidth: 1.5,
-    borderColor: BAJUJU_COLORS.line,
-    backgroundColor: BAJUJU_COLORS.softPink,
-    alignItems: 'center',
-  },
-  emptyText: {
-    color: BAJUJU_COLORS.muted,
-    fontFamily: BAJUJU_FONTS.medium,
-    fontSize: 14,
-    lineHeight: 19,
-    textAlign: 'center',
-  },
-  experienceList: {
-    gap: 14,
-  },
-  experienceCard: {
-    minHeight: 194,
-    padding: 14,
-    borderRadius: 25,
-    borderWidth: 2,
-    borderColor: BAJUJU_COLORS.palePink,
-    backgroundColor: '#FFFCFE',
-    flexDirection: 'row',
-    gap: 14,
-    alignItems: 'flex-start',
-    shadowColor: '#9B1A5B',
-    shadowOpacity: 0.18,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 9 },
-    elevation: 6,
-  },
-  experienceImageBox: {
-    width: 104,
-    height: 104,
-    borderRadius: 20,
-    backgroundColor: BAJUJU_COLORS.softPink,
-    borderWidth: 1.5,
-    borderColor: BAJUJU_COLORS.line,
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  experienceImage: {
-    width: '100%',
-    height: '100%',
-  },
-  experienceContent: {
-    flex: 1,
-  },
-  experienceCategory: {
-    alignSelf: 'flex-start',
-    marginBottom: 8,
-    paddingVertical: 4,
-    paddingHorizontal: 9,
-    borderRadius: 999,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: BAJUJU_COLORS.line,
-    backgroundColor: BAJUJU_COLORS.softPink,
-    color: BAJUJU_COLORS.plum,
-    fontFamily: BAJUJU_FONTS.semiBold,
-    fontSize: 12,
-  },
-  experienceTitle: {
-    marginBottom: 6,
-    color: BAJUJU_COLORS.plum,
-    fontFamily: BAJUJU_FONTS.bold,
-    fontSize: 18,
-    lineHeight: 22,
-    letterSpacing: -0.3,
-  },
-  experienceMeta: {
-    marginTop: 2,
-    color: BAJUJU_COLORS.muted,
-    fontFamily: BAJUJU_FONTS.medium,
-    fontSize: 13,
-    flexShrink: 1,
-  },
-  participantMeta: {
-    marginTop: 7,
-    color: BAJUJU_COLORS.plum,
-    fontFamily: BAJUJU_FONTS.semiBold,
-    fontSize: 13,
-  },
-  experienceActionsRow: {
-    marginTop: 11,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    flexWrap: 'wrap',
-  },
-  mapButton: {
-    alignSelf: 'flex-start',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 999,
-    borderWidth: 1.5,
-    borderColor: '#F7A7CD',
-    backgroundColor: BAJUJU_COLORS.palePink,
-  },
-  mapButtonText: {
-    color: BAJUJU_COLORS.plum,
-    fontFamily: BAJUJU_FONTS.semiBold,
-    fontSize: 12,
-  },
-  editButton: {
-    alignSelf: 'flex-start',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: '#EAD18A',
-    backgroundColor: '#FFF7DB',
-  },
-  editButtonText: {
-    color: '#7A5A00',
-    fontFamily: BAJUJU_FONTS.semiBold,
-    fontSize: 12,
-  },
-  experienceFooter: {
-    alignSelf: 'flex-start',
-    paddingVertical: 7,
-    paddingHorizontal: 16,
-    borderRadius: 999,
-    backgroundColor: BAJUJU_COLORS.brightPink,
-  },
-  openDetailText: {
-    color: BAJUJU_COLORS.white,
-    fontFamily: BAJUJU_FONTS.semiBold,
-    fontSize: 12,
-  },
-  posterModalBackdrop: {
-    flex: 1,
-    backgroundColor: '#000000EE',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 18,
-  },
-  posterLargeImage: {
-    width: '100%',
-    height: '88%',
-  },
-  posterCloseButton: {
-    position: 'absolute',
-    zIndex: 10,
-    top: 48,
-    right: 20,
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  posterCloseButtonText: {
-    color: '#222222',
-    fontSize: 32,
-    lineHeight: 34,
-    fontFamily: BAJUJU_FONTS.bold,
-  },
-  refreshButton: {
-    marginTop: 18,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: BAJUJU_COLORS.brightPink,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: BAJUJU_COLORS.brightPink,
-    shadowOpacity: 0.28,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 6,
-  },
-  refreshButtonText: {
-    color: BAJUJU_COLORS.white,
-    fontFamily: BAJUJU_FONTS.bold,
-    fontSize: 15,
-  },
+  safeArea: { flex: 1, backgroundColor: '#fff7fb' },
+  container: { padding: 18, paddingBottom: 140 },
+  backButton: { alignSelf: 'flex-start', backgroundColor: '#fff0f7', borderRadius: 999, borderWidth: 1, borderColor: '#ffd1e6', paddingHorizontal: 14, paddingVertical: 9, marginBottom: 12 },
+  backText: { color: '#e43f98', fontWeight: '900' },
+  headerCard: { borderRadius: 28, padding: 20, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#ffd1e6' },
+  title: { color: '#e43f98', fontSize: 29, fontWeight: '900' },
+  subtitle: { marginTop: 6, color: '#6b3652', fontSize: 14, lineHeight: 20, fontWeight: '700' },
+  mapButton: { marginTop: 12, padding: 14, borderRadius: 20, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#f6c6dc', flexDirection: 'row', alignItems: 'center', gap: 12 },
+  mapIcon: { fontSize: 25 },
+  mapTitle: { color: '#4b1430', fontWeight: '900', fontSize: 15 },
+  mapSubtitle: { marginTop: 2, color: '#a95d86', fontWeight: '700', fontSize: 12 },
+  mapArrow: { color: '#e43f98', fontSize: 22, fontWeight: '900' },
+  tabsRow: { gap: 8, paddingVertical: 16, paddingRight: 18 },
+  tabButton: { paddingHorizontal: 16, paddingVertical: 11, borderRadius: 999, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#f3c6dc' },
+  tabButtonActive: { backgroundColor: '#e43f98', borderColor: '#e43f98' },
+  tabText: { color: '#6b3652', fontWeight: '900' },
+  tabTextActive: { color: '#ffffff' },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
+  sectionTitle: { color: '#4b1430', fontSize: 20, fontWeight: '900' },
+  sectionSubtitle: { color: '#8f5573', fontSize: 13, lineHeight: 18, fontWeight: '700', marginTop: 3 },
+  counterPill: { minWidth: 38, height: 38, borderRadius: 19, backgroundColor: '#fff0f7', alignItems: 'center', justifyContent: 'center' },
+  counterText: { color: '#e43f98', fontWeight: '900' },
+  retentionNote: { marginBottom: 14, padding: 12, borderRadius: 16, backgroundColor: '#fff3f8', borderWidth: 1, borderColor: '#ffd1e6' },
+  retentionText: { color: '#7a3c5e', fontSize: 12, lineHeight: 17, fontWeight: '700' },
+  cardsRow: { gap: 14, paddingRight: 18, paddingBottom: 8 },
+  experienceCard: { width: 286, borderRadius: 24, overflow: 'hidden', backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#f3c6dc' },
+  imageBox: { height: 166, backgroundColor: '#fff0f7' },
+  image: { width: '100%', height: '100%' },
+  cardBody: { padding: 15 },
+  badgesRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 },
+  categoryBadge: { color: '#9b1f61', fontWeight: '900', fontSize: 12, backgroundColor: '#fff0f7', paddingHorizontal: 9, paddingVertical: 5, borderRadius: 999 },
+  organizerBadge: { color: '#7a5a00', fontWeight: '900', fontSize: 11, backgroundColor: '#fff8d8', paddingHorizontal: 9, paddingVertical: 5, borderRadius: 999 },
+  cardTitle: { color: '#4b1430', fontSize: 18, lineHeight: 22, fontWeight: '900' },
+  cardMeta: { marginTop: 5, color: '#745068', fontSize: 12, fontWeight: '700' },
+  distanceText: { marginTop: 8, color: '#e43f98', fontWeight: '900', fontSize: 13 },
+  cardFooter: { marginTop: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  participantsText: { flex: 1, color: '#7b4965', fontWeight: '800', fontSize: 12 },
+  openText: { color: '#e43f98', fontWeight: '900' },
+  moreButton: { marginTop: 14, alignSelf: 'center', paddingHorizontal: 20, paddingVertical: 12, borderRadius: 999, backgroundColor: '#e43f98' },
+  moreButtonText: { color: '#ffffff', fontWeight: '900' },
+  emptyCard: { minHeight: 170, borderRadius: 24, padding: 24, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#f3c6dc', alignItems: 'center', justifyContent: 'center' },
+  emptyTitle: { color: '#e43f98', fontWeight: '900', fontSize: 18, textAlign: 'center' },
+  emptyText: { marginTop: 8, color: '#6b3652', fontWeight: '700', lineHeight: 20, textAlign: 'center' },
+  retryButton: { marginTop: 14, paddingHorizontal: 18, paddingVertical: 10, borderRadius: 999, backgroundColor: '#e43f98' },
+  retryText: { color: '#ffffff', fontWeight: '900' },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.88)', alignItems: 'center', justifyContent: 'center', padding: 18 },
+  modalImage: { width: '100%', height: '82%' },
 });

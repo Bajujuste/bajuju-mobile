@@ -9,7 +9,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { BajujuChatPushBridge } from '../src/components/BajujuChatPushBridge';
 import { supabase } from '../src/lib/supabase';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -210,7 +209,6 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <BajujuChatPushBridge />
       <SafeAreaView
         style={styles.appFrame}
         edges={

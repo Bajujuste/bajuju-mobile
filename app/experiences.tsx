@@ -420,7 +420,7 @@ export default function ExperiencesScreen() {
         )}
       </ScrollView>
 
-      <BajujuBottomNav active="experiences" />
+      <BajujuBottomNav active="find" />
 
       <Modal visible={Boolean(selectedPosterUrl)} transparent animationType="fade" onRequestClose={() => setSelectedPosterUrl(null)}>
         <Pressable style={styles.modalBackdrop} onPress={() => setSelectedPosterUrl(null)}>

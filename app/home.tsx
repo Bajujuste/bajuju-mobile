@@ -27,8 +27,10 @@ function firstText(row: ProfileRow | null, keys: string[], fallback = '') {
 
 export default function HomeScreen() {
   const notificationPromptRunningRef = useRef(false);
+  const [profilePhotoUrl, setProfilePhotoUrl] = useState('');
+  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
 
-  React.useEffect(() => {
+  useEffect(() => {
     let active = true;
 
     async function activateNotificationServices(userId: string) {
@@ -131,54 +133,62 @@ export default function HomeScreen() {
     };
   }, []);
 
-  const [profilePhotoUrl, setProfilePhotoUrl] = useState('');
-  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
-
   useFocusEffect(
     React.useCallback(() => {
       let active = true;
+      let channel: ReturnType<typeof supabase.channel> | null = null;
 
-      async function loadUnreadNotificationsCount() {
+      async function refreshUnreadCount(userId: string) {
+        const { count, error } = await supabase
+          .from('push_notification_logs')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', userId)
+          .eq('is_read', false);
+
+        if (error) throw error;
+        if (active) setUnreadNotificationsCount(count || 0);
+      }
+
+      void (async () => {
         try {
           const authResult = await supabase.auth.getUser();
-
-          if (authResult.error) {
-            throw authResult.error;
-          }
+          if (authResult.error) throw authResult.error;
 
           const userId = authResult.data.user?.id;
-
-          if (userId === undefined || userId === null || active === false) {
-            if (active) {
-              setUnreadNotificationsCount(0);
-            }
+          if (!userId || !active) {
+            if (active) setUnreadNotificationsCount(0);
             return;
           }
 
-          const { count, error } = await supabase
-            .from('push_notification_logs')
-            .select('id', { count: 'exact', head: true })
-            .eq('user_id', userId)
-            .eq('is_read', false);
+          await refreshUnreadCount(userId);
+          if (!active) return;
 
-          if (error) throw error;
-
-          if (active) {
-            setUnreadNotificationsCount(count || 0);
-          }
+          channel = supabase
+            .channel(`bajuju-home-notifications-${userId}`)
+            .on(
+              'postgres_changes',
+              {
+                event: '*',
+                schema: 'public',
+                table: 'push_notification_logs',
+                filter: `user_id=eq.${userId}`,
+              },
+              () => {
+                void refreshUnreadCount(userId).catch(() => {
+                  console.log('Badge notifiche non aggiornato.');
+                });
+              }
+            )
+            .subscribe();
         } catch (error) {
           console.log('Errore conteggio notifiche non lette:', error);
-
-          if (active) {
-            setUnreadNotificationsCount(0);
-          }
+          if (active) setUnreadNotificationsCount(0);
         }
-      }
-
-      void loadUnreadNotificationsCount();
+      })();
 
       return () => {
         active = false;
+        if (channel) void supabase.removeChannel(channel);
       };
     }, [])
   );
@@ -190,12 +200,9 @@ export default function HomeScreen() {
       try {
         const authResult = await supabase.auth.getUser();
 
-        if (authResult.error) {
-          throw authResult.error;
-        }
+        if (authResult.error) throw authResult.error;
 
         const userId = authResult.data.user?.id;
-
         if (!userId) return;
 
         const profileResult = await supabase
@@ -204,10 +211,7 @@ export default function HomeScreen() {
           .eq('id', userId)
           .maybeSingle();
 
-        if (profileResult.error) {
-          throw profileResult.error;
-        }
-
+        if (profileResult.error) throw profileResult.error;
         if (!isMounted) return;
 
         setProfilePhotoUrl(
@@ -217,16 +221,13 @@ export default function HomeScreen() {
             ''
           )
         );
-      } catch (error) {
+      } catch {
         console.log('Errore caricamento foto profilo.');
-
-        if (isMounted) {
-          setProfilePhotoUrl('');
-        }
+        if (isMounted) setProfilePhotoUrl('');
       }
     }
 
-    loadProfilePhoto();
+    void loadProfilePhoto();
 
     return () => {
       isMounted = false;
@@ -236,18 +237,13 @@ export default function HomeScreen() {
   async function handleLogout() {
     try {
       const result = await supabase.auth.signOut();
-
-      if (result.error) {
-        throw result.error;
-      }
-
+      if (result.error) throw result.error;
       router.replace('/');
     } catch (error: unknown) {
       const message =
         error instanceof Error
           ? error.message
           : 'Non sono riuscito a effettuare il logout.';
-
       Alert.alert('Errore logout', message);
     }
   }

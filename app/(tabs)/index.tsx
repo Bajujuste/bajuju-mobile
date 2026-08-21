@@ -15,6 +15,68 @@ import { supabase } from '../../src/lib/supabase';
 
 const bajujuLogo = require('../../assets/brand/bajuju-logo.png');
 
+type ProfileRow = Record<string, unknown>;
+
+function profileText(profile: ProfileRow | null, keys: string[]) {
+  if (!profile) return '';
+
+  for (const key of keys) {
+    const value = profile[key];
+
+    if (typeof value === 'string' && value.trim()) return value.trim();
+    if (typeof value === 'number') return String(value);
+  }
+
+  return '';
+}
+
+function hasCompleteRequiredProfile(profile: ProfileRow | null) {
+  if (!profile) return false;
+
+  const photo = profileText(
+    profile,
+    ['avatar_url', 'photo_url', 'profile_photo_url', 'profile_image_url', 'image_url', 'foto']
+  );
+
+  const city = profileText(
+    profile,
+    ['city', 'citta', 'comune', 'location_city']
+  );
+
+  const rawAge = profileText(
+    profile,
+    ['age', 'eta', 'età', 'user_age', 'age_range', 'fascia_eta', 'age_band', 'eta_range']
+  );
+
+  const gender = profileText(
+    profile,
+    ['gender', 'genere', 'sex']
+  ).toLowerCase();
+
+  const age = Number(rawAge);
+  const validGender = [
+    'maschio',
+    'uomo',
+    'male',
+    'femmina',
+    'donna',
+    'female',
+    'non_binario',
+    'non binario',
+    'non-binary',
+    'nonbinary',
+  ].includes(gender);
+
+  return Boolean(
+    photo &&
+    city &&
+    Number.isInteger(age) &&
+    age >= 18 &&
+    age <= 99 &&
+    validGender
+  );
+}
+
 export default function WelcomeScreen() {
   const [checkingSession, setCheckingSession] = useState(true);
 
@@ -42,26 +104,8 @@ export default function WelcomeScreen() {
           throw profileResult.error;
         }
 
-        const profile = profileResult.data as Record<string, unknown> | null;
-        const profileProvince = String(
-          profile?.province ||
-            profile?.provincia ||
-            profile?.location_province ||
-            ''
-        ).trim();
-        const profileAge = String(
-          profile?.age ||
-            profile?.eta ||
-            profile?.['età'] ||
-            profile?.user_age ||
-            profile?.age_range ||
-            profile?.fascia_eta ||
-            profile?.age_band ||
-            profile?.eta_range ||
-            ''
-        ).trim();
-
-        router.replace(profile && profileProvince && profileAge ? '/home' : '/profile');
+        const profile = profileResult.data as ProfileRow | null;
+        router.replace(hasCompleteRequiredProfile(profile) ? '/home' : '/profile');
       }
     } catch (error: unknown) {
       console.error('Errore controllo sessione Bajuju.');

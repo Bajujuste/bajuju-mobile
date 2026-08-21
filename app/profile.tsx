@@ -432,7 +432,7 @@ export default function ProfileScreen() {
   const [flashInvites, setFlashInvites] = useState<ContactItem[]>([]);
   const [invites, setInvites] = useState<InviteItem[]>([]);
   const [organizedActivities, setOrganizedActivities] = useState<ActivityItem[]>([]);
-  const [participatedActivities, setParticipatedActivities] = useState<ActivityItem[]>([]);
+  const [, setParticipatedActivities] = useState<ActivityItem[]>([]);
 
   const name = useMemo(() => {
     return firstText(profile, ['nickname', 'username', 'display_name', 'full_name', 'name', 'nome'], user?.email || 'Profilo Bajuju');
@@ -749,7 +749,7 @@ export default function ProfileScreen() {
         currentProfile,
         ['city', 'citta', 'comune', 'location_city'],
         ''
-      ).slice(0, 40)
+      ).slice(0, 25)
     );
     setAgeRange(firstText(currentProfile, ['age', 'eta', 'età', 'user_age', 'age_range', 'fascia_eta', 'age_band', 'eta_range'], ''));
     setGender(firstText(currentProfile, ['gender', 'genere', 'sex'], ''));
@@ -923,7 +923,7 @@ export default function ProfileScreen() {
     if (!user) return;
 
     const cleanProvince = province.trim();
-    const cleanHomeCity = homeCity.trim().slice(0, 40);
+    const cleanHomeCity = homeCity.trim().slice(0, 25);
     const cleanAge = ageRange.trim();
     const cleanProfileName = profileName.trim();
 
@@ -1351,11 +1351,11 @@ export default function ProfileScreen() {
         <Text style={styles.label}>Di dove sei</Text>
         <TextInput
           value={homeCity}
-          onChangeText={(value) => setHomeCity(value.slice(0, 40))}
+          onChangeText={(value) => setHomeCity(value.slice(0, 25))}
           placeholder="Es. Bergamo"
           placeholderTextColor="#b26a91"
           style={styles.input}
-          maxLength={40}
+          maxLength={25}
           autoCapitalize="words"
           autoCorrect={false}
         />
@@ -1469,27 +1469,13 @@ export default function ProfileScreen() {
           </View>
           <View style={styles.sectionHeaderText}>
             <Text style={styles.sectionTitle}>Contatti diretti</Text>
-            <Text style={styles.sectionHint}>Qui trovi le persone conosciute nelle esperienze Bajuju che vogliono restare in contatto con te.</Text>
+            <Text style={styles.sectionHint}>Telefono/WhatsApp e Telegram condivisi dopo un’esperienza.</Text>
           </View>
         </View>
-        {contactRequests.length === 0 ? (
-          <Text style={styles.emptyText}>Nessuna richiesta di contatto al momento.</Text>
-        ) : (
-          contactRequests.map((item) => (
-            <View key={`${item.table}-${item.id}`} style={styles.itemBox}>
-              <Text style={styles.itemTitle}>{item.title}</Text>
-              <Text style={styles.itemSubtitle}>{item.subtitle}</Text>
-              <View style={styles.rowButtons}>
-                <Pressable style={styles.smallButton} onPress={() => answerItem(item, 'accepted')}>
-                  <Text style={styles.smallButtonText}>Accetta</Text>
-                </Pressable>
-                <Pressable style={styles.smallButtonGhost} onPress={() => answerItem(item, 'rejected')}>
-                  <Text style={styles.smallButtonGhostText}>Rifiuta</Text>
-                </Pressable>
-              </View>
-            </View>
-          ))
-        )}
+        <Text style={styles.emptyText}>{contactRequests.length} {contactRequests.length === 1 ? 'richiesta in attesa' : 'richieste in attesa'}</Text>
+        <Pressable style={styles.linkButton} onPress={() => router.push('/direct-contacts' as any)}>
+          <Text style={styles.linkButtonText}>Apri contatti diretti</Text>
+        </Pressable>
       </View>
 
       <View style={[styles.card, styles.dateInviteCard]} onLayout={(event) => setDateInvitesOffsetY(event.nativeEvent.layout.y)}>
@@ -1499,71 +1485,13 @@ export default function ProfileScreen() {
           </View>
           <View style={styles.sectionHeaderText}>
             <Text style={styles.sectionTitle}>Inviti a uscire</Text>
-            <Text style={styles.sectionHint}>Persone conosciute in una esperienza Bajuju che vorrebbero invitarti a vedervi fuori dall’evento.</Text>
+            <Text style={styles.sectionHint}>Messaggio, accettazione/rifiuto e risposta sono gestiti in una schermata dedicata.</Text>
           </View>
         </View>
-        {invites.length === 0 ? (
-          <Text style={styles.emptyText}>Nessun invito a uscire per ora.</Text>
-        ) : (
-          invites.map((item) => (
-            <View key={`${item.table}-${item.id}`} style={styles.itemBox}>
-              <Text style={styles.itemTitle}>{item.title}</Text>
-              <Text style={styles.itemSubtitle}>{item.subtitle}</Text>
-              <View style={styles.rowButtons}>
-                <Pressable style={styles.smallButton} onPress={() => answerItem(item, 'accepted')}>
-                  <Text style={styles.smallButtonText}>Accetta</Text>
-                </Pressable>
-                <Pressable style={styles.smallButtonGhost} onPress={() => answerItem(item, 'rejected')}>
-                  <Text style={styles.smallButtonGhostText}>Rifiuta</Text>
-                </Pressable>
-              </View>
-            </View>
-          ))
-        )}
-      </View>
-
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Esperienze create da me</Text>
-        <Text style={styles.sectionCounter}>
-          {organizedActivities.length} {organizedActivities.length === 1 ? 'esperienza' : 'esperienze'}
-        </Text>
-        {organizedActivities.length === 0 ? (
-          <Text style={styles.emptyText}>Non hai ancora creato esperienze. Quando organizzi qualcosa, lo ritrovi qui.</Text>
-        ) : (
-          organizedActivities.map((activity) => (
-            <Pressable
-              key={activity.id}
-              style={styles.activityRow}
-              onPress={() => router.push(`/experience-detail?id=${activity.id}`)}
-            >
-              <Text style={styles.itemTitle}>{activity.title}</Text>
-              <Text style={styles.itemSubtitle}>{activity.subtitle}</Text>
-              <Text style={styles.openDetailText}>Apri dettaglio →</Text>
-            </Pressable>
-          ))
-        )}
-      </View>
-
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Esperienze a cui partecipo</Text>
-        <Text style={styles.sectionCounter}>
-          {participatedActivities.length} {participatedActivities.length === 1 ? 'esperienza' : 'esperienze'}
-        </Text>
-        {participatedActivities.length === 0 ? (
-          <Text style={styles.emptyText}>Non stai partecipando a esperienze. Quando ti unisci a qualcosa, lo ritrovi qui.</Text>
-        ) : (
-          participatedActivities.map((activity) => (
-            <Pressable
-              key={activity.id}
-              style={styles.activityRow}
-              onPress={() => router.push(`/experience-detail?id=${activity.id}`)}
-            >
-              <Text style={styles.itemTitle}>{activity.title}</Text>
-              <Text style={styles.itemSubtitle}>{activity.subtitle}</Text>
-              <Text style={styles.openDetailText}>Apri dettaglio →</Text>
-            </Pressable>
-          ))
-        )}
+        <Text style={styles.emptyText}>{invites.length} {invites.length === 1 ? 'invito in attesa' : 'inviti in attesa'}</Text>
+        <Pressable style={styles.linkButton} onPress={() => router.push('/date-invites' as any)}>
+          <Text style={styles.linkButtonText}>Apri inviti a uscire</Text>
+        </Pressable>
       </View>
 
       <View style={styles.card}>

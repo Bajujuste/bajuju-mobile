@@ -9,6 +9,7 @@ export type BajujuNotificationKind =
   | 'new_participant'
   | 'contact_request'
   | 'contact_accepted'
+  | 'contact_rejected'
   | 'experience_cancelled'
   | 'experience_reminder';
 

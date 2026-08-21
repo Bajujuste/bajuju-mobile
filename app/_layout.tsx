@@ -12,6 +12,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { supabase } from '../src/lib/supabase';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
+
 function openPushNotification(data: Record<string, unknown>) {
   const screen = typeof data.screen === 'string' ? data.screen : '';
   const activityId = typeof data.activityId === 'string' ? data.activityId : '';
@@ -30,12 +31,17 @@ function openPushNotification(data: Record<string, unknown>) {
     case 'flash-detail':
       router.push(activityId ? ({ pathname: '/flash-detail', params: { id: activityId } } as any) : '/flash');
       break;
+    case 'date-invites':
+      router.push('/date-invites' as any);
+      break;
+    case 'direct-contacts':
+      router.push('/direct-contacts' as any);
+      break;
     case 'profile':
       router.push(section ? ({ pathname: '/profile', params: { section } } as any) : '/profile');
       break;
   }
 }
-
 
 type RequiredProfileRow = Record<string, unknown>;
 
@@ -114,7 +120,6 @@ export default function RootLayout() {
     FredokaSemiBold: require('../assets/fonts/Fredoka-600.ttf'),
     FredokaBold: require('../assets/fonts/Fredoka-700.ttf'),
   });
-
 
   useEffect(() => {
     if (Platform.OS === 'web') return;

@@ -55,6 +55,8 @@ function notificationIcon(type: string) {
       return '💌';
     case 'contact_accepted':
       return '✅';
+    case 'contact_rejected':
+      return '❌';
     case 'experience_cancelled':
       return '❌';
     case 'experience_reminder':
@@ -187,6 +189,14 @@ export default function NotificationsScreen() {
           } else {
             router.push('/flash' as any);
           }
+          return;
+
+        case 'date-invites':
+          router.push('/date-invites' as any);
+          return;
+
+        case 'direct-contacts':
+          router.push('/direct-contacts' as any);
           return;
 
         case 'profile':

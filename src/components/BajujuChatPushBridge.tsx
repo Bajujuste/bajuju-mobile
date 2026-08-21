@@ -9,14 +9,14 @@ export function BajujuChatPushBridge() {
 
     let active = true;
     let currentUserId = '';
-    let chatChannel: ReturnType<typeof supabase.channel> | null = null;
+    let chatChannel: any = null;
 
     async function stopChannel() {
-      if (chatChannel) {
-        const channelToRemove = chatChannel;
-        chatChannel = null;
-        await supabase.removeChannel(channelToRemove);
-      }
+      if (!chatChannel) return;
+
+      const channelToRemove = chatChannel;
+      chatChannel = null;
+      await supabase.removeChannel(channelToRemove);
     }
 
     async function listenForUser(userId?: string | null) {
@@ -24,8 +24,8 @@ export function BajujuChatPushBridge() {
 
       if (!active || cleanUserId === currentUserId) return;
 
-      await stopChannel();
       currentUserId = cleanUserId;
+      await stopChannel();
 
       if (!cleanUserId || !active) return;
 
@@ -51,9 +51,7 @@ export function BajujuChatPushBridge() {
                 body: { activityId },
               })
               .then(({ error }) => {
-                if (error) {
-                  console.log('Push chat non inviata.');
-                }
+                if (error) console.log('Push chat non inviata.');
               })
               .catch(() => {
                 console.log('Push chat non inviata.');

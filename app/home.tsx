@@ -57,9 +57,19 @@ export default function HomeScreen() {
         const localChoiceKey = `bajuju-notification-choice-v2:${userId}`;
         const localChoice = await AsyncStorage.getItem(localChoiceKey);
 
+        const preferenceResult = await supabase
+          .from('notification_preferences')
+          .select('enabled')
+          .eq('user_id', userId)
+          .maybeSingle();
+
+        const notificationsEnabledInDb =
+          !preferenceResult.error && preferenceResult.data?.enabled === true;
+
         if (!active) return;
 
-        if (localChoice === 'accepted') {
+        if (localChoice === 'accepted' || notificationsEnabledInDb) {
+          await AsyncStorage.setItem(localChoiceKey, 'accepted');
           await activateNotificationServices(userId);
           return;
         }

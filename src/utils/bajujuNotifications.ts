@@ -10,7 +10,8 @@ export type BajujuNotificationKind =
   | 'contact_request'
   | 'contact_accepted'
   | 'experience_cancelled'
-  | 'experience_reminder';
+  | 'experience_reminder'
+  | 'chat_message';
 
 const BAJUJU_PINK = '#e43f98';
 
@@ -90,7 +91,7 @@ async function savePushToken(userId: string, token: string) {
           notify_contact_accepted: true,
           notify_experience_cancelled: true,
           notify_experience_reminder: true,
-          notify_chat_messages: false,
+          notify_chat_messages: true,
         },
         {
           onConflict: 'user_id',
@@ -231,11 +232,11 @@ export async function registerForBajujuPushNotifications(userId?: string | null)
 }
 
 export function isChatNotificationAllowed() {
-  return false;
+  return true;
 }
 
 export function isBajujuNotificationAllowed(kind: BajujuNotificationKind | string) {
-  return kind !== 'new_message' && kind !== 'chat_message' && kind !== 'activity_message';
+  return kind !== 'new_message' && kind !== 'activity_message';
 }
 
 

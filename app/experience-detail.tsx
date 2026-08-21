@@ -758,19 +758,6 @@ export default function ExperienceDetailScreen() {
     );
   }
 
-  function sendGoingOutInvite(targetUserId: string) {
-    if (!experienceId || !currentUserId || !canUseChat || !targetUserId) return;
-    if (String(targetUserId) === String(currentUserId)) return;
-
-    router.push({
-      pathname: '/invite-out' as any,
-      params: {
-        targetUserId,
-        activityId: experienceId,
-      },
-    });
-  }
-
   async function sendChatMessage() {
     if (!experienceId || sendingMessage) return;
 
@@ -1263,11 +1250,18 @@ export default function ExperienceDetailScreen() {
                               style={styles.inviteOutButton}
                               onPress={(event) => {
                                 event.stopPropagation();
-                                sendGoingOutInvite(userId);
+                                router.push({
+                                  pathname: '/user-profile' as any,
+                                  params: {
+                                    userId,
+                                    activityId: experienceId || '',
+                                    postEvent: '1',
+                                  },
+                                });
                               }}
                             >
                               <Text style={styles.inviteOutButtonText}>
-                                Invita
+                                Interagisci
                               </Text>
                             </Pressable>
                           ) : null}

@@ -478,7 +478,7 @@ export default function UserProfileScreen() {
                         params: { targetUserId: userId, activityId },
                       })}
                     >
-                      <Text style={{ color: BAJUJU_PINK, fontWeight: '900' }}>Condividi contatto</Text>
+                      <Text style={{ color: BAJUJU_PINK, fontWeight: '900' }}>Invia WhatsApp o Telegram</Text>
                     </Pressable>
                   </View>
                 ) : null}

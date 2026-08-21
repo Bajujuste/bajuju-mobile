@@ -22,7 +22,7 @@ const PAGE_SIZE = 20;
 const NEARBY_RADIUS_KM = 25;
 const PAST_RETENTION_DAYS = 30;
 
-type Mode = 'nearby' | 'joined' | 'past';
+type Mode = 'nearby' | 'joined' | 'organized' | 'past';
 
 type ActivityRow = {
   id?: string;
@@ -115,6 +115,7 @@ export default function ExperiencesScreen() {
   const [currentUserId, setCurrentUserId] = useState('');
   const [coordinates, setCoordinates] = useState<Coordinates | null>(null);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [allEventsVisibleCount, setAllEventsVisibleCount] = useState(PAGE_SIZE);
   const [selectedPosterUrl, setSelectedPosterUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
@@ -242,16 +243,53 @@ export default function ExperiencesScreen() {
       .sort((a, b) => Number(a.distanceKm || 9999) - Number(b.distanceKm || 9999));
   }, [activities, coordinates]);
 
+  const allEventsActivities = useMemo<ExperienceWithDistance[]>(() => {
+    const now = Date.now();
+
+    return activities
+      .filter((row) => {
+        const moment = activityMoment(row);
+        return !moment || moment.getTime() >= now;
+      })
+      .map((row) => {
+        const target = rowCoordinates(row);
+        return {
+          ...row,
+          distanceKm: coordinates && target ? distanceKm(coordinates, target) : null,
+        };
+      })
+      .filter((row) => row.distanceKm === null || Number(row.distanceKm) > NEARBY_RADIUS_KM)
+      .sort((a, b) => {
+        const distanceA = typeof a.distanceKm === 'number' ? a.distanceKm : Number.MAX_SAFE_INTEGER;
+        const distanceB = typeof b.distanceKm === 'number' ? b.distanceKm : Number.MAX_SAFE_INTEGER;
+        if (distanceA !== distanceB) return distanceA - distanceB;
+        return (activityMoment(a)?.getTime() || Number.MAX_SAFE_INTEGER) -
+          (activityMoment(b)?.getTime() || Number.MAX_SAFE_INTEGER);
+      });
+  }, [activities, coordinates]);
+
   const joinedActivities = useMemo(() => {
     const now = Date.now();
     return activities
       .filter((row) => myActivityIds.has(String(row.id || '')))
+      .filter((row) => String(row.creator_id || '') !== currentUserId)
       .filter((row) => {
         const moment = activityMoment(row);
         return !moment || moment.getTime() >= now;
       })
       .sort((a, b) => (activityMoment(a)?.getTime() || Number.MAX_SAFE_INTEGER) - (activityMoment(b)?.getTime() || Number.MAX_SAFE_INTEGER));
-  }, [activities, myActivityIds]);
+  }, [activities, myActivityIds, currentUserId]);
+
+  const organizedActivities = useMemo(() => {
+    const now = Date.now();
+    return activities
+      .filter((row) => currentUserId && String(row.creator_id || '') === currentUserId)
+      .filter((row) => {
+        const moment = activityMoment(row);
+        return !moment || moment.getTime() >= now;
+      })
+      .sort((a, b) => (activityMoment(a)?.getTime() || Number.MAX_SAFE_INTEGER) - (activityMoment(b)?.getTime() || Number.MAX_SAFE_INTEGER));
+  }, [activities, currentUserId]);
 
   const pastActivities = useMemo(() => {
     const now = Date.now();
@@ -272,13 +310,17 @@ export default function ExperiencesScreen() {
     ? nearbyActivities
     : mode === 'joined'
       ? joinedActivities
-      : pastActivities;
+      : mode === 'organized'
+        ? organizedActivities
+        : pastActivities;
 
   const visibleActivities = selectedActivities.slice(0, visibleCount);
+  const visibleAllEvents = allEventsActivities.slice(0, allEventsVisibleCount);
 
   function selectMode(nextMode: Mode) {
     setMode(nextMode);
     setVisibleCount(PAGE_SIZE);
+    setAllEventsVisibleCount(PAGE_SIZE);
   }
 
   return (
@@ -305,20 +347,29 @@ export default function ExperiencesScreen() {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabsRow}>
           <TabButton active={mode === 'nearby'} label="Vicino a te" onPress={() => selectMode('nearby')} />
           <TabButton active={mode === 'joined'} label="A cui partecipi" onPress={() => selectMode('joined')} />
+          <TabButton active={mode === 'organized'} label="I tuoi eventi" onPress={() => selectMode('organized')} />
           <TabButton active={mode === 'past'} label="Eventi passati" onPress={() => selectMode('past')} />
         </ScrollView>
 
         <View style={styles.sectionHeader}>
           <View style={{ flex: 1 }}>
             <Text style={styles.sectionTitle}>
-              {mode === 'nearby' ? 'Entro 25 km da te' : mode === 'joined' ? 'Le tue esperienze' : 'I tuoi eventi passati'}
+              {mode === 'nearby'
+                ? 'Entro 25 km da te'
+                : mode === 'joined'
+                  ? 'A cui partecipi'
+                  : mode === 'organized'
+                    ? 'I tuoi eventi'
+                    : 'I tuoi eventi passati'}
             </Text>
             <Text style={styles.sectionSubtitle}>
               {mode === 'nearby'
                 ? coordinates ? 'Dal più vicino al più lontano.' : 'Attiva la posizione per vedere gli eventi entro 25 km.'
                 : mode === 'joined'
-                  ? 'Qui trovi ciò a cui partecipi e ciò che organizzi.'
-                  : 'Foto, chat e dettagli restano disponibili per 30 giorni.'}
+                  ? 'Qui trovi le esperienze a cui partecipi.'
+                  : mode === 'organized'
+                    ? 'Qui trovi le esperienze che organizzi tu.'
+                    : 'Foto, chat e dettagli restano disponibili per 30 giorni.'}
             </Text>
           </View>
           <View style={styles.counterPill}>
@@ -349,14 +400,22 @@ export default function ExperiencesScreen() {
         ) : visibleActivities.length === 0 ? (
           <View style={styles.emptyCard}>
             <Text style={styles.emptyTitle}>
-              {mode === 'nearby' ? 'Nessuna esperienza vicina' : mode === 'joined' ? 'Nessuna esperienza in programma' : 'Nessun evento passato'}
+              {mode === 'nearby'
+                ? 'Nessuna esperienza vicina'
+                : mode === 'joined'
+                  ? 'Nessuna esperienza a cui partecipi'
+                  : mode === 'organized'
+                    ? 'Nessun evento organizzato'
+                    : 'Nessun evento passato'}
             </Text>
             <Text style={styles.emptyText}>
               {mode === 'nearby'
                 ? 'Quando nascerà qualcosa entro 25 km da te lo troverai qui.'
                 : mode === 'joined'
-                  ? 'Quando partecipi o organizzi un’esperienza la ritrovi qui.'
-                  : 'Gli eventi conclusi a cui hai partecipato compariranno qui per 30 giorni.'}
+                  ? 'Quando partecipi a un’esperienza la ritrovi qui.'
+                  : mode === 'organized'
+                    ? 'Quando organizzi un’esperienza la ritrovi qui.'
+                    : 'Gli eventi conclusi a cui hai partecipato o che hai organizzato compariranno qui per 30 giorni.'}
             </Text>
           </View>
         ) : (
@@ -418,6 +477,96 @@ export default function ExperiencesScreen() {
             ) : null}
           </>
         )}
+
+        {mode === 'nearby' && !loading && !errorMessage ? (
+          <View style={{ marginTop: 26 }}>
+            <View style={styles.sectionHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.sectionTitle}>Tutti gli eventi</Text>
+                <Text style={styles.sectionSubtitle}>
+                  {coordinates
+                    ? 'Continua oltre i 25 km, dal più vicino al più lontano.'
+                    : 'Tutti gli eventi disponibili. Attiva la posizione per ordinarli per distanza.'}
+                </Text>
+              </View>
+              <View style={styles.counterPill}>
+                <Text style={styles.counterText}>{allEventsActivities.length}</Text>
+              </View>
+            </View>
+
+            {visibleAllEvents.length === 0 ? (
+              <View style={styles.emptyCard}>
+                <Text style={styles.emptyTitle}>Nessun altro evento disponibile</Text>
+                <Text style={styles.emptyText}>Quando verranno pubblicate altre esperienze le troverai qui.</Text>
+              </View>
+            ) : (
+              <>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.cardsRow}>
+                  {visibleAllEvents.map((item) => {
+                    const activityId = String(item.id || '');
+                    const poster = imageUrl(item);
+                    const organizedByMe = currentUserId && String(item.creator_id || '') === currentUserId;
+                    const distance = typeof item.distanceKm === 'number' ? item.distanceKm : null;
+
+                    return (
+                      <Pressable
+                        key={activityId}
+                        style={styles.experienceCard}
+                        onPress={() => router.push({ pathname: '/experience-detail' as any, params: { id: activityId } })}
+                      >
+                        <Pressable
+                          style={styles.imageBox}
+                          onPress={(event) => {
+                            event.stopPropagation();
+                            if (poster) setSelectedPosterUrl(poster);
+                          }}
+                        >
+                          <Image source={poster ? { uri: poster } : bajujuLogo} style={styles.image} resizeMode="cover" />
+                        </Pressable>
+
+                        <View style={styles.cardBody}>
+                          <View style={styles.badgesRow}>
+                            <Text style={styles.categoryBadge}>
+                              {getExperienceCategoryIcon(item.category)} {normalizeExperienceCategory(item.category)}
+                            </Text>
+                            {organizedByMe ? <Text style={styles.organizerBadge}>Organizzi tu</Text> : null}
+                          </View>
+
+                          <Text style={styles.cardTitle} numberOfLines={2}>{item.title || 'Esperienza Bajuju'}</Text>
+                          <Text style={styles.cardMeta}>{item.city || item.province || 'Luogo da definire'}</Text>
+                          <Text style={styles.cardMeta}>{formatDate(item)}</Text>
+                          {distance !== null ? (
+                            <Text style={styles.distanceText}>
+                              {distance < 1 ? Math.round(distance * 1000) + ' m' : distance.toFixed(1) + ' km'} da te
+                            </Text>
+                          ) : null}
+
+                          <View style={styles.cardFooter}>
+                            <Text style={styles.participantsText}>
+                              Partecipanti {participantCounts[activityId] || 0}/{item.max_participants || '∞'}
+                            </Text>
+                            <Text style={styles.openText}>Apri →</Text>
+                          </View>
+                        </View>
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+
+                {allEventsVisibleCount < allEventsActivities.length ? (
+                  <Pressable
+                    style={styles.moreButton}
+                    onPress={() => setAllEventsVisibleCount((value) => value + PAGE_SIZE)}
+                  >
+                    <Text style={styles.moreButtonText}>
+                      Mostra altri {Math.min(PAGE_SIZE, allEventsActivities.length - allEventsVisibleCount)}
+                    </Text>
+                  </Pressable>
+                ) : null}
+              </>
+            )}
+          </View>
+        ) : null}
       </ScrollView>
 
       <BajujuBottomNav active="find" />

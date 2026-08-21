@@ -749,7 +749,7 @@ export default function ProfileScreen() {
         currentProfile,
         ['city', 'citta', 'comune', 'location_city'],
         ''
-      ).slice(0, 40)
+      ).slice(0, 25)
     );
     setAgeRange(firstText(currentProfile, ['age', 'eta', 'età', 'user_age', 'age_range', 'fascia_eta', 'age_band', 'eta_range'], ''));
     setGender(firstText(currentProfile, ['gender', 'genere', 'sex'], ''));
@@ -923,7 +923,7 @@ export default function ProfileScreen() {
     if (!user) return;
 
     const cleanProvince = province.trim();
-    const cleanHomeCity = homeCity.trim().slice(0, 40);
+    const cleanHomeCity = homeCity.trim().slice(0, 25);
     const cleanAge = ageRange.trim();
     const cleanProfileName = profileName.trim();
 
@@ -1351,11 +1351,11 @@ export default function ProfileScreen() {
         <Text style={styles.label}>Di dove sei</Text>
         <TextInput
           value={homeCity}
-          onChangeText={(value) => setHomeCity(value.slice(0, 40))}
+          onChangeText={(value) => setHomeCity(value.slice(0, 25))}
           placeholder="Es. Bergamo"
           placeholderTextColor="#b26a91"
           style={styles.input}
-          maxLength={40}
+          maxLength={25}
           autoCapitalize="words"
           autoCorrect={false}
         />

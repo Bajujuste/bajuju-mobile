@@ -1472,7 +1472,7 @@ export default function ProfileScreen() {
             <Text style={styles.sectionHint}>Telefono/WhatsApp e Telegram condivisi dopo un’esperienza.</Text>
           </View>
         </View>
-        <Text style={styles.emptyText}>${contactRequests.length} ${contactRequests.length === 1 ? 'richiesta in attesa' : 'richieste in attesa'}</Text>
+        <Text style={styles.emptyText}>{contactRequests.length} {contactRequests.length === 1 ? 'richiesta in attesa' : 'richieste in attesa'}</Text>
         <Pressable style={styles.linkButton} onPress={() => router.push('/direct-contacts' as any)}>
           <Text style={styles.linkButtonText}>Apri contatti diretti</Text>
         </Pressable>
@@ -1488,7 +1488,7 @@ export default function ProfileScreen() {
             <Text style={styles.sectionHint}>Messaggio, accettazione/rifiuto e risposta sono gestiti in una schermata dedicata.</Text>
           </View>
         </View>
-        <Text style={styles.emptyText}>${invites.length} ${invites.length === 1 ? 'invito in attesa' : 'inviti in attesa'}</Text>
+        <Text style={styles.emptyText}>{invites.length} {invites.length === 1 ? 'invito in attesa' : 'inviti in attesa'}</Text>
         <Pressable style={styles.linkButton} onPress={() => router.push('/date-invites' as any)}>
           <Text style={styles.linkButtonText}>Apri inviti a uscire</Text>
         </Pressable>

@@ -231,7 +231,6 @@ export default function ExperienceDetailScreen() {
   const [joining, setJoining] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const [sendingMessage, setSendingMessage] = useState(false);
-  const [sendingInviteTo, setSendingInviteTo] = useState<string | null>(null);
   const [blockedUserIds, setBlockedUserIds] = useState<Set<string>>(new Set());
   const [blockedByOrganizer, setBlockedByOrganizer] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -759,98 +758,17 @@ export default function ExperienceDetailScreen() {
     );
   }
 
-  async function sendGoingOutInvite(targetUserId: string) {
+  function sendGoingOutInvite(targetUserId: string) {
     if (!experienceId || !currentUserId || !canUseChat || !targetUserId) return;
-
     if (String(targetUserId) === String(currentUserId)) return;
 
-    setSendingInviteTo(targetUserId);
-
-    try {
-      const [blockedByMeResult, blockedMeResult] = await Promise.all([
-        supabase
-          .from('user_blocks')
-          .select('id')
-          .eq('blocker_id', currentUserId)
-          .eq('blocked_id', targetUserId)
-          .maybeSingle(),
-        supabase
-          .from('user_blocks')
-          .select('id')
-          .eq('blocker_id', targetUserId)
-          .eq('blocked_id', currentUserId)
-          .maybeSingle(),
-      ]);
-
-      if (blockedByMeResult.error) throw blockedByMeResult.error;
-      if (blockedMeResult.error) throw blockedMeResult.error;
-
-      if (blockedByMeResult.data || blockedMeResult.data) {
-        Alert.alert('Invito non disponibile', 'Non puoi inviare inviti a questo utente.');
-        return;
-      }
-
-      const existingResult = await supabase
-        .from('direct_contact_requests')
-        .select('id,status')
-        .eq('requester_id', currentUserId)
-        .eq('receiver_id', targetUserId)
-        .eq('activity_id', experienceId)
-        .in('status', ['pending', 'accepted'])
-        .maybeSingle();
-
-      if (existingResult.error) throw existingResult.error;
-
-      if (existingResult.data) {
-        if (typeof window !== 'undefined') {
-          window.alert('Hai già inviato un invito a questa persona per questa esperienza.');
-        }
-        return;
-      }
-
-      const result = await supabase.from('direct_contact_requests').insert({
-        requester_id: currentUserId,
-        sender_id: currentUserId,
-        receiver_id: targetUserId,
-        activity_id: experienceId,
-          contact_value: experienceId,
-        contact_type: 'experience_invite',
-        status: 'pending',
-        message: 'Vorrei invitarti a uscire dopo aver partecipato alla stessa esperienza Bajuju.',
-      });
-
-      if (result.error) {
-        if (typeof window !== 'undefined') {
-          window.alert(`Errore invito: ${result.error.message}`);
-        }
-        return;
-      }
-
-      await sendBajujuPushNotification({
-        type: 'contact_request',
-        actorUserId: currentUserId,
+    router.push({
+      pathname: '/invite-out' as any,
+      params: {
         targetUserId,
-        title: 'Nuovo invito Bajuju',
-        body: 'Hai ricevuto un invito a uscire da una persona della tua esperienza.',
-        data: {
-          screen: 'profile',
-          section: 'date-invites',
-          activityId: experienceId,
-        },
-      }).catch((error) => {
-        console.log('Errore notifica richiesta contatto.');
-      });
-
-      if (typeof window !== 'undefined') {
-        window.alert('Invito inviato.');
-      }
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Errore imprevisto durante l’invio dell’invito.';
-
-      Alert.alert('Errore invito', message);
-    } finally {
-      setSendingInviteTo(null);
-    }
+        activityId: experienceId,
+      },
+    });
   }
 
   async function sendChatMessage() {
@@ -1313,7 +1231,14 @@ export default function ExperienceDetailScreen() {
                         <Pressable
                           key={`${userId}-${index}`}
                           style={styles.participantRow}
-                          onPress={() => router.push(`/user-profile?userId=${userId}`)}
+                          onPress={() => router.push({
+                            pathname: '/user-profile' as any,
+                            params: {
+                              userId,
+                              activityId: experienceId || '',
+                              postEvent: canShowInviteOut ? '1' : '0',
+                            },
+                          })}
                         >
                           <Image
                             source={photo ? { uri: photo } : bajujuLogo}
@@ -1340,10 +1265,9 @@ export default function ExperienceDetailScreen() {
                                 event.stopPropagation();
                                 sendGoingOutInvite(userId);
                               }}
-                              disabled={sendingInviteTo === userId}
                             >
                               <Text style={styles.inviteOutButtonText}>
-                                {sendingInviteTo === userId ? 'Invio...' : 'Invita'}
+                                Invita
                               </Text>
                             </Pressable>
                           ) : null}

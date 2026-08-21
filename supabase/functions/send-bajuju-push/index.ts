@@ -177,7 +177,7 @@ Deno.serve(async (request) => {
 
     const [activityResult, participantResult, profileResult] = await Promise.all([
       supabase.from('activities').select('*').eq('id', activityId).maybeSingle(),
-      supabase.from('activity_participants').select('user_id,status').eq('activity_id', activityId).eq('user_id', actorUserId).maybeSingle(),
+      supabase.from('activity_participants').select('user_id,status').eq('activity_id', activityId).eq('user_id', actorUserId).limit(10),
       supabase.from('profiles').select('*').eq('id', actorUserId).maybeSingle(),
     ]);
 
@@ -191,7 +191,9 @@ Deno.serve(async (request) => {
       return jsonResponse({ error: 'Destinatario non corrisponde all’organizzatore.' }, 403);
     }
 
-    if (!participantResult.data || !participantStatusIsActive((participantResult.data as Record<string, unknown>).status)) {
+    const actorParticipationRows = (participantResult.data || []) as Record<string, unknown>[];
+    const hasActiveParticipation = actorParticipationRows.some((row) => participantStatusIsActive(row.status));
+    if (!hasActiveParticipation) {
       return jsonResponse({ error: 'Utente non risulta partecipante attivo.' }, 403);
     }
 

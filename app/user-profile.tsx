@@ -113,8 +113,10 @@ async function safeFetchParticipantRows(userId: string) {
 }
 
 export default function UserProfileScreen() {
-  const params = useLocalSearchParams<{ userId?: string }>();
+  const params = useLocalSearchParams<{ userId?: string; activityId?: string; postEvent?: string }>();
   const userId = String(params.userId || '').trim();
+  const activityId = String(params.activityId || '').trim();
+  const canUsePostExperienceActions = String(params.postEvent || '') === '1';
 
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<LooseRow | null>(null);
@@ -441,6 +443,46 @@ export default function UserProfileScreen() {
 
             {currentUserId && currentUserId !== userId ? (
               <>
+                {canUsePostExperienceActions && activityId ? (
+                  <View style={{ width: '100%', gap: 8, marginTop: 12 }}>
+                    <Pressable
+                      style={{
+                        width: '100%',
+                        borderRadius: 999,
+                        paddingVertical: 12,
+                        paddingHorizontal: 16,
+                        alignItems: 'center',
+                        backgroundColor: BAJUJU_PINK,
+                      }}
+                      onPress={() => router.push({
+                        pathname: '/invite-out' as any,
+                        params: { targetUserId: userId, activityId },
+                      })}
+                    >
+                      <Text style={{ color: '#ffffff', fontWeight: '900' }}>Invita a uscire</Text>
+                    </Pressable>
+
+                    <Pressable
+                      style={{
+                        width: '100%',
+                        borderRadius: 999,
+                        paddingVertical: 12,
+                        paddingHorizontal: 16,
+                        alignItems: 'center',
+                        backgroundColor: '#fff0f7',
+                        borderWidth: 1,
+                        borderColor: '#ffd1e6',
+                      }}
+                      onPress={() => router.push({
+                        pathname: '/share-contact' as any,
+                        params: { targetUserId: userId, activityId },
+                      })}
+                    >
+                      <Text style={{ color: BAJUJU_PINK, fontWeight: '900' }}>Condividi contatto</Text>
+                    </Pressable>
+                  </View>
+                ) : null}
+
                 <Pressable
                   style={styles.reportUserButton}
                   onPress={reportUser}

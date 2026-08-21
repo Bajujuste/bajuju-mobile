@@ -10,8 +10,7 @@ export type BajujuNotificationKind =
   | 'contact_request'
   | 'contact_accepted'
   | 'experience_cancelled'
-  | 'experience_reminder'
-  | 'chat_message';
+  | 'experience_reminder';
 
 const BAJUJU_PINK = '#e43f98';
 
@@ -75,8 +74,7 @@ async function savePushToken(userId: string, token: string) {
       .eq('user_id', userId)
       .maybeSingle();
 
-    const existingEnabled =
-      existingPreferencesResult.data?.enabled;
+    const existingEnabled = existingPreferencesResult.data?.enabled;
 
     const preferencesUpsertResult = await supabase
       .from('notification_preferences')
@@ -163,7 +161,7 @@ export async function registerForBajujuPushNotifications(userId?: string | null)
   if (__DEV__) {
     return {
       ok: false,
-      reason: "Notifiche push disattivate nella Development Build.",
+      reason: 'Notifiche push disattivate nella Development Build.',
     };
   }
 
@@ -232,13 +230,12 @@ export async function registerForBajujuPushNotifications(userId?: string | null)
 }
 
 export function isChatNotificationAllowed() {
-  return true;
+  return false;
 }
 
 export function isBajujuNotificationAllowed(kind: BajujuNotificationKind | string) {
-  return kind !== 'new_message' && kind !== 'activity_message';
+  return kind !== 'new_message' && kind !== 'chat_message' && kind !== 'activity_message';
 }
-
 
 export type SendBajujuPushInput = {
   type: BajujuNotificationKind | string;

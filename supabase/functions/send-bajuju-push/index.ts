@@ -43,23 +43,15 @@ function jsonResponse(body: unknown, status = 200) {
 
 function preferenceColumn(type: string) {
   switch (type) {
-    case 'new_experience':
-      return 'notify_new_experience';
-    case 'new_flash':
-      return 'notify_new_flash';
-    case 'new_participant':
-      return 'notify_new_participant';
-    case 'contact_request':
-      return 'notify_contact_request';
+    case 'new_experience': return 'notify_new_experience';
+    case 'new_flash': return 'notify_new_flash';
+    case 'new_participant': return 'notify_new_participant';
+    case 'contact_request': return 'notify_contact_request';
     case 'contact_accepted':
-    case 'contact_rejected':
-      return 'notify_contact_accepted';
-    case 'experience_cancelled':
-      return 'notify_experience_cancelled';
-    case 'experience_reminder':
-      return 'notify_experience_reminder';
-    default:
-      return '';
+    case 'contact_rejected': return 'notify_contact_accepted';
+    case 'experience_cancelled': return 'notify_experience_cancelled';
+    case 'experience_reminder': return 'notify_experience_reminder';
+    default: return '';
   }
 }
 
@@ -76,43 +68,37 @@ function distanceKm(lat1: number, lon1: number, lat2: number, lon2: number) {
   const earthRadiusKm = 6371.0088;
   const dLat = toRadians(lat2 - lat1);
   const dLon = toRadians(lon2 - lon1);
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRadians(lat1)) *
-      Math.cos(toRadians(lat2)) *
-      Math.sin(dLon / 2) ** 2;
-
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) * Math.sin(dLon / 2) ** 2;
   return earthRadiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 function firstText(row: Record<string, unknown> | null, keys: string[], fallback: string) {
   if (!row) return fallback;
-
   for (const key of keys) {
     const value = row[key];
     if (typeof value === 'string' && value.trim()) return value.trim();
   }
-
   return fallback;
 }
 
+function participantStatusIsActive(value: unknown) {
+  const status = String(value || '').trim().toLowerCase();
+  return ![
+    'rejected', 'rifiutato', 'declined', 'annullato', 'annullata',
+    'deleted', 'eliminato', 'eliminata', 'removed', 'cancellato', 'cancellata',
+  ].includes(status);
+}
+
 Deno.serve(async (request) => {
-  if (request.method !== 'POST') {
-    return jsonResponse({ error: 'Method not allowed' }, 405);
-  }
+  if (request.method !== 'POST') return jsonResponse({ error: 'Method not allowed' }, 405);
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
-
-  if (!supabaseUrl || !serviceRoleKey || !anonKey) {
-    return jsonResponse({ error: 'Missing Supabase env vars' }, 500);
-  }
+  if (!supabaseUrl || !serviceRoleKey || !anonKey) return jsonResponse({ error: 'Missing Supabase env vars' }, 500);
 
   const authorization = request.headers.get('Authorization') || '';
-  if (!authorization.toLowerCase().startsWith('bearer ')) {
-    return jsonResponse({ error: 'Authentication required' }, 401);
-  }
+  if (!authorization.toLowerCase().startsWith('bearer ')) return jsonResponse({ error: 'Authentication required' }, 401);
 
   const authClient = createClient(supabaseUrl, anonKey, {
     global: { headers: { Authorization: authorization } },
@@ -120,9 +106,7 @@ Deno.serve(async (request) => {
   });
 
   const { data: userData, error: userError } = await authClient.auth.getUser();
-  if (userError || !userData.user) {
-    return jsonResponse({ error: 'Authentication required' }, 401);
-  }
+  if (userError || !userData.user) return jsonResponse({ error: 'Authentication required' }, 401);
 
   let payload: PushRequest;
   try {
@@ -132,83 +116,48 @@ Deno.serve(async (request) => {
   }
 
   const type = String(payload.type || '').trim();
-  if (!ALLOWED_TYPES.has(type)) {
-    return jsonResponse({ error: `Tipo notifica non consentito: ${type}` }, 400);
-  }
+  if (!ALLOWED_TYPES.has(type)) return jsonResponse({ error: `Tipo notifica non consentito: ${type}` }, 400);
 
   const authenticatedUserId = userData.user.id;
-  if (payload.actorUserId && payload.actorUserId !== authenticatedUserId) {
-    return jsonResponse({ error: 'Actor non autorizzato' }, 403);
-  }
+  if (payload.actorUserId && payload.actorUserId !== authenticatedUserId) return jsonResponse({ error: 'Actor non autorizzato' }, 403);
 
   const supabase = createClient(supabaseUrl, serviceRoleKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
   const prefColumn = preferenceColumn(type);
-  if (!prefColumn) {
-    return jsonResponse({ error: `Preferenza non configurata per: ${type}` }, 400);
-  }
+  if (!prefColumn) return jsonResponse({ error: `Preferenza non configurata per: ${type}` }, 400);
 
   const actorUserId = authenticatedUserId;
   const targetUserId = payload.targetUserId ? String(payload.targetUserId).trim() : '';
   const province = payload.province ? String(payload.province).trim() : '';
+  const activityId = String(payload.data?.activityId || '').trim();
 
   let title = String(payload.title || '').trim();
   let body = String(payload.body || '').trim();
-  let activityId = String(payload.data?.activityId || '').trim();
   let experienceLatitude: number | null = null;
   let experienceLongitude: number | null = null;
 
   if (type === 'new_experience' && !targetUserId) {
-    if (!activityId) {
-      return jsonResponse({ error: 'activityId obbligatorio per una nuova esperienza.' }, 400);
-    }
+    if (!activityId) return jsonResponse({ error: 'activityId obbligatorio per una nuova esperienza.' }, 400);
 
-    const activityResult = await supabase
-      .from('activities')
-      .select('*')
-      .eq('id', activityId)
-      .maybeSingle();
-
-    if (activityResult.error) {
-      return jsonResponse({ error: activityResult.error.message }, 500);
-    }
-
-    if (!activityResult.data) {
-      return jsonResponse({ error: 'Esperienza non trovata.' }, 404);
-    }
+    const activityResult = await supabase.from('activities').select('*').eq('id', activityId).maybeSingle();
+    if (activityResult.error) return jsonResponse({ error: activityResult.error.message }, 500);
+    if (!activityResult.data) return jsonResponse({ error: 'Esperienza non trovata.' }, 404);
 
     const activity = activityResult.data as Record<string, unknown>;
-    const creatorId = String(activity.creator_id || '').trim();
-    if (!creatorId || creatorId !== actorUserId) {
-      return jsonResponse({ error: 'Esperienza non appartenente all’utente autenticato.' }, 403);
-    }
+    const creatorId = String(activity.creator_id || activity.organizer_id || activity.created_by || activity.user_id || '').trim();
+    if (!creatorId || creatorId !== actorUserId) return jsonResponse({ error: 'Esperienza non appartenente all’utente autenticato.' }, 403);
 
     experienceLatitude = asFiniteNumber(activity.latitude);
     experienceLongitude = asFiniteNumber(activity.longitude);
-
     if (experienceLatitude === null || experienceLongitude === null) {
-      return jsonResponse({
-        ok: true,
-        sent: 0,
-        reason: 'Esperienza senza coordinate: notifica geografica non inviata.',
-      });
+      return jsonResponse({ ok: true, sent: 0, reason: 'Esperienza senza coordinate: notifica geografica non inviata.' });
     }
 
-    const experienceTitle = firstText(
-      activity,
-      ['title', 'titolo', 'name', 'nome'],
-      'una nuova esperienza'
-    );
-
+    const experienceTitle = firstText(activity, ['title', 'titolo', 'name', 'nome'], 'una nuova esperienza');
     let organizerName = 'Un utente';
-    const profileResult = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', actorUserId)
-      .maybeSingle();
-
+    const profileResult = await supabase.from('profiles').select('*').eq('id', actorUserId).maybeSingle();
     if (!profileResult.error && profileResult.data) {
       organizerName = firstText(
         profileResult.data as Record<string, unknown>,
@@ -221,9 +170,45 @@ Deno.serve(async (request) => {
     body = `${organizerName} ha organizzato “${experienceTitle}” vicino a te.`;
   }
 
-  if (!title || !body) {
-    return jsonResponse({ error: 'Titolo e testo notifica obbligatori' }, 400);
+  if (type === 'new_participant') {
+    if (!targetUserId || !activityId) {
+      return jsonResponse({ error: 'targetUserId e activityId obbligatori per nuovo partecipante.' }, 400);
+    }
+
+    const [activityResult, participantResult, profileResult] = await Promise.all([
+      supabase.from('activities').select('*').eq('id', activityId).maybeSingle(),
+      supabase.from('activity_participants').select('user_id,status').eq('activity_id', activityId).eq('user_id', actorUserId).maybeSingle(),
+      supabase.from('profiles').select('*').eq('id', actorUserId).maybeSingle(),
+    ]);
+
+    if (activityResult.error) return jsonResponse({ error: activityResult.error.message }, 500);
+    if (participantResult.error) return jsonResponse({ error: participantResult.error.message }, 500);
+    if (!activityResult.data) return jsonResponse({ error: 'Esperienza non trovata.' }, 404);
+
+    const activity = activityResult.data as Record<string, unknown>;
+    const creatorId = String(activity.creator_id || activity.organizer_id || activity.created_by || activity.user_id || '').trim();
+    if (!creatorId || creatorId !== targetUserId) {
+      return jsonResponse({ error: 'Destinatario non corrisponde all’organizzatore.' }, 403);
+    }
+
+    if (!participantResult.data || !participantStatusIsActive((participantResult.data as Record<string, unknown>).status)) {
+      return jsonResponse({ error: 'Utente non risulta partecipante attivo.' }, 403);
+    }
+
+    const experienceTitle = firstText(activity, ['title', 'titolo', 'name', 'nome'], 'questa esperienza');
+    const participantName = !profileResult.error && profileResult.data
+      ? firstText(
+          profileResult.data as Record<string, unknown>,
+          ['nickname', 'username', 'display_name', 'full_name', 'name', 'nome'],
+          'Un utente Bajuju'
+        )
+      : 'Un utente Bajuju';
+
+    title = 'Nuovo partecipante';
+    body = `${participantName} partecipa a “${experienceTitle}”.`;
   }
+
+  if (!title || !body) return jsonResponse({ error: 'Titolo e testo notifica obbligatori' }, 400);
 
   let preferencesQuery = supabase
     .from('notification_preferences')
@@ -231,14 +216,10 @@ Deno.serve(async (request) => {
     .eq('enabled', true)
     .eq(prefColumn, true);
 
-  if (targetUserId) {
-    preferencesQuery = preferencesQuery.eq('user_id', targetUserId);
-  }
+  if (targetUserId) preferencesQuery = preferencesQuery.eq('user_id', targetUserId);
 
   const { data: preferences, error: preferencesError } = await preferencesQuery;
-  if (preferencesError) {
-    return jsonResponse({ error: preferencesError.message }, 500);
-  }
+  if (preferencesError) return jsonResponse({ error: preferencesError.message }, 500);
 
   let matchingUserIds = (preferences || [])
     .filter((pref: Record<string, unknown>) => {
@@ -249,32 +230,12 @@ Deno.serve(async (request) => {
       if (type === 'new_experience') {
         const userLatitude = asFiniteNumber(pref.latitude);
         const userLongitude = asFiniteNumber(pref.longitude);
-
-        if (
-          userLatitude === null ||
-          userLongitude === null ||
-          experienceLatitude === null ||
-          experienceLongitude === null
-        ) {
-          return false;
-        }
-
-        return distanceKm(
-          experienceLatitude,
-          experienceLongitude,
-          userLatitude,
-          userLongitude
-        ) <= NEARBY_EXPERIENCE_RADIUS_KM;
+        if (userLatitude === null || userLongitude === null || experienceLatitude === null || experienceLongitude === null) return false;
+        return distanceKm(experienceLatitude, experienceLongitude, userLatitude, userLongitude) <= NEARBY_EXPERIENCE_RADIUS_KM;
       }
 
-      const preferredProvince = pref.preferred_province
-        ? String(pref.preferred_province).trim().toLowerCase()
-        : '';
-
-      if (preferredProvince && province && preferredProvince !== province.toLowerCase()) {
-        return false;
-      }
-
+      const preferredProvince = pref.preferred_province ? String(pref.preferred_province).trim().toLowerCase() : '';
+      if (preferredProvince && province && preferredProvince !== province.toLowerCase()) return false;
       return true;
     })
     .map((pref: Record<string, unknown>) => String(pref.user_id));
@@ -283,16 +244,8 @@ Deno.serve(async (request) => {
 
   if (matchingUserIds.length > 0) {
     const [blockedByActorResult, actorBlockedResult] = await Promise.all([
-      supabase
-        .from('user_blocks')
-        .select('blocked_id')
-        .eq('blocker_id', actorUserId)
-        .in('blocked_id', matchingUserIds),
-      supabase
-        .from('user_blocks')
-        .select('blocker_id')
-        .eq('blocked_id', actorUserId)
-        .in('blocker_id', matchingUserIds),
+      supabase.from('user_blocks').select('blocked_id').eq('blocker_id', actorUserId).in('blocked_id', matchingUserIds),
+      supabase.from('user_blocks').select('blocker_id').eq('blocked_id', actorUserId).in('blocker_id', matchingUserIds),
     ]);
 
     const blockedIds = new Set<string>();
@@ -367,19 +320,14 @@ Deno.serve(async (request) => {
     .in('user_id', matchingUserIds)
     .eq('is_active', true);
 
-  if (tokensError) {
-    return jsonResponse({ error: tokensError.message }, 500);
-  }
+  if (tokensError) return jsonResponse({ error: tokensError.message }, 500);
 
   const messageRows = (tokens || [])
     .map((row: Record<string, unknown>) => ({
       userId: String(row.user_id || ''),
       token: String(row.expo_push_token || ''),
     }))
-    .filter(({ userId, token }) =>
-      Boolean(userId) &&
-      (token.startsWith('ExponentPushToken[') || token.startsWith('ExpoPushToken['))
-    )
+    .filter(({ userId, token }) => Boolean(userId) && (token.startsWith('ExponentPushToken[') || token.startsWith('ExpoPushToken[')))
     .map(({ userId, token }) => ({
       userId,
       token,
@@ -390,10 +338,7 @@ Deno.serve(async (request) => {
         body,
         channelId: 'bajuju-important',
         priority: 'high',
-        data: {
-          type,
-          ...(payload.data || {}),
-        },
+        data: { type, ...(payload.data || {}) },
       },
     }));
 
@@ -456,10 +401,7 @@ Deno.serve(async (request) => {
     failedUsers.set(row.userId, detail);
 
     if (ticket?.details?.error === 'DeviceNotRegistered') {
-      void supabase
-        .from('push_tokens')
-        .update({ is_active: false })
-        .eq('expo_push_token', row.token);
+      void supabase.from('push_tokens').update({ is_active: false }).eq('expo_push_token', row.token);
     }
   });
 

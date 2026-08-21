@@ -6,6 +6,7 @@ type NotificationType =
   | 'new_participant'
   | 'contact_request'
   | 'contact_accepted'
+  | 'contact_rejected'
   | 'experience_cancelled'
   | 'experience_reminder';
 
@@ -28,25 +29,15 @@ const ALLOWED_TYPES = new Set([
   'new_participant',
   'contact_request',
   'contact_accepted',
+  'contact_rejected',
   'experience_cancelled',
   'experience_reminder',
-]);
-
-const BLOCKED_TYPES = new Set([
-  'new_message',
-  'chat_message',
-  'activity_message',
-  'activity_messages',
-  'message',
-  'chat',
 ]);
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: { 'Content-Type': 'application/json' },
   });
 }
 
@@ -61,6 +52,7 @@ function preferenceColumn(type: string) {
     case 'contact_request':
       return 'notify_contact_request';
     case 'contact_accepted':
+    case 'contact_rejected':
       return 'notify_contact_accepted';
     case 'experience_cancelled':
       return 'notify_experience_cancelled';
@@ -104,28 +96,6 @@ function firstText(row: Record<string, unknown> | null, keys: string[], fallback
   return fallback;
 }
 
-async function sendExpoPush(messages: Array<Record<string, unknown>>) {
-  if (messages.length === 0) return [];
-
-  const response = await fetch('https://exp.host/--/api/v2/push/send', {
-    method: 'POST',
-    headers: {
-      Accept: 'application/json',
-      'Accept-encoding': 'gzip, deflate',
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(messages),
-  });
-
-  const payload = await response.json().catch(() => null);
-
-  if (!response.ok) {
-    throw new Error(`Expo push error ${response.status}: ${JSON.stringify(payload)}`);
-  }
-
-  return payload;
-}
-
 Deno.serve(async (request) => {
   if (request.method !== 'POST') {
     return jsonResponse({ error: 'Method not allowed' }, 405);
@@ -140,7 +110,6 @@ Deno.serve(async (request) => {
   }
 
   const authorization = request.headers.get('Authorization') || '';
-
   if (!authorization.toLowerCase().startsWith('bearer ')) {
     return jsonResponse({ error: 'Authentication required' }, 401);
   }
@@ -149,17 +118,13 @@ Deno.serve(async (request) => {
     global: { headers: { Authorization: authorization } },
     auth: { persistSession: false, autoRefreshToken: false },
   });
-  const { data: userData, error: userError } = await authClient.auth.getUser();
 
+  const { data: userData, error: userError } = await authClient.auth.getUser();
   if (userError || !userData.user) {
     return jsonResponse({ error: 'Authentication required' }, 401);
   }
 
-  const authenticatedUserId = userData.user.id;
-  const supabase = createClient(supabaseUrl, serviceRoleKey);
-
   let payload: PushRequest;
-
   try {
     payload = await request.json();
   } catch {
@@ -167,37 +132,35 @@ Deno.serve(async (request) => {
   }
 
   const type = String(payload.type || '').trim();
-
-  if (BLOCKED_TYPES.has(type)) {
-    return jsonResponse({
-      ok: false,
-      blocked: true,
-      reason: 'Le notifiche chat sono disattivate per scelta Bajuju.',
-    });
-  }
-
   if (!ALLOWED_TYPES.has(type)) {
     return jsonResponse({ error: `Tipo notifica non consentito: ${type}` }, 400);
   }
 
+  const authenticatedUserId = userData.user.id;
   if (payload.actorUserId && payload.actorUserId !== authenticatedUserId) {
     return jsonResponse({ error: 'Actor non autorizzato' }, 403);
   }
 
+  const supabase = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
   const prefColumn = preferenceColumn(type);
+  if (!prefColumn) {
+    return jsonResponse({ error: `Preferenza non configurata per: ${type}` }, 400);
+  }
+
   const actorUserId = authenticatedUserId;
-  const targetUserId = payload.targetUserId || null;
-  const province = payload.province ? String(payload.province).trim() : null;
+  const targetUserId = payload.targetUserId ? String(payload.targetUserId).trim() : '';
+  const province = payload.province ? String(payload.province).trim() : '';
 
   let title = String(payload.title || '').trim();
   let body = String(payload.body || '').trim();
+  let activityId = String(payload.data?.activityId || '').trim();
   let experienceLatitude: number | null = null;
   let experienceLongitude: number | null = null;
-  let activityId = '';
 
   if (type === 'new_experience' && !targetUserId) {
-    activityId = String(payload.data?.activityId || '').trim();
-
     if (!activityId) {
       return jsonResponse({ error: 'activityId obbligatorio per una nuova esperienza.' }, 400);
     }
@@ -218,8 +181,7 @@ Deno.serve(async (request) => {
 
     const activity = activityResult.data as Record<string, unknown>;
     const creatorId = String(activity.creator_id || '').trim();
-
-    if (!creatorId || creatorId !== authenticatedUserId) {
+    if (!creatorId || creatorId !== actorUserId) {
       return jsonResponse({ error: 'Esperienza non appartenente all’utente autenticato.' }, 403);
     }
 
@@ -244,13 +206,13 @@ Deno.serve(async (request) => {
     const profileResult = await supabase
       .from('profiles')
       .select('*')
-      .eq('id', authenticatedUserId)
+      .eq('id', actorUserId)
       .maybeSingle();
 
     if (!profileResult.error && profileResult.data) {
       organizerName = firstText(
         profileResult.data as Record<string, unknown>,
-        ['username', 'nickname', 'display_name', 'full_name', 'name', 'nome'],
+        ['nickname', 'username', 'display_name', 'full_name', 'name', 'nome'],
         organizerName
       );
     }
@@ -265,27 +227,23 @@ Deno.serve(async (request) => {
 
   let preferencesQuery = supabase
     .from('notification_preferences')
-    .select('user_id, enabled, preferred_province, notify_chat_messages, latitude, longitude, location_updated_at, ' + prefColumn)
+    .select(`user_id, enabled, preferred_province, latitude, longitude, location_updated_at, ${prefColumn}`)
     .eq('enabled', true)
-    .eq(prefColumn, true)
-    .eq('notify_chat_messages', false);
+    .eq(prefColumn, true);
 
   if (targetUserId) {
     preferencesQuery = preferencesQuery.eq('user_id', targetUserId);
   }
 
   const { data: preferences, error: preferencesError } = await preferencesQuery;
-
   if (preferencesError) {
     return jsonResponse({ error: preferencesError.message }, 500);
   }
 
   let matchingUserIds = (preferences || [])
     .filter((pref: Record<string, unknown>) => {
-      const userId = String(pref.user_id || '');
-
-      if (!userId) return false;
-      if (userId === actorUserId) return false;
+      const userId = String(pref.user_id || '').trim();
+      if (!userId || userId === actorUserId) return false;
       if (targetUserId) return true;
 
       if (type === 'new_experience') {
@@ -301,14 +259,12 @@ Deno.serve(async (request) => {
           return false;
         }
 
-        return (
-          distanceKm(
-            experienceLatitude,
-            experienceLongitude,
-            userLatitude,
-            userLongitude
-          ) <= NEARBY_EXPERIENCE_RADIUS_KM
-        );
+        return distanceKm(
+          experienceLatitude,
+          experienceLongitude,
+          userLatitude,
+          userLongitude
+        ) <= NEARBY_EXPERIENCE_RADIUS_KM;
       }
 
       const preferredProvince = pref.preferred_province
@@ -323,43 +279,87 @@ Deno.serve(async (request) => {
     })
     .map((pref: Record<string, unknown>) => String(pref.user_id));
 
+  matchingUserIds = [...new Set(matchingUserIds)];
+
+  if (matchingUserIds.length > 0) {
+    const [blockedByActorResult, actorBlockedResult] = await Promise.all([
+      supabase
+        .from('user_blocks')
+        .select('blocked_id')
+        .eq('blocker_id', actorUserId)
+        .in('blocked_id', matchingUserIds),
+      supabase
+        .from('user_blocks')
+        .select('blocker_id')
+        .eq('blocked_id', actorUserId)
+        .in('blocker_id', matchingUserIds),
+    ]);
+
+    const blockedIds = new Set<string>();
+    (blockedByActorResult.data || []).forEach((row: Record<string, unknown>) => {
+      if (row.blocked_id) blockedIds.add(String(row.blocked_id));
+    });
+    (actorBlockedResult.data || []).forEach((row: Record<string, unknown>) => {
+      if (row.blocker_id) blockedIds.add(String(row.blocker_id));
+    });
+
+    matchingUserIds = matchingUserIds.filter((userId) => !blockedIds.has(userId));
+  }
+
   if (type === 'new_experience' && activityId && matchingUserIds.length > 0) {
-    const alreadySentResult = await supabase
+    const alreadyLoggedResult = await supabase
       .from('push_notification_logs')
       .select('user_id')
       .eq('notification_type', 'new_experience')
-      .eq('success', true)
       .contains('data', { activityId })
       .in('user_id', matchingUserIds);
 
-    if (!alreadySentResult.error) {
-      const alreadySent = new Set(
-        (alreadySentResult.data || []).map((row: Record<string, unknown>) => String(row.user_id || ''))
+    if (!alreadyLoggedResult.error) {
+      const alreadyLogged = new Set(
+        (alreadyLoggedResult.data || []).map((row: Record<string, unknown>) => String(row.user_id || ''))
       );
-      matchingUserIds = matchingUserIds.filter((userId) => !alreadySent.has(userId));
+      matchingUserIds = matchingUserIds.filter((userId) => !alreadyLogged.has(userId));
     }
   }
 
   if (matchingUserIds.length === 0) {
-    if (targetUserId) {
-      await supabase.from('push_notification_logs').insert({
-        user_id: targetUserId,
-        notification_type: type,
-        title,
-        body,
-        data: payload.data || {},
-        success: false,
-        error_message: 'Push non abilitata per questo utente.',
-      });
-    }
-
     return jsonResponse({
       ok: true,
       sent: 0,
+      users: 0,
       radiusKm: type === 'new_experience' ? NEARBY_EXPERIENCE_RADIUS_KM : undefined,
-      reason: 'Nessun utente compatibile o notifica già inviata.',
+      reason: 'Nessun utente compatibile o notifica già registrata.',
     });
   }
+
+  const logInsertResult = await supabase
+    .from('push_notification_logs')
+    .insert(
+      matchingUserIds.map((userId) => ({
+        user_id: userId,
+        notification_type: type,
+        type,
+        title,
+        body,
+        data: payload.data || {},
+        status: 'in_app',
+        success: null,
+        error: null,
+        is_read: false,
+      }))
+    )
+    .select('id,user_id');
+
+  if (logInsertResult.error) {
+    return jsonResponse({ error: `Errore registro notifiche: ${logInsertResult.error.message}` }, 500);
+  }
+
+  const logIdsByUser = new Map<string, string>();
+  (logInsertResult.data || []).forEach((row: Record<string, unknown>) => {
+    const userId = String(row.user_id || '');
+    const logId = String(row.id || '');
+    if (userId && logId) logIdsByUser.set(userId, logId);
+  });
 
   const { data: tokens, error: tokensError } = await supabase
     .from('push_tokens')
@@ -371,75 +371,125 @@ Deno.serve(async (request) => {
     return jsonResponse({ error: tokensError.message }, 500);
   }
 
-  const messages = (tokens || [])
-    .filter((row: Record<string, unknown>) => {
-      const token = String(row.expo_push_token || '');
-      return token.startsWith('ExponentPushToken[') || token.startsWith('ExpoPushToken[');
-    })
+  const messageRows = (tokens || [])
     .map((row: Record<string, unknown>) => ({
-      to: row.expo_push_token,
-      sound: 'default',
-      title,
-      body,
-      channelId: 'bajuju-important',
-      priority: 'high',
-      data: {
-        type,
-        ...(payload.data || {}),
+      userId: String(row.user_id || ''),
+      token: String(row.expo_push_token || ''),
+    }))
+    .filter(({ userId, token }) =>
+      Boolean(userId) &&
+      (token.startsWith('ExponentPushToken[') || token.startsWith('ExpoPushToken['))
+    )
+    .map(({ userId, token }) => ({
+      userId,
+      token,
+      message: {
+        to: token,
+        sound: 'default',
+        title,
+        body,
+        channelId: 'bajuju-important',
+        priority: 'high',
+        data: {
+          type,
+          ...(payload.data || {}),
+        },
       },
     }));
 
-  if (messages.length === 0) {
-    await supabase.from('push_notification_logs').insert(
-      matchingUserIds.map((userId) => ({
-        user_id: userId,
-        notification_type: type,
-        title,
-        body,
-        data: payload.data || {},
-        success: false,
-        error_message: 'Nessun push token valido.',
-      }))
-    );
-    return jsonResponse({ ok: true, sent: 0, reason: 'Nessun push token valido.' });
-  }
-
-  let expoResult: unknown;
-
-  try {
-    expoResult = await sendExpoPush(messages);
-  } catch (error) {
-    await supabase.from('push_notification_logs').insert(
-      matchingUserIds.map((userId) => ({
-        user_id: userId,
-        notification_type: type,
-        title,
-        body,
-        data: payload.data || {},
-        success: false,
-        error_message: error instanceof Error ? error.message : String(error),
-      }))
+  if (messageRows.length === 0) {
+    await Promise.all(
+      matchingUserIds.map((userId) => {
+        const logId = logIdsByUser.get(userId);
+        if (!logId) return Promise.resolve();
+        return supabase
+          .from('push_notification_logs')
+          .update({ status: 'in_app_only', success: false, error: 'Nessun push token valido.' })
+          .eq('id', logId)
+          .then(() => undefined);
+      })
     );
 
-    return jsonResponse({ error: error instanceof Error ? error.message : String(error) }, 500);
+    return jsonResponse({ ok: true, sent: 0, users: matchingUserIds.length, reason: 'Notifica interna registrata; nessun push token valido.' });
   }
 
-  await supabase.from('push_notification_logs').insert(
-    matchingUserIds.map((userId) => ({
-      user_id: userId,
-      notification_type: type,
-      title,
-      body,
-      data: payload.data || {},
-      success: true,
-      error_message: null,
-    }))
+  const expoResponse = await fetch('https://exp.host/--/api/v2/push/send', {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Accept-encoding': 'gzip, deflate',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(messageRows.map((row) => row.message)),
+  });
+
+  const expoResult = await expoResponse.json().catch(() => null);
+
+  if (!expoResponse.ok) {
+    await Promise.all(
+      matchingUserIds.map((userId) => {
+        const logId = logIdsByUser.get(userId);
+        if (!logId) return Promise.resolve();
+        return supabase
+          .from('push_notification_logs')
+          .update({ status: 'push_error', success: false, error: `Expo push HTTP ${expoResponse.status}` })
+          .eq('id', logId)
+          .then(() => undefined);
+      })
+    );
+
+    return jsonResponse({ error: `Expo push error ${expoResponse.status}`, inAppRegistered: matchingUserIds.length }, 502);
+  }
+
+  const tickets = Array.isArray(expoResult?.data) ? expoResult.data : [];
+  const successfulUsers = new Set<string>();
+  const failedUsers = new Map<string, string>();
+
+  messageRows.forEach((row, index) => {
+    const ticket = tickets[index];
+    if (!ticket || ticket.status === 'ok') {
+      successfulUsers.add(row.userId);
+      return;
+    }
+
+    const detail = String(ticket?.details?.error || ticket?.message || 'Push rifiutata da Expo');
+    failedUsers.set(row.userId, detail);
+
+    if (ticket?.details?.error === 'DeviceNotRegistered') {
+      void supabase
+        .from('push_tokens')
+        .update({ is_active: false })
+        .eq('expo_push_token', row.token);
+    }
+  });
+
+  await Promise.all(
+    matchingUserIds.map((userId) => {
+      const logId = logIdsByUser.get(userId);
+      if (!logId) return Promise.resolve();
+
+      if (successfulUsers.has(userId)) {
+        return supabase
+          .from('push_notification_logs')
+          .update({ status: 'sent', success: true, error: null })
+          .eq('id', logId)
+          .then(() => undefined);
+      }
+
+      const error = failedUsers.get(userId) || 'Nessun push token valido per questo utente.';
+      return supabase
+        .from('push_notification_logs')
+        .update({ status: 'in_app_only', success: false, error })
+        .eq('id', logId)
+        .then(() => undefined);
+    })
   );
 
   return jsonResponse({
     ok: true,
-    sent: messages.length,
+    sent: messageRows.length,
     users: matchingUserIds.length,
+    inAppRegistered: matchingUserIds.length,
     radiusKm: type === 'new_experience' ? NEARBY_EXPERIENCE_RADIUS_KM : undefined,
     expoResult,
   });

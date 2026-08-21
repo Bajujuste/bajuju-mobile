@@ -74,7 +74,8 @@ async function savePushToken(userId: string, token: string) {
       .eq('user_id', userId)
       .maybeSingle();
 
-    const existingEnabled = existingPreferencesResult.data?.enabled;
+    const existingEnabled =
+      existingPreferencesResult.data?.enabled;
 
     const preferencesUpsertResult = await supabase
       .from('notification_preferences')
@@ -89,7 +90,7 @@ async function savePushToken(userId: string, token: string) {
           notify_contact_accepted: true,
           notify_experience_cancelled: true,
           notify_experience_reminder: true,
-          notify_chat_messages: true,
+          notify_chat_messages: false,
         },
         {
           onConflict: 'user_id',
@@ -161,7 +162,7 @@ export async function registerForBajujuPushNotifications(userId?: string | null)
   if (__DEV__) {
     return {
       ok: false,
-      reason: 'Notifiche push disattivate nella Development Build.',
+      reason: "Notifiche push disattivate nella Development Build.",
     };
   }
 
@@ -236,6 +237,7 @@ export function isChatNotificationAllowed() {
 export function isBajujuNotificationAllowed(kind: BajujuNotificationKind | string) {
   return kind !== 'new_message' && kind !== 'chat_message' && kind !== 'activity_message';
 }
+
 
 export type SendBajujuPushInput = {
   type: BajujuNotificationKind | string;

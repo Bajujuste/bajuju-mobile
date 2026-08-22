@@ -1,5 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import {
     ActivityIndicator,
@@ -15,6 +16,7 @@ import {
     View,
 } from 'react-native';
 import { supabase } from '../src/lib/supabase';
+import { refreshBajujuNotificationLocation } from '../src/utils/bajujuNotificationLocation';
 import {
   registerForBajujuPushNotifications,
   sendBajujuPushNotification,
@@ -1010,41 +1012,63 @@ export default function ProfileScreen() {
         if (upsertResult.error) throw upsertResult.error;
       }
 
-      try {
-        let notificationsSuccessfullyEnabled = notificationsEnabled;
+      const notificationChoiceKey = `bajuju-notification-choice-v2:${user.id}`;
+
+      const preferencesResult = await supabase
+        .from('notification_preferences')
+        .upsert(
+          {
+            user_id: user.id,
+            enabled: notificationsEnabled,
+            preferred_province: cleanProvince,
+            updated_at: new Date().toISOString(),
+          },
+          {
+            onConflict: 'user_id',
+          }
+        );
+
+      if (preferencesResult.error) {
+        console.warn('Preferenze notifiche non salvate.', preferencesResult.error);
+        Alert.alert(
+          'Notifiche non salvate',
+          'Il profilo è stato aggiornato, ma non sono riuscito a salvare la preferenza notifiche.'
+        );
+      } else {
+        try {
+          await AsyncStorage.setItem(
+            notificationChoiceKey,
+            notificationsEnabled ? 'accepted' : 'declined'
+          );
+        } catch (error) {
+          console.log('Scelta notifiche locale non aggiornata.', error);
+        }
 
         if (notificationsEnabled) {
-          const notificationResult =
-            await registerForBajujuPushNotifications(String(user.id));
+          try {
+            const notificationResult =
+              await registerForBajujuPushNotifications(String(user.id));
 
-          if (!notificationResult.ok) {
-            Alert.alert(
-              'Notifiche non attivate',
-              notificationResult.reason ||
-                'Non sono riuscito ad attivare le notifiche sul dispositivo.'
-            );
+            if (!notificationResult.ok) {
+              Alert.alert(
+                'Notifiche salvate',
+                notificationResult.reason ||
+                  'La preferenza è attiva, ma la registrazione push del dispositivo non è ancora riuscita.'
+              );
+            }
+          } catch (error) {
+            console.log('Registrazione push non completata.', error);
+          }
+
+          try {
+            const locationResult = await refreshBajujuNotificationLocation(String(user.id));
+            if (!locationResult.ok) {
+              console.log('Posizione notifiche non aggiornata:', locationResult.reason);
+            }
+          } catch (error) {
+            console.log('Posizione notifiche non aggiornata.', error);
           }
         }
-
-        const preferencesResult = await supabase
-          .from('notification_preferences')
-          .upsert(
-            {
-              user_id: user.id,
-              enabled: notificationsSuccessfullyEnabled,
-              preferred_province: cleanProvince,
-              updated_at: new Date().toISOString(),
-            },
-            {
-              onConflict: 'user_id',
-            }
-          );
-
-        if (preferencesResult.error) {
-          console.warn('Preferenze notifiche non salvate.');
-        }
-      } catch {
-        // Se la tabella notifiche non è ancora pronta, il profilo resta comunque salvato.
       }
 
       await loadAll();

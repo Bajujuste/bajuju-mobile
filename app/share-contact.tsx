@@ -228,18 +228,19 @@ export default function ShareContactScreen() {
     try {
       const existingResult = await supabase
         .from('direct_contact_requests')
-        .select('id,status')
+        .select('id,status,contact_type')
         .eq('requester_id', currentUserId)
         .eq('receiver_id', targetUserId)
-        .eq('activity_id', activityId)
-        .eq('contact_type', contactType)
-        .in('status', ['pending', 'accepted'])
+        .in('contact_type', ['telefono', 'telegram'])
         .limit(1);
 
       if (existingResult.error) throw existingResult.error;
 
       if ((existingResult.data || []).length > 0) {
-        Alert.alert('Richiesta già presente', 'Hai già condiviso o richiesto di condividere questo contatto con questa persona.');
+        Alert.alert(
+          'Contatto già inviato',
+          'Hai già inviato un contatto diretto a questa persona. Puoi farlo una sola volta, anche se è stato rifiutato.'
+        );
         return;
       }
 

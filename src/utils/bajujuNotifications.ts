@@ -71,26 +71,25 @@ async function savePushToken(userId: string, token: string) {
   if (!upsertResult.error) {
     const existingPreferencesResult = await supabase
       .from('notification_preferences')
-      .select('enabled')
+      .select('enabled,notify_new_experience,notify_new_flash,notify_new_participant,notify_contact_request,notify_contact_accepted,notify_experience_cancelled,notify_experience_reminder,notify_chat_messages')
       .eq('user_id', userId)
       .maybeSingle();
 
-    const existingEnabled =
-      existingPreferencesResult.data?.enabled;
+    const existingPreferences = existingPreferencesResult.data;
 
     const preferencesUpsertResult = await supabase
       .from('notification_preferences')
       .upsert(
         {
           user_id: userId,
-          enabled: existingEnabled ?? true,
-          notify_new_experience: true,
-          notify_new_flash: true,
-          notify_new_participant: true,
-          notify_contact_request: true,
-          notify_contact_accepted: true,
-          notify_experience_cancelled: true,
-          notify_experience_reminder: true,
+          enabled: existingPreferences?.enabled ?? true,
+          notify_new_experience: existingPreferences?.notify_new_experience ?? true,
+          notify_new_flash: existingPreferences?.notify_new_flash ?? true,
+          notify_new_participant: existingPreferences?.notify_new_participant ?? true,
+          notify_contact_request: existingPreferences?.notify_contact_request ?? true,
+          notify_contact_accepted: existingPreferences?.notify_contact_accepted ?? true,
+          notify_experience_cancelled: existingPreferences?.notify_experience_cancelled ?? true,
+          notify_experience_reminder: existingPreferences?.notify_experience_reminder ?? true,
           notify_chat_messages: false,
         },
         {
@@ -229,6 +228,45 @@ export async function registerForBajujuPushNotifications(userId?: string | null)
     ok: true,
     token,
   };
+}
+
+export async function refreshBajujuPushRegistrationIfAuthorized(userId?: string | null) {
+  if (Platform.OS === 'web' || isRunningInExpoGo() || !Device.isDevice || __DEV__) {
+    return { ok: false, reason: 'Ambiente non compatibile con push produzione.' };
+  }
+
+  const Notifications = await getNotificationsModule();
+  if (!Notifications) return { ok: false, reason: 'Modulo notifiche non disponibile.' };
+
+  const permission = await Notifications.getPermissionsAsync();
+  if (permission.status !== 'granted') {
+    return { ok: false, reason: 'Permesso notifiche non concesso.' };
+  }
+
+  if (Platform.OS === 'android') {
+    await Notifications.setNotificationChannelAsync('bajuju-important', {
+      name: 'Bajuju',
+      importance: Notifications.AndroidImportance.HIGH,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: BAJUJU_PINK,
+      sound: 'default',
+    });
+  }
+
+  const projectId = getProjectId();
+  if (!projectId) return { ok: false, reason: 'Project ID Expo/EAS non trovato.' };
+
+  const tokenResult = await Notifications.getExpoPushTokenAsync({ projectId });
+  const token = tokenResult.data;
+
+  if (userId) {
+    const saveResult = await savePushToken(userId, token);
+    if (!saveResult.ok) {
+      return { ok: false, reason: 'Token ottenuto, ma salvataggio su Supabase non riuscito.', token };
+    }
+  }
+
+  return { ok: true, token };
 }
 
 export function isChatNotificationAllowed() {

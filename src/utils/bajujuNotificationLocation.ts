@@ -81,19 +81,29 @@ export async function saveBajujuNotificationCoordinatesIfEnabled(
     .eq('user_id', userId)
     .maybeSingle();
 
-  if (preferenceResult.error || preferenceResult.data?.enabled !== true) {
-    return { ok: false, reason: 'Notifiche Bajuju non abilitate.' };
+  if (preferenceResult.error) {
+    return { ok: false, reason: preferenceResult.error.message };
+  }
+
+  // Se l'utente le ha disattivate esplicitamente non riattiviamo nulla.
+  // Se invece la riga non esiste ancora, la creiamo: i default DB mantengono
+  // le preferenze standard e consentono il targeting geografico entro 25 km.
+  if (preferenceResult.data?.enabled === false) {
+    return { ok: false, reason: 'Notifiche Bajuju disattivate.' };
   }
 
   const result = await supabase
     .from('notification_preferences')
-    .update({
-      latitude,
-      longitude,
-      location_updated_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    })
-    .eq('user_id', userId);
+    .upsert(
+      {
+        user_id: userId,
+        latitude,
+        longitude,
+        location_updated_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'user_id' }
+    );
 
   if (result.error) return { ok: false, reason: result.error.message };
   return { ok: true, latitude, longitude };

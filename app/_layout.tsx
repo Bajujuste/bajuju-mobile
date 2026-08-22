@@ -17,6 +17,12 @@ function openPushNotification(data: Record<string, unknown>) {
   const screen = typeof data.screen === 'string' ? data.screen : '';
   const activityId = typeof data.activityId === 'string' ? data.activityId : '';
   const section = typeof data.section === 'string' ? data.section : '';
+  const type = typeof data.type === 'string' ? data.type : '';
+
+  if (type === 'waitlist_spot_available' && activityId) {
+    router.push({ pathname: '/experience-waitlist' as any, params: { id: activityId } });
+    return;
+  }
 
   switch (screen) {
     case 'experience':
@@ -84,25 +90,12 @@ function hasCompleteRequiredProfile(profile: RequiredProfileRow | null) {
   const age = Number(rawAge);
 
   const validGender = [
-    'maschio',
-    'uomo',
-    'male',
-    'femmina',
-    'donna',
-    'female',
-    'non_binario',
-    'non binario',
-    'non-binary',
-    'nonbinary',
+    'maschio', 'uomo', 'male', 'femmina', 'donna', 'female',
+    'non_binario', 'non binario', 'non-binary', 'nonbinary',
   ].includes(gender);
 
   return Boolean(
-    photo &&
-    city &&
-    Number.isInteger(age) &&
-    age >= 18 &&
-    age <= 99 &&
-    validGender
+    photo && city && Number.isInteger(age) && age >= 18 && age <= 99 && validGender
   );
 }
 
@@ -125,15 +118,8 @@ export default function RootLayout() {
     if (Platform.OS === 'web') return;
 
     const allowedPaths = new Set([
-      '/',
-      '/login',
-      '/register',
-      '/forgot-password',
-      '/reset-password',
-      '/auth/callback',
-      '/profile',
-      '/privacy',
-      '/rules',
+      '/', '/login', '/register', '/forgot-password', '/reset-password',
+      '/auth/callback', '/profile', '/privacy', '/rules',
     ]);
 
     if (allowedPaths.has(pathname)) return;
@@ -216,11 +202,7 @@ export default function RootLayout() {
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <SafeAreaView
         style={styles.appFrame}
-        edges={
-          homeAlreadyHandlesSafeArea
-            ? []
-            : ['top', 'left', 'right']
-        }
+        edges={homeAlreadyHandlesSafeArea ? [] : ['top', 'left', 'right']}
       >
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />

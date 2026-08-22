@@ -115,13 +115,28 @@ export default function ShareContactScreen() {
           return;
         }
 
-        const [activityResult, targetProfileResult, senderProfileResult, participantsResult, blockedByMe, blockedMe] = await Promise.all([
+        const [
+          activityResult,
+          targetProfileResult,
+          senderProfileResult,
+          participantsResult,
+          blockedByMe,
+          blockedMe,
+          existingDirectResult,
+        ] = await Promise.all([
           supabase.from('activities').select('*').eq('id', activityId).maybeSingle(),
           supabase.from('profiles').select('*').eq('id', targetUserId).maybeSingle(),
           supabase.from('profiles').select('*').eq('id', userId).maybeSingle(),
           supabase.from('activity_participants').select('user_id,status').eq('activity_id', activityId),
           supabase.from('user_blocks').select('id').eq('blocker_id', userId).eq('blocked_id', targetUserId).maybeSingle(),
           supabase.from('user_blocks').select('id').eq('blocker_id', targetUserId).eq('blocked_id', userId).maybeSingle(),
+          supabase
+            .from('direct_contact_requests')
+            .select('id')
+            .eq('requester_id', userId)
+            .eq('receiver_id', targetUserId)
+            .in('contact_type', ['telefono', 'telegram'])
+            .limit(1),
         ]);
 
         if (activityResult.error) throw activityResult.error;
@@ -130,6 +145,7 @@ export default function ShareContactScreen() {
         if (participantsResult.error) throw participantsResult.error;
         if (blockedByMe.error) throw blockedByMe.error;
         if (blockedMe.error) throw blockedMe.error;
+        if (existingDirectResult.error) throw existingDirectResult.error;
 
         const activity = activityResult.data as LooseRow | null;
         const targetProfile = targetProfileResult.data as LooseRow | null;
@@ -162,6 +178,13 @@ export default function ShareContactScreen() {
 
         if (blockedByMe.data || blockedMe.data) {
           setDisabledReason('Non puoi condividere contatti con questa persona.');
+          return;
+        }
+
+        if ((existingDirectResult.data || []).length > 0) {
+          setDisabledReason(
+            'Hai già inviato un contatto diretto a questa persona. Puoi farlo una sola volta, anche se è stato rifiutato.'
+          );
           return;
         }
 

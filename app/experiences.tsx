@@ -172,7 +172,7 @@ export default function ExperiencesScreen() {
 
       const activitiesResult = await supabase
         .from('activities')
-        .select('id,creator_id,title,category,city,province,activity_date,activity_time,max_participants,is_flash,photo_url,image_url,cover_url,deleted_at,status,latitude,longitude')
+        .select('id,creator_id,title,category,city,province,activity_date,activity_time,max_participants,is_flash,photo_url,deleted_at,status,latitude,longitude')
         .neq('is_flash', true)
         .gte('activity_date', oldestUsefulDate)
         .order('activity_date', { ascending: true })

@@ -14,23 +14,72 @@ export default function InviteOutScreen() {
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [disabledReason, setDisabledReason] = useState('');
 
   useEffect(() => {
+    let active = true;
+
     void (async () => {
+      setLoading(true);
+      setDisabledReason('');
+
       try {
-        if (!targetUserId || !activityId) return;
-        const profileResult = await supabase
-          .from('profiles')
-          .select('nickname')
-          .eq('id', targetUserId)
-          .maybeSingle();
+        if (!targetUserId || !activityId) {
+          setDisabledReason('Invito non disponibile.');
+          return;
+        }
+
+        const [profileResult, authResult] = await Promise.all([
+          supabase
+            .from('profiles')
+            .select('nickname')
+            .eq('id', targetUserId)
+            .maybeSingle(),
+          supabase.auth.getUser(),
+        ]);
+
+        if (profileResult.error) throw profileResult.error;
+        if (authResult.error) throw authResult.error;
 
         const nickname = String(profileResult.data?.nickname || '').trim();
-        if (nickname) setTargetName(nickname);
+        if (active && nickname) setTargetName(nickname);
+
+        const currentUserId = String(authResult.data.user?.id || '').trim();
+        if (!currentUserId) {
+          setDisabledReason('Devi essere collegato per inviare un invito.');
+          return;
+        }
+
+        if (currentUserId === targetUserId) {
+          setDisabledReason('Non puoi invitare te stesso.');
+          return;
+        }
+
+        const existingResult = await supabase
+          .from('direct_contact_requests')
+          .select('id')
+          .eq('requester_id', currentUserId)
+          .eq('receiver_id', targetUserId)
+          .eq('contact_type', 'experience_invite')
+          .limit(1);
+
+        if (existingResult.error) throw existingResult.error;
+
+        if ((existingResult.data || []).length > 0) {
+          setDisabledReason(
+            'Hai già invitato questa persona a uscire. L’invito può essere inviato una sola volta, anche se è stato rifiutato.'
+          );
+        }
+      } catch (error: unknown) {
+        setDisabledReason(error instanceof Error ? error.message : 'Controllo invito non riuscito.');
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     })();
+
+    return () => {
+      active = false;
+    };
   }, [activityId, targetUserId]);
 
   async function sendInvite() {
@@ -38,6 +87,11 @@ export default function InviteOutScreen() {
 
     if (!targetUserId || !activityId) {
       Alert.alert('Invito non disponibile', 'Mancano i dati dell’esperienza o della persona.');
+      return;
+    }
+
+    if (disabledReason) {
+      Alert.alert('Invito non disponibile', disabledReason);
       return;
     }
 
@@ -149,22 +203,31 @@ export default function InviteOutScreen() {
 
         <View style={styles.card}>
           <Text style={styles.title}>Invita {targetName} a uscire</Text>
-          <Text style={styles.subtitle}>Scrivi un messaggio personale. L’altra persona potrà accettare o rifiutare l’invito.</Text>
 
-          <TextInput
-            value={message}
-            onChangeText={setMessage}
-            placeholder="Es. Ti va di prenderci qualcosa insieme uno di questi giorni?"
-            placeholderTextColor="#b26a91"
-            multiline
-            maxLength={300}
-            style={styles.input}
-          />
-          <Text style={styles.counter}>{message.length}/300</Text>
+          {disabledReason ? (
+            <View style={styles.warningBox}>
+              <Text style={styles.warningText}>{disabledReason}</Text>
+            </View>
+          ) : (
+            <>
+              <Text style={styles.subtitle}>Scrivi un messaggio personale. L’altra persona potrà accettare o rifiutare l’invito.</Text>
 
-          <Pressable style={[styles.sendButton, sending && styles.disabled]} onPress={() => void sendInvite()} disabled={sending}>
-            <Text style={styles.sendText}>{sending ? 'Invio…' : 'Invia invito'}</Text>
-          </Pressable>
+              <TextInput
+                value={message}
+                onChangeText={setMessage}
+                placeholder="Es. Ti va di prenderci qualcosa insieme uno di questi giorni?"
+                placeholderTextColor="#b26a91"
+                multiline
+                maxLength={300}
+                style={styles.input}
+              />
+              <Text style={styles.counter}>{message.length}/300</Text>
+
+              <Pressable style={[styles.sendButton, sending && styles.disabled]} onPress={() => void sendInvite()} disabled={sending}>
+                <Text style={styles.sendText}>{sending ? 'Invio…' : 'Invia invito'}</Text>
+              </Pressable>
+            </>
+          )}
         </View>
       </View>
     </SafeAreaView>
@@ -180,6 +243,8 @@ const styles = StyleSheet.create({
   card: { backgroundColor: '#ffffff', borderRadius: 26, borderWidth: 1, borderColor: '#f3c6dc', padding: 18 },
   title: { color: '#e43f98', fontSize: 23, fontWeight: '900' },
   subtitle: { marginTop: 7, color: '#6b3652', fontSize: 14, lineHeight: 20, fontWeight: '700' },
+  warningBox: { marginTop: 18, borderRadius: 18, padding: 14, backgroundColor: '#fff2f8', borderWidth: 1, borderColor: '#f3c6dc' },
+  warningText: { color: '#6b3652', fontWeight: '800', lineHeight: 20 },
   input: { marginTop: 18, minHeight: 130, borderWidth: 1, borderColor: '#f3c6dc', borderRadius: 20, padding: 14, textAlignVertical: 'top', color: '#4b1430', backgroundColor: '#fffafd', fontSize: 15 },
   counter: { marginTop: 6, alignSelf: 'flex-end', color: '#a95d86', fontWeight: '700', fontSize: 12 },
   sendButton: { marginTop: 18, height: 52, borderRadius: 18, backgroundColor: '#e43f98', alignItems: 'center', justifyContent: 'center' },

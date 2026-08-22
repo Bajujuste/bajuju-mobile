@@ -172,7 +172,6 @@ function experiencePhotoUrl(experience: ActivityRow | null) {
   );
 }
 
-
 function albumPhotoUrl(row: AlbumPhotoRow) {
   return String(row.photo_url || row.image_url || row.url || '').trim();
 }
@@ -382,7 +381,7 @@ export default function ExperienceDetailScreen() {
       .map((item) => String(item.user_id || ''))
       .filter(Boolean);
 
-      const sourceExperience = loadedExperience ?? null;
+    const sourceExperience = loadedExperience ?? null;
     const creatorId = getExperienceCreatorId(sourceExperience);
 
     if (creatorId && !userIds.includes(creatorId)) {
@@ -504,6 +503,7 @@ export default function ExperienceDetailScreen() {
   useEffect(() => {
     loadExperience();
   }, [loadExperience]);
+
   useEffect(() => {
     if (!experienceId) return;
 
@@ -528,100 +528,121 @@ export default function ExperienceDetailScreen() {
     };
   }, [experienceId, loadMessages]);
 
-
   async function joinExperience() {
     if (!experienceId || joining) return;
 
     if (!currentUserId) {
-      if (typeof window !== 'undefined') {
-        window.alert('Devi essere collegato per partecipare.');
-      }
+      Alert.alert('Login richiesto', 'Devi essere collegato per partecipare.');
       return;
     }
 
     if (isOrganizer) {
-      if (typeof window !== 'undefined') {
-        window.alert('Questa esperienza l’hai creata tu.');
-      }
+      Alert.alert('La organizzi tu', 'Questa esperienza l’hai creata tu.');
       return;
     }
 
     if (isParticipant) {
-      if (typeof window !== 'undefined') {
-        window.alert('Stai già partecipando a questa esperienza.');
-      }
+      Alert.alert('Sei già dentro', 'Stai già partecipando a questa esperienza.');
       return;
     }
 
-    const organizerId = getExperienceCreatorId(experience);
-
-    if (organizerId) {
-      const organizerBlockResult = await supabase
-        .from('user_blocks')
-        .select('id')
-        .eq('blocker_id', organizerId)
-        .eq('blocked_id', currentUserId)
-        .maybeSingle();
-
-      if (organizerBlockResult.data) {
-        if (typeof window !== 'undefined') {
-          window.alert('Non puoi partecipare a questa esperienza.');
-        }
-        return;
-      }
-    }
-
     if (isFull) {
-      if (typeof window !== 'undefined') {
-        window.alert('Questa esperienza ha già raggiunto il numero massimo di partecipanti.');
-      }
+      router.push({
+        pathname: '/experience-waitlist' as any,
+        params: { id: experienceId },
+      });
       return;
     }
 
     setJoining(true);
 
     try {
-      const result = await supabase.from('activity_participants').insert({
-        activity_id: experienceId,
-        user_id: currentUserId,
+      const result = await supabase.rpc('join_standard_activity' as any, {
+        p_activity_id: experienceId,
       });
 
-      if (result.error) {
-        if (typeof window !== 'undefined') {
-          window.alert(`Errore partecipazione: ${result.error.message}`);
+      if (result.error) throw result.error;
+      const data = result.data as any;
+
+      if (data?.ok !== true) {
+        const reason = String(data?.reason || '');
+
+        if (reason === 'FULL') {
+          Alert.alert(
+            'Esperienza al completo',
+            'Nel frattempo l’ultimo posto è stato occupato. Puoi entrare in lista d’attesa.',
+            [
+              { text: 'Chiudi', style: 'cancel' },
+              {
+                text: 'Lista d’attesa',
+                onPress: () =>
+                  router.push({
+                    pathname: '/experience-waitlist' as any,
+                    params: { id: experienceId },
+                  }),
+              },
+            ]
+          );
+        } else if (reason === 'RESERVED') {
+          Alert.alert(
+            'Posto riservato',
+            'Il posto libero è temporaneamente riservato a chi è prima in lista d’attesa.',
+            [
+              { text: 'Chiudi', style: 'cancel' },
+              {
+                text: 'Apri lista',
+                onPress: () =>
+                  router.push({
+                    pathname: '/experience-waitlist' as any,
+                    params: { id: experienceId },
+                  }),
+              },
+            ]
+          );
+        } else if (reason === 'BLOCKED') {
+          Alert.alert('Non disponibile', 'Non puoi partecipare a questa esperienza.');
+        } else if (reason === 'PAST' || reason === 'UNAVAILABLE') {
+          Alert.alert('Esperienza non disponibile', 'Non è più possibile partecipare a questa esperienza.');
+        } else {
+          Alert.alert('Non disponibile', 'Non è possibile partecipare in questo momento.');
         }
         return;
       }
 
-      await sendBajujuPushNotification({
-        type: 'new_participant',
-        actorUserId: currentUserId,
-        targetUserId: String((experience as any)?.creator_id || (experience as any)?.user_id || ''),
-        title: 'Nuovo partecipante Bajuju',
-        body: `Qualcuno si è unito alla tua esperienza: ${String((experience as any)?.title || 'Bajuju')}.`,
-        data: {
-          screen: 'experience',
-          activityId: experienceId,
-        },
-      }).catch((error) => {
-        console.log('Errore notifica nuovo partecipante.');
-      });
+      if (String(data?.status || '') === 'already_joined') {
+        await loadParticipants(experienceId, experience);
+        Alert.alert('Sei già dentro', 'Risulti già partecipante a questa esperienza.');
+        return;
+      }
+
+      const organizerId = getExperienceCreatorId(experience);
+      if (organizerId && organizerId !== currentUserId) {
+        await sendBajujuPushNotification({
+          type: 'new_participant',
+          actorUserId: currentUserId,
+          targetUserId: organizerId,
+          title: 'Nuovo partecipante Bajuju',
+          body: `Qualcuno si è unito alla tua esperienza: ${String(experience?.title || 'Bajuju')}.`,
+          data: {
+            screen: 'experience',
+            activityId: experienceId,
+          },
+        }).catch(() => {
+          console.log('Errore notifica nuovo partecipante.');
+        });
+      }
 
       await loadParticipants(experienceId, experience);
       await loadMessages(experienceId);
-
-      if (typeof window !== 'undefined') {
-        window.alert('Partecipazione registrata.');
-      }
-    } catch (error: any) {
+      Alert.alert('Ci sei!', 'Partecipazione registrata.');
+    } catch (error: unknown) {
       console.log('Errore partecipazione esperienza.');
-
-      if (typeof window !== 'undefined') {
-        window.alert(
-          error?.message ||
-            'Non sono riuscito a registrare la partecipazione. Riprova tra poco.'
-        );
-      }
+      Alert.alert(
+        'Errore partecipazione',
+        error instanceof Error
+          ? error.message
+          : 'Non sono riuscito a registrare la partecipazione. Riprova tra poco.'
+      );
     } finally {
       setJoining(false);
     }
@@ -872,8 +893,6 @@ export default function ExperienceDetailScreen() {
     }
   }
 
-
-
   const loadAlbumPhotos = useCallback(async () => {
     if (!experienceId) {
       setAlbumPhotos([]);
@@ -1093,410 +1112,417 @@ export default function ExperienceDetailScreen() {
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
         >
-        <Pressable style={styles.backButton} onPress={() => router.replace('/experiences')}>
-          <Text style={styles.backText}>← Trova esperienza</Text>
-        </Pressable>
+          <Pressable style={styles.backButton} onPress={() => router.replace('/experiences')}>
+            <Text style={styles.backText}>← Trova esperienza</Text>
+          </Pressable>
 
-        <View style={styles.card}>
-          {loading ? (
-            <Text style={styles.messageText}>Caricamento esperienza...</Text>
-          ) : errorMessage ? (
-            <Text style={styles.messageText}>{errorMessage}</Text>
-          ) : experience ? (
-            <>
-              <View style={styles.eventTopRow}>
-                <View>
-                  <Image
-                    source={experiencePhotoUrl(experience) ? { uri: experiencePhotoUrl(experience) } : bajujuLogo}
-                    style={styles.eventPhoto}
-                    resizeMode="cover"
-                  />
-
-                  {isOrganizer ? (
-                    <Pressable
-                      style={styles.coverPhotoButton}
-                      onPress={updateCoverPhoto}
-                      disabled={updatingCoverPhoto}
-                    >
-                      <Text style={styles.coverPhotoButtonText}>
-                        {updatingCoverPhoto ? "Caricamento..." : "Cambia foto"}
-                      </Text>
-                    </Pressable>
-                  ) : null}
-                </View>
-
-                <View style={styles.eventTopText}>
-                  <Text style={styles.category}>{getExperienceCategoryIcon(experience.category)} {normalizeExperienceCategory(experience.category)}</Text>
-
-                  <Text style={styles.title}>
-                    {experience.title || 'Esperienza senza titolo'}
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.compactInfoBox}>
-                <View style={styles.compactInfoRow}>
-                  <Text style={styles.compactInfoLabel}>Dove</Text>
-                  <Text style={styles.compactInfoValue}>
-                    {experience.city || 'Comune'} · {experience.province || 'Provincia'}
-                  </Text>
-                </View>
-
-                <View style={styles.compactInfoDivider} />
-
-                <View style={styles.compactInfoRow}>
-                  <Text style={styles.compactInfoLabel}>Quando</Text>
-                  <Text style={styles.compactInfoValue}>
-                    {formatDateItalian(experience.activity_date)} · {experience.activity_time ? String(experience.activity_time).slice(0, 5) : 'Ora da definire'}
-                  </Text>
-                </View>
-
-                <View style={styles.compactInfoDivider} />
-
-                <View style={styles.compactInfoRow}>
-                  <Text style={styles.compactInfoLabel}>Ritrovo</Text>
-                  <Text style={styles.compactInfoValue}>
-                    {experience.meeting_place || experience.city || 'Non indicato'}
-                  </Text>
-                </View>
-              </View>
-
-              {experience.budget_amount !== null && experience.budget_amount !== undefined ? (
-                <View style={styles.descriptionBox}>
-                  <Text style={styles.label}>Budget indicativo</Text>
-                  <Text style={styles.description}>Massimo {experience.budget_amount} €</Text>
-                </View>
-              ) : null}
-
-              <View style={styles.descriptionBox}>
-                <Text style={styles.label}>Descrizione</Text>
-                <Text style={styles.description}>
-                  {experience.description || 'Descrizione non ancora disponibile.'}
-                </Text>
-              </View>
-
-              <Pressable
-                style={styles.shareExperienceButton}
-                onPress={() =>
-                  shareBajujuExperience({
-                    id: experienceId,
-                    title: experience.title,
-                    category: experience.category,
-                    city: experience.city,
-                    province: experience.province,
-                    date: experience.activity_date,
-                    time: experience.activity_time,
-                  })
-                }
-              >
-                <Text style={styles.shareExperienceButtonIcon}>📲</Text>
-                <Text style={styles.shareExperienceButtonText}>Condividi esperienza</Text>
-              </Pressable>
-
-              <View style={styles.participantsBox}>
-                <Text style={styles.sectionTitle}>Persone nell’esperienza</Text>
-                <Text style={styles.participantsCount}>
-                  {participantCount}{maxParticipants > 0 ? ` / ${maxParticipants}` : ''} partecipanti
-                </Text>
-
-                {displayedParticipants.length === 0 ? (
-                  <Text style={styles.emptySmallText}>
-                    {isOrganizer
-                      ? 'Ancora nessun partecipante. Quando qualcuno si unirà, lo vedrai qui.'
-                      : 'Ancora nessun partecipante. Puoi essere tu il primo.'}
-                  </Text>
-                ) : (
-                  <View style={styles.participantsList}>
-                    {displayedParticipants.map((participant, index) => {
-                      const userId = String(participant.user_id || '');
-                      const isCreator = userId === getExperienceCreatorId(experience);
-                      const profile = profiles[userId];
-                      const name = profileName(profile, index);
-                      const photo = profilePhotoUrl(profile);
-
-                      return (
-                        <Pressable
-                          key={`${userId}-${index}`}
-                          style={styles.participantRow}
-                          onPress={() => router.push({
-                            pathname: '/user-profile' as any,
-                            params: {
-                              userId,
-                              activityId: experienceId || '',
-                              postEvent: canShowInviteOut ? '1' : '0',
-                            },
-                          })}
-                        >
-                          <Image
-                            source={photo ? { uri: photo } : bajujuLogo}
-                            style={styles.participantPhoto}
-                            resizeMode="cover"
-                          />
-
-                          <View style={styles.participantInfo}>
-                            <Text style={styles.participantName}>{name}</Text>
-                            <Text
-                              style={[
-                                styles.participantRoleBadge,
-                                isCreator ? styles.organizerRoleBadge : styles.normalRoleBadge,
-                              ]}
-                            >
-                              {isCreator ? 'Organizzatore' : 'Partecipante'}
-                            </Text>
-                          </View>
-
-                          {canShowInviteOut && userId !== String(currentUserId || '') && !isBlockedUser(userId) ? (
-                            <Pressable
-                              style={styles.inviteOutButton}
-                              onPress={(event) => {
-                                event.stopPropagation();
-                                router.push({
-                                  pathname: '/user-profile' as any,
-                                  params: {
-                                    userId,
-                                    activityId: experienceId || '',
-                                    postEvent: '1',
-                                  },
-                                });
-                              }}
-                            >
-                              <Text style={styles.inviteOutButtonText}>
-                                Interagisci
-                              </Text>
-                            </Pressable>
-                          ) : null}
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                )}
-              </View>
-
-
-              <View style={styles.albumBox}>
-                <View style={styles.albumHeaderRow}>
+          <View style={styles.card}>
+            {loading ? (
+              <Text style={styles.messageText}>Caricamento esperienza...</Text>
+            ) : errorMessage ? (
+              <Text style={styles.messageText}>{errorMessage}</Text>
+            ) : experience ? (
+              <>
+                <View style={styles.eventTopRow}>
                   <View>
-                    <Text style={styles.albumTitle}>Galleria evento</Text>
-                    <Text style={styles.albumSubtitle}>
-                      {albumPhotos.length}/15 foto · massimo 3 foto per partecipante
+                    <Image
+                      source={experiencePhotoUrl(experience) ? { uri: experiencePhotoUrl(experience) } : bajujuLogo}
+                      style={styles.eventPhoto}
+                      resizeMode="cover"
+                    />
+
+                    {isOrganizer ? (
+                      <Pressable
+                        style={styles.coverPhotoButton}
+                        onPress={updateCoverPhoto}
+                        disabled={updatingCoverPhoto}
+                      >
+                        <Text style={styles.coverPhotoButtonText}>
+                          {updatingCoverPhoto ? "Caricamento..." : "Cambia foto"}
+                        </Text>
+                      </Pressable>
+                    ) : null}
+                  </View>
+
+                  <View style={styles.eventTopText}>
+                    <Text style={styles.category}>{getExperienceCategoryIcon(experience.category)} {normalizeExperienceCategory(experience.category)}</Text>
+
+                    <Text style={styles.title}>
+                      {experience.title || 'Esperienza senza titolo'}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.compactInfoBox}>
+                  <View style={styles.compactInfoRow}>
+                    <Text style={styles.compactInfoLabel}>Dove</Text>
+                    <Text style={styles.compactInfoValue}>
+                      {experience.city || 'Comune'} · {experience.province || 'Provincia'}
                     </Text>
                   </View>
 
-                  {canUseAlbum ? (
-                    <Pressable
-                      style={[
-                        styles.albumUploadButton,
-                        (uploadingAlbumPhoto || albumIsFull || userAlbumLimitReached) && styles.albumUploadButtonDisabled,
-                      ]}
-                      onPress={uploadAlbumPhoto}
-                      disabled={uploadingAlbumPhoto || albumIsFull || userAlbumLimitReached}
-                    >
-                      <Text style={styles.albumUploadButtonText}>
-                        {uploadingAlbumPhoto ? 'Carico...' : 'Aggiungi foto'}
-                      </Text>
-                    </Pressable>
-                  ) : null}
+                  <View style={styles.compactInfoDivider} />
+
+                  <View style={styles.compactInfoRow}>
+                    <Text style={styles.compactInfoLabel}>Quando</Text>
+                    <Text style={styles.compactInfoValue}>
+                      {formatDateItalian(experience.activity_date)} · {experience.activity_time ? String(experience.activity_time).slice(0, 5) : 'Ora da definire'}
+                    </Text>
+                  </View>
+
+                  <View style={styles.compactInfoDivider} />
+
+                  <View style={styles.compactInfoRow}>
+                    <Text style={styles.compactInfoLabel}>Ritrovo</Text>
+                    <Text style={styles.compactInfoValue}>
+                      {experience.meeting_place || experience.city || 'Non indicato'}
+                    </Text>
+                  </View>
                 </View>
 
-                {!canUseAlbum ? (
-                  <Text style={styles.albumHint}>
-                    La galleria si sblocca per organizzatore e partecipanti.
-                  </Text>
-                ) : userAlbumLimitReached ? (
-                  <Text style={styles.albumHint}>
-                    Hai raggiunto il limite di 3 foto per questo evento.
-                  </Text>
-                ) : albumIsFull ? (
-                  <Text style={styles.albumHint}>
-                    La galleria ha raggiunto il limite di 15 foto.
-                  </Text>
+                {experience.budget_amount !== null && experience.budget_amount !== undefined ? (
+                  <View style={styles.descriptionBox}>
+                    <Text style={styles.label}>Budget indicativo</Text>
+                    <Text style={styles.description}>Massimo {experience.budget_amount} €</Text>
+                  </View>
                 ) : null}
 
-                {albumPhotos.length === 0 ? (
-                  <View style={styles.albumEmptyBox}>
-                    <Text style={styles.albumEmptyTitle}>Nessuna foto ancora</Text>
-                    <Text style={styles.albumHint}>Le foto dei partecipanti appariranno qui.</Text>
-                  </View>
-                ) : (
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.albumPhotosRow}>
-                    {visibleAlbumPhotos.map((photo, index) => {
-                      const url = albumPhotoUrl(photo);
-
-                      return (
-                        <Pressable
-                          key={String(photo.id || `${url}-${index}`)}
-                          style={styles.albumPhotoCard}
-                          onPress={() => openAlbumPhoto(index)}
-                        >
-                          <Image source={{ uri: url }} style={styles.albumPhoto} resizeMode="cover" />
-                        </Pressable>
-                      );
-                    })}
-                  </ScrollView>
-                )}
-              </View>
-
-              <Modal visible={!!selectedAlbumPhotoUrl} transparent animationType="fade" onRequestClose={closeAlbumPhoto}>
-                <View style={styles.photoModalBackdrop}>
-                  <Pressable style={styles.photoModalClose} onPress={closeAlbumPhoto}>
-                    <Text style={styles.photoModalCloseText}>Chiudi</Text>
-                  </Pressable>
-
-                  {selectedAlbumPhotoUrl ? (
-                    <Image source={{ uri: selectedAlbumPhotoUrl }} style={styles.photoModalImage} resizeMode="contain" />
-                  ) : null}
-
-                  {visibleAlbumPhotos.length > 1 ? (
-                    <View style={styles.photoModalControls}>
-                      <Pressable style={styles.photoModalArrow} onPress={showPreviousAlbumPhoto}>
-                        <Text style={styles.photoModalArrowText}>‹</Text>
-                      </Pressable>
-
-                      <Text style={styles.photoModalCounter}>
-                        {(selectedAlbumPhotoIndex ?? 0) + 1}/{visibleAlbumPhotos.length}
-                      </Text>
-
-                      <Pressable style={styles.photoModalArrow} onPress={showNextAlbumPhoto}>
-                        <Text style={styles.photoModalArrowText}>›</Text>
-                      </Pressable>
-                    </View>
-                  ) : null}
-                </View>
-              </Modal>
-
-              <View style={styles.chatBox}>
-                <Text style={styles.sectionTitle}>Chat dell’esperienza</Text>
-
-                {!canUseChat ? (
-                  <Text style={styles.emptySmallText}>
-                    La chat si sblocca quando partecipi all’esperienza. L’organizzatore può sempre scrivere.
+                <View style={styles.descriptionBox}>
+                  <Text style={styles.label}>Descrizione</Text>
+                  <Text style={styles.description}>
+                    {experience.description || 'Descrizione non ancora disponibile.'}
                   </Text>
-                ) : (
-                  <>
-                    {messages.length === 0 ? (
-                      <Text style={styles.emptySmallText}>
-                        Ancora nessun messaggio.
-                      </Text>
-                    ) : (
-                      <View style={styles.messagesList}>
-                        {messages.map((item, index) => {
-                          const userId = String(item.user_id || item.sender_id || '');
-                          const isMine = currentUserId && userId === currentUserId;
-                          const name = isMine
-                            ? 'Tu'
-                            : profileName(profiles[userId], index);
+                </View>
 
-                          return (
-                            <View
-                              key={item.id || `${userId}-${index}`}
-                              style={[
-                                styles.messageBubble,
-                                isMine && styles.messageBubbleMine,
-                              ]}
-                            >
-                              <Text style={[styles.messageAuthor, isMine && styles.messageAuthorMine]}>{name}</Text>
-                              <Text style={[styles.messageBody, isMine && styles.messageBodyMine]}>{messageText(item)}</Text>
-                              <Text style={[styles.messageTime, isMine && styles.messageTimeMine]}>
-                                {formatMessageTime(item.created_at)}
+                <Pressable
+                  style={styles.shareExperienceButton}
+                  onPress={() =>
+                    shareBajujuExperience({
+                      id: experienceId,
+                      title: experience.title,
+                      category: experience.category,
+                      city: experience.city,
+                      province: experience.province,
+                      date: experience.activity_date,
+                      time: experience.activity_time,
+                    })
+                  }
+                >
+                  <Text style={styles.shareExperienceButtonIcon}>📲</Text>
+                  <Text style={styles.shareExperienceButtonText}>Condividi esperienza</Text>
+                </Pressable>
+
+                <View style={styles.participantsBox}>
+                  <Text style={styles.sectionTitle}>Persone nell’esperienza</Text>
+                  <Text style={styles.participantsCount}>
+                    {participantCount}{maxParticipants > 0 ? ` / ${maxParticipants}` : ''} partecipanti
+                  </Text>
+
+                  {displayedParticipants.length === 0 ? (
+                    <Text style={styles.emptySmallText}>
+                      {isOrganizer
+                        ? 'Ancora nessun partecipante. Quando qualcuno si unirà, lo vedrai qui.'
+                        : 'Ancora nessun partecipante. Puoi essere tu il primo.'}
+                    </Text>
+                  ) : (
+                    <View style={styles.participantsList}>
+                      {displayedParticipants.map((participant, index) => {
+                        const userId = String(participant.user_id || '');
+                        const isCreator = userId === getExperienceCreatorId(experience);
+                        const profile = profiles[userId];
+                        const name = profileName(profile, index);
+                        const photo = profilePhotoUrl(profile);
+
+                        return (
+                          <Pressable
+                            key={`${userId}-${index}`}
+                            style={styles.participantRow}
+                            onPress={() => router.push({
+                              pathname: '/user-profile' as any,
+                              params: {
+                                userId,
+                                activityId: experienceId || '',
+                                postEvent: canShowInviteOut ? '1' : '0',
+                              },
+                            })}
+                          >
+                            <Image
+                              source={photo ? { uri: photo } : bajujuLogo}
+                              style={styles.participantPhoto}
+                              resizeMode="cover"
+                            />
+
+                            <View style={styles.participantInfo}>
+                              <Text style={styles.participantName}>{name}</Text>
+                              <Text
+                                style={[
+                                  styles.participantRoleBadge,
+                                  isCreator ? styles.organizerRoleBadge : styles.normalRoleBadge,
+                                ]}
+                              >
+                                {isCreator ? 'Organizzatore' : 'Partecipante'}
                               </Text>
-
-                              {!isMine ? (
-                                <Pressable style={styles.reportMessageButton} onPress={() => reportMessage(item)}>
-                                  <Text style={styles.reportMessageText}>Segnala</Text>
-                                </Pressable>
-                              ) : null}
                             </View>
-                          );
-                        })}
-                      </View>
-                    )}
 
-                    <View style={styles.chatInputRow}>
-                      <TextInput
-                        value={newMessage}
-                        onChangeText={setNewMessage}
-                        placeholder="Scrivi un messaggio..."
-                        placeholderTextColor="#b36a91"
-                        style={styles.chatInput}
-                        multiline
-                        onFocus={() => {
-                          setTimeout(() => {
-                            pageScrollRef.current?.scrollToEnd({ animated: true });
-                          }, 250);
-                        }}
-                      />
+                            {canShowInviteOut && userId !== String(currentUserId || '') && !isBlockedUser(userId) ? (
+                              <Pressable
+                                style={styles.inviteOutButton}
+                                onPress={(event) => {
+                                  event.stopPropagation();
+                                  router.push({
+                                    pathname: '/user-profile' as any,
+                                    params: {
+                                      userId,
+                                      activityId: experienceId || '',
+                                      postEvent: '1',
+                                    },
+                                  });
+                                }}
+                              >
+                                <Text style={styles.inviteOutButtonText}>
+                                  Interagisci
+                                </Text>
+                              </Pressable>
+                            ) : null}
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  )}
+                </View>
+
+                <View style={styles.albumBox}>
+                  <View style={styles.albumHeaderRow}>
+                    <View>
+                      <Text style={styles.albumTitle}>Galleria evento</Text>
+                      <Text style={styles.albumSubtitle}>
+                        {albumPhotos.length}/15 foto · massimo 3 foto per partecipante
+                      </Text>
+                    </View>
+
+                    {canUseAlbum ? (
+                      <Pressable
+                        style={[
+                          styles.albumUploadButton,
+                          (uploadingAlbumPhoto || albumIsFull || userAlbumLimitReached) && styles.albumUploadButtonDisabled,
+                        ]}
+                        onPress={uploadAlbumPhoto}
+                        disabled={uploadingAlbumPhoto || albumIsFull || userAlbumLimitReached}
+                      >
+                        <Text style={styles.albumUploadButtonText}>
+                          {uploadingAlbumPhoto ? 'Carico...' : 'Aggiungi foto'}
+                        </Text>
+                      </Pressable>
+                    ) : null}
+                  </View>
+
+                  {!canUseAlbum ? (
+                    <Text style={styles.albumHint}>
+                      La galleria si sblocca per organizzatore e partecipanti.
+                    </Text>
+                  ) : userAlbumLimitReached ? (
+                    <Text style={styles.albumHint}>
+                      Hai raggiunto il limite di 3 foto per questo evento.
+                    </Text>
+                  ) : albumIsFull ? (
+                    <Text style={styles.albumHint}>
+                      La galleria ha raggiunto il limite di 15 foto.
+                    </Text>
+                  ) : null}
+
+                  {albumPhotos.length === 0 ? (
+                    <View style={styles.albumEmptyBox}>
+                      <Text style={styles.albumEmptyTitle}>Nessuna foto ancora</Text>
+                      <Text style={styles.albumHint}>Le foto dei partecipanti appariranno qui.</Text>
+                    </View>
+                  ) : (
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.albumPhotosRow}>
+                      {visibleAlbumPhotos.map((photo, index) => {
+                        const url = albumPhotoUrl(photo);
+
+                        return (
+                          <Pressable
+                            key={String(photo.id || `${url}-${index}`)}
+                            style={styles.albumPhotoCard}
+                            onPress={() => openAlbumPhoto(index)}
+                          >
+                            <Image source={{ uri: url }} style={styles.albumPhoto} resizeMode="cover" />
+                          </Pressable>
+                        );
+                      })}
+                    </ScrollView>
+                  )}
+                </View>
+
+                <Modal visible={!!selectedAlbumPhotoUrl} transparent animationType="fade" onRequestClose={closeAlbumPhoto}>
+                  <View style={styles.photoModalBackdrop}>
+                    <Pressable style={styles.photoModalClose} onPress={closeAlbumPhoto}>
+                      <Text style={styles.photoModalCloseText}>Chiudi</Text>
+                    </Pressable>
+
+                    {selectedAlbumPhotoUrl ? (
+                      <Image source={{ uri: selectedAlbumPhotoUrl }} style={styles.photoModalImage} resizeMode="contain" />
+                    ) : null}
+
+                    {visibleAlbumPhotos.length > 1 ? (
+                      <View style={styles.photoModalControls}>
+                        <Pressable style={styles.photoModalArrow} onPress={showPreviousAlbumPhoto}>
+                          <Text style={styles.photoModalArrowText}>‹</Text>
+                        </Pressable>
+
+                        <Text style={styles.photoModalCounter}>
+                          {(selectedAlbumPhotoIndex ?? 0) + 1}/{visibleAlbumPhotos.length}
+                        </Text>
+
+                        <Pressable style={styles.photoModalArrow} onPress={showNextAlbumPhoto}>
+                          <Text style={styles.photoModalArrowText}>›</Text>
+                        </Pressable>
+                      </View>
+                    ) : null}
+                  </View>
+                </Modal>
+
+                <View style={styles.chatBox}>
+                  <Text style={styles.sectionTitle}>Chat dell’esperienza</Text>
+
+                  {!canUseChat ? (
+                    <Text style={styles.emptySmallText}>
+                      La chat si sblocca quando partecipi all’esperienza. L’organizzatore può sempre scrivere.
+                    </Text>
+                  ) : (
+                    <>
+                      {messages.length === 0 ? (
+                        <Text style={styles.emptySmallText}>
+                          Ancora nessun messaggio.
+                        </Text>
+                      ) : (
+                        <View style={styles.messagesList}>
+                          {messages.map((item, index) => {
+                            const userId = String(item.user_id || item.sender_id || '');
+                            const isMine = currentUserId && userId === currentUserId;
+                            const name = isMine
+                              ? 'Tu'
+                              : profileName(profiles[userId], index);
+
+                            return (
+                              <View
+                                key={item.id || `${userId}-${index}`}
+                                style={[
+                                  styles.messageBubble,
+                                  isMine && styles.messageBubbleMine,
+                                ]}
+                              >
+                                <Text style={[styles.messageAuthor, isMine && styles.messageAuthorMine]}>{name}</Text>
+                                <Text style={[styles.messageBody, isMine && styles.messageBodyMine]}>{messageText(item)}</Text>
+                                <Text style={[styles.messageTime, isMine && styles.messageTimeMine]}>
+                                  {formatMessageTime(item.created_at)}
+                                </Text>
+
+                                {!isMine ? (
+                                  <Pressable style={styles.reportMessageButton} onPress={() => reportMessage(item)}>
+                                    <Text style={styles.reportMessageText}>Segnala</Text>
+                                  </Pressable>
+                                ) : null}
+                              </View>
+                            );
+                          })}
+                        </View>
+                      )}
+
+                      <View style={styles.chatInputRow}>
+                        <TextInput
+                          value={newMessage}
+                          onChangeText={setNewMessage}
+                          placeholder="Scrivi un messaggio..."
+                          placeholderTextColor="#b36a91"
+                          style={styles.chatInput}
+                          multiline
+                          onFocus={() => {
+                            setTimeout(() => {
+                              pageScrollRef.current?.scrollToEnd({ animated: true });
+                            }, 250);
+                          }}
+                        />
+
+                        <Pressable
+                          style={[
+                            styles.sendButton,
+                            (!newMessage.trim() || sendingMessage) && styles.sendButtonDisabled,
+                          ]}
+                          onPress={sendChatMessage}
+                          disabled={!newMessage.trim() || sendingMessage}
+                        >
+                          <Text style={styles.sendButtonText}>
+                            {sendingMessage ? '...' : 'Invia'}
+                          </Text>
+                        </Pressable>
+                      </View>
+                    </>
+                  )}
+                </View>
+
+                <View style={styles.bottomActionsBox}>
+                  {isOrganizer ? (
+                    <>
+                      <View style={styles.smallStatusButton}>
+                        <Text style={styles.smallStatusButtonText}>Creata da te</Text>
+                      </View>
+
+                      <Pressable style={styles.smallCancelButton} onPress={cancelExperience}>
+                        <Text style={styles.smallCancelButtonText}>Annulla</Text>
+                      </Pressable>
+                    </>
+                  ) : isParticipant ? (
+                    <>
+                      <View style={styles.smallStatusButton}>
+                        <Text style={styles.smallStatusButtonText}>Ci sei anche tu</Text>
+                      </View>
 
                       <Pressable
                         style={[
-                          styles.sendButton,
-                          (!newMessage.trim() || sendingMessage) && styles.sendButtonDisabled,
+                          styles.smallLeaveButton,
+                          leaving && styles.mainButtonDisabled,
                         ]}
-                        onPress={sendChatMessage}
-                        disabled={!newMessage.trim() || sendingMessage}
+                        onPress={leaveExperience}
+                        disabled={leaving}
                       >
-                        <Text style={styles.sendButtonText}>
-                          {sendingMessage ? '...' : 'Invia'}
+                        <Text style={styles.smallLeaveButtonText}>
+                          {leaving ? 'Abbandono...' : 'Non partecipo più'}
                         </Text>
                       </Pressable>
-                    </View>
-                  </>
-                )}
-              </View>
-
-              <View style={styles.bottomActionsBox}>
-                {isOrganizer ? (
-                  <>
-                    <View style={styles.smallStatusButton}>
-                      <Text style={styles.smallStatusButtonText}>Creata da te</Text>
-                    </View>
-
-                    <Pressable style={styles.smallCancelButton} onPress={cancelExperience}>
-                      <Text style={styles.smallCancelButtonText}>Annulla</Text>
+                    </>
+                  ) : isFull ? (
+                    <Pressable
+                      style={styles.smallJoinButton}
+                      onPress={() =>
+                        router.push({
+                          pathname: '/experience-waitlist' as any,
+                          params: { id: experienceId || '' },
+                        })
+                      }
+                    >
+                      <Text style={styles.smallJoinButtonText}>Lista d’attesa</Text>
                     </Pressable>
-                  </>
-                ) : isParticipant ? (
-                  <>
-                    <View style={styles.smallStatusButton}>
-                      <Text style={styles.smallStatusButtonText}>Ci sei anche tu</Text>
-                    </View>
-
+                  ) : (
                     <Pressable
                       style={[
-                        styles.smallLeaveButton,
-                        leaving && styles.mainButtonDisabled,
+                        styles.smallJoinButton,
+                        joining && styles.mainButtonDisabled,
                       ]}
-                      onPress={leaveExperience}
-                      disabled={leaving}
+                      onPress={joinExperience}
+                      disabled={joining}
                     >
-                      <Text style={styles.smallLeaveButtonText}>
-                        {leaving ? 'Abbandono...' : 'Non partecipo più'}
+                      <Text style={styles.smallJoinButtonText}>
+                        {joining ? 'Registrazione...' : 'Partecipa ora'}
                       </Text>
                     </Pressable>
-                  </>
-                ) : isFull ? (
-                  <View style={styles.smallStatusButton}>
-                    <Text style={styles.smallStatusButtonText}>Al completo</Text>
-                  </View>
-                ) : (
-                  <Pressable
-                    style={[
-                      styles.smallJoinButton,
-                      joining && styles.mainButtonDisabled,
-                    ]}
-                    onPress={joinExperience}
-                    disabled={joining}
-                  >
-                    <Text style={styles.smallJoinButtonText}>
-                      {joining ? 'Registrazione...' : 'Partecipa ora'}
-                    </Text>
-                  </Pressable>
-                )}
-              </View>
-            </>
-          ) : (
-            <Text style={styles.messageText}>Esperienza non trovata.</Text>
-          )}
-        </View>
+                  )}
+                </View>
+              </>
+            ) : (
+              <Text style={styles.messageText}>Esperienza non trovata.</Text>
+            )}
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -1544,7 +1570,6 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   category: {
-
     alignSelf: 'flex-start',
     backgroundColor: '#fff0f7',
     borderRadius: 999,
@@ -1677,7 +1702,6 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   participantsBox: {
-
     backgroundColor: '#ffffff',
     borderRadius: 24,
     borderWidth: 1,
@@ -1697,7 +1721,6 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   participantsCount: {
-
     color: '#8d315f',
     fontSize: 13,
     fontWeight: '800',
@@ -1705,12 +1728,10 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   participantsList: {
-
     gap: 10,
     marginTop: 4,
   },
   participantRow: {
-
     alignItems: 'center',
     backgroundColor: '#ffffff',
     borderRadius: 18,
@@ -1721,7 +1742,6 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   participantPhoto: {
-
     width: 44,
     height: 44,
     borderRadius: 22,
@@ -1733,13 +1753,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   participantName: {
-
     color: '#48172f',
     fontSize: 15,
     fontWeight: '900',
   },
   participantRoleBadge: {
-
     alignSelf: 'flex-start',
     backgroundColor: '#f0328b',
     borderRadius: 999,
@@ -2006,7 +2024,6 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   chatBox: {
-
     backgroundColor: '#fff8fb',
     borderRadius: 24,
     borderWidth: 1,
@@ -2020,7 +2037,6 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   emptySmallText: {
-
     backgroundColor: '#ffffff',
     borderRadius: 18,
     borderWidth: 1,
@@ -2033,12 +2049,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   messagesList: {
-
     gap: 10,
     marginTop: 10,
   },
   messageBubble: {
-
     alignSelf: 'flex-start',
     backgroundColor: '#ffffff',
     borderRadius: 18,
@@ -2049,13 +2063,11 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   messageBubbleMine: {
-
     alignSelf: 'flex-end',
     backgroundColor: '#f0328b',
     borderColor: '#f0328b',
   },
   messageAuthor: {
-
     color: '#e43f98',
     fontSize: 12,
     fontWeight: '900',
@@ -2065,7 +2077,6 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
   messageBody: {
-
     color: '#48172f',
     fontSize: 14,
     fontWeight: '700',
@@ -2075,7 +2086,6 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
   messageTime: {
-
     color: '#a95d86',
     fontSize: 11,
     fontWeight: '700',
@@ -2101,14 +2111,12 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   chatInputRow: {
-
     alignItems: 'center',
     flexDirection: 'row',
     gap: 10,
     marginTop: 14,
   },
   chatInput: {
-
     backgroundColor: '#ffffff',
     borderColor: '#ffd1e6',
     borderRadius: 18,

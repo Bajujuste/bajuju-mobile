@@ -4,7 +4,7 @@ import DateTimePicker, {
 import { router } from 'expo-router';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import {
   Image,
   Modal,
@@ -20,19 +20,11 @@ import {
 import { AddressAutocompleteField } from '../src/components/AddressAutocompleteField';
 import { BajujuBottomNav } from '../src/components/navigation/BajujuBottomNav';
 import { EXPERIENCE_CREATION_CATEGORIES } from '../src/constants/experienceCategories';
-import { ITALIAN_MUNICIPALITIES_BY_PROVINCE } from '../src/data/italianMunicipalities';
 import type { ResolvedAddress } from '../src/lib/addressAutocomplete';
 import { supabase } from '../src/lib/supabase';
 import { BAJUJU_COLORS, BAJUJU_FONTS, BAJUJU_SHADOW } from '../src/theme/bajujuTheme';
+import { trackBajujuEvent } from '../src/utils/bajujuAnalytics';
 import { sendBajujuPushNotification, buildExperienceNotificationTitle } from '../src/utils/bajujuNotifications';
-
-const LOCATION_OPTIONS = [
-  'Bergamo',
-  'Milano',
-  'Lecco',
-  'Monza e Brianza',
-  'Verona',
-];
 
 function categoryToDatabaseValue(value: string) {
   switch (value) {
@@ -45,15 +37,15 @@ function categoryToDatabaseValue(value: string) {
     case 'Sport':
       return 'sport';
     case 'Cultura':
-      return 'evento';
+      return 'cultura';
     case 'Musica':
-      return 'evento';
+      return 'musica';
     case 'Cinema/Teatro':
       return 'cinema';
     case 'Gita':
       return 'gita';
     case 'Giochi':
-      return 'evento';
+      return 'giochi';
     case 'Altro':
       return 'altro';
     default:
@@ -71,7 +63,6 @@ function buildIsoDate(day: string, month: string, year: string) {
   const dayNumber = Number(day);
   const monthNumber = Number(month);
   const yearNumber = Number(year);
-
   const date = new Date(yearNumber, monthNumber - 1, dayNumber);
 
   if (
@@ -97,94 +88,26 @@ function buildTime(hour: string, minute: string) {
   return `${hour}:${minute}`;
 }
 
-async function geocodeAddress(address: string, streetNumber: string, city: string, province: string) {
-  const cleanAddress = address.trim();
-  const cleanStreetNumber = streetNumber.trim();
-  const cleanCity = city.trim();
-  const cleanProvince = province.trim();
-
-  const addressAlreadyHasStreetNumber =
-    cleanStreetNumber.length > 0 &&
-    new RegExp(`\\b${cleanStreetNumber.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}\\b`, 'i').test(cleanAddress);
-
-  const fullAddress =
-    cleanStreetNumber && !addressAlreadyHasStreetNumber ? `${cleanAddress} ${cleanStreetNumber}` : cleanAddress;
-
-  const queries = [
-    `${fullAddress}, ${cleanCity}, ${cleanProvince}`,
-    `${fullAddress}, ${cleanCity}`,
-    `${cleanAddress}, ${cleanCity}, ${cleanProvince}`,
-    `${cleanAddress}, ${cleanCity}`,
-    `${cleanCity}, ${cleanProvince}, Italia`,
-    `${cleanCity}, Italia`,
-  ];
-
-  for (const query of queries) {
-    try {
-      const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=it&q=${encodeURIComponent(query)}`;
-
-      const response = await fetch(url, {
-        headers: {
-          Accept: 'application/json',
-          'User-Agent': 'BajujuMobileApp/1.0',
-        },
-      });
-
-      if (!response.ok) {
-        console.log('Geocoding esperienza non riuscito.');
-        continue;
-      }
-
-      const data = await response.json();
-
-      if (!Array.isArray(data) || data.length === 0) {
-        console.log('Nessun risultato geocoding esperienza.');
-        continue;
-      }
-
-      const first = data[0];
-      const latitude = Number(first.lat);
-      const longitude = Number(first.lon);
-
-      if (Number.isNaN(latitude) || Number.isNaN(longitude)) {
-        console.log('Coordinate esperienza non valide.');
-        continue;
-      }
-
-      return { latitude, longitude };
-    } catch (error) {
-      console.log('Errore geocoding esperienza.');
-    }
-  }
-
-  return null;
-}
-
 export default function CreateExperienceScreen() {
   const [title, setTitle] = useState('');
   const [province, setProvince] = useState('');
   const [city, setCity] = useState('');
   const [meetingPlace, setMeetingPlace] = useState('');
-  const [streetNumber, setStreetNumber] = useState('');
   const [resolvedAddress, setResolvedAddress] = useState<ResolvedAddress | null>(null);
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
-  const [openSelect, setOpenSelect] = useState<null | 'province' | 'city' | 'category'>(null);
+  const [categorySelectOpen, setCategorySelectOpen] = useState(false);
 
   const [day, setDay] = useState('');
   const [month, setMonth] = useState('');
   const [year, setYear] = useState('');
-
   const [hour, setHour] = useState('');
   const [minute, setMinute] = useState('');
-
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
-
   const [maxParticipants, setMaxParticipants] = useState('10');
   const [budgetAmount, setBudgetAmount] = useState('');
   const [photoUri, setPhotoUri] = useState<string | null>(null);
-
   const [saving, setSaving] = useState(false);
 
   const isoDate = buildIsoDate(day, month, year);
@@ -203,14 +126,14 @@ export default function CreateExperienceScreen() {
   );
 
   const formattedSelectedDate = isoDate
-    ? day + '/' + month + '/' + year
+    ? `${day}/${month}/${year}`
     : 'Seleziona la data';
 
   const formattedSelectedTime = cleanTime
-    ? hour + ':' + minute
+    ? `${hour}:${minute}`
     : 'Seleziona l’orario';
 
-  const needsBudget = category === 'Gita' || category === 'Vacanza';
+  const needsBudget = category === 'Gita';
   const cleanMaxParticipants = Number(maxParticipants || '0');
   const cleanBudgetAmount = budgetAmount ? Number(budgetAmount) : null;
   const maxParticipantsIsValid =
@@ -226,21 +149,12 @@ export default function CreateExperienceScreen() {
       cleanBudgetAmount <= 9999
     );
 
-  const provinceMunicipalities = useMemo(() => {
-    return ITALIAN_MUNICIPALITIES_BY_PROVINCE[
-      province.trim() as keyof typeof ITALIAN_MUNICIPALITIES_BY_PROVINCE
-    ] ?? [];
-  }, [province]);
-
-  const provinceIsValid = LOCATION_OPTIONS.includes(province.trim());
-  const cityIsValid = provinceMunicipalities.includes(city.trim() as never);
-
   const canCreateExperience =
     title.trim().length > 0 &&
     province.trim().length > 0 &&
     city.trim().length > 0 &&
     meetingPlace.trim().length > 0 &&
-      resolvedAddress !== null &&
+    resolvedAddress !== null &&
     description.trim().length > 0 &&
     category.trim().length > 0 &&
     Boolean(isoDate) &&
@@ -249,28 +163,18 @@ export default function CreateExperienceScreen() {
     budgetIsValid &&
     !saving;
 
-  function handleDateChange(
-    event: DateTimePickerEvent,
-    selectedDate?: Date
-  ) {
+  function handleDateChange(event: DateTimePickerEvent, selectedDate?: Date) {
     setShowDatePicker(false);
-
-    if (event.type === 'dismissed') return;
-    if (selectedDate === undefined) return;
+    if (event.type === 'dismissed' || selectedDate === undefined) return;
 
     setDay(String(selectedDate.getDate()).padStart(2, '0'));
     setMonth(String(selectedDate.getMonth() + 1).padStart(2, '0'));
     setYear(String(selectedDate.getFullYear()));
   }
 
-  function handleTimeChange(
-    event: DateTimePickerEvent,
-    selectedTime?: Date
-  ) {
+  function handleTimeChange(event: DateTimePickerEvent, selectedTime?: Date) {
     setShowTimePicker(false);
-
-    if (event.type === 'dismissed') return;
-    if (selectedTime === undefined) return;
+    if (event.type === 'dismissed' || selectedTime === undefined) return;
 
     const selectedHour = selectedTime.getHours();
     const selectedMinute = selectedTime.getMinutes() >= 30 ? 30 : 0;
@@ -315,30 +219,19 @@ export default function CreateExperienceScreen() {
           ? error.message
           : 'Non sono riuscito a preparare la foto selezionata.';
 
-      if (typeof window !== 'undefined') {
-        window.alert(message);
-      }
+      if (typeof window !== 'undefined') window.alert(message);
     }
   }
 
   async function handleCreateExperience() {
     if (!canCreateExperience || saving) return;
 
-    const cleanTitle = title.trim();
-    const cleanProvince = province.trim();
-    const cleanCity = city.trim();
-    const cleanMeetingPlace = meetingPlace.trim();
-    const cleanStreetNumber = streetNumber.trim();
-    const cleanDescription = description.trim();
-    const cleanCategory = category.trim();
-    const databaseCategory = categoryToDatabaseValue(cleanCategory);
-
-      if (!resolvedAddress) {
-        if (typeof window !== 'undefined') {
-          window.alert('Seleziona un indirizzo completo dai suggerimenti.');
-        }
-        return;
+    if (!resolvedAddress) {
+      if (typeof window !== 'undefined') {
+        window.alert('Seleziona un indirizzo completo dai suggerimenti.');
       }
+      return;
+    }
 
     if (!isoDate || !cleanTime) {
       if (typeof window !== 'undefined') {
@@ -347,17 +240,20 @@ export default function CreateExperienceScreen() {
       return;
     }
 
+    const cleanTitle = title.trim();
+    const cleanProvince = province.trim();
+    const cleanCity = city.trim();
+    const cleanDescription = description.trim();
+    const cleanCategory = category.trim();
+    const databaseCategory = categoryToDatabaseValue(cleanCategory);
+
     setSaving(true);
 
     try {
       const authResult = await supabase.auth.getUser();
-
-      if (authResult.error) {
-        throw authResult.error;
-      }
+      if (authResult.error) throw authResult.error;
 
       const creatorId = authResult.data.user?.id;
-
       if (!creatorId) {
         if (typeof window !== 'undefined') {
           window.alert('Devi essere collegato per creare un’esperienza.');
@@ -365,7 +261,7 @@ export default function CreateExperienceScreen() {
         return;
       }
 
-        const finalMeetingPlace = `${resolvedAddress.street} ${resolvedAddress.streetNumber}`;
+      const finalMeetingPlace = `${resolvedAddress.street} ${resolvedAddress.streetNumber || ''}`.trim();
 
       const payload = {
         creator_id: creatorId,
@@ -382,8 +278,8 @@ export default function CreateExperienceScreen() {
         budget_amount: needsBudget ? cleanBudgetAmount : null,
         is_flash: false,
         expires_at: null,
-          latitude: resolvedAddress.latitude,
-          longitude: resolvedAddress.longitude,
+        latitude: resolvedAddress.latitude,
+        longitude: resolvedAddress.longitude,
       };
 
       const result = await supabase.from('activities').insert(payload).select('*').single();
@@ -394,6 +290,13 @@ export default function CreateExperienceScreen() {
         }
         return;
       }
+
+      void trackBajujuEvent('experience_created', {
+        activityId: result.data?.id,
+        category: databaseCategory,
+        province: cleanProvince,
+        city: cleanCity,
+      });
 
       let photoUploadWarning = '';
 
@@ -412,15 +315,11 @@ export default function CreateExperienceScreen() {
 
           if (uploadResult.error) throw uploadResult.error;
 
-          const publicUrlResult = supabase.storage
+          const publicUrl = supabase.storage
             .from('event-photos')
-            .getPublicUrl(filePath);
+            .getPublicUrl(filePath).data.publicUrl;
 
-          const publicUrl = publicUrlResult.data.publicUrl;
-
-          if (!publicUrl) {
-            throw new Error('URL pubblico della foto non disponibile.');
-          }
+          if (!publicUrl) throw new Error('URL pubblico della foto non disponibile.');
 
           const updateResult = await supabase
             .from('activities')
@@ -447,7 +346,7 @@ export default function CreateExperienceScreen() {
           activityId: result.data?.id,
           title: payload.title,
         },
-      }).catch((error) => {
+      }).catch(() => {
         console.log('Errore notifica nuova esperienza.');
       });
 
@@ -455,7 +354,7 @@ export default function CreateExperienceScreen() {
       setProvince('');
       setCity('');
       setMeetingPlace('');
-      setStreetNumber('');
+      setResolvedAddress(null);
       setDescription('');
       setCategory('');
       setDay('');
@@ -478,15 +377,11 @@ export default function CreateExperienceScreen() {
       router.replace('/experiences');
     } catch (error: unknown) {
       console.log('Errore creazione esperienza.');
-
       const message =
         error instanceof Error
           ? error.message
           : 'Non sono riuscito a creare l’esperienza. Riprova tra poco.';
-
-      if (typeof window !== 'undefined') {
-        window.alert(message);
-      }
+      if (typeof window !== 'undefined') window.alert(message);
     } finally {
       setSaving(false);
     }
@@ -534,22 +429,21 @@ export default function CreateExperienceScreen() {
               <Text style={styles.sectionTitle}>Dove si svolge</Text>
             </View>
 
-              <AddressAutocompleteField
-                value={meetingPlace}
-                resolvedAddress={resolvedAddress}
-                onValueChange={setMeetingPlace}
-                onResolvedAddressChange={(address) => {
-                  setResolvedAddress(address);
-                  setProvince(address?.province ?? '');
-                  setCity(address?.city ?? '');
-                  setStreetNumber(address?.streetNumber ?? '');
-                }}
-                disabled={saving}
-              />
+            <AddressAutocompleteField
+              value={meetingPlace}
+              resolvedAddress={resolvedAddress}
+              onValueChange={setMeetingPlace}
+              onResolvedAddressChange={(address) => {
+                setResolvedAddress(address);
+                setProvince(address?.province ?? '');
+                setCity(address?.city ?? '');
+              }}
+              disabled={saving}
+            />
 
-              <Text style={styles.helperText}>
-                Inizia a scrivere l’indirizzo e seleziona quello corretto dai suggerimenti.
-              </Text>
+            <Text style={styles.helperText}>
+              Inizia a scrivere l’indirizzo e seleziona quello corretto dai suggerimenti. Vale per tutta Italia.
+            </Text>
           </View>
 
           <View style={[styles.formSection, styles.whenSection]}>
@@ -560,7 +454,6 @@ export default function CreateExperienceScreen() {
             <View style={styles.dateTimeRow}>
               <View style={styles.dateColumn}>
                 <Text style={styles.compactLabel}>Data</Text>
-
                 <Pressable
                   style={styles.dateTimePickerButton}
                   onPress={() => {
@@ -568,12 +461,7 @@ export default function CreateExperienceScreen() {
                     setShowDatePicker(true);
                   }}
                 >
-                  <Text
-                    style={[
-                      styles.dateTimePickerButtonText,
-                      isoDate ? null : styles.dateTimePickerPlaceholder,
-                    ]}
-                  >
+                  <Text style={[styles.dateTimePickerButtonText, isoDate ? null : styles.dateTimePickerPlaceholder]}>
                     {formattedSelectedDate}
                   </Text>
                   <Text style={styles.dateTimePickerIcon}>▣</Text>
@@ -582,7 +470,6 @@ export default function CreateExperienceScreen() {
 
               <View style={styles.timeColumn}>
                 <Text style={styles.compactLabel}>Ora</Text>
-
                 <Pressable
                   style={styles.dateTimePickerButton}
                   onPress={() => {
@@ -590,12 +477,7 @@ export default function CreateExperienceScreen() {
                     setShowTimePicker(true);
                   }}
                 >
-                  <Text
-                    style={[
-                      styles.dateTimePickerButtonText,
-                      cleanTime ? null : styles.dateTimePickerPlaceholder,
-                    ]}
-                  >
+                  <Text style={[styles.dateTimePickerButtonText, cleanTime ? null : styles.dateTimePickerPlaceholder]}>
                     {formattedSelectedTime}
                   </Text>
                   <Text style={styles.dateTimePickerIcon}>◷</Text>
@@ -630,7 +512,7 @@ export default function CreateExperienceScreen() {
             </View>
 
             <Text style={styles.label}>Categoria</Text>
-            <Pressable style={styles.selectButton} onPress={() => setOpenSelect('category')}>
+            <Pressable style={styles.selectButton} onPress={() => setCategorySelectOpen(true)}>
               <Text style={[styles.selectButtonText, !category.trim() && styles.selectPlaceholder]}>
                 {category.trim() || 'Seleziona categoria'}
               </Text>
@@ -678,51 +560,39 @@ export default function CreateExperienceScreen() {
               maxLength={500}
             />
 
-              <Text style={styles.label}>Foto esperienza</Text>
-
-              <Pressable style={styles.photoPicker} onPress={handlePickPhoto}>
-                {photoUri ? (
-                  <Image
-                    source={{ uri: photoUri }}
-                    style={styles.photoPreview}
-                    resizeMode="cover"
-                  />
-                ) : (
-                  <View style={styles.photoPlaceholder}>
-                    <Text style={styles.photoPlaceholderTitle}>Aggiungi una foto</Text>
-                    <Text style={styles.photoPlaceholderText}>Formato panoramico 16:9</Text>
-                  </View>
-                )}
-              </Pressable>
-
+            <Text style={styles.label}>Foto esperienza</Text>
+            <Pressable style={styles.photoPicker} onPress={handlePickPhoto}>
               {photoUri ? (
-                <View style={styles.photoActions}>
-                  <Pressable style={styles.photoActionButton} onPress={handlePickPhoto}>
-                    <Text style={styles.photoActionText}>Sostituisci</Text>
-                  </Pressable>
-
-                  <Pressable style={styles.photoActionButton} onPress={() => setPhotoUri(null)}>
-                    <Text style={styles.photoRemoveText}>Rimuovi</Text>
-                  </Pressable>
-                </View>
+                <Image source={{ uri: photoUri }} style={styles.photoPreview} resizeMode="cover" />
               ) : (
-                <Text style={styles.photoHelper}>
-                  Facoltativa. La foto viene adattata automaticamente.
-                </Text>
+                <View style={styles.photoPlaceholder}>
+                  <Text style={styles.photoPlaceholderTitle}>Aggiungi una foto</Text>
+                  <Text style={styles.photoPlaceholderText}>Formato panoramico 16:9</Text>
+                </View>
               )}
+            </Pressable>
+
+            {photoUri ? (
+              <View style={styles.photoActions}>
+                <Pressable style={styles.photoActionButton} onPress={handlePickPhoto}>
+                  <Text style={styles.photoActionText}>Sostituisci</Text>
+                </Pressable>
+                <Pressable style={styles.photoActionButton} onPress={() => setPhotoUri(null)}>
+                  <Text style={styles.photoRemoveText}>Rimuovi</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <Text style={styles.photoHelper}>Facoltativa. La foto viene adattata automaticamente.</Text>
+            )}
           </View>
 
           <View style={styles.previewBox}>
             <Text style={styles.previewTitle}>Come apparirà la tua esperienza</Text>
-            <Text style={styles.previewText}>
-              {title.trim() || 'Titolo esperienza'}
-            </Text>
+            <Text style={styles.previewText}>{title.trim() || 'Titolo esperienza'}</Text>
             <Text style={styles.previewSmall}>
-              {category || 'Categoria'} · {province.trim() || 'Provincia'}
+              {category || 'Categoria'} · {city.trim() || 'Comune'} ({province.trim() || 'Provincia'})
             </Text>
-            <Text style={styles.previewSmall}>
-              Ritrovo: {meetingPlace.trim() || 'Nome punto di ritrovo'}
-            </Text>
+            <Text style={styles.previewSmall}>Ritrovo: {meetingPlace.trim() || 'Indirizzo'}</Text>
             <Text style={styles.previewSmall}>
               {day || 'GG'}/{month || 'MM'}/{year || 'AAAA'} · {hour || 'HH'}:{minute || 'MM'}
             </Text>
@@ -733,19 +603,12 @@ export default function CreateExperienceScreen() {
           </View>
 
           <Pressable
-            style={[
-              styles.mainButton,
-              !canCreateExperience && styles.mainButtonDisabled,
-            ]}
+            style={[styles.mainButton, !canCreateExperience && styles.mainButtonDisabled]}
             onPress={handleCreateExperience}
             disabled={!canCreateExperience}
           >
             <Text style={styles.mainButtonText}>
-              {saving
-                ? 'Creazione in corso...'
-                : canCreateExperience
-                  ? 'Crea esperienza'
-                  : 'Completa tutti i dati'}
+              {saving ? 'Creazione in corso...' : canCreateExperience ? 'Crea esperienza' : 'Completa tutti i dati'}
             </Text>
           </Pressable>
 
@@ -756,49 +619,27 @@ export default function CreateExperienceScreen() {
       </ScrollView>
 
       <Modal
-        visible={openSelect !== null}
+        visible={categorySelectOpen}
         transparent
         animationType="fade"
-        onRequestClose={() => setOpenSelect(null)}
+        onRequestClose={() => setCategorySelectOpen(false)}
       >
-        <Pressable style={styles.modalBackdrop} onPress={() => setOpenSelect(null)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setCategorySelectOpen(false)}>
           <Pressable style={styles.modalSheet} onPress={() => {}}>
             <View style={styles.modalHandle} />
-            <Text style={styles.modalTitle}>
-              {openSelect === 'province'
-                ? 'Seleziona provincia'
-                : openSelect === 'city'
-                  ? 'Seleziona comune'
-                  : 'Seleziona categoria'}
-            </Text>
+            <Text style={styles.modalTitle}>Seleziona categoria</Text>
 
             <ScrollView style={styles.modalOptions} contentContainerStyle={styles.modalOptionsContent}>
-              {(openSelect === 'province'
-                ? LOCATION_OPTIONS
-                : openSelect === 'city'
-                  ? provinceMunicipalities
-                  : EXPERIENCE_CREATION_CATEGORIES
-              ).map((item) => {
-                const isSelected =
-                  openSelect === 'province' ? province === item : openSelect === 'city' ? city === item : category === item;
-
+              {EXPERIENCE_CREATION_CATEGORIES.map((item) => {
+                const isSelected = category === item;
                 return (
                   <Pressable
                     key={item}
                     style={[styles.modalOption, isSelected && styles.modalOptionActive]}
                     onPress={() => {
-                      if (openSelect === 'province') {
-                        setProvince(item);
-                        setCity('');
-                      } else if (openSelect === 'city') {
-                        setCity(item);
-                      } else {
-                        setCategory(item);
-                        if (item !== 'Gita' && item !== 'Vacanza') {
-                          setBudgetAmount('');
-                        }
-                      }
-                      setOpenSelect(null);
+                      setCategory(item);
+                      if (item !== 'Gita') setBudgetAmount('');
+                      setCategorySelectOpen(false);
                     }}
                   >
                     <Text style={[styles.modalOptionText, isSelected && styles.modalOptionTextActive]}>
@@ -810,503 +651,17 @@ export default function CreateExperienceScreen() {
               })}
             </ScrollView>
 
-            <Pressable style={styles.modalCloseButton} onPress={() => setOpenSelect(null)}>
+            <Pressable style={styles.modalCloseButton} onPress={() => setCategorySelectOpen(false)}>
               <Text style={styles.modalCloseText}>Chiudi</Text>
             </Pressable>
           </Pressable>
         </Pressable>
       </Modal>
+
       <BajujuBottomNav active="home" />
     </SafeAreaView>
   );
 }
-
-const legacyStyles = StyleSheet.create({
-  photoPicker: {
-    width: '100%',
-    height: 158,
-    borderRadius: 20,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#f2a8cc',
-    backgroundColor: '#fff8fb',
-    marginTop: 2,
-    marginBottom: 10,
-  },
-  photoPreview: {
-    width: '100%',
-    height: '100%',
-  },
-  photoPlaceholder: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 16,
-  },
-  photoPlaceholderTitle: {
-    color: '#8f1658',
-    fontSize: 15,
-    fontWeight: '900',
-  },
-  photoPlaceholderText: {
-    color: '#a95d86',
-    fontSize: 12,
-    fontWeight: '700',
-    marginTop: 4,
-  },
-  photoActions: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 12,
-  },
-  photoActionButton: {
-    flex: 1,
-    minHeight: 40,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: '#f2a8cc',
-    backgroundColor: '#fffafd',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  photoActionText: {
-    color: '#e43f98',
-    fontSize: 13,
-    fontWeight: '900',
-  },
-  photoRemoveText: {
-    color: '#8f1658',
-    fontSize: 13,
-    fontWeight: '900',
-  },
-  photoHelper: {
-    color: '#a95d86',
-    fontSize: 12,
-    lineHeight: 17,
-    fontWeight: '700',
-    marginBottom: 12,
-  },
-  compactDetailsRow: {
-    flexDirection: 'row',
-    gap: 12,
-    alignItems: 'flex-start',
-  },
-  participantsColumn: {
-    width: 132,
-  },
-  budgetColumn: {
-    width: 132,
-  },
-  compactTextArea: {
-    minHeight: 72,
-    paddingTop: 10,
-  },
-  selectButton: {
-    minHeight: 44,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#f2c8db',
-    backgroundColor: '#fff8fb',
-    paddingHorizontal: 16,
-    marginBottom: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  selectButtonText: {
-    color: '#331426',
-    fontSize: 15,
-    fontWeight: '800',
-    flex: 1,
-  },
-  selectPlaceholder: {
-    color: '#9c7b8b',
-    fontWeight: '700',
-  },
-  selectChevron: {
-    color: '#ef2d82',
-    fontSize: 22,
-    fontWeight: '900',
-    marginLeft: 10,
-  },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(51, 20, 38, 0.34)',
-    justifyContent: 'flex-end',
-    padding: 16,
-  },
-  modalSheet: {
-    maxHeight: '72%',
-    backgroundColor: '#fff8fb',
-    borderRadius: 28,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#f6d7e4',
-  },
-  modalHandle: {
-    alignSelf: 'center',
-    width: 44,
-    height: 5,
-    borderRadius: 999,
-    backgroundColor: '#f1bfd4',
-    marginBottom: 14,
-  },
-  modalTitle: {
-    color: '#331426',
-    fontSize: 22,
-    fontWeight: '900',
-    marginBottom: 10,
-  },
-  modalOptions: {
-    maxHeight: 360,
-  },
-  modalOptionsContent: {
-    paddingBottom: 8,
-    gap: 8,
-  },
-  modalOption: {
-    minHeight: 50,
-    borderRadius: 16,
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#f5d4e2',
-    paddingHorizontal: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  modalOptionActive: {
-    backgroundColor: '#ef2d82',
-    borderColor: '#ef2d82',
-  },
-  modalOptionText: {
-    color: '#331426',
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  modalOptionTextActive: {
-    color: '#ffffff',
-  },
-  modalCheck: {
-    color: '#ffffff',
-    fontSize: 18,
-    fontWeight: '900',
-  },
-  modalCloseButton: {
-    marginTop: 12,
-    minHeight: 44,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#f2c8db',
-  },
-  modalCloseText: {
-    color: '#ef2d82',
-    fontSize: 15,
-    fontWeight: '900',
-  },
-  brandClaim: {
-    color: '#ef2d82',
-    fontSize: 16,
-    fontWeight: '700',
-    textAlign: 'center',
-    marginTop: -2,
-  },
-  headerLine: {
-    height: 1,
-    backgroundColor: '#f8cadd',
-    marginTop: 18,
-    marginBottom: 22,
-    opacity: 0.9,
-  },
-  pageTitle: {
-    color: '#331426',
-    fontSize: 34,
-    fontWeight: '900',
-    letterSpacing: -0.8,
-    marginBottom: 8,
-  },
-  formSection: {
-    backgroundColor: '#ffffff',
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: '#f6d7e4',
-    padding: 14,
-    marginBottom: 10,
-    shadowColor: '#8b2d5a',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.03,
-    shadowRadius: 18,
-    elevation: 2,
-  },
-  sectionHeaderRow: {
-    marginBottom: 10,
-  },
-  twoColumnsRow: {
-    flexDirection: 'row',
-    gap: 12,
-    alignItems: 'flex-start',
-  },
-  addressColumn: {
-    flex: 1,
-  },
-  selectButtonDisabled: {
-    opacity: 0.6,
-  },
-  streetNumberColumn: {
-    width: 104,
-  },
-  whenSection: {
-    paddingVertical: 12,
-    marginBottom: 10,
-  },
-  compactSectionHeaderRow: {
-    marginBottom: 10,
-  },
-  compactLabel: {
-    color: '#6f3855',
-    fontSize: 12,
-    fontWeight: '900',
-    marginBottom: 6,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-  },
-  dateTimePickerButton: {
-    minHeight: 50,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#ffd3e6',
-    backgroundColor: '#ffffff',
-    paddingHorizontal: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
-  },
-  dateTimePickerButtonText: {
-    flex: 1,
-    color: '#4b1430',
-    fontSize: 14,
-    fontWeight: '900',
-  },
-  dateTimePickerPlaceholder: {
-    color: '#9c7b8b',
-  },
-  dateTimePickerIcon: {
-    color: '#e43f98',
-    fontSize: 18,
-    fontWeight: '900',
-  },
-  dateTimeRow: {
-    flexDirection: 'column',
-    gap: 14,
-    alignItems: 'stretch',
-  },
-  dateColumn: {
-    flex: 1,
-    minWidth: 0,
-  },
-  timeColumn: {
-    width: '100%',
-  },
-  compactDatePartsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  compactSmallInput: {
-    width: 38,
-    minHeight: 46,
-    paddingHorizontal: 6,
-    textAlign: 'center',
-  },
-  compactYearInput: {
-    width: 64,
-    minHeight: 46,
-    paddingHorizontal: 6,
-    textAlign: 'center',
-  },
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#fffafd',
-  },
-  container: {
-    flexGrow: 1,
-    padding: 16,
-    paddingTop: 44,
-    paddingBottom: 32,
-    backgroundColor: '#fffafd',
-  },
-  backButton: {
-    alignSelf: 'flex-start',
-    marginBottom: 14,
-    paddingVertical: 9,
-    paddingHorizontal: 13,
-    borderRadius: 999,
-    backgroundColor: '#fffafd',
-    borderWidth: 1,
-    borderColor: '#f2a8cc',
-  },
-  backText: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#8f1658',
-  },
-  header: {
-    marginBottom: 14,
-  },
-  logoText: {
-    fontSize: 36,
-    fontWeight: '900',
-    color: '#e43f98',
-    letterSpacing: -0.6,
-  },
-  subtitle: {
-    marginTop: 8,
-    fontSize: 15,
-    lineHeight: 22,
-    fontWeight: '700',
-    color: '#4c1835',
-  },
-  card: {
-    width: '100%',
-    borderRadius: 34,
-    padding: 16,
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#f2a8cc',
-    shadowColor: '#e43f98',
-    shadowOpacity: 0.10,
-    shadowRadius: 28,
-    shadowOffset: { width: 0, height: 14 },
-    elevation: 3,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '900',
-    color: '#8f1658',
-    marginBottom: 6,
-  },
-  helperText: {
-    marginBottom: 8,
-    color: '#a95d86',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  input: {
-    minHeight: 54,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: '#f2a8cc',
-    backgroundColor: '#fffafd',
-    paddingHorizontal: 16,
-    fontSize: 18,
-    color: '#4c1835',
-    marginBottom: 10,
-    fontWeight: '800',
-  },
-  datePartsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 10,
-  },
-  smallInput: {
-    width: 64,
-    height: 58,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: '#f2a8cc',
-    backgroundColor: '#fffafd',
-    textAlign: 'center',
-    fontSize: 18,
-    color: '#4c1835',
-    fontWeight: '900',
-  },
-  yearInput: {
-    width: 92,
-    height: 58,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: '#f2a8cc',
-    backgroundColor: '#fffafd',
-    textAlign: 'center',
-    fontSize: 18,
-    color: '#4c1835',
-    fontWeight: '900',
-  },
-  separator: {
-    fontSize: 22,
-    fontWeight: '900',
-    color: '#e43f98',
-  },
-  sectionTitle: {
-    color: '#331426',
-    fontSize: 17,
-    fontWeight: '900',
-    letterSpacing: -0.2,
-  },
-  textArea: {
-    minHeight: 110,
-    textAlignVertical: 'top',
-    paddingTop: 13,
-  },
-  previewBox: {
-    backgroundColor: '#fff8fb',
-    borderRadius: 18,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#f6d7e4',
-    marginTop: 4,
-  },
-  previewTitle: {
-    fontSize: 15,
-    fontWeight: '900',
-    color: '#e43f98',
-    marginBottom: 6,
-  },
-  previewText: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: '#8f1658',
-    marginBottom: 4,
-  },
-  previewSmall: {
-    fontSize: 13,
-    color: '#4c1835',
-    fontWeight: '700',
-    marginTop: 2,
-  },
-  mainButton: {
-    backgroundColor: '#ef2d82',
-    borderRadius: 999,
-    minHeight: 52,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 14,
-  },
-  mainButtonDisabled: {
-    opacity: 0.45,
-  },
-  mainButtonText: {
-    color: '#ffffff',
-    fontSize: 18,
-    fontWeight: '900',
-  },
-  note: {
-    marginTop: 14,
-    fontSize: 12,
-    lineHeight: 18,
-    color: '#8f1658',
-    textAlign: 'center',
-    fontWeight: '700',
-  },
-
-});
-
-void legacyStyles;
 
 const styles = StyleSheet.create({
   safeArea: {
@@ -1395,12 +750,8 @@ const styles = StyleSheet.create({
     letterSpacing: -0.9,
     textAlign: 'center',
   },
-  headerTitlePlum: {
-    color: BAJUJU_COLORS.plum,
-  },
-  headerTitlePink: {
-    color: BAJUJU_COLORS.brightPink,
-  },
+  headerTitlePlum: { color: BAJUJU_COLORS.plum },
+  headerTitlePink: { color: BAJUJU_COLORS.brightPink },
   subtitle: {
     zIndex: 1,
     marginTop: 7,
@@ -1410,11 +761,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     textAlign: 'center',
   },
-  card: {
-    width: '100%',
-    padding: 0,
-    backgroundColor: 'transparent',
-  },
+  card: { width: '100%', padding: 0, backgroundColor: 'transparent' },
   formSection: {
     padding: 19,
     marginBottom: 18,
@@ -1428,12 +775,8 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 9 },
     elevation: 5,
   },
-  sectionHeaderRow: {
-    marginBottom: 13,
-  },
-  compactSectionHeaderRow: {
-    marginBottom: 13,
-  },
+  sectionHeaderRow: { marginBottom: 13 },
+  compactSectionHeaderRow: { marginBottom: 13 },
   sectionTitle: {
     color: BAJUJU_COLORS.plum,
     fontFamily: BAJUJU_FONTS.bold,
@@ -1451,7 +794,6 @@ const styles = StyleSheet.create({
     color: BAJUJU_COLORS.plum,
     fontFamily: BAJUJU_FONTS.semiBold,
     fontSize: 13,
-    textTransform: 'none',
   },
   input: {
     minHeight: 56,
@@ -1484,29 +826,12 @@ const styles = StyleSheet.create({
     fontFamily: BAJUJU_FONTS.medium,
     fontSize: 15,
   },
-  selectPlaceholder: {
-    color: BAJUJU_COLORS.muted,
-  },
+  selectPlaceholder: { color: BAJUJU_COLORS.muted },
   selectChevron: {
     marginLeft: 8,
     color: BAJUJU_COLORS.brightPink,
     fontFamily: BAJUJU_FONTS.bold,
     fontSize: 18,
-  },
-  selectButtonDisabled: {
-    opacity: 0.5,
-  },
-  twoColumnsRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-  },
-  addressColumn: {
-    flex: 1,
-    minWidth: 0,
-  },
-  streetNumberColumn: {
-    width: 92,
   },
   helperText: {
     marginBottom: 3,
@@ -1515,22 +840,14 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 17,
   },
-  whenSection: {
-    paddingVertical: 19,
-  },
+  whenSection: { paddingVertical: 19 },
   dateTimeRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 12,
   },
-  dateColumn: {
-    flex: 1,
-    minWidth: 0,
-  },
-  timeColumn: {
-    flex: 1,
-    minWidth: 0,
-  },
+  dateColumn: { flex: 1, minWidth: 0 },
+  timeColumn: { flex: 1, minWidth: 0 },
   dateTimePickerButton: {
     minHeight: 56,
     paddingHorizontal: 15,
@@ -1549,9 +866,7 @@ const styles = StyleSheet.create({
     fontFamily: BAJUJU_FONTS.medium,
     fontSize: 14,
   },
-  dateTimePickerPlaceholder: {
-    color: BAJUJU_COLORS.muted,
-  },
+  dateTimePickerPlaceholder: { color: BAJUJU_COLORS.muted },
   dateTimePickerIcon: {
     color: BAJUJU_COLORS.brightPink,
     fontFamily: BAJUJU_FONTS.bold,
@@ -1562,20 +877,14 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: 12,
   },
-  participantsColumn: {
-    width: 132,
-  },
-  budgetColumn: {
-    width: 132,
-  },
+  participantsColumn: { width: 132 },
+  budgetColumn: { width: 132 },
   textArea: {
     minHeight: 112,
     paddingTop: 14,
     textAlignVertical: 'top',
   },
-  compactTextArea: {
-    minHeight: 92,
-  },
+  compactTextArea: { minHeight: 92 },
   photoPicker: {
     width: '100%',
     height: 176,
@@ -1587,10 +896,7 @@ const styles = StyleSheet.create({
     borderColor: '#F7A7CD',
     backgroundColor: BAJUJU_COLORS.palePink,
   },
-  photoPreview: {
-    width: '100%',
-    height: '100%',
-  },
+  photoPreview: { width: '100%', height: '100%' },
   photoPlaceholder: {
     flex: 1,
     alignItems: 'center',
@@ -1608,11 +914,7 @@ const styles = StyleSheet.create({
     fontFamily: BAJUJU_FONTS.medium,
     fontSize: 12,
   },
-  photoActions: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 12,
-  },
+  photoActions: { flexDirection: 'row', gap: 10, marginBottom: 12 },
   photoActionButton: {
     flex: 1,
     minHeight: 42,
@@ -1679,9 +981,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 9 },
     elevation: 7,
   },
-  mainButtonDisabled: {
-    opacity: 0.45,
-  },
+  mainButtonDisabled: { opacity: 0.45 },
   mainButtonText: {
     color: BAJUJU_COLORS.white,
     fontFamily: BAJUJU_FONTS.bold,
@@ -1723,13 +1023,8 @@ const styles = StyleSheet.create({
     fontFamily: BAJUJU_FONTS.bold,
     fontSize: 22,
   },
-  modalOptions: {
-    maxHeight: 360,
-  },
-  modalOptionsContent: {
-    paddingBottom: 8,
-    gap: 8,
-  },
+  modalOptions: { maxHeight: 360 },
+  modalOptionsContent: { paddingBottom: 8, gap: 8 },
   modalOption: {
     minHeight: 50,
     paddingHorizontal: 16,
@@ -1750,9 +1045,7 @@ const styles = StyleSheet.create({
     fontFamily: BAJUJU_FONTS.medium,
     fontSize: 15,
   },
-  modalOptionTextActive: {
-    color: BAJUJU_COLORS.white,
-  },
+  modalOptionTextActive: { color: BAJUJU_COLORS.white },
   modalCheck: {
     color: BAJUJU_COLORS.white,
     fontFamily: BAJUJU_FONTS.bold,

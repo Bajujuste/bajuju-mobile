@@ -424,7 +424,7 @@ export default function ProfileScreen() {
   const [ageRange, setAgeRange] = useState('');
   const [gender, setGender] = useState('');
   const [directContactsEnabled, setDirectContactsEnabled] = useState(true);
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [photoLoadError, setPhotoLoadError] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
@@ -761,6 +761,8 @@ export default function ProfileScreen() {
       )
     );
 
+    setNotificationsEnabled(false);
+
     try {
       const notificationPreferencesResult = await supabase
         .from('notification_preferences')
@@ -769,7 +771,7 @@ export default function ProfileScreen() {
         .maybeSingle();
 
       if (!notificationPreferencesResult.error && notificationPreferencesResult.data) {
-        setNotificationsEnabled(notificationPreferencesResult.data.enabled !== false);
+        setNotificationsEnabled(notificationPreferencesResult.data.enabled === true);
 
         const preferredProvince = notificationPreferencesResult.data.preferred_province;
         if (

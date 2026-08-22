@@ -62,6 +62,23 @@ export default function HomeScreen() {
         const localChoiceKey = `bajuju-notification-choice-v2:${userId}`;
         const localChoice = await AsyncStorage.getItem(localChoiceKey);
 
+        // Se Android/iOS ha già concesso il permesso, inizializziamo davvero
+        // token e posizione anche quando la riga preferenze non esiste ancora.
+        if (localChoice !== 'declined') {
+          const authorizedRegistration = await refreshBajujuPushRegistrationIfAuthorized(userId);
+          const authorizedLocation = await refreshBajujuNotificationLocation(userId, {
+            requestPermission: false,
+          });
+
+          if (authorizedRegistration.ok) {
+            await AsyncStorage.setItem(localChoiceKey, 'accepted');
+          }
+
+          if (!authorizedLocation.ok) {
+            console.log('Posizione notifiche non aggiornata durante bootstrap Home.');
+          }
+        }
+
         const preferenceResult = await supabase
           .from('notification_preferences')
           .select('enabled')
@@ -164,11 +181,17 @@ export default function HomeScreen() {
           }
 
           const registrationResult = await refreshBajujuPushRegistrationIfAuthorized(userId);
-          if (registrationResult.ok) {
-            const locationResult = await refreshBajujuNotificationLocation(userId, { requestPermission: false });
-            if (!locationResult.ok) {
-              console.log('Posizione notifiche non aggiornata al focus Home.');
-            }
+          if (!registrationResult.ok) {
+            console.log('Token push non aggiornato al focus Home.');
+          }
+
+          // La posizione deve essere sincronizzata anche se il token Expo fallisce:
+          // serve comunque per creare la notifica in-app delle esperienze entro 25 km.
+          const locationResult = await refreshBajujuNotificationLocation(userId, {
+            requestPermission: false,
+          });
+          if (!locationResult.ok) {
+            console.log('Posizione notifiche non aggiornata al focus Home.');
           }
 
           await refreshUnreadCount(userId);

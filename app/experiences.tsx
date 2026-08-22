@@ -171,10 +171,16 @@ export default function ExperiencesScreen() {
         await saveBajujuNotificationCoordinatesIfEnabled(userId, resolvedCoordinates).catch(() => ({ ok: false }));
       }
 
+      const oldestUsefulDate = new Date(
+        Date.now() - PAST_RETENTION_DAYS * 24 * 60 * 60 * 1000
+      ).toISOString().slice(0, 10);
+
       const activitiesResult = await supabase
         .from('activities')
-        .select('*')
+        .select('id,creator_id,title,category,city,province,activity_date,activity_time,max_participants,is_flash,photo_url,image_url,cover_url,deleted_at,status,latitude,longitude')
         .neq('is_flash', true)
+        .gte('activity_date', oldestUsefulDate)
+        .order('activity_date', { ascending: true })
         .limit(500);
 
       if (activitiesResult.error) throw activitiesResult.error;

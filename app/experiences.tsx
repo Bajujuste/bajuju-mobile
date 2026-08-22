@@ -53,7 +53,6 @@ type ParticipantRow = {
 };
 
 type Coordinates = { latitude: number; longitude: number };
-
 type ExperienceWithDistance = ActivityRow & { distanceKm?: number | null };
 
 function participantIsActive(row: ParticipantRow) {
@@ -77,11 +76,7 @@ function formatDate(row: ActivityRow) {
   const moment = activityMoment(row);
   if (!moment) return 'Data da definire';
   return moment.toLocaleString('it-IT', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
+    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
   });
 }
 
@@ -236,16 +231,11 @@ export default function ExperiencesScreen() {
     }
   }, []);
 
-  useFocusEffect(
-    useCallback(() => {
-      void loadAll();
-    }, [loadAll])
-  );
+  useFocusEffect(useCallback(() => { void loadAll(); }, [loadAll]));
 
   const nearbyActivities = useMemo<ExperienceWithDistance[]>(() => {
     const now = Date.now();
     if (!coordinates) return [];
-
     return activities
       .filter((row) => {
         const moment = activityMoment(row);
@@ -261,7 +251,6 @@ export default function ExperiencesScreen() {
 
   const allEventsActivities = useMemo<ExperienceWithDistance[]>(() => {
     const now = Date.now();
-
     return activities
       .filter((row) => {
         const moment = activityMoment(row);
@@ -269,10 +258,7 @@ export default function ExperiencesScreen() {
       })
       .map((row) => {
         const target = rowCoordinates(row);
-        return {
-          ...row,
-          distanceKm: coordinates && target ? distanceKm(coordinates, target) : null,
-        };
+        return { ...row, distanceKm: coordinates && target ? distanceKm(coordinates, target) : null };
       })
       .filter((row) => row.distanceKm === null || Number(row.distanceKm) > NEARBY_RADIUS_KM)
       .sort((a, b) => {
@@ -310,7 +296,6 @@ export default function ExperiencesScreen() {
   const pastActivities = useMemo(() => {
     const now = Date.now();
     const oldestAllowed = now - PAST_RETENTION_DAYS * 24 * 60 * 60 * 1000;
-
     return activities
       .filter((row) => myActivityIds.has(String(row.id || '')))
       .filter((row) => {
@@ -337,6 +322,26 @@ export default function ExperiencesScreen() {
     setMode(nextMode);
     setVisibleCount(PAGE_SIZE);
     setAllEventsVisibleCount(PAGE_SIZE);
+  }
+
+  function waitlistButton(activityId: string, item: ActivityRow, organizedByMe: boolean) {
+    const max = Number(item.max_participants || 0);
+    const full = max > 0 && Number(participantCounts[activityId] || 0) >= max;
+    const canWait = full && !organizedByMe && !myActivityIds.has(activityId) && mode !== 'past';
+
+    if (!canWait) return <Text style={styles.openText}>Apri →</Text>;
+
+    return (
+      <Pressable
+        style={styles.waitlistButton}
+        onPress={(event) => {
+          event.stopPropagation();
+          router.push({ pathname: '/experience-waitlist' as any, params: { id: activityId } });
+        }}
+      >
+        <Text style={styles.waitlistButtonText}>Lista d’attesa</Text>
+      </Pressable>
+    );
   }
 
   return (
@@ -370,27 +375,17 @@ export default function ExperiencesScreen() {
         <View style={styles.sectionHeader}>
           <View style={{ flex: 1 }}>
             <Text style={styles.sectionTitle}>
-              {mode === 'nearby'
-                ? 'Entro 25 km da te'
-                : mode === 'joined'
-                  ? 'A cui partecipi'
-                  : mode === 'organized'
-                    ? 'I tuoi eventi'
-                    : 'I tuoi eventi passati'}
+              {mode === 'nearby' ? 'Entro 25 km da te' : mode === 'joined' ? 'A cui partecipi' : mode === 'organized' ? 'I tuoi eventi' : 'I tuoi eventi passati'}
             </Text>
             <Text style={styles.sectionSubtitle}>
               {mode === 'nearby'
                 ? coordinates ? 'Dal più vicino al più lontano.' : 'Attiva la posizione per vedere gli eventi entro 25 km.'
-                : mode === 'joined'
-                  ? 'Qui trovi le esperienze a cui partecipi.'
-                  : mode === 'organized'
-                    ? 'Qui trovi le esperienze che organizzi tu.'
-                    : 'Foto, chat e dettagli restano disponibili per 30 giorni.'}
+                : mode === 'joined' ? 'Qui trovi le esperienze a cui partecipi.'
+                : mode === 'organized' ? 'Qui trovi le esperienze che organizzi tu.'
+                : 'Foto, chat e dettagli restano disponibili per 30 giorni.'}
             </Text>
           </View>
-          <View style={styles.counterPill}>
-            <Text style={styles.counterText}>{selectedActivities.length}</Text>
-          </View>
+          <View style={styles.counterPill}><Text style={styles.counterText}>{selectedActivities.length}</Text></View>
         </View>
 
         {mode === 'past' ? (
@@ -409,29 +404,18 @@ export default function ExperiencesScreen() {
         ) : errorMessage ? (
           <View style={styles.emptyCard}>
             <Text style={styles.emptyText}>{errorMessage}</Text>
-            <Pressable style={styles.retryButton} onPress={() => void loadAll()}>
-              <Text style={styles.retryText}>Riprova</Text>
-            </Pressable>
+            <Pressable style={styles.retryButton} onPress={() => void loadAll()}><Text style={styles.retryText}>Riprova</Text></Pressable>
           </View>
         ) : visibleActivities.length === 0 ? (
           <View style={styles.emptyCard}>
             <Text style={styles.emptyTitle}>
-              {mode === 'nearby'
-                ? 'Nessuna esperienza vicina'
-                : mode === 'joined'
-                  ? 'Nessuna esperienza a cui partecipi'
-                  : mode === 'organized'
-                    ? 'Nessun evento organizzato'
-                    : 'Nessun evento passato'}
+              {mode === 'nearby' ? 'Nessuna esperienza vicina' : mode === 'joined' ? 'Nessuna esperienza a cui partecipi' : mode === 'organized' ? 'Nessun evento organizzato' : 'Nessun evento passato'}
             </Text>
             <Text style={styles.emptyText}>
-              {mode === 'nearby'
-                ? 'Quando nascerà qualcosa entro 25 km da te lo troverai qui.'
-                : mode === 'joined'
-                  ? 'Quando partecipi a un’esperienza la ritrovi qui.'
-                  : mode === 'organized'
-                    ? 'Quando organizzi un’esperienza la ritrovi qui.'
-                    : 'Gli eventi conclusi a cui hai partecipato o che hai organizzato compariranno qui per 30 giorni.'}
+              {mode === 'nearby' ? 'Quando nascerà qualcosa entro 25 km da te lo troverai qui.'
+                : mode === 'joined' ? 'Quando partecipi a un’esperienza la ritrovi qui.'
+                : mode === 'organized' ? 'Quando organizzi un’esperienza la ritrovi qui.'
+                : 'Gli eventi conclusi a cui hai partecipato o che hai organizzato compariranno qui per 30 giorni.'}
             </Text>
           </View>
         ) : (
@@ -440,52 +424,32 @@ export default function ExperiencesScreen() {
               {visibleActivities.map((item) => {
                 const activityId = String(item.id || '');
                 const poster = imageUrl(item);
-                const organizedByMe = currentUserId && String(item.creator_id || '') === currentUserId;
-                const distance = 'distanceKm' in item && typeof item.distanceKm === 'number'
-                  ? item.distanceKm
-                  : null;
+                const organizedByMe = Boolean(currentUserId && String(item.creator_id || '') === currentUserId);
+                const distance = 'distanceKm' in item && typeof item.distanceKm === 'number' ? item.distanceKm : null;
 
                 return (
-                  <Pressable
-                    key={activityId}
-                    style={styles.experienceCard}
-                    onPress={() => router.push({ pathname: '/experience-detail' as any, params: { id: activityId } })}
-                  >
-                    <Pressable
-                      style={styles.imageBox}
-                      onPress={(event) => {
-                        event.stopPropagation();
-                        if (poster) setSelectedPosterUrl(poster);
-                      }}
-                    >
+                  <Pressable key={activityId} style={styles.experienceCard} onPress={() => router.push({ pathname: '/experience-detail' as any, params: { id: activityId } })}>
+                    <Pressable style={styles.imageBox} onPress={(event) => { event.stopPropagation(); if (poster) setSelectedPosterUrl(poster); }}>
                       <Image source={poster ? { uri: poster } : bajujuLogo} style={styles.image} resizeMode="cover" />
                     </Pressable>
-
                     <View style={styles.cardBody}>
                       <View style={styles.badgesRow}>
-                        <Text style={styles.categoryBadge}>
-                          {getExperienceCategoryIcon(item.category)} {normalizeExperienceCategory(item.category)}
-                        </Text>
+                        <Text style={styles.categoryBadge}>{getExperienceCategoryIcon(item.category)} {normalizeExperienceCategory(item.category)}</Text>
                         {organizedByMe ? <Text style={styles.organizerBadge}>Organizzi tu</Text> : null}
                       </View>
-
                       <Text style={styles.cardTitle} numberOfLines={2}>{item.title || 'Esperienza Bajuju'}</Text>
                       <Text style={styles.cardMeta}>{item.city || item.province || 'Luogo da definire'}</Text>
                       <Text style={styles.cardMeta}>{formatDate(item)}</Text>
                       {distance !== null ? <Text style={styles.distanceText}>{distance < 1 ? `${Math.round(distance * 1000)} m` : `${distance.toFixed(1)} km`} da te</Text> : null}
-
                       <View style={styles.cardFooter}>
-                        <Text style={styles.participantsText}>
-                          Partecipanti {participantCounts[activityId] || 0}/{item.max_participants || '∞'}
-                        </Text>
-                        <Text style={styles.openText}>Apri →</Text>
+                        <Text style={styles.participantsText}>Partecipanti {participantCounts[activityId] || 0}/{item.max_participants || '∞'}</Text>
+                        {waitlistButton(activityId, item, organizedByMe)}
                       </View>
                     </View>
                   </Pressable>
                 );
               })}
             </ScrollView>
-
             {visibleCount < selectedActivities.length ? (
               <Pressable style={styles.moreButton} onPress={() => setVisibleCount((value) => value + PAGE_SIZE)}>
                 <Text style={styles.moreButtonText}>Mostra altri {Math.min(PAGE_SIZE, selectedActivities.length - visibleCount)}</Text>
@@ -499,15 +463,9 @@ export default function ExperiencesScreen() {
             <View style={styles.sectionHeader}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.sectionTitle}>Tutti gli eventi</Text>
-                <Text style={styles.sectionSubtitle}>
-                  {coordinates
-                    ? 'Continua oltre i 25 km, dal più vicino al più lontano.'
-                    : 'Tutti gli eventi disponibili. Attiva la posizione per ordinarli per distanza.'}
-                </Text>
+                <Text style={styles.sectionSubtitle}>{coordinates ? 'Continua oltre i 25 km, dal più vicino al più lontano.' : 'Tutti gli eventi disponibili. Attiva la posizione per ordinarli per distanza.'}</Text>
               </View>
-              <View style={styles.counterPill}>
-                <Text style={styles.counterText}>{allEventsActivities.length}</Text>
-              </View>
+              <View style={styles.counterPill}><Text style={styles.counterText}>{allEventsActivities.length}</Text></View>
             </View>
 
             {visibleAllEvents.length === 0 ? (
@@ -521,62 +479,35 @@ export default function ExperiencesScreen() {
                   {visibleAllEvents.map((item) => {
                     const activityId = String(item.id || '');
                     const poster = imageUrl(item);
-                    const organizedByMe = currentUserId && String(item.creator_id || '') === currentUserId;
+                    const organizedByMe = Boolean(currentUserId && String(item.creator_id || '') === currentUserId);
                     const distance = typeof item.distanceKm === 'number' ? item.distanceKm : null;
 
                     return (
-                      <Pressable
-                        key={activityId}
-                        style={styles.experienceCard}
-                        onPress={() => router.push({ pathname: '/experience-detail' as any, params: { id: activityId } })}
-                      >
-                        <Pressable
-                          style={styles.imageBox}
-                          onPress={(event) => {
-                            event.stopPropagation();
-                            if (poster) setSelectedPosterUrl(poster);
-                          }}
-                        >
+                      <Pressable key={activityId} style={styles.experienceCard} onPress={() => router.push({ pathname: '/experience-detail' as any, params: { id: activityId } })}>
+                        <Pressable style={styles.imageBox} onPress={(event) => { event.stopPropagation(); if (poster) setSelectedPosterUrl(poster); }}>
                           <Image source={poster ? { uri: poster } : bajujuLogo} style={styles.image} resizeMode="cover" />
                         </Pressable>
-
                         <View style={styles.cardBody}>
                           <View style={styles.badgesRow}>
-                            <Text style={styles.categoryBadge}>
-                              {getExperienceCategoryIcon(item.category)} {normalizeExperienceCategory(item.category)}
-                            </Text>
+                            <Text style={styles.categoryBadge}>{getExperienceCategoryIcon(item.category)} {normalizeExperienceCategory(item.category)}</Text>
                             {organizedByMe ? <Text style={styles.organizerBadge}>Organizzi tu</Text> : null}
                           </View>
-
                           <Text style={styles.cardTitle} numberOfLines={2}>{item.title || 'Esperienza Bajuju'}</Text>
                           <Text style={styles.cardMeta}>{item.city || item.province || 'Luogo da definire'}</Text>
                           <Text style={styles.cardMeta}>{formatDate(item)}</Text>
-                          {distance !== null ? (
-                            <Text style={styles.distanceText}>
-                              {distance < 1 ? Math.round(distance * 1000) + ' m' : distance.toFixed(1) + ' km'} da te
-                            </Text>
-                          ) : null}
-
+                          {distance !== null ? <Text style={styles.distanceText}>{distance < 1 ? Math.round(distance * 1000) + ' m' : distance.toFixed(1) + ' km'} da te</Text> : null}
                           <View style={styles.cardFooter}>
-                            <Text style={styles.participantsText}>
-                              Partecipanti {participantCounts[activityId] || 0}/{item.max_participants || '∞'}
-                            </Text>
-                            <Text style={styles.openText}>Apri →</Text>
+                            <Text style={styles.participantsText}>Partecipanti {participantCounts[activityId] || 0}/{item.max_participants || '∞'}</Text>
+                            {waitlistButton(activityId, item, organizedByMe)}
                           </View>
                         </View>
                       </Pressable>
                     );
                   })}
                 </ScrollView>
-
                 {allEventsVisibleCount < allEventsActivities.length ? (
-                  <Pressable
-                    style={styles.moreButton}
-                    onPress={() => setAllEventsVisibleCount((value) => value + PAGE_SIZE)}
-                  >
-                    <Text style={styles.moreButtonText}>
-                      Mostra altri {Math.min(PAGE_SIZE, allEventsActivities.length - allEventsVisibleCount)}
-                    </Text>
+                  <Pressable style={styles.moreButton} onPress={() => setAllEventsVisibleCount((value) => value + PAGE_SIZE)}>
+                    <Text style={styles.moreButtonText}>Mostra altri {Math.min(PAGE_SIZE, allEventsActivities.length - allEventsVisibleCount)}</Text>
                   </Pressable>
                 ) : null}
               </>
@@ -643,6 +574,8 @@ const styles = StyleSheet.create({
   cardFooter: { marginTop: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   participantsText: { flex: 1, color: '#7b4965', fontWeight: '800', fontSize: 12 },
   openText: { color: '#e43f98', fontWeight: '900' },
+  waitlistButton: { borderRadius: 999, backgroundColor: '#fff0f7', borderWidth: 1, borderColor: '#e43f98', paddingHorizontal: 10, paddingVertical: 6 },
+  waitlistButtonText: { color: '#e43f98', fontWeight: '900', fontSize: 11 },
   moreButton: { marginTop: 14, alignSelf: 'center', paddingHorizontal: 20, paddingVertical: 12, borderRadius: 999, backgroundColor: '#e43f98' },
   moreButtonText: { color: '#ffffff', fontWeight: '900' },
   emptyCard: { minHeight: 170, borderRadius: 24, padding: 24, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#f3c6dc', alignItems: 'center', justifyContent: 'center' },

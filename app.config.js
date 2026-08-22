@@ -16,6 +16,7 @@ module.exports = () => {
 
     android: {
       ...baseConfig.expo.android,
+      googleServicesFile: "./google-services.json",
 
       config: {
         ...(baseConfig.expo.android?.config || {}),
@@ -26,7 +27,7 @@ module.exports = () => {
         },
       },
 
-      versionCode: 14,
+      versionCode: 15,
     },
 
     ios: {

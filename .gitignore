@@ -56,3 +56,5 @@ supabase/.temp/
 scripts/add-*.py
 scripts/fix-*.py
 scripts/update-*.py
+
+google-services.json

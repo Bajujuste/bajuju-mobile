@@ -69,7 +69,7 @@ const GENDER_OPTIONS = [
 ];
 
 const PROFILE_TABLE = 'profiles';
-const MOBILE_PROFILE_PAST_ACTIVITY_VISIBILITY_MS = 10 * 24 * 60 * 60 * 1000;
+const MOBILE_PROFILE_PAST_ACTIVITY_VISIBILITY_MS = 30 * 24 * 60 * 60 * 1000;
 
 function firstText(row: LooseRow | null | undefined, keys: string[], fallback = '') {
   if (!row) return fallback;
@@ -267,7 +267,6 @@ function sortMobileProfileActivities(rows: LooseRow[]) {
     })
     .slice(0, 20);
 }
-
 
 function contactTitle(row: LooseRow) {
   return firstText(
@@ -472,8 +471,6 @@ export default function ProfileScreen() {
     return () => clearTimeout(timeout);
   }, [dateInvitesOffsetY, loading, params.section]);
 
-
-
   const checkAdmin = useCallback(async (currentUser: LooseRow, currentProfile: LooseRow | null) => {
     const directAdmin =
       booleanFromRow(currentProfile, ['is_admin', 'admin', 'is_master', 'master'], false) ||
@@ -560,13 +557,13 @@ export default function ProfileScreen() {
         (firstText(item.raw, ['contact_type', 'type'], '').toLowerCase() === 'flash_invite' || firstText(item.raw, ['message'], '').toLowerCase().includes('bajuju flash'))
     );
 
-      const regularItems = allContactItems.filter(
-        (item) =>
-          !(
-            item.table === 'direct_contact_requests' &&
-            (['flash_invite', 'experience_invite'].includes(firstText(item.raw, ['contact_type', 'type'], '').toLowerCase()) || firstText(item.raw, ['message'], '').toLowerCase().includes('bajuju flash'))
-          )
-      );
+    const regularItems = allContactItems.filter(
+      (item) =>
+        !(
+          item.table === 'direct_contact_requests' &&
+          (['flash_invite', 'experience_invite'].includes(firstText(item.raw, ['contact_type', 'type'], '').toLowerCase()) || firstText(item.raw, ['message'], '').toLowerCase().includes('bajuju flash'))
+        )
+    );
 
     setFlashInvites(flashItems);
     setContactRequests(regularItems);
@@ -574,7 +571,7 @@ export default function ProfileScreen() {
 
   const loadInvites = useCallback(async (userId: string) => {
     const blockedIds = await blockedUserIdsForCurrentUser(userId);
-      const tables = ['activity_invitations', 'activity_invites', 'event_invites', 'invitations', 'direct_contact_requests'];
+    const tables = ['activity_invitations', 'activity_invites', 'event_invites', 'invitations', 'direct_contact_requests'];
     const columns = ['receiver_id', 'recipient_id', 'to_user_id', 'invited_user_id', 'user_id', 'profile_id'];
     const collected: InviteItem[] = [];
 
@@ -584,7 +581,7 @@ export default function ProfileScreen() {
         .filter((row) => {
           const status = firstText(row, ['status', 'stato', 'invite_status'], 'pending').toLowerCase();
           const otherUserId = inviteOtherUserId(row);
-            if (result.table === 'direct_contact_requests' && firstText(row, ['contact_type', 'type'], '').toLowerCase() !== 'experience_invite') return false;
+          if (result.table === 'direct_contact_requests' && firstText(row, ['contact_type', 'type'], '').toLowerCase() !== 'experience_invite') return false;
           return ['pending', 'in_attesa', 'attesa', 'invited', 'new', 'nuova'].includes(status) && !blockedIds.has(otherUserId);
         })
         .map((row) => ({
@@ -701,11 +698,11 @@ export default function ProfileScreen() {
         setParticipatedActivities(
           visibleParticipatedRows.map((row) => ({
             id: String(
-          firstValue(row, ['id', 'activity_id']) ||
-            [activityTitle(row), activitySubtitle(row)]
-              .map((value) => String(value || ''))
-              .join('-')
-        ),
+              firstValue(row, ['id', 'activity_id']) ||
+                [activityTitle(row), activitySubtitle(row)]
+                  .map((value) => String(value || ''))
+                  .join('-')
+            ),
             title: activityTitle(row),
             subtitle: activitySubtitle(row),
             raw: row,
@@ -724,79 +721,78 @@ export default function ProfileScreen() {
     setLoading(true);
 
     try {
-    const authResult = await supabase.auth.getUser();
-    const currentUser = authResult.data.user as LooseRow | null;
+      const authResult = await supabase.auth.getUser();
+      const currentUser = authResult.data.user as LooseRow | null;
 
-    if (!currentUser) {
-      setUser(null);
-      setProfile(null);
-      setLoading(false);
-      Alert.alert('Accesso richiesto', 'Devi fare login per vedere il profilo.');
-      router.replace('/');
-      return;
-    }
-
-    setUser(currentUser);
-
-    const currentProfile = await tryReadOneProfile(String(currentUser.id));
-    setProfile(currentProfile);
-    setPhotoLoadError(false);
-
-    setProfileName(firstText(currentProfile, ['nickname', 'username', 'display_name', 'full_name', 'name', 'nome'], ''));
-    const loadedProvince = firstText(currentProfile, ['province', 'provincia', 'location_province', 'preferred_province'], '');
-
-    setProvince(loadedProvince);
-    setHomeCity(
-      firstText(
-        currentProfile,
-        ['city', 'citta', 'comune', 'location_city'],
-        ''
-      ).slice(0, 25)
-    );
-    setAgeRange(firstText(currentProfile, ['age', 'eta', 'età', 'user_age', 'age_range', 'fascia_eta', 'age_band', 'eta_range'], ''));
-    setGender(firstText(currentProfile, ['gender', 'genere', 'sex'], ''));
-    setDirectContactsEnabled(
-      booleanFromRow(
-        currentProfile,
-        ['allow_direct_contacts', 'direct_contacts_enabled', 'receive_direct_contacts', 'ricevi_contatti_diretti'],
-        true
-      )
-    );
-
-    setNotificationsEnabled(false);
-
-    try {
-      const notificationPreferencesResult = await supabase
-        .from('notification_preferences')
-        .select('enabled, preferred_province')
-        .eq('user_id', String(currentUser.id))
-        .maybeSingle();
-
-      if (!notificationPreferencesResult.error && notificationPreferencesResult.data) {
-        setNotificationsEnabled(notificationPreferencesResult.data.enabled === true);
-
-        const preferredProvince = notificationPreferencesResult.data.preferred_province;
-        if (
-          !loadedProvince &&
-          typeof preferredProvince === 'string' &&
-          preferredProvince.trim()
-        ) {
-          setProvince(preferredProvince.trim());
-        }
+      if (!currentUser) {
+        setUser(null);
+        setProfile(null);
+        setLoading(false);
+        Alert.alert('Accesso richiesto', 'Devi fare login per vedere il profilo.');
+        router.replace('/');
+        return;
       }
-    } catch {
-      // Se la tabella non è disponibile, manteniamo il valore predefinito.
-    }
 
-    const admin = await checkAdmin(currentUser, currentProfile);
-    setIsAdmin(admin);
+      setUser(currentUser);
 
-    await Promise.all([
-      loadContactRequests(String(currentUser.id)),
-      loadInvites(String(currentUser.id)),
-      loadActivities(String(currentUser.id)),
-    ]);
+      const currentProfile = await tryReadOneProfile(String(currentUser.id));
+      setProfile(currentProfile);
+      setPhotoLoadError(false);
 
+      setProfileName(firstText(currentProfile, ['nickname', 'username', 'display_name', 'full_name', 'name', 'nome'], ''));
+      const loadedProvince = firstText(currentProfile, ['province', 'provincia', 'location_province', 'preferred_province'], '');
+
+      setProvince(loadedProvince);
+      setHomeCity(
+        firstText(
+          currentProfile,
+          ['city', 'citta', 'comune', 'location_city'],
+          ''
+        ).slice(0, 25)
+      );
+      setAgeRange(firstText(currentProfile, ['age', 'eta', 'età', 'user_age', 'age_range', 'fascia_eta', 'age_band', 'eta_range'], ''));
+      setGender(firstText(currentProfile, ['gender', 'genere', 'sex'], ''));
+      setDirectContactsEnabled(
+        booleanFromRow(
+          currentProfile,
+          ['allow_direct_contacts', 'direct_contacts_enabled', 'receive_direct_contacts', 'ricevi_contatti_diretti'],
+          true
+        )
+      );
+
+      setNotificationsEnabled(false);
+
+      try {
+        const notificationPreferencesResult = await supabase
+          .from('notification_preferences')
+          .select('enabled, preferred_province')
+          .eq('user_id', String(currentUser.id))
+          .maybeSingle();
+
+        if (!notificationPreferencesResult.error && notificationPreferencesResult.data) {
+          setNotificationsEnabled(notificationPreferencesResult.data.enabled === true);
+
+          const preferredProvince = notificationPreferencesResult.data.preferred_province;
+          if (
+            !loadedProvince &&
+            typeof preferredProvince === 'string' &&
+            preferredProvince.trim()
+          ) {
+            setProvince(preferredProvince.trim());
+          }
+        }
+      } catch {
+        // Se la tabella non è disponibile, manteniamo il valore predefinito.
+      }
+
+      const admin = await checkAdmin(currentUser, currentProfile);
+      setIsAdmin(admin);
+
+      await Promise.all([
+        loadContactRequests(String(currentUser.id)),
+        loadInvites(String(currentUser.id)),
+        loadActivities(String(currentUser.id)),
+      ]);
     } catch (error: unknown) {
       console.log('Errore salvataggio profilo:', error);
 
@@ -1542,7 +1538,6 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   profileBackButton: {
-
     alignSelf: 'flex-start',
     backgroundColor: '#fff0f7',
     borderRadius: 999,
@@ -1553,12 +1548,10 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
   },
   profileBackText: {
-
     color: '#e43f98',
     fontSize: 14,
     fontWeight: '900',
   },
-
   page: {
     flex: 1,
     backgroundColor: '#fff7fb',
@@ -1689,7 +1682,6 @@ const styles = StyleSheet.create({
     marginLeft: 14,
   },
   name: {
-
     color: '#48172f',
     fontSize: 27,
     fontWeight: '900',
@@ -1821,9 +1813,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     marginTop: 8,
   },
-
   contactCard: {
-
     backgroundColor: '#ffffff',
     borderColor: '#ffc7df',
   },
@@ -1849,7 +1839,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   contactIconBubble: {
-
     backgroundColor: '#f0328b',
     borderRadius: 18,
     width: 38,
@@ -1864,7 +1853,6 @@ const styles = StyleSheet.create({
   sectionIconText: {
     fontSize: 20,
   },
-
   locationInfoBox: {
     borderRadius: 18,
     padding: 14,
@@ -2047,7 +2035,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   emptyText: {
-
     backgroundColor: '#fff8fb',
     borderRadius: 18,
     borderWidth: 1,
@@ -2069,14 +2056,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#fffaff',
   },
   itemTitle: {
-
     color: '#48172f',
     fontSize: 15,
     fontWeight: '900',
     lineHeight: 20,
   },
   itemSubtitle: {
-
     color: '#8d315f',
     fontSize: 13,
     fontWeight: '700',
@@ -2119,7 +2104,6 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   activityRow: {
-
     backgroundColor: '#fff8fb',
     borderRadius: 20,
     borderWidth: 1,

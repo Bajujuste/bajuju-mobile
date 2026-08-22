@@ -74,14 +74,15 @@ export default function InviteOutScreen() {
         .select('id,status')
         .eq('requester_id', currentUserId)
         .eq('receiver_id', targetUserId)
-        .eq('activity_id', activityId)
         .eq('contact_type', 'experience_invite')
-        .in('status', ['pending', 'accepted'])
         .limit(1);
 
       if (existingResult.error) throw existingResult.error;
       if ((existingResult.data || []).length > 0) {
-        Alert.alert('Invito già inviato', 'Hai già un invito aperto con questa persona per questa esperienza.');
+        Alert.alert(
+          'Invito già inviato',
+          'Hai già invitato questa persona a uscire. L’invito può essere inviato una sola volta, anche se è stato rifiutato.'
+        );
         return;
       }
 

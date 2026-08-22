@@ -14,47 +14,73 @@ import {
 } from '../src/utils/bajujuNotifications';
 
 type ProfileRow = Record<string, unknown>;
+type HomeActivityRow = {
+  id?: string;
+  creator_id?: string | null;
+  title?: string | null;
+  city?: string | null;
+  province?: string | null;
+  activity_date?: string | null;
+  activity_time?: string | null;
+};
+
+type NextExperience = {
+  id: string;
+  title: string;
+  meta: string;
+  organizedByMe: boolean;
+};
 
 function firstText(row: ProfileRow | null, keys: string[], fallback = '') {
   if (!row) return fallback;
-
   for (const key of keys) {
     const value = row[key];
-
-    if (typeof value === 'string' && value.trim()) {
-      return value.trim();
-    }
+    if (typeof value === 'string' && value.trim()) return value.trim();
   }
-
   return fallback;
+}
+
+function activityMoment(row: HomeActivityRow) {
+  if (!row.activity_date) return null;
+  const date = new Date(`${row.activity_date}T${row.activity_time || '23:59'}`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function nextExperienceMeta(row: HomeActivityRow) {
+  const date = activityMoment(row);
+  const dateLabel = date
+    ? date.toLocaleString('it-IT', {
+        weekday: 'short',
+        day: '2-digit',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : 'Data da definire';
+
+  return [row.city || row.province || '', dateLabel].filter(Boolean).join(' · ');
 }
 
 export default function HomeScreen() {
   const notificationPromptRunningRef = useRef(false);
   const [profilePhotoUrl, setProfilePhotoUrl] = useState('');
   const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
+  const [nextExperience, setNextExperience] = useState<NextExperience | null>(null);
 
   useEffect(() => {
     let active = true;
 
     async function activateNotificationServices(userId: string) {
       const registerResult = await registerForBajujuPushNotifications(userId);
-
-      if (!registerResult.ok) {
-        console.log('Attivazione notifiche non completata.');
-      }
+      if (!registerResult.ok) console.log('Attivazione notifiche non completata.');
 
       const locationResult = await refreshBajujuNotificationLocation(userId);
-
-      if (!locationResult.ok) {
-        console.log('Posizione per notifiche vicine non aggiornata.');
-      }
+      if (!locationResult.ok) console.log('Posizione per notifiche vicine non aggiornata.');
     }
 
     async function setupBajujuNotifications() {
       try {
         const authResult = await supabase.auth.getUser();
-
         if (authResult.error) throw authResult.error;
 
         const userId = authResult.data.user?.id;
@@ -65,17 +91,10 @@ export default function HomeScreen() {
 
         if (localChoice !== 'declined') {
           const authorizedRegistration = await refreshBajujuPushRegistrationIfAuthorized(userId);
-          const authorizedLocation = await refreshBajujuNotificationLocation(userId, {
-            requestPermission: false,
-          });
+          const authorizedLocation = await refreshBajujuNotificationLocation(userId, { requestPermission: false });
 
-          if (authorizedRegistration.ok) {
-            await AsyncStorage.setItem(localChoiceKey, 'accepted');
-          }
-
-          if (!authorizedLocation.ok) {
-            console.log('Posizione notifiche non aggiornata durante bootstrap Home.');
-          }
+          if (authorizedRegistration.ok) await AsyncStorage.setItem(localChoiceKey, 'accepted');
+          if (!authorizedLocation.ok) console.log('Posizione notifiche non aggiornata durante bootstrap Home.');
         }
 
         const preferenceResult = await supabase
@@ -84,9 +103,7 @@ export default function HomeScreen() {
           .eq('user_id', userId)
           .maybeSingle();
 
-        const notificationsEnabledInDb =
-          !preferenceResult.error && preferenceResult.data?.enabled === true;
-
+        const notificationsEnabledInDb = !preferenceResult.error && preferenceResult.data?.enabled === true;
         if (!active) return;
 
         if (localChoice === 'accepted' || notificationsEnabledInDb) {
@@ -95,12 +112,9 @@ export default function HomeScreen() {
           return;
         }
 
-        if (localChoice === 'declined' || notificationPromptRunningRef.current) {
-          return;
-        }
+        if (localChoice === 'declined' || notificationPromptRunningRef.current) return;
 
         notificationPromptRunningRef.current = true;
-
         Alert.alert(
           'Notifiche Bajuju',
           'Vuoi ricevere notifiche per nuove esperienze vicine a te, Flash, partecipazioni e richieste?',
@@ -113,17 +127,10 @@ export default function HomeScreen() {
                 void (async () => {
                   await AsyncStorage.setItem(localChoiceKey, 'declined');
                   const saveResult = await supabase.from('notification_preferences').upsert(
-                    {
-                      user_id: userId,
-                      enabled: false,
-                      updated_at: new Date().toISOString(),
-                    },
+                    { user_id: userId, enabled: false, updated_at: new Date().toISOString() },
                     { onConflict: 'user_id' }
                   );
-
-                  if (saveResult.error) {
-                    console.log('Preferenza notifiche No non salvata su Supabase.');
-                  }
+                  if (saveResult.error) console.log('Preferenza notifiche No non salvata su Supabase.');
                 })();
               },
             },
@@ -146,10 +153,7 @@ export default function HomeScreen() {
     }
 
     void setupBajujuNotifications();
-
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, []);
 
   useFocusEffect(
@@ -168,6 +172,78 @@ export default function HomeScreen() {
         if (active) setUnreadNotificationsCount(count || 0);
       }
 
+      async function refreshNextExperience(userId: string) {
+        const today = new Date().toISOString().slice(0, 10);
+
+        const [organizedResult, participationResult] = await Promise.all([
+          supabase
+            .from('activities')
+            .select('id,creator_id,title,city,province,activity_date,activity_time')
+            .eq('creator_id', userId)
+            .eq('is_flash', false)
+            .is('deleted_at', null)
+            .gte('activity_date', today)
+            .order('activity_date', { ascending: true })
+            .order('activity_time', { ascending: true })
+            .limit(20),
+          supabase
+            .from('activity_participants')
+            .select('activity_id,status')
+            .eq('user_id', userId)
+            .neq('status', 'annullato')
+            .limit(100),
+        ]);
+
+        const rows: HomeActivityRow[] = organizedResult.error
+          ? []
+          : ((organizedResult.data || []) as HomeActivityRow[]);
+
+        const participantIds = participationResult.error
+          ? []
+          : Array.from(new Set((participationResult.data || []).map((row: any) => String(row.activity_id || '')).filter(Boolean)));
+
+        if (participantIds.length > 0) {
+          const joinedResult = await supabase
+            .from('activities')
+            .select('id,creator_id,title,city,province,activity_date,activity_time')
+            .in('id', participantIds)
+            .eq('is_flash', false)
+            .is('deleted_at', null)
+            .gte('activity_date', today)
+            .limit(100);
+
+          if (!joinedResult.error) rows.push(...((joinedResult.data || []) as HomeActivityRow[]));
+        }
+
+        const unique = new Map<string, HomeActivityRow>();
+        rows.forEach((row) => {
+          const id = String(row.id || '');
+          if (id) unique.set(id, row);
+        });
+
+        const now = Date.now();
+        const next = Array.from(unique.values())
+          .filter((row) => {
+            const moment = activityMoment(row);
+            return Boolean(moment && moment.getTime() >= now);
+          })
+          .sort((a, b) => (activityMoment(a)?.getTime() || Number.MAX_SAFE_INTEGER) - (activityMoment(b)?.getTime() || Number.MAX_SAFE_INTEGER))[0];
+
+        if (!active) return;
+
+        if (!next?.id) {
+          setNextExperience(null);
+          return;
+        }
+
+        setNextExperience({
+          id: String(next.id),
+          title: String(next.title || 'Esperienza Bajuju'),
+          meta: nextExperienceMeta(next),
+          organizedByMe: String(next.creator_id || '') === userId,
+        });
+      }
+
       void (async () => {
         try {
           const authResult = await supabase.auth.getUser();
@@ -175,46 +251,36 @@ export default function HomeScreen() {
 
           const userId = authResult.data.user?.id;
           if (!userId || !active) {
-            if (active) setUnreadNotificationsCount(0);
+            if (active) {
+              setUnreadNotificationsCount(0);
+              setNextExperience(null);
+            }
             return;
           }
 
           void trackBajujuEvent('home_open');
 
           const registrationResult = await refreshBajujuPushRegistrationIfAuthorized(userId);
-          if (!registrationResult.ok) {
-            console.log('Token push non aggiornato al focus Home.');
-          }
+          if (!registrationResult.ok) console.log('Token push non aggiornato al focus Home.');
 
-          const locationResult = await refreshBajujuNotificationLocation(userId, {
-            requestPermission: false,
-          });
-          if (!locationResult.ok) {
-            console.log('Posizione notifiche non aggiornata al focus Home.');
-          }
+          const locationResult = await refreshBajujuNotificationLocation(userId, { requestPermission: false });
+          if (!locationResult.ok) console.log('Posizione notifiche non aggiornata al focus Home.');
 
-          await refreshUnreadCount(userId);
+          await Promise.all([refreshUnreadCount(userId), refreshNextExperience(userId)]);
           if (!active) return;
 
           channel = supabase
             .channel(`bajuju-home-notifications-${userId}`)
             .on(
               'postgres_changes',
-              {
-                event: '*',
-                schema: 'public',
-                table: 'push_notification_logs',
-                filter: `user_id=eq.${userId}`,
-              },
+              { event: '*', schema: 'public', table: 'push_notification_logs', filter: `user_id=eq.${userId}` },
               () => {
-                void refreshUnreadCount(userId).catch(() => {
-                  console.log('Badge notifiche non aggiornato.');
-                });
+                void refreshUnreadCount(userId).catch(() => console.log('Badge notifiche non aggiornato.'));
               }
             )
             .subscribe();
         } catch (error) {
-          console.log('Errore conteggio notifiche non lette:', error);
+          console.log('Errore aggiornamento Home:', error);
           if (active) setUnreadNotificationsCount(0);
         }
       })();
@@ -232,7 +298,6 @@ export default function HomeScreen() {
     async function loadProfilePhoto() {
       try {
         const authResult = await supabase.auth.getUser();
-
         if (authResult.error) throw authResult.error;
 
         const userId = authResult.data.user?.id;
@@ -261,10 +326,7 @@ export default function HomeScreen() {
     }
 
     void loadProfilePhoto();
-
-    return () => {
-      isMounted = false;
-    };
+    return () => { isMounted = false; };
   }, []);
 
   async function handleLogout() {
@@ -273,10 +335,7 @@ export default function HomeScreen() {
       if (result.error) throw result.error;
       router.replace('/');
     } catch (error: unknown) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : 'Non sono riuscito a effettuare il logout.';
+      const message = error instanceof Error ? error.message : 'Non sono riuscito a effettuare il logout.';
       Alert.alert('Errore logout', message);
     }
   }
@@ -285,6 +344,12 @@ export default function HomeScreen() {
     <BajujuHomeView
       profilePhotoUrl={profilePhotoUrl}
       unreadNotificationsCount={unreadNotificationsCount}
+      nextExperience={nextExperience}
+      onOpenNextExperience={() => {
+        if (!nextExperience?.id) return;
+        void trackBajujuEvent('next_experience_open', { activityId: nextExperience.id });
+        router.push({ pathname: '/experience-detail' as any, params: { id: nextExperience.id } });
+      }}
       onOpenNotifications={() => {
         void trackBajujuEvent('notification_open', { source: 'home' });
         router.push('/notifications' as any);
@@ -296,14 +361,10 @@ export default function HomeScreen() {
       }}
       onCreate={() => router.push('/create-experience')}
       onFlash={() => router.push('/flash')}
-      onShare={() => {
-        void shareBajujuHome();
-      }}
+      onShare={() => { void shareBajujuHome(); }}
       onOpenRules={() => router.push('/rules' as any)}
       onOpenPrivacy={() => router.push('/privacy' as any)}
-      onLogout={() => {
-        void handleLogout();
-      }}
+      onLogout={() => { void handleLogout(); }}
     />
   );
 }

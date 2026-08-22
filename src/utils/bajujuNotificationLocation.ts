@@ -5,12 +5,16 @@ import { supabase } from '../lib/supabase';
 const LAST_KNOWN_MAX_AGE_MS = 6 * 60 * 60 * 1000;
 const LAST_KNOWN_REQUIRED_ACCURACY_METERS = 5000;
 
-export async function refreshBajujuNotificationLocation(userId: string) {
+export async function refreshBajujuNotificationLocation(
+  userId: string,
+  options?: { requestPermission?: boolean }
+) {
   try {
+    const requestPermission = options?.requestPermission ?? true;
     const existingPermission = await Location.getForegroundPermissionsAsync();
     let status = existingPermission.status;
 
-    if (status !== 'granted' && existingPermission.canAskAgain) {
+    if (status !== 'granted' && requestPermission && existingPermission.canAskAgain) {
       const requestedPermission = await Location.requestForegroundPermissionsAsync();
       status = requestedPermission.status;
     }
@@ -59,4 +63,38 @@ export async function refreshBajujuNotificationLocation(userId: string) {
       reason: error instanceof Error ? error.message : String(error),
     };
   }
+}
+
+export async function saveBajujuNotificationCoordinatesIfEnabled(
+  userId: string,
+  coordinates: { latitude: number; longitude: number }
+) {
+  const latitude = Number(coordinates.latitude);
+  const longitude = Number(coordinates.longitude);
+  if (!userId || !Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    return { ok: false, reason: 'Coordinate non valide.' };
+  }
+
+  const preferenceResult = await supabase
+    .from('notification_preferences')
+    .select('enabled')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (preferenceResult.error || preferenceResult.data?.enabled !== true) {
+    return { ok: false, reason: 'Notifiche Bajuju non abilitate.' };
+  }
+
+  const result = await supabase
+    .from('notification_preferences')
+    .update({
+      latitude,
+      longitude,
+      location_updated_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('user_id', userId);
+
+  if (result.error) return { ok: false, reason: result.error.message };
+  return { ok: true, latitude, longitude };
 }

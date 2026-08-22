@@ -16,6 +16,8 @@ import {
 import { BajujuBottomNav } from '@/src/components/navigation/BajujuBottomNav';
 import { getExperienceCategoryIcon, normalizeExperienceCategory } from '@/src/constants/experienceCategories';
 import { supabase } from '../src/lib/supabase';
+import { saveBajujuNotificationCoordinatesIfEnabled } from '../src/utils/bajujuNotificationLocation';
+import { refreshBajujuPushRegistrationIfAuthorized } from '../src/utils/bajujuNotifications';
 
 const bajujuLogo = require('../assets/brand/bajuju-logo.png');
 const PAGE_SIZE = 20;
@@ -129,6 +131,10 @@ export default function ExperiencesScreen() {
       const userId = authResult.data.user?.id || '';
       setCurrentUserId(userId);
 
+      if (userId) {
+        await refreshBajujuPushRegistrationIfAuthorized(userId).catch(() => ({ ok: false }));
+      }
+
       let resolvedCoordinates: Coordinates | null = null;
 
       if (userId) {
@@ -160,6 +166,10 @@ export default function ExperiencesScreen() {
       }
 
       setCoordinates(resolvedCoordinates);
+
+      if (userId && resolvedCoordinates) {
+        await saveBajujuNotificationCoordinatesIfEnabled(userId, resolvedCoordinates).catch(() => ({ ok: false }));
+      }
 
       const activitiesResult = await supabase
         .from('activities')

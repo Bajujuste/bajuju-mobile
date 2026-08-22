@@ -212,37 +212,61 @@ Deno.serve(async (request) => {
 
   if (!title || !body) return jsonResponse({ error: 'Titolo e testo notifica obbligatori' }, 400);
 
-  let preferencesQuery = supabase
-    .from('notification_preferences')
-    .select(`user_id, enabled, preferred_province, latitude, longitude, location_updated_at, ${prefColumn}`)
-    .eq('enabled', true)
-    .eq(prefColumn, true);
+  let matchingUserIds: string[] = [];
+  let pushEligibleUserIds: string[] = [];
 
-  if (targetUserId) preferencesQuery = preferencesQuery.eq('user_id', targetUserId);
+  if (targetUserId) {
+    if (targetUserId !== actorUserId) matchingUserIds = [targetUserId];
 
-  const { data: preferences, error: preferencesError } = await preferencesQuery;
-  if (preferencesError) return jsonResponse({ error: preferencesError.message }, 500);
+    const targetPreferencesResult = await supabase
+      .from('notification_preferences')
+      .select(`user_id, enabled, ${prefColumn}`)
+      .eq('user_id', targetUserId)
+      .maybeSingle();
 
-  let matchingUserIds = (preferences || [])
-    .filter((pref: Record<string, unknown>) => {
-      const userId = String(pref.user_id || '').trim();
-      if (!userId || userId === actorUserId) return false;
-      if (targetUserId) return true;
+    if (targetPreferencesResult.error) {
+      return jsonResponse({ error: targetPreferencesResult.error.message }, 500);
+    }
 
-      if (type === 'new_experience') {
-        const userLatitude = asFiniteNumber(pref.latitude);
-        const userLongitude = asFiniteNumber(pref.longitude);
-        if (userLatitude === null || userLongitude === null || experienceLatitude === null || experienceLongitude === null) return false;
-        return distanceKm(experienceLatitude, experienceLongitude, userLatitude, userLongitude) <= NEARBY_EXPERIENCE_RADIUS_KM;
-      }
+    const targetPreferences = targetPreferencesResult.data as Record<string, unknown> | null;
+    if (
+      targetPreferences &&
+      targetPreferences.enabled === true &&
+      targetPreferences[prefColumn] === true &&
+      targetUserId !== actorUserId
+    ) {
+      pushEligibleUserIds = [targetUserId];
+    }
+  } else {
+    const preferencesResult = await supabase
+      .from('notification_preferences')
+      .select(`user_id, enabled, preferred_province, latitude, longitude, location_updated_at, ${prefColumn}`)
+      .eq('enabled', true)
+      .eq(prefColumn, true);
 
-      const preferredProvince = pref.preferred_province ? String(pref.preferred_province).trim().toLowerCase() : '';
-      if (preferredProvince && province && preferredProvince !== province.toLowerCase()) return false;
-      return true;
-    })
-    .map((pref: Record<string, unknown>) => String(pref.user_id));
+    if (preferencesResult.error) return jsonResponse({ error: preferencesResult.error.message }, 500);
 
-  matchingUserIds = [...new Set(matchingUserIds)];
+    matchingUserIds = (preferencesResult.data || [])
+      .filter((pref: Record<string, unknown>) => {
+        const userId = String(pref.user_id || '').trim();
+        if (!userId || userId === actorUserId) return false;
+
+        if (type === 'new_experience') {
+          const userLatitude = asFiniteNumber(pref.latitude);
+          const userLongitude = asFiniteNumber(pref.longitude);
+          if (userLatitude === null || userLongitude === null || experienceLatitude === null || experienceLongitude === null) return false;
+          return distanceKm(experienceLatitude, experienceLongitude, userLatitude, userLongitude) <= NEARBY_EXPERIENCE_RADIUS_KM;
+        }
+
+        const preferredProvince = pref.preferred_province ? String(pref.preferred_province).trim().toLowerCase() : '';
+        if (preferredProvince && province && preferredProvince !== province.toLowerCase()) return false;
+        return true;
+      })
+      .map((pref: Record<string, unknown>) => String(pref.user_id));
+
+    matchingUserIds = [...new Set(matchingUserIds)];
+    pushEligibleUserIds = [...matchingUserIds];
+  }
 
   if (matchingUserIds.length > 0) {
     const [blockedByActorResult, actorBlockedResult] = await Promise.all([
@@ -276,6 +300,8 @@ Deno.serve(async (request) => {
       matchingUserIds = matchingUserIds.filter((userId) => !alreadyLogged.has(userId));
     }
   }
+
+  pushEligibleUserIds = pushEligibleUserIds.filter((userId) => matchingUserIds.includes(userId));
 
   if (matchingUserIds.length === 0) {
     return jsonResponse({
@@ -316,13 +342,17 @@ Deno.serve(async (request) => {
     if (userId && logId) logIdsByUser.set(userId, logId);
   });
 
-  const { data: tokens, error: tokensError } = await supabase
-    .from('push_tokens')
-    .select('user_id, expo_push_token')
-    .in('user_id', matchingUserIds)
-    .eq('is_active', true);
+  let tokens: Record<string, unknown>[] = [];
+  if (pushEligibleUserIds.length > 0) {
+    const tokensResult = await supabase
+      .from('push_tokens')
+      .select('user_id, expo_push_token')
+      .in('user_id', pushEligibleUserIds)
+      .eq('is_active', true);
 
-  if (tokensError) return jsonResponse({ error: tokensError.message }, 500);
+    if (tokensResult.error) return jsonResponse({ error: tokensResult.error.message }, 500);
+    tokens = (tokensResult.data || []) as Record<string, unknown>[];
+  }
 
   const messageRows = (tokens || [])
     .map((row: Record<string, unknown>) => ({
@@ -345,19 +375,23 @@ Deno.serve(async (request) => {
     }));
 
   if (messageRows.length === 0) {
+    const noPushReason = pushEligibleUserIds.length === 0
+      ? 'Push non abilitata nelle preferenze; notifica interna registrata.'
+      : 'Nessun push token valido.';
+
     await Promise.all(
       matchingUserIds.map((userId) => {
         const logId = logIdsByUser.get(userId);
         if (!logId) return Promise.resolve();
         return supabase
           .from('push_notification_logs')
-          .update({ status: 'in_app_only', success: false, error: 'Nessun push token valido.' })
+          .update({ status: 'in_app_only', success: false, error: noPushReason })
           .eq('id', logId)
           .then(() => undefined);
       })
     );
 
-    return jsonResponse({ ok: true, sent: 0, users: matchingUserIds.length, reason: 'Notifica interna registrata; nessun push token valido.' });
+    return jsonResponse({ ok: true, sent: 0, users: matchingUserIds.length, inAppRegistered: matchingUserIds.length, reason: noPushReason });
   }
 
   const expoResponse = await fetch('https://exp.host/--/api/v2/push/send', {

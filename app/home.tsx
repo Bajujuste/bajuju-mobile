@@ -7,7 +7,10 @@ import { BajujuHomeView } from '../src/components/home/BajujuHomeView';
 import { supabase } from '../src/lib/supabase';
 import { refreshBajujuNotificationLocation } from '../src/utils/bajujuNotificationLocation';
 import { shareBajujuHome } from '../src/utils/shareBajuju';
-import { registerForBajujuPushNotifications } from '../src/utils/bajujuNotifications';
+import {
+  refreshBajujuPushRegistrationIfAuthorized,
+  registerForBajujuPushNotifications,
+} from '../src/utils/bajujuNotifications';
 
 type ProfileRow = Record<string, unknown>;
 
@@ -158,6 +161,14 @@ export default function HomeScreen() {
           if (!userId || !active) {
             if (active) setUnreadNotificationsCount(0);
             return;
+          }
+
+          const registrationResult = await refreshBajujuPushRegistrationIfAuthorized(userId);
+          if (registrationResult.ok) {
+            const locationResult = await refreshBajujuNotificationLocation(userId, { requestPermission: false });
+            if (!locationResult.ok) {
+              console.log('Posizione notifiche non aggiornata al focus Home.');
+            }
           }
 
           await refreshUnreadCount(userId);

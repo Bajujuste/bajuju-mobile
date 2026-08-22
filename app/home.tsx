@@ -5,6 +5,7 @@ import { router, useFocusEffect } from 'expo-router';
 
 import { BajujuHomeView } from '../src/components/home/BajujuHomeView';
 import { supabase } from '../src/lib/supabase';
+import { trackBajujuEvent } from '../src/utils/bajujuAnalytics';
 import { refreshBajujuNotificationLocation } from '../src/utils/bajujuNotificationLocation';
 import { shareBajujuHome } from '../src/utils/shareBajuju';
 import {
@@ -62,8 +63,6 @@ export default function HomeScreen() {
         const localChoiceKey = `bajuju-notification-choice-v2:${userId}`;
         const localChoice = await AsyncStorage.getItem(localChoiceKey);
 
-        // Se Android/iOS ha già concesso il permesso, inizializziamo davvero
-        // token e posizione anche quando la riga preferenze non esiste ancora.
         if (localChoice !== 'declined') {
           const authorizedRegistration = await refreshBajujuPushRegistrationIfAuthorized(userId);
           const authorizedLocation = await refreshBajujuNotificationLocation(userId, {
@@ -180,13 +179,13 @@ export default function HomeScreen() {
             return;
           }
 
+          void trackBajujuEvent('home_open');
+
           const registrationResult = await refreshBajujuPushRegistrationIfAuthorized(userId);
           if (!registrationResult.ok) {
             console.log('Token push non aggiornato al focus Home.');
           }
 
-          // La posizione deve essere sincronizzata anche se il token Expo fallisce:
-          // serve comunque per creare la notifica in-app delle esperienze entro 25 km.
           const locationResult = await refreshBajujuNotificationLocation(userId, {
             requestPermission: false,
           });
@@ -286,9 +285,15 @@ export default function HomeScreen() {
     <BajujuHomeView
       profilePhotoUrl={profilePhotoUrl}
       unreadNotificationsCount={unreadNotificationsCount}
-      onOpenNotifications={() => router.push('/notifications' as any)}
+      onOpenNotifications={() => {
+        void trackBajujuEvent('notification_open', { source: 'home' });
+        router.push('/notifications' as any);
+      }}
       onOpenProfile={() => router.push('/profile')}
-      onFind={() => router.push('/experiences')}
+      onFind={() => {
+        void trackBajujuEvent('find_open', { source: 'home' });
+        router.push('/experiences');
+      }}
       onCreate={() => router.push('/create-experience')}
       onFlash={() => router.push('/flash')}
       onShare={() => {

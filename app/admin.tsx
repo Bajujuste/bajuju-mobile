@@ -4,6 +4,7 @@ import {
   ActivityIndicator,
   Pressable,
   RefreshControl,
+  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -19,162 +20,67 @@ type AdminStats = {
   chatReports: number;
 };
 
-async function countRows(table: string) {
-  try {
-    const result = await supabase.from(table).select('*', { count: 'exact', head: true });
-    if (!result.error && typeof result.count === 'number') return result.count;
-  } catch {
-    // Tabella non presente o non leggibile.
-  }
-
-  return 0;
-}
-
-function adminUserValue(row: Record<string, any> | null | undefined, keys: string[]) {
+function firstValue(row: Record<string, any> | null | undefined, keys: string[]) {
   if (!row) return undefined;
-
   for (const key of keys) {
-    if (row[key] !== undefined && row[key] !== null && row[key] !== '') return row[key];
+    const value = row[key];
+    if (value !== undefined && value !== null && value !== '') return value;
   }
-
   return undefined;
 }
 
-function adminUserText(row: Record<string, any> | null | undefined, keys: string[], fallback = '') {
-  const value = adminUserValue(row, keys);
-
-  if (value === undefined || value === null) return fallback;
-
-  return String(value);
+function firstText(row: Record<string, any> | null | undefined, keys: string[], fallback = '') {
+  const value = firstValue(row, keys);
+  return value === undefined || value === null ? fallback : String(value);
 }
 
-function isAdminDeletedUser(row: Record<string, any>) {
-  const deletedAt = adminUserText(row, ['deleted_at', 'eliminato_il', 'removed_at', 'archived_at'], '');
-
-  if (deletedAt) return true;
-
-  const rawStatus = adminUserText(row, ['status', 'stato', 'account_status'], '').toLowerCase().trim();
-
-  if (['deleted', 'eliminato', 'eliminata', 'removed', 'archived', 'disattivato', 'disattivata'].includes(rawStatus)) {
-    return true;
-  }
-
-  const deletedFlag = adminUserValue(row, ['is_deleted', 'deleted', 'is_removed', 'removed']);
-
-  if (deletedFlag === true) return true;
-  if (typeof deletedFlag === 'number' && deletedFlag === 1) return true;
-  if (typeof deletedFlag === 'string' && ['true', '1', 'yes', 'si', 'sì'].includes(deletedFlag.toLowerCase().trim())) return true;
-
-  return false;
-}
-
-async function countActiveUsers() {
-  try {
-    const result = await supabase
-      .from('profiles')
-      .select('*')
-      .limit(1000);
-
-    if (result.error || !Array.isArray(result.data)) return 0;
-
-    return result.data.filter((row) => !isAdminDeletedUser(row as Record<string, any>)).length;
-  } catch {
-    return 0;
-  }
-}
-
-function firstAdminValue(row: Record<string, any> | null | undefined, keys: string[]) {
-  if (!row) return undefined;
-
-  for (const key of keys) {
-    if (row[key] !== undefined && row[key] !== null && row[key] !== '') return row[key];
-  }
-
-  return undefined;
-}
-
-function firstAdminText(row: Record<string, any> | null | undefined, keys: string[], fallback = '') {
-  const value = firstAdminValue(row, keys);
-
-  if (value === undefined || value === null) return fallback;
-
-  return String(value);
-}
-
-function booleanAdminValue(row: Record<string, any> | null | undefined, keys: string[], fallback = false) {
-  const value = firstAdminValue(row, keys);
-
+function boolValue(row: Record<string, any> | null | undefined, keys: string[], fallback = false) {
+  const value = firstValue(row, keys);
   if (typeof value === 'boolean') return value;
   if (typeof value === 'number') return value === 1;
-
   if (typeof value === 'string') {
     const normalized = value.toLowerCase().trim();
-
     if (['true', '1', 'yes', 'si', 'sì', 'deleted', 'eliminato', 'hidden', 'archived'].includes(normalized)) return true;
     if (['false', '0', 'no', 'active', 'attivo'].includes(normalized)) return false;
   }
-
   return fallback;
 }
 
-function adminActivityDateValue(row: Record<string, any>) {
-  return firstAdminValue(row, [
-    'start_at',
-    'starts_at',
-    'start_time',
-    'activity_date',
-    'date',
-    'data',
-    'data_ora',
-    'scheduled_at',
-  ]);
+function isDeletedUser(row: Record<string, any>) {
+  const deletedAt = firstText(row, ['deleted_at', 'eliminato_il', 'removed_at', 'archived_at']);
+  if (deletedAt) return true;
+
+  const status = firstText(row, ['status', 'stato', 'account_status']).toLowerCase().trim();
+  if (['deleted', 'eliminato', 'eliminata', 'removed', 'archived', 'disattivato', 'disattivata'].includes(status)) {
+    return true;
+  }
+
+  return boolValue(row, ['is_deleted', 'deleted', 'is_removed', 'removed']);
 }
 
-function parseAdminDate(value: any) {
-  if (!value) return null;
-
-  const date = new Date(value);
-
-  if (!Number.isNaN(date.getTime())) return date;
-
-  return null;
-}
-
-function isAdminDeletedActivity(row: Record<string, any>) {
-  const deletedValue = firstAdminValue(row, [
-    'deleted_at',
-    'removed_at',
-    'cancelled_at',
-    'canceled_at',
-    'archived_at',
-    'eliminato_il',
-  ]);
-
-  if (deletedValue) return true;
+function isDeletedActivity(row: Record<string, any>) {
+  if (firstValue(row, ['deleted_at', 'removed_at', 'cancelled_at', 'canceled_at', 'archived_at', 'eliminato_il'])) {
+    return true;
+  }
 
   if (
-    booleanAdminValue(
-      row,
-      [
-        'is_deleted',
-        'deleted',
-        'is_removed',
-        'removed',
-        'is_cancelled',
-        'is_canceled',
-        'cancelled',
-        'canceled',
-        'archived',
-        'hidden',
-      ],
-      false
-    )
+    boolValue(row, [
+      'is_deleted',
+      'deleted',
+      'is_removed',
+      'removed',
+      'is_cancelled',
+      'is_canceled',
+      'cancelled',
+      'canceled',
+      'archived',
+      'hidden',
+    ])
   ) {
     return true;
   }
 
-  const status = firstAdminText(row, ['status', 'stato', 'state', 'activity_status', 'event_status'], '').toLowerCase().trim();
-
+  const status = firstText(row, ['status', 'stato', 'state', 'activity_status', 'event_status']).toLowerCase().trim();
   return [
     'deleted',
     'eliminato',
@@ -195,39 +101,65 @@ function isAdminDeletedActivity(row: Record<string, any>) {
   ].includes(status);
 }
 
-function isAdminAvailableActivity(row: Record<string, any>) {
-  if (isAdminDeletedActivity(row)) return false;
+function activityDate(row: Record<string, any>) {
+  const value = firstValue(row, [
+    'start_at',
+    'starts_at',
+    'start_time',
+    'activity_date',
+    'date',
+    'data',
+    'data_ora',
+    'scheduled_at',
+  ]);
 
-  const date = parseAdminDate(adminActivityDateValue(row));
-
-  if (!date) return true;
-
-  return date.getTime() >= new Date().getTime();
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
-async function countAvailableActivities() {
+async function countActiveUsers() {
   try {
-    const result = await supabase
-      .from('activities')
-      .select('*')
-      .limit(1000);
-
+    const result = await supabase.from('profiles').select('*').limit(1000);
     if (result.error || !Array.isArray(result.data)) return 0;
-
-    return result.data.filter((row) => isAdminAvailableActivity(row as Record<string, any>)).length;
+    return result.data.filter((row) => !isDeletedUser(row as Record<string, any>)).length;
   } catch {
     return 0;
   }
 }
 
-async function countReports() {
-  const tables = ['reports', 'user_reports', 'activity_reports'];
+async function countAvailableActivities() {
+  try {
+    const result = await supabase.from('activities').select('*').limit(1000);
+    if (result.error || !Array.isArray(result.data)) return 0;
 
-  for (const table of tables) {
+    const now = Date.now();
+    return result.data.filter((row) => {
+      const activity = row as Record<string, any>;
+      if (isDeletedActivity(activity)) return false;
+      const date = activityDate(activity);
+      return !date || date.getTime() >= now;
+    }).length;
+  } catch {
+    return 0;
+  }
+}
+
+async function countRows(table: string) {
+  try {
+    const result = await supabase.from(table).select('*', { count: 'exact', head: true });
+    if (!result.error && typeof result.count === 'number') return result.count;
+  } catch {
+    // Prova successiva.
+  }
+  return 0;
+}
+
+async function countReports() {
+  for (const table of ['reports', 'user_reports', 'activity_reports']) {
     const count = await countRows(table);
     if (count > 0) return count;
   }
-
   return 0;
 }
 
@@ -270,32 +202,22 @@ export default function AdminScreen() {
       countChatReports(),
     ]);
 
-    setStats({
-      users,
-      activities,
-      reports,
-      chatReports,
-    });
+    setStats({ users, activities, reports, chatReports });
   }, []);
 
   useEffect(() => {
     let mounted = true;
 
-    async function start() {
+    void (async () => {
       setLoading(true);
-
       try {
         await loadStats();
-      } catch (error) {
+      } catch {
         console.log('Errore caricamento statistiche admin.');
       } finally {
-        if (mounted) {
-          setLoading(false);
-        }
+        if (mounted) setLoading(false);
       }
-    }
-
-    start();
+    })();
 
     return () => {
       mounted = false;
@@ -304,10 +226,9 @@ export default function AdminScreen() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-
     try {
       await loadStats();
-    } catch (error) {
+    } catch {
       console.log('Errore aggiornamento statistiche admin.');
     } finally {
       setRefreshing(false);
@@ -315,99 +236,119 @@ export default function AdminScreen() {
   }, [loadStats]);
 
   return (
-    <ScrollView
-      contentContainerStyle={styles.page}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-    >
-      <View style={styles.headerCard}>
-        <Text style={styles.kicker}>Bajuju</Text>
-        <Text style={styles.title}>Area Admin</Text>
-        <Text style={styles.text}>
-          Pannello rapido per controllare community, eventi, segnalazioni e sicurezza.
-        </Text>
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView
+        contentContainerStyle={styles.page}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#e43f98" />}
+      >
+        <View style={styles.headerCard}>
+          <Text style={styles.kicker}>Bajuju</Text>
+          <Text style={styles.title}>Area Admin</Text>
+          <Text style={styles.text}>
+            Pannello rapido per controllare community, eventi, statistiche, segnalazioni e sicurezza.
+          </Text>
 
-        <Pressable style={styles.backButton} onPress={() => router.push('/profile')}>
-          <Text style={styles.backButtonText}>← Torna al profilo</Text>
-        </Pressable>
-      </View>
-
-      {loading ? (
-        <View style={styles.loadingCard}>
-          <ActivityIndicator />
-          <Text style={styles.loadingText}>Carico dati admin...</Text>
+          <Pressable style={styles.backButton} onPress={() => router.push('/profile')}>
+            <Text style={styles.backButtonText}>← Torna al profilo</Text>
+          </Pressable>
         </View>
-      ) : null}
 
-      <View style={styles.menuCard}>
-        <Text style={styles.sectionTitle}>Controlli principali</Text>
+        {loading ? (
+          <View style={styles.loadingCard}>
+            <ActivityIndicator color="#e43f98" />
+            <Text style={styles.loadingText}>Carico dati admin...</Text>
+          </View>
+        ) : null}
 
-        <Pressable style={styles.menuRow} onPress={() => router.push('/admin-create-experience')}>
-          <View style={styles.menuIconBox}>
-            <Text style={styles.menuIcon}>🎙️</Text>
-          </View>
-          <View style={styles.menuTextBox}>
-            <Text style={styles.menuTitle}>Crea evento con dettatura</Text>
-            <Text style={styles.menuSubtitle}>Detta i dati, controlla il riepilogo e pubblica l’evento.</Text>
-          </View>
-        </Pressable>
+        <View style={styles.menuCard}>
+          <Text style={styles.sectionTitle}>Controlli principali</Text>
 
-        <Pressable style={styles.menuRow} onPress={() => router.push('/admin-users')}>
-          <View style={styles.menuIconBox}>
-            <Text style={styles.menuIcon}>👥</Text>
-          </View>
-          <View style={styles.menuTextBox}>
-            <Text style={styles.menuTitle}>Iscritti attivi</Text>
-            <Text style={styles.menuSubtitle}>Controlla utenti attivi, stati profilo e azioni di sicurezza.</Text>
-          </View>
-          <View style={styles.countPill}>
-            <Text style={styles.countText}>{stats.users}</Text>
-          </View>
-        </Pressable>
+          <AdminRow
+            icon="🎙️"
+            title="Crea evento con dettatura"
+            subtitle="Detta i dati, controlla il riepilogo e pubblica l’evento."
+            onPress={() => router.push('/admin-create-experience')}
+          />
 
-        <Pressable style={styles.menuRow} onPress={() => router.push('/admin-events')}>
-          <View style={styles.menuIconBox}>
-            <Text style={styles.menuIcon}>📅</Text>
-          </View>
-          <View style={styles.menuTextBox}>
-            <Text style={styles.menuTitle}>Eventi disponibili</Text>
-            <Text style={styles.menuSubtitle}>Controlla eventi disponibili, partecipanti e cancellazioni sicure.</Text>
-          </View>
-          <View style={styles.countPill}>
-            <Text style={styles.countText}>{stats.activities}</Text>
-          </View>
-        </Pressable>
+          <AdminRow
+            icon="📊"
+            title="Statistiche utilizzo"
+            subtitle="Utenti attivi, aperture, partecipazioni, creazioni e località negli ultimi 7 o 30 giorni."
+            onPress={() => router.push('/admin-analytics' as any)}
+          />
 
-        <Pressable style={styles.menuRow} onPress={() => router.push('/admin-reports')}>
-          <View style={styles.menuIconBox}>
-            <Text style={styles.menuIcon}>🚩</Text>
-          </View>
-          <View style={styles.menuTextBox}>
-            <Text style={styles.menuTitle}>Segnalazioni</Text>
-            <Text style={styles.menuSubtitle}>Apri l’elenco delle segnalazioni ricevute.</Text>
-          </View>
-          <View style={styles.countPill}>
-            <Text style={styles.countText}>{stats.reports}</Text>
-          </View>
-        </Pressable>
+          <AdminRow
+            icon="👥"
+            title="Iscritti attivi"
+            subtitle="Controlla utenti attivi, stati profilo e azioni di sicurezza."
+            count={stats.users}
+            onPress={() => router.push('/admin-users')}
+          />
 
-        <Pressable style={styles.menuRow} onPress={() => router.push('/admin-chat-reports')}>
-          <View style={styles.menuIconBox}>
-            <Text style={styles.menuIcon}>💬</Text>
-          </View>
-          <View style={styles.menuTextBox}>
-            <Text style={styles.menuTitle}>Chat segnalate</Text>
-            <Text style={styles.menuSubtitle}>Mostra solo i messaggi realmente segnalati.</Text>
-          </View>
-          <View style={styles.countPill}>
-            <Text style={styles.countText}>{stats.chatReports}</Text>
-          </View>
-        </Pressable>
+          <AdminRow
+            icon="📅"
+            title="Eventi disponibili"
+            subtitle="Controlla eventi disponibili, partecipanti e cancellazioni sicure."
+            count={stats.activities}
+            onPress={() => router.push('/admin-events')}
+          />
+
+          <AdminRow
+            icon="🚩"
+            title="Segnalazioni"
+            subtitle="Apri l’elenco delle segnalazioni ricevute."
+            count={stats.reports}
+            onPress={() => router.push('/admin-reports')}
+          />
+
+          <AdminRow
+            icon="💬"
+            title="Chat segnalate"
+            subtitle="Mostra solo i messaggi realmente segnalati."
+            count={stats.chatReports}
+            onPress={() => router.push('/admin-chat-reports')}
+          />
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+function AdminRow({
+  icon,
+  title,
+  subtitle,
+  count,
+  onPress,
+}: {
+  icon: string;
+  title: string;
+  subtitle: string;
+  count?: number;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable style={styles.menuRow} onPress={onPress}>
+      <View style={styles.menuIconBox}>
+        <Text style={styles.menuIcon}>{icon}</Text>
       </View>
-    </ScrollView>
+      <View style={styles.menuTextBox}>
+        <Text style={styles.menuTitle}>{title}</Text>
+        <Text style={styles.menuSubtitle}>{subtitle}</Text>
+      </View>
+      {typeof count === 'number' ? (
+        <View style={styles.countPill}>
+          <Text style={styles.countText}>{count}</Text>
+        </View>
+      ) : (
+        <Text style={styles.arrow}>›</Text>
+      )}
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: '#fff8fb' },
   page: {
     flexGrow: 1,
     backgroundColor: '#fff8fb',
@@ -422,25 +363,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#ffd3e6',
   },
-  kicker: {
-    color: '#ef2d82',
-    fontSize: 14,
-    fontWeight: '900',
-    marginBottom: 8,
-  },
-  title: {
-    color: '#e43f98',
-    fontSize: 31,
-    fontWeight: '900',
-    marginBottom: 8,
-  },
-  text: {
-    color: '#4b1430',
-    fontSize: 15,
-    lineHeight: 22,
-    fontWeight: '700',
-    marginBottom: 16,
-  },
+  kicker: { color: '#ef2d82', fontSize: 14, fontWeight: '900', marginBottom: 8 },
+  title: { color: '#e43f98', fontSize: 31, fontWeight: '900', marginBottom: 8 },
+  text: { color: '#4b1430', fontSize: 15, lineHeight: 22, fontWeight: '700', marginBottom: 16 },
   backButton: {
     alignSelf: 'flex-start',
     backgroundColor: '#fff0f7',
@@ -450,11 +375,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#ffd3e6',
   },
-  backButtonText: {
-    color: '#9b1f61',
-    fontSize: 14,
-    fontWeight: '900',
-  },
+  backButtonText: { color: '#9b1f61', fontSize: 14, fontWeight: '900' },
   loadingCard: {
     backgroundColor: '#ffffff',
     borderRadius: 20,
@@ -464,10 +385,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  loadingText: {
-    color: '#7b4960',
-    fontWeight: '800',
-  },
+  loadingText: { color: '#7b4960', fontWeight: '800' },
   menuCard: {
     backgroundColor: '#ffffff',
     borderRadius: 24,
@@ -475,12 +393,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#ffd3e6',
   },
-  sectionTitle: {
-    color: '#4b1430',
-    fontSize: 21,
-    fontWeight: '900',
-    marginBottom: 12,
-  },
+  sectionTitle: { color: '#4b1430', fontSize: 21, fontWeight: '900', marginBottom: 12 },
   menuRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -500,24 +413,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  menuIcon: {
-    fontSize: 22,
-  },
-  menuTextBox: {
-    flex: 1,
-  },
-  menuTitle: {
-    color: '#4b1430',
-    fontSize: 16,
-    fontWeight: '900',
-    marginBottom: 3,
-  },
-  menuSubtitle: {
-    color: '#7b4960',
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: '700',
-  },
+  menuIcon: { fontSize: 22 },
+  menuTextBox: { flex: 1 },
+  menuTitle: { color: '#4b1430', fontSize: 16, fontWeight: '900', marginBottom: 3 },
+  menuSubtitle: { color: '#7b4960', fontSize: 13, lineHeight: 18, fontWeight: '700' },
   countPill: {
     minWidth: 42,
     height: 34,
@@ -527,9 +426,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 10,
   },
-  countText: {
-    color: '#ffffff',
-    fontSize: 15,
-    fontWeight: '900',
-  },
+  countText: { color: '#ffffff', fontSize: 15, fontWeight: '900' },
+  arrow: { color: '#e43f98', fontSize: 28, fontWeight: '900' },
 });

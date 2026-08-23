@@ -1,4 +1,3 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import React from 'react';
 import {
@@ -40,16 +39,27 @@ type NextExperience = {
   organizedByMe?: boolean;
 };
 
+export type HomeGroupPreview = {
+  id: string;
+  name: string;
+  city: string;
+  province: string;
+  memberCount: number;
+  joinedByMe: boolean;
+};
+
 type BajujuHomeViewProps = {
   profilePhotoUrl: string;
   unreadNotificationsCount: number;
   nextExperience?: NextExperience | null;
+  groups?: HomeGroupPreview[];
   onOpenNextExperience?: () => void;
   onOpenNotifications: () => void;
   onOpenProfile: () => void;
   onFind: () => void;
   onCreate: () => void;
-  onFlash: () => void;
+  onOpenGroups: () => void;
+  onOpenGroup: (groupId: string) => void;
   onShare: () => void;
   onOpenRules: () => void;
   onOpenPrivacy: () => void;
@@ -60,12 +70,14 @@ export function BajujuHomeView({
   profilePhotoUrl,
   unreadNotificationsCount,
   nextExperience,
+  groups = [],
   onOpenNextExperience,
   onOpenNotifications,
   onOpenProfile,
   onFind,
   onCreate,
-  onFlash,
+  onOpenGroups,
+  onOpenGroup,
   onShare,
   onOpenRules,
   onOpenPrivacy,
@@ -159,33 +171,59 @@ export function BajujuHomeView({
             />
           </View>
 
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Apri Bajuju Flash"
-            onPress={onFlash}
-            style={({ pressed }) => pressed && styles.pressed}
-          >
-            <LinearGradient
-              colors={['#E83391', '#F32189', '#E43F98']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.flash}
-            >
-              <View style={styles.flashBubbleTop} />
-              <View style={styles.flashBubbleBottom} />
-              <View style={styles.flashIcon}>
-                <BajujuIcon name="bolt" size={51} color={COLORS.brightPink} />
+          <View style={styles.groupsSection}>
+            <View style={styles.groupsHeader}>
+              <View>
+                <Text style={styles.groupsEyebrow}>COMMUNITY</Text>
+                <Text style={styles.groupsTitle}>Gruppi Bajuju</Text>
               </View>
-              <View style={styles.flashCopy}>
-                <View style={styles.flashBadge}><Text style={styles.flashBadgeText}>Subito</Text></View>
-                <Text style={styles.flashTitle}>Bajuju Flash</Text>
-                <Text style={styles.flashSubtitle}>Fatti vedere ed esci subito.</Text>
-              </View>
-              <View style={styles.flashArrow}>
-                <BajujuIcon name="arrow" size={28} color={COLORS.brightPink} />
-              </View>
-            </LinearGradient>
-          </Pressable>
+              <Pressable onPress={onOpenGroups} style={({ pressed }) => pressed && styles.pressed}>
+                <Text style={styles.groupsSeeAll}>Vedi tutti ›</Text>
+              </Pressable>
+            </View>
+
+            {groups.length > 0 ? (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.groupsScroll}
+              >
+                {groups.map((group) => {
+                  const place = [group.city, group.province].filter(Boolean).join(' · ');
+                  return (
+                    <Pressable
+                      key={group.id}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Apri gruppo ${group.name}`}
+                      onPress={() => onOpenGroup(group.id)}
+                      style={({ pressed }) => [styles.groupCard, pressed && styles.pressed]}
+                    >
+                      <View style={styles.groupIcon}>
+                        <BajujuIcon name="group" size={28} color={COLORS.brightPink} />
+                      </View>
+                      <Text style={styles.groupName} numberOfLines={2}>{group.name}</Text>
+                      {place ? <Text style={styles.groupPlace} numberOfLines={1}>{place}</Text> : null}
+                      <Text style={styles.groupMembers}>
+                        {group.memberCount} {group.memberCount === 1 ? 'iscritto' : 'iscritti'}
+                      </Text>
+                      {group.joinedByMe ? <Text style={styles.groupJoined}>Sei iscritto</Text> : null}
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            ) : (
+              <Pressable style={styles.groupsEmpty} onPress={onOpenGroups}>
+                <View style={styles.groupsEmptyIcon}>
+                  <BajujuIcon name="group" size={28} color={COLORS.brightPink} />
+                </View>
+                <View style={styles.groupsEmptyCopy}>
+                  <Text style={styles.groupsEmptyTitle}>Scopri i gruppi Bajuju</Text>
+                  <Text style={styles.groupsEmptyText}>Community per interessi, zona e nuove esperienze.</Text>
+                </View>
+                <BajujuIcon name="arrow" size={24} color={COLORS.brightPink} />
+              </Pressable>
+            )}
+          </View>
 
           {nextExperience ? (
             <Pressable
@@ -211,9 +249,9 @@ export function BajujuHomeView({
 
           <View style={styles.infoCard}>
             <Text style={styles.infoTitle}>Con Bajuju puoi</Text>
-            <InfoItem icon="group" text="Conoscere persone facendo qualcosa dal vivo." />
+            <InfoItem icon="group" text="Entrare in gruppi con persone che condividono i tuoi interessi." />
             <InfoItem icon="pin" text="Trovare esperienze vicino alla tua zona." />
-            <InfoItem icon="bolt" text="Organizzare subito con Bajuju Flash." />
+            <InfoItem icon="plus" text="Creare nuove esperienze e viverle dal vivo." />
           </View>
 
           <View style={styles.footer}>
@@ -246,7 +284,7 @@ export function BajujuHomeView({
       <View style={[styles.bottomNav, { bottom: Math.max(13, insets.bottom + 7) }]}>
         <NavItem active icon="home" label="Home" onPress={() => undefined} />
         <NavItem icon="search" label="Trova" onPress={onFind} />
-        <NavItem icon="bolt" label="Flash" onPress={onFlash} />
+        <NavItem icon="group" label="Gruppi" onPress={onOpenGroups} />
         <NavItem icon="person" label="Profilo" onPress={onOpenProfile} />
       </View>
     </SafeAreaView>
@@ -344,16 +382,23 @@ const styles = StyleSheet.create({
   titleUnderline: { width: 24, height: 3, marginTop: 6, marginBottom: 8, borderRadius: 2, backgroundColor: COLORS.brightPink },
   actionDescription: { color: COLORS.plum, fontFamily: 'FredokaSemiBold', fontSize: 13.5, lineHeight: 16 },
   cardArrow: { position: 'absolute', right: 14, bottom: 8, width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.softPink },
-  flash: { position: 'relative', height: 125, marginTop: 14, paddingLeft: 108, paddingRight: 70, flexDirection: 'row', alignItems: 'center', overflow: 'hidden', borderRadius: 29, shadowColor: '#9B1A5B', shadowOpacity: 0.16, shadowRadius: 14, shadowOffset: { width: 0, height: 9 }, elevation: 4 },
-  flashBubbleTop: { position: 'absolute', right: 52, top: -45, width: 105, height: 105, borderRadius: 53, backgroundColor: 'rgba(255,255,255,0.08)' },
-  flashBubbleBottom: { position: 'absolute', left: 83, bottom: -58, width: 120, height: 120, borderRadius: 60, backgroundColor: 'rgba(255,255,255,0.07)' },
-  flashIcon: { position: 'absolute', left: 18, top: 26, width: 73, height: 73, borderRadius: 37, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.white },
-  flashCopy: { alignItems: 'flex-start' },
-  flashBadge: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 20, backgroundColor: COLORS.white },
-  flashBadgeText: { color: COLORS.brightPink, fontFamily: 'FredokaSemiBold', fontSize: 13 },
-  flashTitle: { marginTop: 5, color: COLORS.white, fontFamily: 'FredokaBold', fontSize: 30, lineHeight: 31, letterSpacing: -0.7 },
-  flashSubtitle: { marginTop: 3, color: COLORS.white, fontFamily: 'FredokaMedium', fontSize: 13 },
-  flashArrow: { position: 'absolute', right: 17, top: 38, width: 49, height: 49, borderRadius: 25, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.white },
+  groupsSection: { marginTop: 18, marginHorizontal: -22 },
+  groupsHeader: { paddingHorizontal: 22, marginBottom: 11, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
+  groupsEyebrow: { color: COLORS.muted, fontFamily: 'FredokaBold', fontSize: 11, letterSpacing: 0.8 },
+  groupsTitle: { marginTop: 2, color: COLORS.plum, fontFamily: 'FredokaBold', fontSize: 25, letterSpacing: -0.4 },
+  groupsSeeAll: { color: COLORS.brightPink, fontFamily: 'FredokaSemiBold', fontSize: 13 },
+  groupsScroll: { paddingHorizontal: 22, paddingBottom: 4, gap: 11 },
+  groupCard: { width: 154, minHeight: 167, padding: 15, borderRadius: 25, borderWidth: 1.5, borderColor: COLORS.line, backgroundColor: COLORS.white, shadowColor: '#9B1A5B', shadowOpacity: 0.09, shadowRadius: 11, shadowOffset: { width: 0, height: 6 }, elevation: 2 },
+  groupIcon: { width: 47, height: 47, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.softPink },
+  groupName: { marginTop: 10, color: COLORS.plum, fontFamily: 'FredokaBold', fontSize: 17, lineHeight: 20 },
+  groupPlace: { marginTop: 5, color: COLORS.muted, fontFamily: 'FredokaMedium', fontSize: 11 },
+  groupMembers: { marginTop: 7, color: COLORS.brightPink, fontFamily: 'FredokaSemiBold', fontSize: 11 },
+  groupJoined: { alignSelf: 'flex-start', marginTop: 6, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 99, overflow: 'hidden', color: COLORS.brightPink, backgroundColor: COLORS.softPink, fontFamily: 'FredokaSemiBold', fontSize: 10 },
+  groupsEmpty: { marginHorizontal: 22, minHeight: 101, padding: 15, borderRadius: 26, borderWidth: 1.5, borderColor: COLORS.line, backgroundColor: COLORS.white, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  groupsEmptyIcon: { width: 52, height: 52, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.softPink },
+  groupsEmptyCopy: { flex: 1 },
+  groupsEmptyTitle: { color: COLORS.plum, fontFamily: 'FredokaBold', fontSize: 16 },
+  groupsEmptyText: { marginTop: 3, color: COLORS.muted, fontFamily: 'FredokaMedium', fontSize: 12, lineHeight: 16 },
   nextExperienceCard: { position: 'relative', marginTop: 18, minHeight: 128, padding: 17, paddingRight: 55, borderRadius: 29, borderWidth: 1.5, borderColor: '#E7C56A', backgroundColor: '#FFF9E7', flexDirection: 'row', alignItems: 'center', gap: 13, shadowColor: '#7A5A00', shadowOpacity: 0.08, shadowRadius: 12, shadowOffset: { width: 0, height: 7 }, elevation: 2 },
   nextExperienceIcon: { width: 50, height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.white, borderWidth: 1, borderColor: '#F0D58E' },
   nextExperienceCopy: { flex: 1 },

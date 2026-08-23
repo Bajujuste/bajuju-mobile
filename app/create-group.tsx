@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 
 import { createBajujuGroup } from '../src/lib/bajujuGroups';
+import { resolveAddressText } from '../src/lib/addressAutocomplete';
 import { supabase } from '../src/lib/supabase';
 import { BAJUJU_COLORS, BAJUJU_FONTS, BAJUJU_SHADOW } from '../src/theme/bajujuTheme';
 
@@ -23,7 +24,6 @@ export default function CreateGroupScreen() {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [city, setCity] = useState('');
-  const [province, setProvince] = useState('');
   const [category, setCategory] = useState('');
 
   useEffect(() => {
@@ -64,26 +64,34 @@ export default function CreateGroupScreen() {
     allowed &&
     !saving &&
     name.trim().length >= 3 &&
-    description.trim().length >= 10;
+    description.trim().length >= 10 &&
+    city.trim().length >= 2;
 
   async function handleCreate() {
     if (!canSave || !userId) return;
     setSaving(true);
 
     try {
+      const cleanCity = city.trim();
+      const coordinates = await resolveAddressText(`${cleanCity}, Italia`);
+
       const groupId = await createBajujuGroup({
         ownerId: userId,
         name,
         description,
-        city,
-        province,
+        city: cleanCity,
         category,
+        latitude: coordinates.latitude,
+        longitude: coordinates.longitude,
       });
 
       Alert.alert('Gruppo creato', 'Il gruppo è online e gli utenti possono iscriversi.');
       router.replace({ pathname: '/group-detail' as any, params: { id: groupId } });
     } catch (error: any) {
-      const message = String(error?.message || 'Non sono riuscito a creare il gruppo.');
+      const rawMessage = String(error?.message || 'Non sono riuscito a creare il gruppo.');
+      const message = rawMessage.includes('ADDRESS_NOT_FOUND') || rawMessage.includes('TEXT_SEARCH_FAILED')
+        ? 'Non riesco a riconoscere il Comune. Controlla il nome e riprova.'
+        : rawMessage;
       Alert.alert('Impossibile creare il gruppo', message);
     } finally {
       setSaving(false);
@@ -146,7 +154,7 @@ export default function CreateGroupScreen() {
             maxLength={500}
           />
 
-          <Text style={styles.label}>Comune / zona</Text>
+          <Text style={styles.label}>Comune</Text>
           <TextInput
             value={city}
             onChangeText={setCity}
@@ -154,17 +162,11 @@ export default function CreateGroupScreen() {
             placeholderTextColor={BAJUJU_COLORS.muted}
             style={styles.input}
             maxLength={80}
+            autoCapitalize="words"
           />
-
-          <Text style={styles.label}>Provincia</Text>
-          <TextInput
-            value={province}
-            onChangeText={setProvince}
-            placeholder="Es. Bergamo"
-            placeholderTextColor={BAJUJU_COLORS.muted}
-            style={styles.input}
-            maxLength={80}
-          />
+          <Text style={styles.helper}>
+            Inserisci solo il Comune. Bajuju ricava automaticamente la posizione per mostrare il gruppo alle persone più vicine.
+          </Text>
 
           <Text style={styles.label}>Categoria</Text>
           <TextInput

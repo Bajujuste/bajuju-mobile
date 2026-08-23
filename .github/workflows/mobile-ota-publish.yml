@@ -7,6 +7,11 @@ on:
       - main
     paths:
       - .ota-release-trigger
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .ota-release-trigger
 
 permissions:
   contents: write
@@ -51,7 +56,7 @@ jobs:
         run: npx eas-cli@latest update --channel production --platform all --environment production --message "Bajuju 23 agosto: Gruppi, chat Admin e ultimi fix app"
 
       - name: Record OTA result
-        if: always()
+        if: always() && github.event_name == 'push'
         env:
           CHECKS_OUTCOME: ${{ steps.checks.outcome }}
           TOKEN_OUTCOME: ${{ steps.token.outcome }}

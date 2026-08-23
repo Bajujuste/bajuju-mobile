@@ -184,6 +184,7 @@ export default function HomeScreen() {
               name: group.name,
               city: group.city,
               province: group.province,
+              coverUrl: group.coverUrl,
               memberCount: group.memberCount,
               joinedByMe: group.joinedByMe,
             }))

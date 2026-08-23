@@ -1,0 +1,1 @@
+Temporary validation marker for Gruppi Bajuju v1 release checks.

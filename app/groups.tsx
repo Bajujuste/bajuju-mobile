@@ -2,6 +2,7 @@ import { router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -193,9 +194,13 @@ function GroupRow({ group, onPress }: { group: BajujuGroupCard; onPress: () => v
 
   return (
     <Pressable style={({ pressed }) => [styles.groupCard, pressed && styles.pressed]} onPress={onPress}>
-      <View style={styles.groupAvatar}>
-        <Text style={styles.groupAvatarText}>👥</Text>
-      </View>
+      {group.coverUrl ? (
+        <Image source={{ uri: group.coverUrl }} style={styles.groupCover} resizeMode="cover" />
+      ) : (
+        <View style={styles.groupAvatar}>
+          <Text style={styles.groupAvatarText}>👥</Text>
+        </View>
+      )}
       <View style={styles.groupCopy}>
         <Text style={styles.groupName} numberOfLines={1}>{group.name}</Text>
         {place ? <Text style={styles.groupMeta} numberOfLines={1}>{place}</Text> : null}
@@ -297,6 +302,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: BAJUJU_COLORS.palePink,
   },
+  groupCover: { width: 58, height: 58, borderRadius: 19, backgroundColor: BAJUJU_COLORS.palePink },
   groupAvatarText: { fontSize: 28 },
   groupCopy: { flex: 1, minWidth: 0, marginLeft: 13 },
   groupName: { color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.bold, fontSize: 18 },

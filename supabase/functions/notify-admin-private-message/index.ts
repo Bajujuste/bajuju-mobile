@@ -62,12 +62,8 @@ Deno.serve(async (request) => {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
-  const [actorProfileResult, threadResult, messageResult] = await Promise.all([
-    supabase
-      .from('profiles')
-      .select('id,is_admin,is_deleted')
-      .eq('id', actorUserId)
-      .maybeSingle(),
+  const [mainAdminResult, threadResult, messageResult] = await Promise.all([
+    supabase.rpc('bajuju_main_admin_id'),
     supabase
       .from('admin_private_threads')
       .select('id,user_id')
@@ -80,15 +76,12 @@ Deno.serve(async (request) => {
       .maybeSingle(),
   ]);
 
-  if (actorProfileResult.error || threadResult.error || messageResult.error) {
+  if (mainAdminResult.error || threadResult.error || messageResult.error) {
     return jsonResponse({ ok: false, error: 'DATABASE_READ_FAILED' }, 500);
   }
 
-  if (
-    actorProfileResult.data?.is_admin !== true ||
-    actorProfileResult.data?.is_deleted === true
-  ) {
-    return jsonResponse({ ok: false, error: 'ADMIN_REQUIRED' }, 403);
+  if (!mainAdminResult.data || String(mainAdminResult.data) !== actorUserId) {
+    return jsonResponse({ ok: false, error: 'MAIN_BAJUJU_ADMIN_REQUIRED' }, 403);
   }
 
   if (!threadResult.data || String(threadResult.data.user_id || '') !== targetUserId) {

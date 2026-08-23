@@ -8,6 +8,9 @@ on:
     paths:
       - .ota-release-trigger
 
+permissions:
+  contents: write
+
 jobs:
   publish-ota:
     runs-on: ubuntu-latest
@@ -27,9 +30,11 @@ jobs:
         run: npm ci
 
       - name: Run Bajuju release checks
+        id: checks
         run: npm run check:release
 
       - name: Verify Expo token
+        id: token
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
@@ -39,7 +44,24 @@ jobs:
           fi
 
       - name: Publish OTA to production
+        id: publish
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           CI: "1"
         run: npx eas-cli@latest update --channel production --platform all --environment production --message "Bajuju 23 agosto: Gruppi, chat Admin e ultimi fix app"
+
+      - name: Record OTA result
+        if: always()
+        env:
+          CHECKS_OUTCOME: ${{ steps.checks.outcome }}
+          TOKEN_OUTCOME: ${{ steps.token.outcome }}
+          PUBLISH_OUTCOME: ${{ steps.publish.outcome }}
+          RUN_ID: ${{ github.run_id }}
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          printf '{\n  "run_id": "%s",\n  "source_sha": "%s",\n  "checks": "%s",\n  "expo_token": "%s",\n  "publish": "%s",\n  "channel": "production",\n  "platform": "all",\n  "runtime": "1.0.3"\n}\n' "$RUN_ID" "$SOURCE_SHA" "$CHECKS_OUTCOME" "$TOKEN_OUTCOME" "$PUBLISH_OUTCOME" > .ota-release-result.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .ota-release-result.json
+          git commit -m "CI: registra esito OTA $RUN_ID" || exit 0
+          git push origin HEAD:main

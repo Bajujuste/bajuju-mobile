@@ -76,7 +76,9 @@ export function BajujuBottomNav({ active }: BajujuBottomNavProps) {
             accessibilityState={{ selected }}
             onPress={() => {
               if (!selected) {
-                router.replace(item.route);
+                // /groups is a real Expo Router screen. The generated typed-routes
+                // declaration can lag behind newly added routes during CI/typecheck.
+                router.replace(item.route as any);
               }
             }}
             style={({ pressed }) => [

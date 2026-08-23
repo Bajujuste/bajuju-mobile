@@ -1,7 +1,10 @@
 import { router } from 'expo-router';
+import * as ImageManipulator from 'expo-image-manipulator';
+import * as ImagePicker from 'expo-image-picker';
 import React, { useEffect, useState } from 'react';
 import {
   Alert,
+  Image,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -11,7 +14,7 @@ import {
   View,
 } from 'react-native';
 
-import { createBajujuGroup } from '../src/lib/bajujuGroups';
+import { createBajujuGroup, uploadBajujuGroupCover } from '../src/lib/bajujuGroups';
 import { resolveAddressText } from '../src/lib/addressAutocomplete';
 import { supabase } from '../src/lib/supabase';
 import { BAJUJU_COLORS, BAJUJU_FONTS, BAJUJU_SHADOW } from '../src/theme/bajujuTheme';
@@ -25,6 +28,7 @@ export default function CreateGroupScreen() {
   const [description, setDescription] = useState('');
   const [city, setCity] = useState('');
   const [category, setCategory] = useState('');
+  const [coverUri, setCoverUri] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -67,6 +71,38 @@ export default function CreateGroupScreen() {
     description.trim().length >= 10 &&
     city.trim().length >= 2;
 
+  async function handlePickCover() {
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert('Copertina gruppo', 'Autorizza l’accesso alle immagini per scegliere la copertina del gruppo.');
+        return;
+      }
+
+      const picked = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [16, 9],
+        quality: 0.9,
+      });
+
+      if (picked.canceled || !picked.assets?.[0]?.uri) return;
+
+      const resized = await ImageManipulator.manipulateAsync(
+        picked.assets[0].uri,
+        [{ resize: { width: 1280 } }],
+        { compress: 0.72, format: ImageManipulator.SaveFormat.JPEG }
+      );
+
+      setCoverUri(resized.uri);
+    } catch (error: unknown) {
+      Alert.alert(
+        'Copertina gruppo',
+        error instanceof Error ? error.message : 'Non sono riuscito a preparare l’immagine selezionata.'
+      );
+    }
+  }
+
   async function handleCreate() {
     if (!canSave || !userId) return;
     setSaving(true);
@@ -85,7 +121,27 @@ export default function CreateGroupScreen() {
         longitude: coordinates.longitude,
       });
 
-      Alert.alert('Gruppo creato', 'Il gruppo è online e gli utenti possono iscriversi.');
+      let coverWarning = '';
+      if (coverUri && groupId) {
+        try {
+          await uploadBajujuGroupCover({
+            groupId,
+            userId,
+            localUri: coverUri,
+          });
+        } catch (error: unknown) {
+          coverWarning = error instanceof Error
+            ? error.message
+            : 'La copertina non è stata caricata correttamente.';
+        }
+      }
+
+      Alert.alert(
+        'Gruppo creato',
+        coverWarning
+          ? `Il gruppo è online. La copertina non è stata caricata: ${coverWarning}`
+          : 'Il gruppo è online e gli utenti possono iscriversi.'
+      );
       router.replace({ pathname: '/group-detail' as any, params: { id: groupId } });
     } catch (error: any) {
       const rawMessage = String(error?.message || 'Non sono riuscito a creare il gruppo.');
@@ -130,6 +186,20 @@ export default function CreateGroupScreen() {
         </View>
 
         <View style={styles.card}>
+          <Text style={styles.label}>Immagine di copertina</Text>
+          {coverUri ? (
+            <Image source={{ uri: coverUri }} style={styles.coverPreview} resizeMode="cover" />
+          ) : (
+            <View style={styles.coverPlaceholder}>
+              <Text style={styles.coverPlaceholderIcon}>👥</Text>
+              <Text style={styles.coverPlaceholderText}>Aggiungi una copertina al gruppo</Text>
+            </View>
+          )}
+          <Pressable style={styles.coverButton} onPress={() => { void handlePickCover(); }}>
+            <Text style={styles.coverButtonText}>{coverUri ? 'Cambia immagine' : 'Scegli immagine'}</Text>
+          </Pressable>
+          <Text style={styles.helper}>La copertina potrà essere cambiata anche dopo, direttamente dal gruppo.</Text>
+
           <Text style={styles.label}>Nome gruppo</Text>
           <TextInput
             value={name}
@@ -234,6 +304,12 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   textArea: { minHeight: 118, paddingTop: 14, textAlignVertical: 'top' },
+  coverPreview: { width: '100%', aspectRatio: 16 / 9, borderRadius: 20, backgroundColor: BAJUJU_COLORS.palePink },
+  coverPlaceholder: { width: '100%', aspectRatio: 16 / 9, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: BAJUJU_COLORS.palePink },
+  coverPlaceholderIcon: { fontSize: 38 },
+  coverPlaceholderText: { marginTop: 8, color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.semiBold, fontSize: 13 },
+  coverButton: { minHeight: 48, marginTop: 10, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: BAJUJU_COLORS.palePink },
+  coverButtonText: { color: BAJUJU_COLORS.brightPink, fontFamily: BAJUJU_FONTS.bold, fontSize: 14 },
   helper: { marginTop: -4, marginBottom: 13, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.regular, fontSize: 12, lineHeight: 17 },
   mainButton: { minHeight: 54, marginTop: 8, borderRadius: 27, alignItems: 'center', justifyContent: 'center', backgroundColor: BAJUJU_COLORS.brightPink },
   mainButtonText: { color: '#fff', fontFamily: BAJUJU_FONTS.bold, fontSize: 16 },

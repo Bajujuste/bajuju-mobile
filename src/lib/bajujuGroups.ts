@@ -131,6 +131,44 @@ export async function createBajujuGroup(input: {
   return String(result.data?.id || '');
 }
 
+export async function uploadBajujuGroupCover(input: {
+  groupId: string;
+  userId: string;
+  localUri: string;
+}) {
+  const groupId = clean(input.groupId);
+  const userId = clean(input.userId);
+  const localUri = clean(input.localUri);
+
+  if (!groupId || !userId || !localUri) {
+    throw new Error('Dati copertina gruppo non validi.');
+  }
+
+  const photoResponse = await fetch(localUri);
+  const photoBuffer = await photoResponse.arrayBuffer();
+  const filePath = `groups/${groupId}/${userId}-cover-${Date.now()}.jpg`;
+
+  const uploadResult = await supabase.storage
+    .from('event-photos')
+    .upload(filePath, photoBuffer, {
+      contentType: 'image/jpeg',
+      upsert: false,
+    });
+
+  if (uploadResult.error) throw uploadResult.error;
+
+  const publicUrl = supabase.storage.from('event-photos').getPublicUrl(filePath).data.publicUrl;
+  if (!publicUrl) throw new Error('URL pubblico della copertina non disponibile.');
+
+  const updateResult = await supabase
+    .from('groups')
+    .update({ cover_url: publicUrl })
+    .eq('id', groupId);
+
+  if (updateResult.error) throw updateResult.error;
+  return publicUrl;
+}
+
 export async function notifyBajujuGroupsForExperience(activityId: string, groupIds: string[]) {
   const uniqueGroupIds = [...new Set(groupIds.filter(Boolean))];
   if (uniqueGroupIds.length === 0) return { ok: true, sent: 0 };

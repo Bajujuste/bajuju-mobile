@@ -100,31 +100,40 @@ async function flushQueuedNetworkErrors() {
     const session = sessionResult.data.session;
     if (!session?.user?.id || !session.access_token) return;
 
+    queueWriteChain = queueWriteChain
+      .then(async () => {
+        try {
+          const raw = await AsyncStorage.getItem(NETWORK_ERROR_QUEUE_KEY);
+          const queued = raw ? JSON.parse(raw) : [];
+          if (!Array.isArray(queued) || queued.length === 0) return;
+
+          const payload = queued.slice(-MAX_QUEUED_NETWORK_ERRORS).map((record) => ({
+            user_id: session.user.id,
+            event_name: 'network_error',
+            properties: record,
+          }));
+
+          const response = await nativeFetch(`${supabaseUrl}/rest/v1/app_analytics_events`, {
+            method: 'POST',
+            headers: {
+              apikey: supabaseAnonKey,
+              Authorization: `Bearer ${session.access_token}`,
+              'Content-Type': 'application/json',
+              Prefer: 'return=minimal',
+            },
+            body: JSON.stringify(payload),
+          });
+
+          if (response.ok) {
+            await AsyncStorage.removeItem(NETWORK_ERROR_QUEUE_KEY);
+          }
+        } catch {
+          // Gli errori restano in coda e verranno ritentati in seguito.
+        }
+      })
+      .catch(() => undefined);
+
     await queueWriteChain;
-    const raw = await AsyncStorage.getItem(NETWORK_ERROR_QUEUE_KEY);
-    const queued = raw ? JSON.parse(raw) : [];
-    if (!Array.isArray(queued) || queued.length === 0) return;
-
-    const payload = queued.slice(-MAX_QUEUED_NETWORK_ERRORS).map((record) => ({
-      user_id: session.user.id,
-      event_name: 'network_error',
-      properties: record,
-    }));
-
-    const response = await nativeFetch(`${supabaseUrl}/rest/v1/app_analytics_events`, {
-      method: 'POST',
-      headers: {
-        apikey: supabaseAnonKey,
-        Authorization: `Bearer ${session.access_token}`,
-        'Content-Type': 'application/json',
-        Prefer: 'return=minimal',
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (response.ok) {
-      await AsyncStorage.removeItem(NETWORK_ERROR_QUEUE_KEY);
-    }
   } catch {
     // Gli errori restano in coda e verranno ritentati in seguito.
   }

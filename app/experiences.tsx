@@ -317,6 +317,7 @@ export default function ExperiencesScreen() {
     const oldestAllowed = now - PAST_RETENTION_DAYS * 24 * 60 * 60 * 1000;
     return activities
       .filter((row) => myActivityIds.has(String(row.id || '')))
+      .filter((row) => String(row.creator_id || '') !== currentUserId)
       .filter((row) => {
         const moment = activityMoment(row);
         if (!moment) return false;
@@ -324,7 +325,7 @@ export default function ExperiencesScreen() {
         return time < now && time >= oldestAllowed;
       })
       .sort((a, b) => (activityMoment(b)?.getTime() || 0) - (activityMoment(a)?.getTime() || 0));
-  }, [activities, myActivityIds]);
+  }, [activities, myActivityIds, currentUserId]);
 
   const selectedActivities = mode === 'nearby'
     ? nearbyActivities
@@ -434,7 +435,7 @@ export default function ExperiencesScreen() {
               {mode === 'nearby' ? 'Quando nascerà qualcosa entro 25 km da te lo troverai qui.'
                 : mode === 'joined' ? 'Quando partecipi a un’esperienza la ritrovi qui.'
                 : mode === 'organized' ? 'Quando organizzi un’esperienza la ritrovi qui.'
-                : 'Gli eventi conclusi a cui hai partecipato o che hai organizzato compariranno qui per 30 giorni.'}
+                : 'Gli eventi conclusi a cui hai partecipato compariranno qui per 30 giorni.'}
             </Text>
           </View>
         ) : (

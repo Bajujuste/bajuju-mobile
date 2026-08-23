@@ -4,6 +4,7 @@ import path from 'node:path';
 const ROOT = process.cwd();
 const SOURCE_ROOTS = ['app', 'src'];
 const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx']);
+const SCHEMA_CONTRACT_PATH = path.join(ROOT, 'supabase', 'schema-contract.json');
 
 function fail(message) {
   console.error(`\n❌ ${message}`);
@@ -33,9 +34,24 @@ function loadSupabaseConfig() {
   return { url: url.replace(/\/$/, ''), key };
 }
 
-function collectLiteralSelects() {
+function loadSchemaContract() {
+  if (!fs.existsSync(SCHEMA_CONTRACT_PATH)) {
+    throw new Error('Manca supabase/schema-contract.json.');
+  }
+
+  const contract = JSON.parse(fs.readFileSync(SCHEMA_CONTRACT_PATH, 'utf8'));
+  if (!contract?.tables || !Array.isArray(contract?.functions)) {
+    throw new Error('supabase/schema-contract.json non è valido.');
+  }
+  return contract;
+}
+
+function sourceFiles() {
+  return SOURCE_ROOTS.flatMap((root) => walk(path.join(ROOT, root)));
+}
+
+function collectLiteralSelects(files) {
   const contracts = new Map();
-  const files = SOURCE_ROOTS.flatMap((root) => walk(path.join(ROOT, root)));
   const pattern = /\.from\(\s*(['"])([^'"]+)\1\s*\)((?:(?!\.from\().){0,1600}?)\.select\(\s*(['"`])([^'"`]+)\3/gms;
 
   for (const file of files) {
@@ -47,22 +63,113 @@ function collectLiteralSelects() {
       if (!table || !select || select.includes('${')) continue;
 
       const key = `${table}\u0000${select}`;
-      if (!contracts.has(key)) {
-        const line = source.slice(0, match.index).split('\n').length;
-        contracts.set(key, {
-          table,
-          select,
-          origins: [`${path.relative(ROOT, file)}:${line}`],
-        });
-      } else {
-        const current = contracts.get(key);
-        const line = source.slice(0, match.index).split('\n').length;
-        current.origins.push(`${path.relative(ROOT, file)}:${line}`);
-      }
+      const line = source.slice(0, match.index).split('\n').length;
+      const origin = `${path.relative(ROOT, file)}:${line}`;
+
+      if (!contracts.has(key)) contracts.set(key, { table, select, origins: [origin] });
+      else contracts.get(key).origins.push(origin);
     }
   }
 
   return Array.from(contracts.values());
+}
+
+function collectLiteralRpcs(files) {
+  const calls = new Map();
+  const pattern = /\.rpc\(\s*(['"])([^'"]+)\1/gm;
+
+  for (const file of files) {
+    const source = fs.readFileSync(file, 'utf8');
+    let match;
+    while ((match = pattern.exec(source)) !== null) {
+      const name = String(match[2] || '').trim();
+      if (!name) continue;
+      const line = source.slice(0, match.index).split('\n').length;
+      const origin = `${path.relative(ROOT, file)}:${line}`;
+      if (!calls.has(name)) calls.set(name, []);
+      calls.get(name).push(origin);
+    }
+  }
+
+  return calls;
+}
+
+function splitTopLevel(value) {
+  const parts = [];
+  let current = '';
+  let depth = 0;
+
+  for (const char of value) {
+    if (char === '(') depth += 1;
+    if (char === ')') depth = Math.max(0, depth - 1);
+
+    if (char === ',' && depth === 0) {
+      if (current.trim()) parts.push(current.trim());
+      current = '';
+      continue;
+    }
+    current += char;
+  }
+
+  if (current.trim()) parts.push(current.trim());
+  return parts;
+}
+
+function plainSelectedColumns(select) {
+  const columns = new Set();
+
+  for (const rawToken of splitTopLevel(select)) {
+    let token = rawToken.trim();
+    if (!token || token === '*') continue;
+
+    // Relazioni PostgREST, embed e aggregazioni sono validate dal probe live.
+    if (token.includes('(') || token.includes(')')) continue;
+
+    if (token.includes(':')) token = token.slice(token.lastIndexOf(':') + 1);
+    token = token.split('::')[0];
+    token = token.split('->')[0];
+    token = token.split('!')[0];
+    token = token.trim();
+
+    if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(token)) columns.add(token);
+  }
+
+  return [...columns];
+}
+
+function validateSnapshot(schema, selects, rpcs) {
+  let failures = 0;
+
+  for (const contract of selects) {
+    const columns = schema.tables[contract.table];
+    if (!Array.isArray(columns)) {
+      failures += 1;
+      console.error(`\n❌ Tabella/view non presente nello schema: ${contract.table}`);
+      console.error(`   ${contract.origins.slice(0, 4).join(', ')}`);
+      continue;
+    }
+
+    const available = new Set(columns);
+    for (const column of plainSelectedColumns(contract.select)) {
+      if (!available.has(column)) {
+        failures += 1;
+        console.error(`\n❌ Colonna inesistente: ${contract.table}.${column}`);
+        console.error(`   select: ${contract.select}`);
+        console.error(`   ${contract.origins.slice(0, 4).join(', ')}`);
+      }
+    }
+  }
+
+  const functions = new Set(schema.functions);
+  for (const [name, origins] of rpcs.entries()) {
+    if (!functions.has(name)) {
+      failures += 1;
+      console.error(`\n❌ RPC inesistente nello schema: ${name}`);
+      console.error(`   ${origins.slice(0, 4).join(', ')}`);
+    }
+  }
+
+  return failures;
 }
 
 function compactMessage(body, fallback) {
@@ -82,95 +189,70 @@ async function probeSelect(config, contract) {
     },
   });
 
-  if (response.ok) return { ok: true };
+  if (response.ok) return { ok: true, protected: false };
 
   let body = null;
   try { body = await response.json(); } catch {}
+
+  // Alcune risorse sono volutamente invisibili ad anon. In quel caso lo
+  // snapshot DB resta il controllo autoritativo e non generiamo falsi errori.
+  if (response.status === 401 || response.status === 403) {
+    return { ok: true, protected: true };
+  }
+
   return {
     ok: false,
+    protected: false,
     status: response.status,
     code: body?.code || '',
     message: compactMessage(body, response.statusText || 'Errore sconosciuto'),
   };
 }
 
-const RPC_CONTRACTS = [
-  ['join_standard_activity', { p_activity_id: '00000000-0000-0000-0000-000000000000' }],
-  ['join_activity_waitlist', { p_activity_id: '00000000-0000-0000-0000-000000000000' }],
-  ['leave_activity_waitlist', { p_activity_id: '00000000-0000-0000-0000-000000000000' }],
-  ['get_my_activity_waitlist', { p_activity_id: '00000000-0000-0000-0000-000000000000' }],
-  ['master_get_analytics_summary', { days_back: 7 }],
-  ['admin_create_experience_command', { p_idempotency_key: 'release-contract-probe', p_payload: {} }],
-];
-
-async function probeRpc(config, name, payload) {
-  const response = await fetch(`${config.url}/rest/v1/rpc/${name}`, {
-    method: 'POST',
-    headers: {
-      apikey: config.key,
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-    },
-    body: JSON.stringify(payload),
-  });
-
-  let body = null;
-  try { body = await response.json(); } catch {}
-
-  const missing = response.status === 404 && String(body?.code || '').startsWith('PGRST');
-  if (missing) {
-    return {
-      ok: false,
-      status: response.status,
-      code: body?.code || '',
-      message: compactMessage(body, 'RPC non trovata'),
-    };
-  }
-
-  // 400/401/403 sono accettabili in questo probe anonimo: significano che
-  // la route RPC esiste ma rifiuta parametri, autenticazione o autorizzazione.
-  return { ok: true, status: response.status };
-}
-
 async function main() {
   console.log('🔎 Bajuju release contract check');
   const config = loadSupabaseConfig();
-  const contracts = collectLiteralSelects();
+  const schema = loadSchemaContract();
+  const files = sourceFiles();
+  const selects = collectLiteralSelects(files);
+  const rpcs = collectLiteralRpcs(files);
 
-  if (contracts.length === 0) {
+  if (selects.length === 0) {
     fail('Nessuna select Supabase letterale trovata: il controllo non sarebbe affidabile.');
     return;
   }
 
-  console.log(`   ${contracts.length} contratti SELECT trovati nel codice.`);
+  const snapshotFailures = validateSnapshot(schema, selects, rpcs);
+  if (snapshotFailures > 0) {
+    fail(`Contratto schema non valido: ${snapshotFailures} riferimenti inesistenti.`);
+    return;
+  }
 
-  let selectFailures = 0;
-  for (const contract of contracts) {
+  console.log(`   Snapshot DB: ${selects.length} SELECT e ${rpcs.size} RPC valide.`);
+
+  let liveFailures = 0;
+  let protectedCount = 0;
+  for (const contract of selects) {
     const result = await probeSelect(config, contract);
+    if (result.protected) protectedCount += 1;
     if (!result.ok) {
-      selectFailures += 1;
-      console.error(`\n❌ ${contract.table} -> ${contract.select}`);
+      liveFailures += 1;
+      console.error(`\n❌ Probe live: ${contract.table} -> ${contract.select}`);
       console.error(`   ${contract.origins.slice(0, 4).join(', ')}`);
       console.error(`   HTTP ${result.status} ${result.code || ''} ${result.message}`);
     }
   }
 
-  let rpcFailures = 0;
-  for (const [name, payload] of RPC_CONTRACTS) {
-    const result = await probeRpc(config, name, payload);
-    if (!result.ok) {
-      rpcFailures += 1;
-      console.error(`\n❌ RPC ${name}`);
-      console.error(`   HTTP ${result.status} ${result.code || ''} ${result.message}`);
-    }
-  }
-
-  if (selectFailures || rpcFailures) {
-    fail(`Contratti live non validi: ${selectFailures} SELECT, ${rpcFailures} RPC.`);
+  if (liveFailures > 0) {
+    fail(`Contratti live non validi: ${liveFailures} SELECT fallite.`);
     return;
   }
 
-  console.log(`✅ Contratti live OK: ${contracts.length} SELECT e ${RPC_CONTRACTS.length} RPC critiche.`);
+  if (protectedCount > 0) {
+    console.log(`   ${protectedCount} SELECT protette da RLS/grant: validate tramite snapshot DB.`);
+  }
+
+  console.log('✅ Contratti Supabase coerenti con il codice. Nessuna RPC di scrittura è stata eseguita.');
 }
 
 main().catch((error) => {

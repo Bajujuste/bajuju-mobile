@@ -30,15 +30,11 @@ export function AdminPrivateChatEntry() {
         if (!userId || !active) return;
 
         if (pathname === '/admin-user-detail') {
-          const profileResult = await supabase
-            .from('profiles')
-            .select('is_admin,is_deleted')
-            .eq('id', userId)
-            .maybeSingle();
+          const mainAdminResult = await supabase.rpc('bajuju_main_admin_id' as any);
           if (!active) return;
           setCanAdminMessage(
-            profileResult.data?.is_admin === true &&
-            profileResult.data?.is_deleted !== true &&
+            !mainAdminResult.error &&
+            String(mainAdminResult.data || '') === userId &&
             Boolean(targetUserId) &&
             targetUserId !== userId
           );

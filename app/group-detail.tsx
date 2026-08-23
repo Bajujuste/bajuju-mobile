@@ -1,8 +1,11 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import * as ImageManipulator from 'expo-image-manipulator';
+import * as ImagePicker from 'expo-image-picker';
 import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -12,9 +15,14 @@ import {
   View,
 } from 'react-native';
 
-import { joinBajujuGroup, leaveBajujuGroup } from '../src/lib/bajujuGroups';
+import {
+  joinBajujuGroup,
+  leaveBajujuGroup,
+  uploadBajujuGroupCover,
+} from '../src/lib/bajujuGroups';
 import { supabase } from '../src/lib/supabase';
 import { BAJUJU_COLORS, BAJUJU_FONTS, BAJUJU_SHADOW } from '../src/theme/bajujuTheme';
+import { shareBajujuGroup } from '../src/utils/shareBajuju';
 
 type MemberRow = {
   user_id?: string | null;
@@ -39,6 +47,7 @@ export default function GroupDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [manageBusy, setManageBusy] = useState(false);
+  const [coverBusy, setCoverBusy] = useState(false);
   const [currentUserId, setCurrentUserId] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
   const [group, setGroup] = useState<any>(null);
@@ -65,7 +74,7 @@ export default function GroupDetailScreen() {
       const [groupResult, profileResult] = await Promise.all([
         supabase
           .from('groups')
-          .select('id,name,description,city,province,category,owner_id,status')
+          .select('id,name,description,city,province,category,cover_url,owner_id,status')
           .eq('id', groupId)
           .maybeSingle(),
         userId
@@ -158,6 +167,71 @@ export default function GroupDetailScreen() {
       Alert.alert('Operazione non riuscita', String(error?.message || 'Riprova tra poco.'));
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function handleShareGroup() {
+    if (!group) return;
+
+    try {
+      await shareBajujuGroup({
+        id: groupId,
+        name: group.name,
+        category: group.category,
+        city: group.city,
+        province: group.province,
+      });
+    } catch (error: unknown) {
+      Alert.alert(
+        'Condivisione non riuscita',
+        error instanceof Error ? error.message : 'Non sono riuscito a condividere il gruppo.'
+      );
+    }
+  }
+
+  async function handleChangeCover() {
+    if (!group || !currentUserId || coverBusy) return;
+    const canManageCover = isAdmin || String(group.owner_id || '') === currentUserId;
+    if (!canManageCover) return;
+
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert('Copertina gruppo', 'Autorizza l’accesso alle immagini per scegliere la copertina del gruppo.');
+        return;
+      }
+
+      const picked = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [16, 9],
+        quality: 0.9,
+      });
+
+      if (picked.canceled || !picked.assets?.[0]?.uri) return;
+
+      setCoverBusy(true);
+      const resized = await ImageManipulator.manipulateAsync(
+        picked.assets[0].uri,
+        [{ resize: { width: 1280 } }],
+        { compress: 0.72, format: ImageManipulator.SaveFormat.JPEG }
+      );
+
+      await uploadBajujuGroupCover({
+        groupId,
+        userId: currentUserId,
+        localUri: resized.uri,
+      });
+
+      await refresh();
+      Alert.alert('Copertina aggiornata', 'La nuova immagine del gruppo è online.');
+    } catch (error: unknown) {
+      Alert.alert(
+        'Copertina non aggiornata',
+        error instanceof Error ? error.message : 'Non sono riuscito ad aggiornare la copertina.'
+      );
+    } finally {
+      setCoverBusy(false);
     }
   }
 
@@ -295,7 +369,8 @@ export default function GroupDetailScreen() {
 
   const isOwner = String(group.owner_id || '') === currentUserId;
   const place = String(group.city || '').trim();
-  const canEditDescription = isOwner || isAdmin;
+  const canManageGroup = isOwner || isAdmin;
+  const coverUrl = String(group.cover_url || '').trim();
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -305,13 +380,22 @@ export default function GroupDetailScreen() {
         </Pressable>
 
         <View style={styles.hero}>
-          <View style={styles.heroIcon}><Text style={styles.heroIconText}>👥</Text></View>
+          {coverUrl ? (
+            <Image source={{ uri: coverUrl }} style={styles.coverImage} resizeMode="cover" />
+          ) : (
+            <View style={styles.heroIcon}><Text style={styles.heroIconText}>👥</Text></View>
+          )}
+
           <Text style={styles.title}>{group.name}</Text>
           {place ? <Text style={styles.place}>{place}</Text> : null}
           {group.category ? <Text style={styles.category}>{group.category}</Text> : null}
           <Text style={styles.description}>{group.description}</Text>
           <Text style={styles.owner}>Gestito da {ownerName}</Text>
           <Text style={styles.count}>{members.length} {members.length === 1 ? 'iscritto' : 'iscritti'}</Text>
+
+          <Pressable style={styles.shareButton} onPress={() => { void handleShareGroup(); }}>
+            <Text style={styles.shareButtonText}>↗ Condividi gruppo</Text>
+          </Pressable>
 
           {isOwner ? (
             <View style={styles.ownerBadge}>
@@ -330,10 +414,21 @@ export default function GroupDetailScreen() {
           )}
         </View>
 
-        {canEditDescription ? (
+        {canManageGroup ? (
           <View style={styles.managementCard}>
             <Text style={styles.managementEyebrow}>{isAdmin ? 'GESTIONE ADMIN' : 'GESTIONE GRUPPO'}</Text>
-            <Text style={styles.managementTitle}>{isAdmin ? 'Gestisci il gruppo' : 'Modifica descrizione'}</Text>
+            <Text style={styles.managementTitle}>Gestisci il gruppo</Text>
+
+            <Text style={styles.fieldLabel}>Immagine di copertina</Text>
+            <Pressable
+              style={[styles.secondaryAction, coverBusy && styles.disabled]}
+              disabled={coverBusy}
+              onPress={() => { void handleChangeCover(); }}
+            >
+              <Text style={styles.secondaryActionText}>
+                {coverBusy ? 'Caricamento...' : coverUrl ? 'Cambia immagine di copertina' : 'Aggiungi immagine di copertina'}
+              </Text>
+            </Pressable>
 
             {isAdmin ? (
               <>
@@ -397,7 +492,7 @@ export default function GroupDetailScreen() {
               </View>
             ) : (
               <Text style={styles.ownerRuleText}>
-                Il creatore può modificare solo la descrizione. Nome, proprietà ed eliminazione sono riservati agli Admin.
+                Il creatore può modificare copertina e descrizione. Nome, proprietà ed eliminazione sono riservati agli Admin.
               </Text>
             )}
           </View>
@@ -462,6 +557,7 @@ const styles = StyleSheet.create({
   backPill: { alignSelf: 'flex-start', minHeight: 44, paddingHorizontal: 16, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff', borderWidth: 1.5, borderColor: BAJUJU_COLORS.palePink },
   backPillText: { color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.semiBold, fontSize: 14 },
   hero: { marginTop: 15, padding: 22, borderRadius: 30, borderWidth: 1.5, borderColor: BAJUJU_COLORS.line, backgroundColor: '#fff', alignItems: 'center', ...BAJUJU_SHADOW },
+  coverImage: { width: '100%', aspectRatio: 16 / 9, borderRadius: 22, backgroundColor: BAJUJU_COLORS.palePink },
   heroIcon: { width: 74, height: 74, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: BAJUJU_COLORS.palePink },
   heroIconText: { fontSize: 36 },
   title: { marginTop: 13, color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.bold, fontSize: 31, textAlign: 'center' },
@@ -470,11 +566,13 @@ const styles = StyleSheet.create({
   description: { marginTop: 14, color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.medium, fontSize: 15, lineHeight: 21, textAlign: 'center' },
   owner: { marginTop: 14, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.medium, fontSize: 12 },
   count: { marginTop: 4, color: BAJUJU_COLORS.brightPink, fontFamily: BAJUJU_FONTS.bold, fontSize: 14 },
-  joinButton: { minHeight: 50, marginTop: 17, paddingHorizontal: 22, borderRadius: 25, alignItems: 'center', justifyContent: 'center', backgroundColor: BAJUJU_COLORS.brightPink },
+  shareButton: { minHeight: 48, marginTop: 16, paddingHorizontal: 22, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: BAJUJU_COLORS.palePink },
+  shareButtonText: { color: BAJUJU_COLORS.brightPink, fontFamily: BAJUJU_FONTS.bold, fontSize: 14 },
+  joinButton: { minHeight: 50, marginTop: 10, paddingHorizontal: 22, borderRadius: 25, alignItems: 'center', justifyContent: 'center', backgroundColor: BAJUJU_COLORS.brightPink },
   joinButtonText: { color: '#fff', fontFamily: BAJUJU_FONTS.bold, fontSize: 15 },
   leaveButton: { backgroundColor: '#fff', borderWidth: 1.5, borderColor: BAJUJU_COLORS.brightPink },
   leaveButtonText: { color: BAJUJU_COLORS.brightPink },
-  ownerBadge: { minHeight: 46, marginTop: 17, paddingHorizontal: 18, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: BAJUJU_COLORS.palePink },
+  ownerBadge: { minHeight: 46, marginTop: 10, paddingHorizontal: 18, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: BAJUJU_COLORS.palePink },
   ownerBadgeText: { color: BAJUJU_COLORS.brightPink, fontFamily: BAJUJU_FONTS.bold, fontSize: 13 },
   disabled: { opacity: 0.5 },
   managementCard: { marginTop: 22, padding: 20, borderRadius: 28, borderWidth: 1.5, borderColor: BAJUJU_COLORS.palePink, backgroundColor: '#fff', ...BAJUJU_SHADOW },

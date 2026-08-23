@@ -3,7 +3,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 
-import { BajujuHomeView } from '../src/components/home/BajujuHomeView';
+import { BajujuHomeView, HomeGroupPreview } from '../src/components/home/BajujuHomeView';
+import { loadBajujuGroups } from '../src/lib/bajujuGroups';
 import { supabase } from '../src/lib/supabase';
 import { trackBajujuEvent } from '../src/utils/bajujuAnalytics';
 import { refreshBajujuNotificationLocation } from '../src/utils/bajujuNotificationLocation';
@@ -66,6 +67,7 @@ export default function HomeScreen() {
   const [profilePhotoUrl, setProfilePhotoUrl] = useState('');
   const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
   const [nextExperience, setNextExperience] = useState<NextExperience | null>(null);
+  const [groups, setGroups] = useState<HomeGroupPreview[]>([]);
 
   useEffect(() => {
     let active = true;
@@ -117,7 +119,7 @@ export default function HomeScreen() {
         notificationPromptRunningRef.current = true;
         Alert.alert(
           'Notifiche Bajuju',
-          'Vuoi ricevere notifiche per nuove esperienze vicine a te, Flash, partecipazioni e richieste?',
+          'Vuoi ricevere notifiche per nuove esperienze vicine a te, gruppi, partecipazioni e richieste?',
           [
             {
               text: 'No',
@@ -170,6 +172,26 @@ export default function HomeScreen() {
 
         if (error) throw error;
         if (active) setUnreadNotificationsCount(count || 0);
+      }
+
+      async function refreshGroups(userId: string) {
+        try {
+          const loadedGroups = await loadBajujuGroups(userId, { limit: 9 });
+          if (!active) return;
+          setGroups(
+            loadedGroups.map((group) => ({
+              id: group.id,
+              name: group.name,
+              city: group.city,
+              province: group.province,
+              memberCount: group.memberCount,
+              joinedByMe: group.joinedByMe,
+            }))
+          );
+        } catch (error) {
+          console.log('Gruppi Home non aggiornati:', error);
+          if (active) setGroups([]);
+        }
       }
 
       async function refreshNextExperience(userId: string) {
@@ -254,6 +276,7 @@ export default function HomeScreen() {
             if (active) {
               setUnreadNotificationsCount(0);
               setNextExperience(null);
+              setGroups([]);
             }
             return;
           }
@@ -266,7 +289,11 @@ export default function HomeScreen() {
           const locationResult = await refreshBajujuNotificationLocation(userId, { requestPermission: false });
           if (!locationResult.ok) console.log('Posizione notifiche non aggiornata al focus Home.');
 
-          await Promise.all([refreshUnreadCount(userId), refreshNextExperience(userId)]);
+          await Promise.all([
+            refreshUnreadCount(userId),
+            refreshNextExperience(userId),
+            refreshGroups(userId),
+          ]);
           if (!active) return;
 
           channel = supabase
@@ -281,7 +308,10 @@ export default function HomeScreen() {
             .subscribe();
         } catch (error) {
           console.log('Errore aggiornamento Home:', error);
-          if (active) setUnreadNotificationsCount(0);
+          if (active) {
+            setUnreadNotificationsCount(0);
+            setGroups([]);
+          }
         }
       })();
 
@@ -345,6 +375,7 @@ export default function HomeScreen() {
       profilePhotoUrl={profilePhotoUrl}
       unreadNotificationsCount={unreadNotificationsCount}
       nextExperience={nextExperience}
+      groups={groups}
       onOpenNextExperience={() => {
         if (!nextExperience?.id) return;
         void trackBajujuEvent('next_experience_open', { activityId: nextExperience.id });
@@ -360,7 +391,10 @@ export default function HomeScreen() {
         router.push('/experiences');
       }}
       onCreate={() => router.push('/create-experience')}
-      onFlash={() => router.push('/flash')}
+      onOpenGroups={() => router.push('/groups' as any)}
+      onOpenGroup={(groupId) => {
+        router.push({ pathname: '/group-detail' as any, params: { id: groupId } });
+      }}
       onShare={() => { void shareBajujuHome(); }}
       onOpenRules={() => router.push('/rules' as any)}
       onOpenPrivacy={() => router.push('/privacy' as any)}

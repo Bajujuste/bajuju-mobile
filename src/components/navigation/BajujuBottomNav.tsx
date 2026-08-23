@@ -9,18 +9,18 @@ import {
   BajujuIconName,
 } from '../icons/BajujuIcon';
 
-type NavKey = 'home' | 'find' | 'flash' | 'profile';
+type NavKey = 'home' | 'find' | 'groups' | 'flash' | 'profile';
 
 type BajujuBottomNavProps = {
   active: NavKey;
 };
 
 const ITEMS: {
-  key: NavKey;
+  key: Exclude<NavKey, 'flash'>;
   label: string;
   icon: BajujuIconName;
   activeIcon: BajujuIconName;
-  route: '/home' | '/experiences' | '/flash' | '/profile';
+  route: '/home' | '/experiences' | '/groups' | '/profile';
 }[] = [
   {
     key: 'home',
@@ -37,11 +37,11 @@ const ITEMS: {
     route: '/experiences',
   },
   {
-    key: 'flash',
-    label: 'Flash',
-    icon: 'bolt',
-    activeIcon: 'bolt',
-    route: '/flash',
+    key: 'groups',
+    label: 'Gruppi',
+    icon: 'group',
+    activeIcon: 'group',
+    route: '/groups',
   },
   {
     key: 'profile',

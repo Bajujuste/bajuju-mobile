@@ -1,5 +1,5 @@
 import { router, useFocusEffect } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -7,6 +7,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 
@@ -17,28 +18,36 @@ import { BAJUJU_COLORS, BAJUJU_FONTS, BAJUJU_SHADOW } from '../src/theme/bajujuT
 
 export default function GroupsScreen() {
   const [groups, setGroups] = useState<BajujuGroupCard[]>([]);
+  const [myGroups, setMyGroups] = useState<BajujuGroupCard[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searching, setSearching] = useState(false);
   const [canCreate, setCanCreate] = useState(false);
+  const [userId, setUserId] = useState('');
+  const [search, setSearch] = useState('');
 
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
       const authResult = await supabase.auth.getUser();
       if (authResult.error) throw authResult.error;
-      const userId = authResult.data.user?.id;
-      if (!userId) {
+      const currentUserId = authResult.data.user?.id;
+      if (!currentUserId) {
         setGroups([]);
+        setMyGroups([]);
         setCanCreate(false);
+        setUserId('');
         return;
       }
+
+      setUserId(currentUserId);
 
       const [profileResult, loadedGroups] = await Promise.all([
         supabase
           .from('profiles')
           .select('is_admin,is_premium_organizer')
-          .eq('id', userId)
+          .eq('id', currentUserId)
           .maybeSingle(),
-        loadBajujuGroups(userId, { limit: 60 }),
+        loadBajujuGroups(currentUserId, { limit: 100 }),
       ]);
 
       if (profileResult.error) throw profileResult.error;
@@ -47,9 +56,11 @@ export default function GroupsScreen() {
         profileResult.data?.is_premium_organizer === true
       );
       setGroups(loadedGroups);
+      setMyGroups(loadedGroups.filter((group) => group.joinedByMe));
     } catch (error) {
       console.log('Errore caricamento gruppi:', error);
       setGroups([]);
+      setMyGroups([]);
     } finally {
       setLoading(false);
     }
@@ -61,24 +72,66 @@ export default function GroupsScreen() {
     }, [refresh])
   );
 
-  const myGroups = groups.filter((group) => group.joinedByMe);
+  useEffect(() => {
+    if (!userId || loading) return;
+    const query = search.trim();
+
+    const timer = setTimeout(() => {
+      void (async () => {
+        setSearching(true);
+        try {
+          const loadedGroups = await loadBajujuGroups(userId, {
+            limit: 100,
+            search: query || undefined,
+          });
+          setGroups(loadedGroups);
+        } catch (error) {
+          console.log('Errore ricerca gruppi:', error);
+        } finally {
+          setSearching(false);
+        }
+      })();
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [search, userId, loading]);
 
   function openGroup(groupId: string) {
     router.push({ pathname: '/group-detail' as any, params: { id: groupId } });
   }
 
+  const hasSearch = search.trim().length > 0;
+
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
           <Text style={styles.eyebrow}>COMMUNITY BAJUJU</Text>
           <Text style={styles.title}>Gruppi</Text>
           <Text style={styles.subtitle}>
-            Entra nei gruppi che ti interessano e scopri le esperienze dedicate alla community.
+            Cerca una community, entra nel gruppo e scopri le esperienze dedicate.
           </Text>
           {canCreate ? (
             <Pressable style={styles.createButton} onPress={() => router.push('/create-group' as any)}>
               <Text style={styles.createButtonText}>+ Crea gruppo</Text>
+            </Pressable>
+          ) : null}
+        </View>
+
+        <View style={styles.searchBox}>
+          <Text style={styles.searchIcon}>⌕</Text>
+          <TextInput
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Cerca gruppo o Comune"
+            placeholderTextColor={BAJUJU_COLORS.muted}
+            style={styles.searchInput}
+            autoCorrect={false}
+            returnKeyType="search"
+          />
+          {search.length > 0 ? (
+            <Pressable style={styles.clearSearch} onPress={() => setSearch('')} accessibilityLabel="Cancella ricerca">
+              <Text style={styles.clearSearchText}>×</Text>
             </Pressable>
           ) : null}
         </View>
@@ -90,7 +143,7 @@ export default function GroupsScreen() {
           </View>
         ) : (
           <>
-            {myGroups.length > 0 ? (
+            {!hasSearch && myGroups.length > 0 ? (
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>I miei gruppi</Text>
                 {myGroups.map((group) => (
@@ -100,12 +153,19 @@ export default function GroupsScreen() {
             ) : null}
 
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Scopri gruppi</Text>
+              <View style={styles.sectionHeaderRow}>
+                <Text style={styles.sectionTitle}>{hasSearch ? 'Risultati' : 'Tutti i gruppi'}</Text>
+                {searching ? <ActivityIndicator size="small" color={BAJUJU_COLORS.brightPink} /> : null}
+              </View>
+              {!hasSearch ? <Text style={styles.sectionHint}>Prima quelli più vicini a te.</Text> : null}
+
               {groups.length === 0 ? (
                 <View style={styles.emptyCard}>
-                  <Text style={styles.emptyTitle}>I primi gruppi stanno arrivando</Text>
+                  <Text style={styles.emptyTitle}>{hasSearch ? 'Nessun gruppo trovato' : 'I primi gruppi stanno arrivando'}</Text>
                   <Text style={styles.emptyText}>
-                    Quando Admin e Organizzatori Premium ne creeranno uno, lo vedrai qui.
+                    {hasSearch
+                      ? 'Prova con un altro nome o con il Comune.'
+                      : 'Quando Admin e Organizzatori Premium ne creeranno uno, lo vedrai qui.'}
                   </Text>
                 </View>
               ) : (
@@ -124,7 +184,12 @@ export default function GroupsScreen() {
 }
 
 function GroupRow({ group, onPress }: { group: BajujuGroupCard; onPress: () => void }) {
-  const place = [group.city, group.province].filter(Boolean).join(' · ');
+  const distance = group.distanceKm === null
+    ? ''
+    : group.distanceKm < 1
+      ? '< 1 km'
+      : `${Math.round(group.distanceKm)} km`;
+  const place = [group.city, distance].filter(Boolean).join(' · ');
 
   return (
     <Pressable style={({ pressed }) => [styles.groupCard, pressed && styles.pressed]} onPress={onPress}>
@@ -185,15 +250,33 @@ const styles = StyleSheet.create({
     backgroundColor: BAJUJU_COLORS.brightPink,
   },
   createButtonText: { color: '#fff', fontFamily: BAJUJU_FONTS.bold, fontSize: 15 },
+  searchBox: {
+    minHeight: 56,
+    marginTop: 18,
+    paddingHorizontal: 15,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: BAJUJU_COLORS.palePink,
+    backgroundColor: '#fff',
+    flexDirection: 'row',
+    alignItems: 'center',
+    ...BAJUJU_SHADOW,
+  },
+  searchIcon: { color: BAJUJU_COLORS.brightPink, fontFamily: BAJUJU_FONTS.bold, fontSize: 24, marginRight: 8 },
+  searchInput: { flex: 1, minHeight: 52, color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.medium, fontSize: 16 },
+  clearSearch: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  clearSearchText: { color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.bold, fontSize: 24 },
   loadingBox: { paddingVertical: 56, alignItems: 'center', gap: 12 },
   loadingText: { color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.medium, fontSize: 14 },
   section: { marginTop: 25 },
+  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   sectionTitle: {
-    marginBottom: 12,
+    marginBottom: 6,
     color: BAJUJU_COLORS.plum,
     fontFamily: BAJUJU_FONTS.bold,
     fontSize: 22,
   },
+  sectionHint: { marginBottom: 12, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.medium, fontSize: 12 },
   groupCard: {
     minHeight: 88,
     marginBottom: 11,
@@ -221,6 +304,7 @@ const styles = StyleSheet.create({
   groupMembers: { marginTop: 5, color: BAJUJU_COLORS.brightPink, fontFamily: BAJUJU_FONTS.semiBold, fontSize: 12 },
   arrow: { marginLeft: 10, color: BAJUJU_COLORS.brightPink, fontFamily: BAJUJU_FONTS.bold, fontSize: 30 },
   emptyCard: {
+    marginTop: 6,
     padding: 20,
     borderRadius: 24,
     borderWidth: 1.5,

@@ -18,6 +18,7 @@ import { getExperienceCategoryIcon, normalizeExperienceCategory } from '@/src/co
 import { supabase } from '../src/lib/supabase';
 import { saveBajujuNotificationCoordinatesIfEnabled } from '../src/utils/bajujuNotificationLocation';
 import { refreshBajujuPushRegistrationIfAuthorized } from '../src/utils/bajujuNotifications';
+import { trackBajujuEvent } from '../src/utils/bajujuAnalytics';
 
 const bajujuLogo = require('../assets/brand/bajuju-logo.png');
 const PAGE_SIZE = 20;
@@ -84,6 +85,23 @@ function imageUrl(row: ActivityRow) {
   return String(row.photo_url || row.image_url || row.cover_url || '').trim();
 }
 
+function participantSummary(
+  activityId: string,
+  item: ActivityRow,
+  participantCounts: Record<string, number>
+) {
+  const current = Number(participantCounts[activityId] || 0);
+  const max = Number(item.max_participants || 0);
+  const base = `Partecipanti ${current}/${max > 0 ? max : '∞'}`;
+
+  if (max <= 0) return base;
+
+  const remaining = Math.max(0, max - current);
+  if (remaining < 1 || remaining > 3) return base;
+
+  return `${base} · ${remaining} ${remaining === 1 ? 'posto rimasto' : 'posti rimasti'}`;
+}
+
 function toRadians(value: number) {
   return value * Math.PI / 180;
 }
@@ -127,6 +145,7 @@ export default function ExperiencesScreen() {
       setCurrentUserId(userId);
 
       if (userId) {
+        void trackBajujuEvent('find_open');
         await refreshBajujuPushRegistrationIfAuthorized(userId).catch(() => ({ ok: false }));
       }
 
@@ -204,17 +223,17 @@ export default function ExperiencesScreen() {
           .in('activity_id', activityIds)
           .limit(10000);
 
-        if (!participantResult.error) {
-          ((participantResult.data || []) as ParticipantRow[])
-            .filter(participantIsActive)
-            .forEach((row) => {
-              const activityId = String(row.activity_id || '');
-              const participantUserId = String(row.user_id || '');
-              if (!activityId || !participantUserId) return;
-              countSets[activityId]?.add(participantUserId);
-              if (userId && participantUserId === userId) participationSet.add(activityId);
-            });
-        }
+        if (participantResult.error) throw participantResult.error;
+
+        ((participantResult.data || []) as ParticipantRow[])
+          .filter(participantIsActive)
+          .forEach((row) => {
+            const activityId = String(row.activity_id || '');
+            const participantUserId = String(row.user_id || '');
+            if (!activityId || !participantUserId) return;
+            countSets[activityId]?.add(participantUserId);
+            if (userId && participantUserId === userId) participationSet.add(activityId);
+          });
       }
 
       const nextCounts: Record<string, number> = {};
@@ -442,7 +461,7 @@ export default function ExperiencesScreen() {
                       <Text style={styles.cardMeta}>{formatDate(item)}</Text>
                       {distance !== null ? <Text style={styles.distanceText}>{distance < 1 ? `${Math.round(distance * 1000)} m` : `${distance.toFixed(1)} km`} da te</Text> : null}
                       <View style={styles.cardFooter}>
-                        <Text style={styles.participantsText}>Partecipanti {participantCounts[activityId] || 0}/{item.max_participants || '∞'}</Text>
+                        <Text style={styles.participantsText}>{participantSummary(activityId, item, participantCounts)}</Text>
                         {waitlistButton(activityId, item, organizedByMe)}
                       </View>
                     </View>
@@ -497,7 +516,7 @@ export default function ExperiencesScreen() {
                           <Text style={styles.cardMeta}>{formatDate(item)}</Text>
                           {distance !== null ? <Text style={styles.distanceText}>{distance < 1 ? Math.round(distance * 1000) + ' m' : distance.toFixed(1) + ' km'} da te</Text> : null}
                           <View style={styles.cardFooter}>
-                            <Text style={styles.participantsText}>Partecipanti {participantCounts[activityId] || 0}/{item.max_participants || '∞'}</Text>
+                            <Text style={styles.participantsText}>{participantSummary(activityId, item, participantCounts)}</Text>
                             {waitlistButton(activityId, item, organizedByMe)}
                           </View>
                         </View>

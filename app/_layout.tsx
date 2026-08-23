@@ -9,6 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { AdminPrivateChatEntry } from '../src/components/admin/AdminPrivateChatEntry';
 import { supabase } from '../src/lib/supabase';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -17,6 +18,7 @@ function openPushNotification(data: Record<string, unknown>) {
   const screen = typeof data.screen === 'string' ? data.screen : '';
   const activityId = typeof data.activityId === 'string' ? data.activityId : '';
   const section = typeof data.section === 'string' ? data.section : '';
+  const threadId = typeof data.threadId === 'string' ? data.threadId : '';
   const type = typeof data.type === 'string' ? data.type : '';
 
   if (type === 'waitlist_spot_available' && activityId) {
@@ -45,6 +47,13 @@ function openPushNotification(data: Record<string, unknown>) {
       break;
     case 'profile':
       router.push(section ? ({ pathname: '/profile', params: { section } } as any) : '/profile');
+      break;
+    case 'admin-private-chat':
+      router.push(
+        threadId
+          ? ({ pathname: '/admin-private-chat' as any, params: { threadId } } as any)
+          : ('/admin-private-chat' as any)
+      );
       break;
   }
 }
@@ -212,6 +221,7 @@ export default function RootLayout() {
           <Stack.Screen name="reset-password" options={{ headerShown: false }} />
           <Stack.Screen name="auth/callback" options={{ headerShown: false }} />
         </Stack>
+        <AdminPrivateChatEntry />
       </SafeAreaView>
       <StatusBar style="dark" backgroundColor="#fff8fb" />
     </ThemeProvider>

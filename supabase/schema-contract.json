@@ -1,0 +1,31 @@
+{
+  "generated_at": "2026-08-23T00:07:27.862373+00:00",
+  "tables": {
+    "reports": ["id", "reporter_id", "reported_user_id", "activity_id", "message_id", "reason", "details", "status", "created_at", "report_type", "target_message_id"],
+    "profiles": ["id", "nickname", "city", "area", "age_range", "interests", "avatar_url", "bio", "is_admin", "is_blocked", "created_at", "updated_at", "gender", "dislikes", "is_adult_confirmed", "terms_accepted_at", "privacy_accepted_at", "community_accepted_at", "wants_receive_direct_contacts", "launch_access", "deletion_requested_at", "deletion_scheduled_at", "deletion_purged_at", "deletion_reason", "blocked_until", "is_deleted", "suspended_until", "is_premium_organizer", "is_location_organizer", "location_profile_text", "allow_direct_contacts", "province", "organizer_grade_override"],
+    "activities": ["id", "creator_id", "title", "category", "description", "city", "area", "meeting_place", "activity_date", "activity_time", "max_participants", "status", "created_at", "updated_at", "province", "vacation_budget", "vacation_days", "vacation_type", "latitude", "longitude", "min_participants", "is_flash", "expires_at", "photo_url", "budget_amount", "deleted_at"],
+    "push_tokens": ["id", "user_id", "expo_push_token", "platform", "device_name", "app_version", "is_active", "created_at", "updated_at", "last_seen_at"],
+    "user_blocks": ["id", "blocker_id", "blocked_id", "created_at"],
+    "app_settings": ["setting_key", "setting_value", "updated_at"],
+    "chat_reports": ["id", "message_id", "activity_id", "event_id", "experience_id", "reporter_id", "reported_by", "user_id", "sender_id", "reported_user_id", "reason", "message", "content", "body", "text", "status", "report_status", "reported_at", "created_at", "updated_at"],
+    "user_reports": ["id", "reporter_id", "reported_by", "user_id", "reported_user_id", "target_user_id", "reason", "message", "content", "body", "text", "status", "report_status", "reported_at", "created_at", "updated_at"],
+    "blocked_users": ["id", "user_id", "email", "action_type", "blocked_until", "reason", "created_at", "created_by"],
+    "message_reports": ["id", "message_id", "activity_id", "event_id", "experience_id", "reporter_id", "reported_by", "user_id", "sender_id", "reported_user_id", "reason", "message", "content", "body", "text", "status", "report_status", "reported_at", "created_at", "updated_at"],
+    "public_profiles": ["id", "nickname", "avatar_url", "city", "area", "age_range", "gender", "bio", "dislikes", "interests", "wants_receive_direct_contacts", "is_premium_organizer", "created_count", "participated_count", "active_participations_count", "premium_followers_count", "is_location_organizer", "location_profile_text"],
+    "activity_messages": ["id", "activity_id", "sender_id", "message", "created_at"],
+    "activity_waitlist": ["id", "activity_id", "user_id", "status", "created_at", "updated_at", "notified_at", "reserved_until"],
+    "user_availability": ["id", "user_id", "activity_type", "mood", "province", "city", "area", "latitude", "longitude", "expires_at", "created_at"],
+    "event_album_photos": ["id", "activity_id", "user_id", "photo_url", "storage_path", "status", "created_at", "event_id", "profile_id", "image_url"],
+    "push_subscriptions": ["id", "user_id", "endpoint", "p256dh", "auth", "user_agent", "province", "comune", "notify_flash", "notify_events", "created_at", "updated_at"],
+    "user_notifications": ["id", "user_id", "activity_id", "title", "message", "is_read", "created_at"],
+    "organizer_followers": ["id", "organizer_id", "follower_id", "created_at"],
+    "app_analytics_events": ["id", "user_id", "event_name", "properties", "created_at"],
+    "activity_participants": ["id", "activity_id", "user_id", "status", "created_at"],
+    "push_notification_logs": ["id", "user_id", "endpoint", "type", "title", "body", "url", "status", "error", "created_at", "is_read", "notification_type", "data", "sent_at", "success"],
+    "direct_contact_requests": ["id", "sender_id", "receiver_id", "contact_type", "contact_value", "status", "created_at", "responded_at", "requester_id", "activity_id", "message"],
+    "notification_preferences": ["user_id", "enabled", "notify_new_experience", "notify_new_flash", "notify_new_participant", "notify_contact_request", "notify_contact_accepted", "notify_experience_cancelled", "notify_experience_reminder", "notify_chat_messages", "preferred_province", "preferred_city", "created_at", "updated_at", "latitude", "longitude", "location_updated_at"],
+    "admin_experience_commands": ["user_id", "idempotency_key", "activity_id", "created_at"],
+    "profile_deletion_requests": ["id", "user_id", "email", "status", "created_at", "updated_at", "handled_at", "admin_note"]
+  },
+  "functions": ["activity_waitlist_participant_change_trigger", "admin_block_user", "admin_create_experience_command", "admin_delete_activity", "admin_get_pending_deleted_profiles", "admin_remove_participant", "bajuju_current_user_access_status", "claim_push_token_for_current_user", "current_user_is_admin", "enforce_one_time_direct_contact_request", "get_my_activity_waitlist", "guard_standard_activity_participant_insert", "handle_new_user", "is_activity_participant", "is_admin", "is_bajuju_admin", "is_current_user_admin", "is_user_blocked", "join_activity_waitlist", "join_standard_activity", "leave_activity_waitlist", "mark_waitlist_joined_after_participant_insert", "master_get_analytics_summary", "master_get_user_detail", "master_get_user_identity", "master_get_users_identity", "master_get_users_overview", "master_is_current_user_admin", "master_moderate_user", "master_set_launch_access", "master_set_location_organizer", "master_set_premium_organizer", "master_set_site_status", "notify_new_activity_trigger", "notify_premium_organizer_followers", "notify_special_organizer_followers", "prevent_profile_nickname_change", "process_activity_waitlist", "process_all_activity_waitlists", "process_experience_reminders", "protect_admin_managed_profile_fields", "purge_due_deleted_accounts", "request_account_deletion", "set_updated_at"]
+}

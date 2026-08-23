@@ -11,6 +11,9 @@ export type BajujuGroupCard = {
   ownerId: string;
   memberCount: number;
   joinedByMe: boolean;
+  latitude: number | null;
+  longitude: number | null;
+  distanceKm: number | null;
 };
 
 type GroupRow = {
@@ -24,15 +27,24 @@ type GroupRow = {
   owner_id?: string | null;
   member_count?: number | string | null;
   joined_by_me?: boolean | null;
+  latitude?: number | string | null;
+  longitude?: number | string | null;
+  distance_km?: number | string | null;
 };
 
 function clean(value: unknown) {
   return typeof value === 'string' ? value.trim() : '';
 }
 
+function finiteNumber(value: unknown) {
+  if (value === null || value === undefined || value === '') return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
 export async function loadBajujuGroups(
   userId: string,
-  options: { limit?: number; ownerId?: string } = {}
+  options: { limit?: number; ownerId?: string; search?: string } = {}
 ) {
   if (!userId) return [] as BajujuGroupCard[];
 
@@ -40,6 +52,7 @@ export async function loadBajujuGroups(
   const result = await supabase.rpc('get_bajuju_groups', {
     p_limit: limit,
     p_owner_id: options.ownerId || null,
+    p_search: options.search?.trim() || null,
   });
 
   if (result.error) throw result.error;
@@ -60,6 +73,9 @@ export async function loadBajujuGroups(
         ownerId: clean(row.owner_id),
         memberCount: Math.max(0, Number(row.member_count || 0)),
         joinedByMe: row.joined_by_me === true,
+        latitude: finiteNumber(row.latitude),
+        longitude: finiteNumber(row.longitude),
+        distanceKm: finiteNumber(row.distance_km),
       };
     })
     .filter((group): group is BajujuGroupCard => Boolean(group));
@@ -91,17 +107,20 @@ export async function createBajujuGroup(input: {
   ownerId: string;
   name: string;
   description: string;
-  city?: string;
-  province?: string;
+  city: string;
   category?: string;
+  latitude: number;
+  longitude: number;
 }) {
   const payload = {
     name: input.name.trim(),
     normalized_name: input.name.trim(),
     description: input.description.trim(),
-    city: input.city?.trim() || null,
-    province: input.province?.trim() || null,
+    city: input.city.trim(),
+    province: null,
     category: input.category?.trim() || null,
+    latitude: input.latitude,
+    longitude: input.longitude,
     owner_id: input.ownerId,
     created_by: input.ownerId,
     status: 'active',

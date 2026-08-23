@@ -78,7 +78,6 @@ async function probeSelect(config, contract) {
   const response = await fetch(url, {
     headers: {
       apikey: config.key,
-      Authorization: `Bearer ${config.key}`,
       Accept: 'application/json',
     },
   });
@@ -109,7 +108,6 @@ async function probeRpc(config, name, payload) {
     method: 'POST',
     headers: {
       apikey: config.key,
-      Authorization: `Bearer ${config.key}`,
       'Content-Type': 'application/json',
       Accept: 'application/json',
     },

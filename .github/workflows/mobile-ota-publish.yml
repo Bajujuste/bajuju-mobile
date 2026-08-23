@@ -53,7 +53,8 @@ jobs:
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           CI: "1"
-        run: npx eas-cli@latest update --channel production --platform all --environment production --message "Bajuju 23 agosto: Gruppi, chat Admin e ultimi fix app"
+        run: |
+          npx eas-cli@latest update --channel production --platform all --environment production --message "Bajuju 23 agosto: Gruppi, chat Admin e ultimi fix app"
 
       - name: Record OTA result
         if: always() && github.event_name == 'push'

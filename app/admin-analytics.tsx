@@ -22,11 +22,21 @@ type AnalyticsSummary = {
   notification_opens?: number;
   experiences_created?: number;
   experiences_joined?: number;
+  tracked_experiences_joined?: number;
   waitlist_joins?: number;
   next_experience_opens?: number;
+  network_errors?: number;
+  app_errors?: number;
+  future_experiences?: number;
+  future_experiences_without_participants?: number;
+  average_fill_rate?: number;
   daily_active_users?: Array<{ day?: string; users?: number }>;
   top_events?: Array<{ event?: string; count?: number }>;
   top_creation_locations?: Array<{ location?: string; count?: number }>;
+  future_events_by_location?: Array<{ location?: string; count?: number }>;
+  users_by_location?: Array<{ location?: string; count?: number }>;
+  demand_without_events?: Array<{ location?: string; count?: number }>;
+  top_error_endpoints?: Array<{ endpoint?: string; count?: number }>;
 };
 
 function numberValue(value: unknown) {
@@ -40,10 +50,12 @@ function eventLabel(value: string) {
     case 'find_open': return 'Aperture Trova';
     case 'notification_open': return 'Notifiche aperte';
     case 'experience_created': return 'Esperienze create';
-    case 'experience_joined': return 'Partecipazioni';
+    case 'experience_joined': return 'Partecipazioni tracciate';
     case 'waitlist_joined': return 'Ingressi in lista d’attesa';
     case 'waitlist_left': return 'Uscite dalla lista d’attesa';
     case 'next_experience_open': return 'Prossima esperienza aperta';
+    case 'network_error': return 'Errori Supabase/rete';
+    case 'app_error': return 'Errori app';
     default: return value.replace(/_/g, ' ');
   }
 }
@@ -113,7 +125,7 @@ export default function AdminAnalyticsScreen() {
           <Text style={styles.kicker}>BAJUJU ANALYTICS</Text>
           <Text style={styles.title}>Come viene usata l’app</Text>
           <Text style={styles.subtitle}>
-            Dati interni Bajuju. Nessun contenuto di chat o testo privato viene mostrato qui.
+            Utilizzo, salute tecnica e copertura territoriale. Nessun contenuto di chat o testo privato viene mostrato qui.
           </Text>
 
           <View style={styles.periodRow}>
@@ -143,9 +155,13 @@ export default function AdminAnalyticsScreen() {
               <StatCard label="Home aperte" value={numberValue(summary?.home_opens)} />
               <StatCard label="Trova aperto" value={numberValue(summary?.find_opens)} />
               <StatCard label="Esperienze create" value={numberValue(summary?.experiences_created)} />
-              <StatCard label="Partecipazioni" value={numberValue(summary?.experiences_joined)} />
+              <StatCard label="Partecipazioni reali" value={numberValue(summary?.experiences_joined)} />
               <StatCard label="Lista d’attesa" value={numberValue(summary?.waitlist_joins)} />
               <StatCard label="Notifiche aperte" value={numberValue(summary?.notification_opens)} />
+              <StatCard label="Eventi futuri" value={numberValue(summary?.future_experiences)} />
+              <StatCard label="Futuri senza iscritti" value={numberValue(summary?.future_experiences_without_participants)} />
+              <StatCard label="Riempimento medio" value={`${numberValue(summary?.average_fill_rate)}%`} />
+              <StatCard label="Errori tecnici" value={numberValue(summary?.network_errors) + numberValue(summary?.app_errors)} />
             </View>
 
             <AnalyticsList
@@ -174,6 +190,42 @@ export default function AdminAnalyticsScreen() {
                 value: numberValue(item.count),
               }))}
             />
+
+            <AnalyticsList
+              title="Eventi futuri per zona"
+              emptyText="Nessun evento futuro disponibile."
+              rows={(summary?.future_events_by_location || []).map((item) => ({
+                label: String(item.location || 'Non indicata'),
+                value: numberValue(item.count),
+              }))}
+            />
+
+            <AnalyticsList
+              title="Utenti per zona"
+              emptyText="Nessuna località disponibile nei profili."
+              rows={(summary?.users_by_location || []).map((item) => ({
+                label: String(item.location || 'Non indicata'),
+                value: numberValue(item.count),
+              }))}
+            />
+
+            <AnalyticsList
+              title="Zone con utenti ma senza eventi futuri"
+              emptyText="Ottimo: non risultano zone scoperte tra quelle censite."
+              rows={(summary?.demand_without_events || []).map((item) => ({
+                label: String(item.location || 'Non indicata'),
+                value: numberValue(item.count),
+              }))}
+            />
+
+            <AnalyticsList
+              title="Errori tecnici più frequenti"
+              emptyText="Nessun errore Supabase/rete registrato nel periodo."
+              rows={(summary?.top_error_endpoints || []).map((item) => ({
+                label: String(item.endpoint || 'Sconosciuto'),
+                value: numberValue(item.count),
+              }))}
+            />
           </>
         )}
       </ScrollView>
@@ -189,7 +241,7 @@ function PeriodButton({ active, label, onPress }: { active: boolean; label: stri
   );
 }
 
-function StatCard({ label, value }: { label: string; value: number }) {
+function StatCard({ label, value }: { label: string; value: number | string }) {
   return (
     <View style={styles.statCard}>
       <Text style={styles.statValue}>{value}</Text>

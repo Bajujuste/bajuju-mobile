@@ -44,6 +44,7 @@ export type HomeGroupPreview = {
   name: string;
   city: string;
   province: string;
+  coverUrl: string;
   memberCount: number;
   joinedByMe: boolean;
 };
@@ -198,9 +199,13 @@ export function BajujuHomeView({
                       onPress={() => onOpenGroup(group.id)}
                       style={({ pressed }) => [styles.groupCard, pressed && styles.pressed]}
                     >
-                      <View style={styles.groupIcon}>
-                        <BajujuIcon name="group" size={28} color={COLORS.brightPink} />
-                      </View>
+                      {group.coverUrl ? (
+                        <Image source={{ uri: group.coverUrl }} resizeMode="cover" style={styles.groupCover} />
+                      ) : (
+                        <View style={styles.groupIcon}>
+                          <BajujuIcon name="group" size={28} color={COLORS.brightPink} />
+                        </View>
+                      )}
                       <Text style={styles.groupName} numberOfLines={2}>{group.name}</Text>
                       {place ? <Text style={styles.groupPlace} numberOfLines={1}>{place}</Text> : null}
                       <Text style={styles.groupMembers}>
@@ -388,7 +393,8 @@ const styles = StyleSheet.create({
   groupsTitle: { marginTop: 2, color: COLORS.plum, fontFamily: 'FredokaBold', fontSize: 25, letterSpacing: -0.4 },
   groupsSeeAll: { color: COLORS.brightPink, fontFamily: 'FredokaSemiBold', fontSize: 13 },
   groupsScroll: { paddingHorizontal: 22, paddingBottom: 4, gap: 11 },
-  groupCard: { width: 154, minHeight: 167, padding: 15, borderRadius: 25, borderWidth: 1.5, borderColor: COLORS.line, backgroundColor: COLORS.white, shadowColor: '#9B1A5B', shadowOpacity: 0.09, shadowRadius: 11, shadowOffset: { width: 0, height: 6 }, elevation: 2 },
+  groupCard: { width: 154, minHeight: 205, padding: 15, borderRadius: 25, borderWidth: 1.5, borderColor: COLORS.line, backgroundColor: COLORS.white, shadowColor: '#9B1A5B', shadowOpacity: 0.09, shadowRadius: 11, shadowOffset: { width: 0, height: 6 }, elevation: 2 },
+  groupCover: { width: '100%', height: 70, borderRadius: 17, backgroundColor: COLORS.softPink },
   groupIcon: { width: 47, height: 47, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.softPink },
   groupName: { marginTop: 10, color: COLORS.plum, fontFamily: 'FredokaBold', fontSize: 17, lineHeight: 20 },
   groupPlace: { marginTop: 5, color: COLORS.muted, fontFamily: 'FredokaMedium', fontSize: 11 },

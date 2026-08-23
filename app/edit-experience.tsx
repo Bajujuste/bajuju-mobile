@@ -14,7 +14,7 @@ import {
   View,
 } from 'react-native';
 
-import { EXPERIENCE_CATEGORIES } from '@/src/constants/experienceCategories';
+import { EXPERIENCE_CATEGORIES, normalizeExperienceCategory } from '@/src/constants/experienceCategories';
 import { resolveAddressText } from '../src/lib/addressAutocomplete';
 import { supabase } from '../src/lib/supabase';
 
@@ -51,6 +51,32 @@ function validDate(value: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const date = new Date(`${value}T12:00:00`);
   return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
+function categoryToDatabaseValue(value: string) {
+  switch (normalizeExperienceCategory(value)) {
+    case 'Cena':
+      return 'cena';
+    case 'Aperitivo':
+      return 'aperitivo';
+    case 'Camminata':
+      return 'passeggiata';
+    case 'Sport':
+      return 'sport';
+    case 'Cultura':
+      return 'cultura';
+    case 'Musica':
+      return 'musica';
+    case 'Cinema/Teatro':
+      return 'cinema';
+    case 'Gita':
+      return 'gita';
+    case 'Giochi':
+      return 'giochi';
+    case 'Altro':
+    default:
+      return 'altro';
+  }
 }
 
 export default function EditExperienceScreen() {
@@ -134,7 +160,7 @@ export default function EditExperienceScreen() {
       setCity(String(row.city || ''));
       setProvince(String(row.province || ''));
       setMeetingPlace(String(row.meeting_place || ''));
-      setCategory(String(row.category || ''));
+      setCategory(normalizeExperienceCategory(row.category));
       setMaxParticipants(row.max_participants ? String(row.max_participants) : '');
       setBudgetAmount(row.budget_amount !== null && row.budget_amount !== undefined ? String(row.budget_amount) : '');
       originalLocationRef.current = {
@@ -230,7 +256,7 @@ export default function EditExperienceScreen() {
           city: cleanCity,
           province: cleanProvince,
           meeting_place: cleanMeetingPlace,
-          category,
+          category: categoryToDatabaseValue(category),
           max_participants: parsedMax,
           budget_amount: parsedBudget,
           latitude,

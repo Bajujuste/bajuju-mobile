@@ -28,8 +28,9 @@ function safeText(value: unknown, maxLength: number) {
   return String(value).trim().slice(0, maxLength);
 }
 
-function requestUrl(input: Parameters<typeof fetch>[0]) {
+function requestUrl(input: RequestInfo | URL) {
   if (typeof input === 'string') return input;
+  if (input instanceof URL) return input.toString();
   const possibleUrl = (input as { url?: unknown })?.url;
   return possibleUrl ? String(possibleUrl) : String(input);
 }
@@ -148,9 +149,9 @@ function scheduleNetworkErrorFlush() {
 }
 
 async function monitoredFetch(
-  input: Parameters<typeof fetch>[0],
-  init?: Parameters<typeof fetch>[1]
-) {
+  input: RequestInfo | URL,
+  init?: RequestInit
+): Promise<Response> {
   const rawUrl = requestUrl(input);
   const requestInfo = describeSupabaseRequest(rawUrl);
   const method = String(init?.method || 'GET').toUpperCase();

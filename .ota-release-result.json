@@ -1,0 +1,10 @@
+{
+  "run_id": "32641697172",
+  "source_sha": "81f6787d341dbc03b785814f396678915916ef99",
+  "checks": "success",
+  "expo_token": "failure",
+  "publish": "skipped",
+  "channel": "production",
+  "platform": "all",
+  "runtime": "1.0.3"
+}

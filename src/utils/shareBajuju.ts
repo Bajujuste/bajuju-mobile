@@ -14,6 +14,14 @@ type ShareExperienceParams = {
   activityId?: string | null;
 };
 
+type ShareGroupParams = {
+  id?: string | null;
+  name?: string | null;
+  category?: string | null;
+  city?: string | null;
+  province?: string | null;
+};
+
 export async function shareBajujuHome() {
   await Share.share({
     title: 'Bajuju',
@@ -44,6 +52,31 @@ export async function shareBajujuExperience(params: ShareExperienceParams) {
 
   await Share.share({
     title,
+    message: lines.join('\n'),
+  });
+}
+
+export async function shareBajujuGroup(params: ShareGroupParams) {
+  const name = params.name?.trim() || 'Gruppo Bajuju';
+  const category = params.category?.trim();
+  const place = [params.city, params.province].filter(Boolean).join(', ');
+  const id = String(params.id || '').trim();
+  const groupLink = id
+    ? `${BAJUJU_EVENT_LINK}/group-detail?id=${encodeURIComponent(id)}`
+    : BAJUJU_LINK;
+
+  const lines = [
+    'Guarda questo gruppo su Bajuju:',
+    name,
+    category ? `Categoria: ${category}` : '',
+    place ? `Dove: ${place}` : '',
+    '',
+    'Dal Vivo è Meglio',
+    groupLink,
+  ].filter(Boolean);
+
+  await Share.share({
+    title: name,
     message: lines.join('\n'),
   });
 }

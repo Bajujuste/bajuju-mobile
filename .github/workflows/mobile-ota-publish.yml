@@ -1,0 +1,45 @@
+name: Bajuju OTA Production
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - .ota-release-trigger
+
+jobs:
+  publish-ota:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Bajuju release checks
+        run: npm run check:release
+
+      - name: Verify Expo token
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "EXPO_TOKEN non configurato nei secrets GitHub."
+            exit 1
+          fi
+
+      - name: Publish OTA to production
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          CI: "1"
+        run: npx eas-cli@latest update --channel production --platform all --environment production --message "Bajuju 23 agosto: Gruppi, chat Admin e ultimi fix app"

@@ -348,7 +348,16 @@ export default function ExperiencesMapScreen() {
         setViewerCoordinates({ latitude: position.coords.latitude, longitude: position.coords.longitude });
         })().catch(() => setViewerCoordinates(null));
 
-      const result = await supabase.from('activities').select('*').limit(200);
+      const today = new Date().toISOString().slice(0, 10);
+      const result = await supabase
+        .from('activities')
+        .select('*')
+        .eq('is_flash', false)
+        .is('deleted_at', null)
+        .gte('activity_date', today)
+        .order('activity_date', { ascending: true })
+        .order('activity_time', { ascending: true })
+        .limit(500);
 
       if (result.error) {
         setRows([]);
@@ -373,7 +382,6 @@ export default function ExperiencesMapScreen() {
           if (coordinates === null) continue;
           const id = activityId(row);
           setRows((current) => current.map((item) => activityId(item) === id ? { ...item, latitude: coordinates.latitude, longitude: coordinates.longitude } : item));
-          if (id) await supabase.from('activities').update({ latitude: coordinates.latitude, longitude: coordinates.longitude }).eq('id', id);
         }
       })();
     } catch (error: unknown) {

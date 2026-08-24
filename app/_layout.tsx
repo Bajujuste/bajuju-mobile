@@ -1,8 +1,8 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
-import { router, Stack, usePathname } from 'expo-router';
+import { router, Stack, usePathname, useRootNavigationState } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { Platform, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -115,6 +115,10 @@ export const unstable_settings = {
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const pathname = usePathname();
+  const rootNavigationState = useRootNavigationState();
+  const rootNavigationReady = Boolean(rootNavigationState?.key);
+  const pendingPushNotificationRef = useRef<Record<string, unknown> | null>(null);
+  const handledPushResponseIdsRef = useRef<Set<string>>(new Set());
   const homeAlreadyHandlesSafeArea = pathname === '/home';
   const [fontsLoaded, fontError] = useFonts({
     FredokaRegular: require('../assets/fonts/Fredoka-400.ttf'),
@@ -176,13 +180,26 @@ export default function RootLayout() {
         if (!active) return;
 
         const handleResponse = (response: any) => {
+          const responseId = String(response?.notification?.request?.identifier || '').trim();
+          if (responseId && handledPushResponseIdsRef.current.has(responseId)) return;
+
           const data = response?.notification?.request?.content?.data;
-          if (data && typeof data === 'object') {
-            openPushNotification(data as Record<string, unknown>);
+          if (!data || typeof data !== 'object') return;
+
+          if (responseId) handledPushResponseIdsRef.current.add(responseId);
+
+          if (rootNavigationReady) {
+            setTimeout(() => {
+              openPushNotification(data as Record<string, unknown>);
+            }, 0);
+          } else {
+            pendingPushNotificationRef.current = data as Record<string, unknown>;
           }
+
+          void Notifications.clearLastNotificationResponseAsync().catch(() => {});
         };
 
-        const lastResponse = Notifications.getLastNotificationResponse();
+        const lastResponse = await Notifications.getLastNotificationResponseAsync();
         if (lastResponse) handleResponse(lastResponse);
 
         subscription = Notifications.addNotificationResponseReceivedListener(handleResponse);
@@ -195,7 +212,22 @@ export default function RootLayout() {
       active = false;
       subscription?.remove();
     };
-  }, []);
+  }, [rootNavigationReady]);
+
+  useEffect(() => {
+    if (Platform.OS === 'web' || !rootNavigationReady) return;
+
+    const pendingData = pendingPushNotificationRef.current;
+    if (!pendingData) return;
+
+    pendingPushNotificationRef.current = null;
+
+    const timer = setTimeout(() => {
+      openPushNotification(pendingData);
+    }, 0);
+
+    return () => clearTimeout(timer);
+  }, [rootNavigationReady]);
 
   useEffect(() => {
     if (fontsLoaded || fontError) {

@@ -90,7 +90,7 @@ async function savePushToken(userId: string, token: string) {
           notify_contact_accepted: existingPreferences?.notify_contact_accepted ?? true,
           notify_experience_cancelled: existingPreferences?.notify_experience_cancelled ?? true,
           notify_experience_reminder: existingPreferences?.notify_experience_reminder ?? true,
-          notify_chat_messages: false,
+          notify_chat_messages: existingPreferences?.notify_chat_messages ?? true,
         },
         {
           onConflict: 'user_id',

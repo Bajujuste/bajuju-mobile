@@ -126,7 +126,7 @@ export default function NotificationsScreen() {
 
     switch (screen) {
       case 'experience':
-        if (activityId) router.push({ pathname: '/experience-detail' as any, params: { id: activityId } });
+        if (activityId) router.push({ pathname: '/experience-detail' as any, params: { id: activityId, section: section || undefined } });
         else router.push('/experiences' as any);
         return;
       case 'experiences':

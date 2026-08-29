@@ -212,8 +212,10 @@ function canInviteOutAfterExperience(experience: ActivityRow | null) {
 
 export default function ExperienceDetailScreen() {
   const pageScrollRef = useRef<any>(null);
-  const params = useLocalSearchParams<{ id?: string }>();
+  const chatAutoScrollDoneRef = useRef(false);
+  const params = useLocalSearchParams<{ id?: string; section?: string }>();
   const experienceId = params.id;
+  const requestedSection = params.section;
 
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [experience, setExperience] = useState<ActivityRow | null>(null);
@@ -319,6 +321,23 @@ export default function ExperienceDetailScreen() {
 
   const canUseChat = isOrganizer || isParticipant;
   const canShowInviteOut = canUseChat && canInviteOutAfterExperience(experience);
+
+  useEffect(() => {
+    chatAutoScrollDoneRef.current = false;
+  }, [experienceId, requestedSection]);
+
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    if (requestedSection !== 'chat') return;
+    if (loading || !canUseChat || chatAutoScrollDoneRef.current) return;
+
+    const timeout = setTimeout(() => {
+      pageScrollRef.current?.scrollToEnd({ animated: true });
+      chatAutoScrollDoneRef.current = true;
+    }, 350);
+
+    return () => clearTimeout(timeout);
+  }, [canUseChat, loading, messages.length, requestedSection]);
 
   function isBlockedUser(userId: string) {
     return blockedUserIds.has(String(userId || '').trim());
@@ -818,6 +837,24 @@ export default function ExperienceDetailScreen() {
 
       setNewMessage('');
       await loadMessages(experienceId);
+
+      if (Platform.OS !== 'web') {
+        void supabase.functions
+          .invoke('send-bajuju-chat-push', {
+            body: {
+              activityId: experienceId,
+              message: cleanMessage,
+            },
+          })
+          .then(({ error }) => {
+            if (error) {
+              console.log('Push chat non inviata.');
+            }
+          })
+          .catch(() => {
+            console.log('Push chat non disponibile.');
+          });
+      }
     } catch (error: unknown) {
       const message =
         error instanceof Error

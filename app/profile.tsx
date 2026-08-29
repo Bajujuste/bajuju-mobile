@@ -6,6 +6,7 @@ import {
     ActivityIndicator,
     Alert,
     Image,
+    Platform,
     Pressable,
     RefreshControl,
     ScrollView,
@@ -426,6 +427,7 @@ export default function ProfileScreen() {
   const [gender, setGender] = useState('');
   const [directContactsEnabled, setDirectContactsEnabled] = useState(true);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [chatNotificationsEnabled, setChatNotificationsEnabled] = useState(true);
   const [photoLoadError, setPhotoLoadError] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
@@ -765,12 +767,18 @@ export default function ProfileScreen() {
       try {
         const notificationPreferencesResult = await supabase
           .from('notification_preferences')
-          .select('enabled, preferred_province')
+          .select('enabled, notify_chat_messages, preferred_province')
           .eq('user_id', String(currentUser.id))
           .maybeSingle();
 
         if (!notificationPreferencesResult.error && notificationPreferencesResult.data) {
           setNotificationsEnabled(notificationPreferencesResult.data.enabled === true);
+
+          if (Platform.OS !== 'web') {
+            setChatNotificationsEnabled(
+              notificationPreferencesResult.data.notify_chat_messages !== false
+            );
+          }
 
           const preferredProvince = notificationPreferencesResult.data.preferred_province;
           if (
@@ -1016,6 +1024,9 @@ export default function ProfileScreen() {
           {
             user_id: user.id,
             enabled: notificationsEnabled,
+            ...(Platform.OS !== 'web'
+              ? { notify_chat_messages: chatNotificationsEnabled }
+              : {}),
             preferred_province: cleanProvince,
             updated_at: new Date().toISOString(),
           },
@@ -1081,7 +1092,7 @@ export default function ProfileScreen() {
     } finally {
       setSaving(false);
     }
-  }, [ageRange, directContactsEnabled, gender, homeCity, loadAll, notificationsEnabled, photoUrl, profile, profileIdField, profileIdValue, profileName, province, user]);
+  }, [ageRange, chatNotificationsEnabled, directContactsEnabled, gender, homeCity, loadAll, notificationsEnabled, photoUrl, profile, profileIdField, profileIdValue, profileName, province, user]);
 
   const answerItem = useCallback(
     async (item: ContactItem | InviteItem, status: 'accepted' | 'rejected') => {
@@ -1419,6 +1430,29 @@ export default function ProfileScreen() {
             thumbColor={notificationsEnabled ? BAJUJU_PINK : '#f4f4f5'}
           />
         </View>
+
+        {Platform.OS !== 'web' ? (
+          <View style={[styles.toggleRow, notificationsEnabled && chatNotificationsEnabled && styles.toggleRowActive]}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.toggleTitle}>Notifiche chat</Text>
+              <Text style={styles.toggleSubtitle}>
+                {!notificationsEnabled
+                  ? 'Attiva prima le notifiche'
+                  : chatNotificationsEnabled
+                    ? 'Attive'
+                    : 'Disattivate'}
+              </Text>
+            </View>
+
+            <Switch
+              value={notificationsEnabled && chatNotificationsEnabled}
+              onValueChange={setChatNotificationsEnabled}
+              disabled={!notificationsEnabled}
+              trackColor={{ false: '#d1d5db', true: '#f4a8ce' }}
+              thumbColor={notificationsEnabled && chatNotificationsEnabled ? BAJUJU_PINK : '#f4f4f5'}
+            />
+          </View>
+        ) : null}
 
         <Pressable
           style={[styles.toggleRow, directContactsEnabled && styles.toggleRowActive]}

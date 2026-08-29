@@ -317,7 +317,6 @@ export default function ExperiencesScreen() {
     const oldestAllowed = now - PAST_RETENTION_DAYS * 24 * 60 * 60 * 1000;
     return activities
       .filter((row) => myActivityIds.has(String(row.id || '')))
-      .filter((row) => String(row.creator_id || '') !== currentUserId)
       .filter((row) => {
         const moment = activityMoment(row);
         if (!moment) return false;

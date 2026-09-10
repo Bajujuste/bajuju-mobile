@@ -1,0 +1,3427 @@
+import { router } from 'expo-router';
+import * as Location from 'expo-location';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Alert, ActivityIndicator, Image, Pressable, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text as NativeText, TextInput, TextProps, View } from 'react-native';
+
+import BajujuMap, { BajujuMapItem } from '../../src/components/BajujuMap';
+import { AddressAutocompleteField } from '../../src/components/AddressAutocompleteField';
+import { BajujuBottomNav } from '../../src/components/navigation/BajujuBottomNav';
+import type { ResolvedAddress } from '../../src/lib/addressAutocomplete';
+import { supabase } from '../../src/lib/supabase';
+import { BAJUJU_COLORS, BAJUJU_FONTS } from '../../src/theme/bajujuTheme';
+import { shareBajujuFlash } from '../../src/utils/shareBajuju';
+import { sendBajujuPushNotification, buildFlashNotificationTitle } from '../../src/utils/bajujuNotifications';
+import { ITALIAN_MUNICIPALITIES_BY_PROVINCE } from '../../src/data/italianMunicipalities';
+
+const bajujuLogo = require('../../assets/brand/bajuju-logo.png');
+
+function Text({ style, ...props }: TextProps) {
+  const flattenedStyle = StyleSheet.flatten(style);
+  const weight = String(flattenedStyle?.fontWeight || '');
+  const fontFamily =
+    ['800', '900', 'bold'].includes(weight)
+      ? BAJUJU_FONTS.bold
+      : ['600', '700'].includes(weight)
+        ? BAJUJU_FONTS.semiBold
+        : weight === '500'
+          ? BAJUJU_FONTS.medium
+          : BAJUJU_FONTS.regular;
+
+  return <NativeText {...props} style={[{ fontFamily }, style]} />;
+}
+
+type LooseRow = Record<string, any>;
+
+type Coordinates = {
+  latitude: number;
+  longitude: number;
+};
+
+type FlashTab = 'all' | 'mine' | 'joined';
+type FlashDuration = 3 | 5 | 8 | 12;
+type AvailabilityDuration = 1 | 2 | 3 | 'evening';
+type FlashSection = 'create' | 'find' | 'availability' | 'available' | null;
+
+const ACTIVE_PROVINCES = ['Bergamo', 'Milano', 'Lecco', 'Monza e Brianza', 'Verona'] as const;
+
+function normalizeMunicipalitySearch(value: string) {
+  return value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function firstValue(row: LooseRow | null | undefined, keys: string[], fallback: any = null) {
+  if (!row) return fallback;
+
+  for (const key of keys) {
+    if (Object.prototype.hasOwnProperty.call(row, key)) {
+      const value = row[key];
+      if (value !== null && value !== undefined && value !== '') return value;
+    }
+  }
+
+  return fallback;
+}
+
+function firstText(row: LooseRow | null | undefined, keys: string[], fallback = '') {
+  const value = firstValue(row, keys, fallback);
+  if (value === null || value === undefined) return fallback;
+  return String(value);
+}
+
+function booleanFromRow(row: LooseRow | null | undefined, keys: string[], fallback = false) {
+  const value = firstValue(row, keys);
+
+  if (typeof value === 'boolean') return value;
+
+  if (typeof value === 'string') {
+    const normalized = value.toLowerCase().trim();
+
+    if (['true', '1', 'yes', 'si', 'sì', 'attivo', 'active', 'flash'].includes(normalized)) return true;
+    if (['false', '0', 'no', 'non attivo', 'inactive'].includes(normalized)) return false;
+  }
+
+  if (typeof value === 'number') return value === 1;
+
+  return fallback;
+}
+
+function formatDate(value: any) {
+  if (!value) return 'Orario non disponibile';
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+
+  return date.toLocaleDateString('it-IT', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+function normalizeDate(value: any) {
+  if (!value) return null;
+
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
+
+  if (typeof value === 'number') {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+
+    const direct = new Date(trimmed);
+    if (!Number.isNaN(direct.getTime())) return direct;
+
+    const italianDate = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[,\s]+(\d{1,2}):(\d{2}))?/);
+    if (italianDate) {
+      const [, day, month, year, hour = '0', minute = '0'] = italianDate;
+      const parsed = new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute));
+      return Number.isNaN(parsed.getTime()) ? null : parsed;
+    }
+  }
+
+  return null;
+}
+
+function getFlashDate(row: LooseRow) {
+  const activityDate = firstText(row, ['activity_date', 'event_date', 'date', 'data', 'day', 'giorno'], '');
+  const activityTime = firstText(row, ['activity_time', 'event_time', 'time', 'ora'], '');
+
+  if (activityDate && activityTime) {
+    const combined = `${activityDate}T${activityTime}`;
+    const parsed = normalizeDate(combined);
+    if (parsed) return parsed;
+  }
+
+  return normalizeDate(
+    firstValue(row, [
+      'start_at',
+      'starts_at',
+      'start_time',
+      'event_start_at',
+      'activity_start_at',
+      'scheduled_at',
+      'date_time',
+      'data_ora',
+    ])
+  );
+}
+
+function flashTitle(row: LooseRow) {
+  return firstText(row, ['title', 'titolo', 'name', 'nome', 'activity_title'], 'Bajuju Flash');
+}
+
+function flashCity(row: LooseRow) {
+  return firstText(row, ['city', 'citta', 'comune', 'location_city'], 'Comune non indicato');
+}
+
+function flashProvince(row: LooseRow) {
+  return firstText(row, ['province', 'provincia', 'location_province'], '');
+}
+
+function flashCreatorId(row: LooseRow) {
+  return String(
+    firstValue(
+      row,
+      [
+        'user_id',
+        'owner_id',
+        'creator_id',
+        'created_by',
+        'organizer_id',
+        'profile_id',
+        'author_id',
+      ],
+      ''
+    )
+  );
+}
+
+function flashCreator(row: LooseRow) {
+  return firstText(
+    row,
+    [
+      'creator_name',
+      'organizer_name',
+      'author_name',
+      'profile_name',
+      'display_name',
+      'full_name',
+      'name',
+      'nome',
+      'created_by_name',
+      'user_name',
+    ],
+    ''
+  );
+}
+
+function flashPlace(row: LooseRow) {
+  return firstText(row, ['place', 'luogo', 'address', 'indirizzo', 'meeting_point', 'punto_ritrovo'], '');
+}
+
+function confirmNative(title: string, message: string, confirmText = 'Conferma') {
+  return new Promise<boolean>((resolve) => {
+    Alert.alert(title, message, [
+      { text: 'No', style: 'cancel', onPress: () => resolve(false) },
+      { text: confirmText, style: 'destructive', onPress: () => resolve(true) },
+    ]);
+  });
+}
+
+function isDeleted(row: LooseRow) {
+  const deletedValue = firstValue(row, [
+    'deleted_at',
+    'removed_at',
+    'cancelled_at',
+    'canceled_at',
+    'archived_at',
+  ]);
+
+  if (deletedValue) return true;
+
+  if (
+    booleanFromRow(
+      row,
+      [
+        'is_deleted',
+        'deleted',
+        'is_removed',
+        'removed',
+        'is_cancelled',
+        'is_canceled',
+        'cancelled',
+        'canceled',
+        'archived',
+        'hidden',
+      ],
+      false
+    )
+  ) {
+    return true;
+  }
+
+  const status = firstText(row, ['status', 'stato', 'state', 'activity_status', 'event_status'], '').toLowerCase().trim();
+
+  return [
+    'deleted',
+    'eliminato',
+    'eliminata',
+    'removed',
+    'cancellato',
+    'cancellata',
+    'cancelled',
+    'canceled',
+    'annullato',
+    'annullata',
+    'archived',
+    'archiviato',
+    'archiviata',
+    'closed',
+    'chiuso',
+    'chiusa',
+  ].includes(status);
+}
+
+function isFlashRow(row: LooseRow) {
+  if (booleanFromRow(row, ['is_flash', 'flash', 'bajuju_flash', 'isFlash'], false)) return true;
+
+  const text = firstText(row, ['type', 'activity_type', 'event_type', 'category', 'categoria', 'kind'], '')
+    .toLowerCase()
+    .trim();
+
+  return ['flash', 'bajuju_flash', 'bajuju flash', 'istantaneo', 'veloce'].includes(text);
+}
+
+function isFlashStillAvailable(row: LooseRow) {
+  const expiresAt = normalizeDate(firstValue(row, ['expires_at', 'expire_at', 'expiresAt']));
+
+  if (expiresAt) {
+    return expiresAt.getTime() >= new Date().getTime();
+  }
+
+  const date = getFlashDate(row);
+  if (!date) return true;
+
+  return date.getTime() >= new Date().getTime();
+}
+
+function rowBelongsToUser(row: LooseRow, userId: string | null) {
+  if (!userId) return false;
+
+  const owner = firstValue(row, ['creator_id', 'organizer_id', 'created_by', 'user_id', 'profile_id']);
+
+  return owner ? String(owner) === String(userId) : false;
+}
+
+function getCoordinates(row: LooseRow) {
+  const latitudeValue = firstValue(row, ['latitude', 'lat'], null);
+  const longitudeValue = firstValue(row, ['longitude', 'lng', 'lon'], null);
+
+  if (
+    latitudeValue === null ||
+    latitudeValue === undefined ||
+    String(latitudeValue).trim() === '' ||
+    longitudeValue === null ||
+    longitudeValue === undefined ||
+    String(longitudeValue).trim() === ''
+  ) {
+    return null;
+  }
+
+  const latitude = Number(latitudeValue);
+  const longitude = Number(longitudeValue);
+
+  if (
+    Number.isFinite(latitude) === false ||
+    Number.isFinite(longitude) === false ||
+    latitude < -90 ||
+    latitude > 90 ||
+    longitude < -180 ||
+    longitude > 180 ||
+    (latitude === 0 && longitude === 0)
+  ) {
+    return null;
+  }
+
+  return { latitude, longitude };
+}
+
+function distanceKmBetween(a: Coordinates, b: Coordinates) {
+  const toRad = (value: number) => (value * Math.PI) / 180;
+  const earthRadiusKm = 6371;
+  const dLat = toRad(b.latitude - a.latitude);
+  const dLon = toRad(b.longitude - a.longitude);
+  const lat1 = toRad(a.latitude);
+  const lat2 = toRad(b.latitude);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+  return earthRadiusKm * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+}
+
+function availabilityDistanceText(row: LooseRow, viewer: Coordinates | null) {
+  if (viewer === null) return "Distanza non disponibile";
+  const other = getCoordinates(row);
+  if (other === null) return "Distanza non disponibile";
+  const km = distanceKmBetween(viewer, other);
+  return "~" + km.toFixed(1).replace(".", ",") + " km da te";
+}
+
+function flashId(row: LooseRow) {
+  return String(firstValue(row, ['id', 'activity_id'], '') || '');
+}
+
+function availableUserId(row: LooseRow) {
+  return String(firstValue(row, ['user_id'], '') || '');
+}
+
+function availableProfileName(profile: LooseRow | null | undefined) {
+  return firstText(
+    profile,
+    ['nickname', 'username', 'display_name', 'full_name', 'name', 'nome'],
+    'Utente Bajuju'
+  );
+}
+
+function availableProfilePhoto(profile: LooseRow | null | undefined) {
+  return firstText(
+    profile,
+    ['avatar_url', 'photo_url', 'profile_photo_url', 'profile_image_url', 'image_url', 'foto'],
+    ''
+  );
+}
+
+function availableProfileAge(profile: LooseRow | null | undefined) {
+  return firstText(
+    profile,
+    ['age', 'eta', 'età', 'user_age', 'age_range', 'fascia_eta', 'age_band', 'eta_range'],
+    ''
+  );
+}
+
+function availabilityRemainingText(row: LooseRow) {
+  const expiresAt = normalizeDate(firstValue(row, ['expires_at']));
+
+  if (!expiresAt) return 'Disponibilità attiva';
+
+  const diffMs = expiresAt.getTime() - Date.now();
+
+  if (diffMs <= 0) return 'Disponibilità scaduta';
+
+  const minutes = Math.max(1, Math.ceil(diffMs / 60000));
+
+  if (minutes < 60) return `Ancora ${minutes} min`;
+
+  const hours = Math.floor(minutes / 60);
+  const restMinutes = minutes % 60;
+
+  if (restMinutes === 0) return `Ancora ${hours} ${hours === 1 ? 'ora' : 'ore'}`;
+
+  return `Ancora ${hours}h ${restMinutes}min`;
+}
+
+async function geocodeAddress(address: string, streetNumber: string, city: string, province: string) {
+  const cleanAddress = address.trim();
+  const cleanStreetNumber = streetNumber.trim();
+  const cleanCity = city.trim();
+  const cleanProvince = province.trim();
+
+  const addressAlreadyHasStreetNumber =
+    cleanStreetNumber.length > 0 &&
+    new RegExp(`\\b${cleanStreetNumber.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}\\b`, 'i').test(cleanAddress);
+
+  const fullAddress =
+    cleanStreetNumber && !addressAlreadyHasStreetNumber ? `${cleanAddress} ${cleanStreetNumber}` : cleanAddress;
+
+  const queries = [
+    `${fullAddress}, ${cleanCity}, ${cleanProvince}`,
+    `${fullAddress}, ${cleanCity}`,
+    `${cleanAddress}, ${cleanCity}, ${cleanProvince}`,
+    `${cleanAddress}, ${cleanCity}`,
+    `${cleanCity}, ${cleanProvince}, Italia`,
+    `${cleanCity}, Italia`,
+  ];
+
+  for (const query of queries) {
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=it&q=${encodeURIComponent(query)}`;
+
+      const response = await fetch(url, {
+        headers: {
+          Accept: 'application/json',
+          'User-Agent': 'BajujuMobileApp/1.0',
+        },
+      });
+
+      if (!response.ok) {
+        console.log('Geocoding non riuscito.');
+        continue;
+      }
+
+      const data = await response.json();
+
+      if (!Array.isArray(data) || data.length === 0) {
+        console.log('Nessun risultato geocoding.');
+        continue;
+      }
+
+      const first = data[0];
+      const latitude = Number(first.lat);
+      const longitude = Number(first.lon);
+
+      if (Number.isNaN(latitude) || Number.isNaN(longitude)) {
+        console.log('Coordinate geocoding non valide.');
+        continue;
+      }
+
+      return { latitude, longitude };
+    } catch (error) {
+      console.log('Errore geocoding.');
+    }
+  }
+
+  return null;
+}
+
+type FlashScreenProps = {
+  forcedSection?: FlashSection;
+};
+
+export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
+  const [userId, setUserId] = useState<string | null>(null);
+  const [rows, setRows] = useState<LooseRow[]>([]);
+  const [joinedActivityIds, setJoinedActivityIds] = useState<Set<string>>(new Set());
+  const [participantCounts, setParticipantCounts] = useState<Record<string, number>>({});
+  const [creatorNames, setCreatorNames] = useState<Record<string, string>>({});
+  const [availableRows, setAvailableRows] = useState<LooseRow[]>([]);
+  const [availableProfiles, setAvailableProfiles] = useState<Record<string, LooseRow>>({});
+  const [myActiveAvailability, setMyActiveAvailability] = useState<LooseRow | null>(null);
+  const [viewerCoordinates, setViewerCoordinates] = useState<Coordinates | null>(null);
+  const [cancellingAvailability, setCancellingAvailability] = useState(false);
+  const [loadingAvailableUsers, setLoadingAvailableUsers] = useState(false);
+  const [sendingAvailabilityInviteTo, setSendingAvailabilityInviteTo] = useState<string | null>(null);
+  const [joiningActivityId, setJoiningActivityId] = useState<string | null>(null);
+  const [leavingActivityId, setLeavingActivityId] = useState<string | null>(null);
+  const [cancellingActivityId, setCancellingActivityId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [selectedProvince, setSelectedProvince] = useState<string>('Tutte');
+  const [selectedTab, setSelectedTab] = useState<FlashTab>('all');
+  const [selectedSection, setSelectedSection] = useState<FlashSection>(forcedSection ?? null);
+
+  const [newTitle, setNewTitle] = useState('');
+  const [newDescription, setNewDescription] = useState('');
+  const [newProvince, setNewProvince] = useState('Bergamo');
+  const [newCity, setNewCity] = useState('');
+  const [showNewMunicipalityList, setShowNewMunicipalityList] = useState(false);
+  const [newPlace, setNewPlace] = useState('');
+  const [newStreetNumber, setNewStreetNumber] = useState('');
+  const [newResolvedAddress, setNewResolvedAddress] = useState<ResolvedAddress | null>(null);
+  const [newDurationHours, setNewDurationHours] = useState<FlashDuration>(3);
+  const [availabilityProvince, setAvailabilityProvince] = useState('Bergamo');
+  const [availabilityCity, setAvailabilityCity] = useState('');
+  const [showAvailabilityMunicipalityList, setShowAvailabilityMunicipalityList] = useState(false);
+  const [availabilityDurationHours, setAvailabilityDurationHours] = useState<AvailabilityDuration>(2);
+  const [savingAvailability, setSavingAvailability] = useState(false);
+  const [savingFlash, setSavingFlash] = useState(false);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+
+  const newMunicipalities = useMemo(() => {
+    return ITALIAN_MUNICIPALITIES_BY_PROVINCE[
+      newProvince as keyof typeof ITALIAN_MUNICIPALITIES_BY_PROVINCE
+    ] ?? [];
+  }, [newProvince]);
+
+  const hasSelectedValidNewCity = newMunicipalities.includes(newCity as never);
+
+  const availabilityMunicipalities = useMemo(() => {
+    return ITALIAN_MUNICIPALITIES_BY_PROVINCE[
+      availabilityProvince as keyof typeof ITALIAN_MUNICIPALITIES_BY_PROVINCE
+    ] ?? [];
+  }, [availabilityProvince]);
+
+  const filteredAvailabilityMunicipalities = useMemo(() => {
+    const query = normalizeMunicipalitySearch(availabilityCity);
+
+    if (!query) return availabilityMunicipalities.slice(0, 24);
+
+    return availabilityMunicipalities
+      .filter((city) => normalizeMunicipalitySearch(city).includes(query))
+      .slice(0, 24);
+  }, [availabilityCity, availabilityMunicipalities]);
+
+  const hasSelectedValidAvailabilityCity = availabilityMunicipalities.includes(availabilityCity as never);
+
+  useEffect(() => {
+    setNewCity('');
+    setShowNewMunicipalityList(false);
+  }, [newProvince]);
+
+  useEffect(() => {
+  }, [availabilityProvince]);
+
+  useEffect(() => {
+    if (forcedSection) {
+      setSelectedSection(forcedSection);
+      if (forcedSection === 'create') {
+        setShowCreateForm(true);
+      }
+    }
+  }, [forcedSection]);
+
+
+  useEffect(() => {
+    async function loadPreferredProvince() {
+      try {
+        const authResult = await supabase.auth.getUser();
+        const currentUserId = authResult.data.user?.id;
+
+        if (!currentUserId) return;
+
+        const preferencesResult = await supabase
+          .from('notification_preferences')
+          .select('preferred_province')
+          .eq('user_id', currentUserId)
+          .maybeSingle();
+
+        const preferredProvince = preferencesResult.data?.preferred_province;
+
+        if (
+          !preferencesResult.error &&
+          typeof preferredProvince === 'string' &&
+          (ACTIVE_PROVINCES as readonly string[]).includes(preferredProvince.trim())
+        ) {
+          const cleanProvince = preferredProvince.trim();
+          // La provincia preferita aiuta solo nella creazione.
+          // "Guarda chi è disponibile" deve partire sempre da Tutte.
+          setNewProvince(cleanProvince);
+          setAvailabilityProvince(cleanProvince);
+        }
+      } catch {
+        // Mantiene i valori predefiniti se le preferenze non sono disponibili.
+      }
+    }
+
+    loadPreferredProvince();
+  }, []);
+
+  const loadFlashRows = useCallback(async () => {
+    setErrorMessage(null);
+
+    try {
+      const authResult = await supabase.auth.getUser();
+      const currentUserId = authResult.data.user?.id || null;
+      setUserId(currentUserId);
+
+      const result = await supabase
+        .from('activities')
+        .select('*')
+        .eq('is_flash', true)
+        .order('created_at', { ascending: false })
+        .limit(120);
+
+      if (result.error) {
+        setRows([]);
+        setJoinedActivityIds(new Set());
+        setErrorMessage(result.error.message || 'Non sono riuscito a caricare i Flash.');
+        return;
+      }
+
+      if (currentUserId) {
+        const joinedResult = await supabase
+          .from('activity_participants')
+          .select('activity_id,user_id,status')
+          .eq('user_id', currentUserId)
+          .limit(300);
+
+        if (!joinedResult.error && Array.isArray(joinedResult.data)) {
+          const joinedIds = new Set(
+            joinedResult.data
+              .filter((item: LooseRow) => {
+                const status = firstText(item, ['status', 'stato'], '').toLowerCase().trim();
+
+                return ![
+                  'rejected',
+                  'rifiutato',
+                  'declined',
+                  'annullato',
+                  'annullata',
+                  'deleted',
+                  'eliminato',
+                  'eliminata',
+                  'removed',
+                  'cancellato',
+                  'cancellata',
+                ].includes(status);
+              })
+              .map((item: LooseRow) => String(firstValue(item, ['activity_id', 'event_id', 'experience_id'], '')))
+              .filter(Boolean)
+          );
+
+          setJoinedActivityIds(joinedIds);
+        } else {
+          setJoinedActivityIds(new Set());
+        }
+      } else {
+        setJoinedActivityIds(new Set());
+      }
+
+      const cleanRows = ((result.data || []) as LooseRow[])
+        .filter((row) => !isDeleted(row))
+        .filter(isFlashRow)
+        .filter(isFlashStillAvailable)
+        .sort((a, b) => {
+          const dateA = getFlashDate(a)?.getTime() || 0;
+          const dateB = getFlashDate(b)?.getTime() || 0;
+          return dateA - dateB;
+        });
+
+      setRows(cleanRows);
+
+      const flashIds = cleanRows
+        ? cleanRows.map((item: LooseRow) => String(firstValue(item, ['id', 'activity_id'], ''))).filter(Boolean)
+        : [];
+
+      if (flashIds.length > 0) {
+        const participantsResult = await supabase
+          .from('activity_participants')
+          .select('activity_id')
+          .in('activity_id', flashIds);
+
+        if (!participantsResult.error) {
+          const counts: Record<string, number> = {};
+
+          for (const participant of participantsResult.data ?? []) {
+            const participantActivityId = String((participant as LooseRow).activity_id ?? '');
+            if (!participantActivityId) continue;
+            counts[participantActivityId] = (counts[participantActivityId] ?? 0) + 1;
+          }
+
+          setParticipantCounts(counts);
+        }
+
+        const creatorIds = Array.from(
+          new Set(
+            cleanRows
+              .map((item: LooseRow) => flashCreatorId(item))
+              .filter(Boolean)
+          )
+        );
+
+        if (creatorIds.length > 0) {
+          const profilesResult = await supabase
+            .from('profiles')
+            .select('*')
+            .in('id', creatorIds);
+
+          if (!profilesResult.error) {
+            const names: Record<string, string> = {};
+
+            for (const profile of profilesResult.data ?? []) {
+              const profileRow = profile as LooseRow;
+              const profileId = String(firstValue(profileRow, ['id', 'user_id'], ''));
+              const profileName = firstText(
+                profileRow,
+                ['display_name', 'full_name', 'name', 'nome', 'username', 'email'],
+                ''
+              );
+
+              if (profileId && profileName) {
+                names[profileId] = profileName;
+              }
+            }
+
+            setCreatorNames(names);
+          }
+        } else {
+          setCreatorNames({});
+        }
+      } else {
+        setParticipantCounts({});
+        setCreatorNames({});
+      }
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Errore imprevisto durante il caricamento dei Flash.";
+      setRows([]);
+      setJoinedActivityIds(new Set());
+      setParticipantCounts({});
+      setCreatorNames({});
+      setErrorMessage(message);
+    }
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function start() {
+      setLoading(true);
+      await loadFlashRows();
+      if (mounted) setLoading(false);
+    }
+
+    start();
+
+    return () => {
+      mounted = false;
+    };
+  }, [loadFlashRows]);
+
+  const loadAvailableUsers = useCallback(async () => {
+    setLoadingAvailableUsers(true);
+
+    try {
+      const authResult = await supabase.auth.getUser();
+      const currentUserId = authResult.data.user?.id || null;
+
+      const nowIso = new Date().toISOString();
+
+      if (currentUserId) {
+        const myActiveResult = await supabase
+          .from('user_availability')
+          .select('id,user_id,province,city,latitude,longitude,expires_at,created_at')
+          .eq('user_id', currentUserId)
+          .gt('expires_at', nowIso)
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        if (!myActiveResult.error && myActiveResult.data && myActiveResult.data.length > 0) {
+          setMyActiveAvailability(myActiveResult.data[0] as LooseRow);
+        } else {
+          setMyActiveAvailability(null);
+        }
+      } else {
+        setMyActiveAvailability(null);
+      }
+
+      const result = await supabase
+        .from('user_availability')
+        .select('id,user_id,province,city,latitude,longitude,expires_at,created_at')
+        .gt('expires_at', nowIso)
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      if (result.error) {
+        setAvailableRows([]);
+        setAvailableProfiles({});
+        return;
+      }
+
+      let cleanRows = result.data || [];
+
+      if (currentUserId) {
+        cleanRows = cleanRows.filter((row: LooseRow) => availableUserId(row) !== currentUserId);
+
+        const userIds = cleanRows.map((row: LooseRow) => availableUserId(row)).filter(Boolean);
+
+        if (userIds.length > 0) {
+          const [blockedByMe, blockedMe] = await Promise.all([
+            supabase
+              .from('user_blocks')
+              .select('blocked_id')
+              .eq('blocker_id', currentUserId)
+              .in('blocked_id', userIds),
+            supabase
+              .from('user_blocks')
+              .select('blocker_id')
+              .eq('blocked_id', currentUserId)
+              .in('blocker_id', userIds),
+          ]);
+
+          const blockedIds = new Set<string>();
+
+          if (!blockedByMe.error) {
+            (blockedByMe.data || []).forEach((row: LooseRow) => blockedIds.add(String(row.blocked_id || '')));
+          }
+
+          if (!blockedMe.error) {
+            (blockedMe.data || []).forEach((row: LooseRow) => blockedIds.add(String(row.blocker_id || '')));
+          }
+
+          cleanRows = cleanRows.filter((row: LooseRow) => !blockedIds.has(availableUserId(row)));
+        }
+      } else {
+        setMyActiveAvailability(null);
+      }
+
+      const profileIds = Array.from(new Set(cleanRows.map((row: LooseRow) => availableUserId(row)).filter(Boolean)));
+      const profileMap: Record<string, LooseRow> = {};
+
+      if (profileIds.length > 0) {
+        const profilesByIdResult = await supabase
+          .from('profiles')
+          .select('*')
+          .in('id', profileIds);
+
+        if (!profilesByIdResult.error) {
+          (profilesByIdResult.data || []).forEach((profile: LooseRow) => {
+            const profileId = String(firstValue(profile, ['id'], '') || '');
+            const profileUserId = String(firstValue(profile, ['user_id'], '') || '');
+
+            if (profileId) profileMap[profileId] = profile;
+            if (profileUserId) profileMap[profileUserId] = profile;
+          });
+        }
+
+        const missingProfileIds = profileIds.filter((id) => !profileMap[id]);
+
+        if (missingProfileIds.length > 0) {
+          const profilesByUserIdResult = await supabase
+            .from('profiles')
+            .select('*')
+            .in('user_id', missingProfileIds);
+
+          if (!profilesByUserIdResult.error) {
+            (profilesByUserIdResult.data || []).forEach((profile: LooseRow) => {
+              const profileId = String(firstValue(profile, ['id'], '') || '');
+              const profileUserId = String(firstValue(profile, ['user_id'], '') || '');
+
+              if (profileId) profileMap[profileId] = profile;
+              if (profileUserId) profileMap[profileUserId] = profile;
+            });
+          }
+        }
+      }
+
+      setAvailableRows(cleanRows);
+      setAvailableProfiles(profileMap);
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Errore imprevisto durante il caricamento degli utenti disponibili.";
+
+      setAvailableRows([]);
+      setAvailableProfiles({});
+      setMyActiveAvailability(null);
+      setErrorMessage(message);
+    } finally {
+      setLoadingAvailableUsers(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadAvailableUsers();
+  }, [loadAvailableUsers]);
+
+  useEffect(() => {
+    if (selectedSection !== "available") return;
+    let active = true;
+
+    async function loadViewerLocation() {
+      const permission = await Location.requestForegroundPermissionsAsync();
+      if (permission.status !== "granted") {
+        if (active) setViewerCoordinates(null);
+        return;
+      }
+      const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      if (active) setViewerCoordinates({ latitude: position.coords.latitude, longitude: position.coords.longitude });
+    }
+
+    loadViewerLocation().catch(() => {
+      if (active) setViewerCoordinates(null);
+    });
+
+    return () => { active = false; };
+  }, [selectedSection]);
+
+  const availableRowsByDistance = useMemo(() => {
+    return [...availableRows].sort((a, b) => {
+      if (viewerCoordinates === null) return 0;
+      const aCoordinates = getCoordinates(a);
+      const bCoordinates = getCoordinates(b);
+      if (aCoordinates === null && bCoordinates === null) return 0;
+      if (aCoordinates === null) return 1;
+      if (bCoordinates === null) return -1;
+      return distanceKmBetween(viewerCoordinates, aCoordinates) - distanceKmBetween(viewerCoordinates, bCoordinates);
+    });
+  }, [availableRows, viewerCoordinates]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([loadFlashRows(), loadAvailableUsers()]);
+    setRefreshing(false);
+  }, [loadAvailableUsers, loadFlashRows]);
+
+  const retryLoadFlashRows = useCallback(async () => {
+    setLoading(true);
+    await loadFlashRows();
+    setLoading(false);
+  }, [loadFlashRows]);
+
+  const saveAvailability = useCallback(async () => {
+    if (savingAvailability) return;
+
+    if (myActiveAvailability) {
+      if (typeof window !== 'undefined') {
+        window.alert('Sei già disponibile. Annulla la disponibilità prima di crearne una nuova.');
+      }
+      return;
+    }
+
+
+    setSavingAvailability(true);
+
+    try {
+      const authResult = await supabase.auth.getUser();
+      const authUserId = authResult.data.user?.id;
+
+      if (!authUserId) {
+        if (typeof window !== 'undefined') {
+          window.alert('Devi essere collegato per renderti disponibile.');
+        }
+        return;
+      }
+
+      const existingAvailabilityResult = await supabase
+        .from('user_availability')
+        .select('id,user_id,province,city,latitude,longitude,expires_at,created_at')
+        .eq('user_id', authUserId)
+        .gt('expires_at', new Date().toISOString())
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (!existingAvailabilityResult.error && existingAvailabilityResult.data && existingAvailabilityResult.data.length > 0) {
+        setMyActiveAvailability(existingAvailabilityResult.data[0] as LooseRow);
+        if (typeof window !== 'undefined') {
+          window.alert('Sei già disponibile. Annulla la disponibilità prima di crearne una nuova.');
+        }
+        return;
+      }
+
+      const permission = await Location.requestForegroundPermissionsAsync();
+
+  if (permission.status !== "granted") {
+    Alert.alert("Posizione necessaria", "Per renderti disponibile devi consentire a Bajuju di usare la posizione.");
+    return;
+  }
+
+  const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+  const latitude = position.coords.latitude;
+  const longitude = position.coords.longitude;
+  setViewerCoordinates({ latitude, longitude });
+
+  const now = new Date();
+      const expiresAtDate =
+        availabilityDurationHours === 'evening'
+          ? new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 0, 0)
+          : new Date(now.getTime() + availabilityDurationHours * 60 * 60 * 1000);
+      const expiresAt = expiresAtDate.toISOString();
+
+      const result = await supabase.from('user_availability').insert({
+        user_id: authUserId,
+        province: null,
+        city: 'Posizione GPS',
+    latitude: Math.round(latitude * 200) / 200,
+    longitude: Math.round(longitude * 200) / 200,
+        expires_at: expiresAt,
+      });
+
+      if (result.error) {
+        if (typeof window !== 'undefined') {
+          window.alert(`Errore disponibilità: ${result.error.message}`);
+        }
+        return;
+      }
+
+      await loadAvailableUsers();
+
+      if (typeof window !== 'undefined') {
+        window.alert(
+          availabilityDurationHours === 'evening'
+            ? 'Ora sei visibile fino a stasera alle 23:59.'
+            : `Ora sei visibile per ${availabilityDurationHours} ${availabilityDurationHours === 1 ? 'ora' : 'ore'}.`
+        );
+      }
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Errore imprevisto durante il salvataggio della disponibilità.';
+
+      Alert.alert('Errore disponibilità', message);
+    } finally {
+      setSavingAvailability(false);
+    }
+  }, [availabilityCity, availabilityDurationHours, availabilityMunicipalities, availabilityProvince, loadAvailableUsers, myActiveAvailability, savingAvailability]);
+
+  const cancelAvailability = useCallback(async () => {
+    if (cancellingAvailability) return;
+
+    setCancellingAvailability(true);
+
+    try {
+      const authResult = await supabase.auth.getUser();
+      const authUserId = authResult.data.user?.id || null;
+
+      if (!authUserId) {
+        if (typeof window !== 'undefined') {
+          window.alert('Devi essere collegato per annullare la disponibilità.');
+        }
+        return;
+      }
+
+      let availabilityId = String(firstValue(myActiveAvailability || {}, ['id'], '') || '').trim();
+
+      if (!availabilityId) {
+        const activeResult = await supabase
+          .from('user_availability')
+          .select('id')
+          .eq('user_id', authUserId)
+          .gt('expires_at', new Date().toISOString())
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        if (activeResult.error) throw activeResult.error;
+
+        availabilityId = String(firstValue((activeResult.data || [])[0] || {}, ['id'], '') || '').trim();
+      }
+
+      if (!availabilityId) {
+        setMyActiveAvailability(null);
+        await loadAvailableUsers();
+
+        if (typeof window !== 'undefined') {
+          window.alert('Non hai una disponibilità attiva da annullare.');
+        }
+        return;
+      }
+
+      const result = await supabase
+        .from('user_availability')
+        .delete()
+        .eq('id', availabilityId)
+        .eq('user_id', authUserId);
+
+      if (result.error) {
+        if (typeof window !== 'undefined') {
+          window.alert(`Errore annulla disponibilità: ${result.error.message}`);
+        }
+        return;
+      }
+
+      setMyActiveAvailability(null);
+      await loadAvailableUsers();
+
+      if (typeof window !== 'undefined') {
+        window.alert('Disponibilità annullata.');
+      }
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Errore imprevisto durante l’annullamento della disponibilità.';
+
+      Alert.alert('Errore annulla disponibilità', message);
+    } finally {
+      setCancellingAvailability(false);
+    }
+  }, [cancellingAvailability, loadAvailableUsers, myActiveAvailability]);
+
+  const sendAvailabilityInvite = useCallback(async (targetUserId: string) => {
+    const cleanTargetUserId = String(targetUserId || '').trim();
+
+    if (!cleanTargetUserId || sendingAvailabilityInviteTo) return;
+
+    const authResult = await supabase.auth.getUser();
+    const currentUserId = authResult.data.user?.id || null;
+
+    if (!currentUserId) {
+      if (typeof window !== 'undefined') {
+        window.alert('Devi essere collegato per invitare una persona.');
+      }
+      return;
+    }
+
+    if (currentUserId === cleanTargetUserId) return;
+
+    setSendingAvailabilityInviteTo(cleanTargetUserId);
+
+    try {
+      const [blockedByMeResult, blockedMeResult] = await Promise.all([
+        supabase
+          .from('user_blocks')
+          .select('id')
+          .eq('blocker_id', currentUserId)
+          .eq('blocked_id', cleanTargetUserId)
+          .maybeSingle(),
+        supabase
+          .from('user_blocks')
+          .select('id')
+          .eq('blocker_id', cleanTargetUserId)
+          .eq('blocked_id', currentUserId)
+          .maybeSingle(),
+      ]);
+
+      if (blockedByMeResult.error) throw blockedByMeResult.error;
+      if (blockedMeResult.error) throw blockedMeResult.error;
+
+      if (blockedByMeResult.data || blockedMeResult.data) {
+        if (typeof window !== 'undefined') {
+          window.alert('Invito non disponibile per questo utente.');
+        }
+        return;
+      }
+
+      const ownFlashResult = await supabase
+        .from('activities')
+        .select('id,title,city,province,expires_at,created_at')
+        .eq('creator_id', currentUserId)
+        .eq('is_flash', true)
+        .gt('expires_at', new Date().toISOString())
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      const ownFlash = Array.isArray(ownFlashResult.data) ? ownFlashResult.data[0] as LooseRow | undefined : undefined;
+      const ownFlashId = ownFlash ? String(firstValue(ownFlash, ['id', 'activity_id'], '') || '').trim() : '';
+
+      if (ownFlashResult.error || !ownFlashId || !ownFlash) {
+        if (typeof window !== 'undefined') {
+          window.alert('Devi prima creare un Bajuju Flash attivo per poter invitare questa persona.');
+        }
+        return;
+      }
+
+      const existingResult = await supabase
+        .from('direct_contact_requests')
+        .select('id,status,activity_id')
+        .eq('requester_id', currentUserId)
+        .eq('receiver_id', cleanTargetUserId)
+        .eq('activity_id', ownFlashId)
+        .in('status', ['pending', 'accepted'])
+        .limit(1);
+
+      if (existingResult.error) throw existingResult.error;
+
+      if (existingResult.data && existingResult.data.length > 0) {
+        if (typeof window !== 'undefined') {
+          window.alert('Hai già invitato questa persona a questo Flash.');
+        }
+        return;
+      }
+
+      const result = await supabase.from('direct_contact_requests').insert({
+        requester_id: currentUserId,
+        sender_id: currentUserId,
+        receiver_id: cleanTargetUserId,
+        activity_id: ownFlashId,
+        contact_value: ownFlashId,
+        contact_type: 'flash_invite',
+        status: 'pending',
+        message: `Ti invito al mio Bajuju Flash “${flashTitle(ownFlash)}”. Ti ho visto disponibile: ti va di partecipare?`,
+      });
+
+      if (result.error) {
+        if (typeof window !== 'undefined') {
+          window.alert(`Errore invito: ${result.error.message}`);
+        }
+        return;
+      }
+
+      await sendBajujuPushNotification({
+        type: 'contact_request',
+        actorUserId: currentUserId,
+        targetUserId: cleanTargetUserId,
+        title: 'Nuovo invito Bajuju Flash',
+        body: `Una persona ti invita al suo Flash: ${flashTitle(ownFlash)}.`,
+        data: {
+          screen: 'profile',
+            section: 'flash-invites',
+          activityId: ownFlashId,
+        },
+      }).catch((error) => {
+        console.log('Errore notifica invito disponibilità.');
+      });
+
+      if (typeof window !== 'undefined') {
+        window.alert('Invito inviato.');
+      }
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Errore imprevisto durante l’invio dell’invito.';
+
+      Alert.alert('Errore invito', message);
+    } finally {
+      setSendingAvailabilityInviteTo(null);
+    }
+  }, [sendingAvailabilityInviteTo]);
+
+  const createFlash = useCallback(async () => {
+    if (savingFlash) return;
+
+    const cleanTitle = newTitle.trim();
+    const cleanDescription = newDescription.trim();
+    const cleanProvince = newProvince.trim();
+    const cleanCity = newCity.trim();
+    const cleanPlace = newPlace.trim();
+    const cleanStreetNumber = newStreetNumber.trim();
+    if (!cleanTitle || !newResolvedAddress) {
+      if (typeof window !== "undefined") {
+        window.alert("Compila il titolo e seleziona un indirizzo completo dai suggerimenti.");
+      }
+      return;
+    }
+
+    setSavingFlash(true);
+
+    try {
+      const authResult = await supabase.auth.getUser();
+      const authUserId = authResult.data.user?.id;
+
+      if (!authUserId) {
+        if (typeof window !== 'undefined') {
+          window.alert('Devi essere collegato per creare un Flash.');
+        }
+        return;
+      }
+
+      let creatorId = authUserId;
+
+      const byId = await supabase.from('profiles').select('id').eq('id', authUserId).maybeSingle();
+
+      if (!byId.error && byId.data?.id) {
+        creatorId = byId.data.id;
+      }
+
+      const creatorIdsToCheck = [authUserId];
+
+      if (creatorId && creatorId !== authUserId) {
+        creatorIdsToCheck.push(creatorId);
+      }
+
+      const now = new Date();
+      const nowIso = now.toISOString();
+
+      const activeFlashResult = await supabase
+        .from('activities')
+        .select('id,title,expires_at')
+        .eq('is_flash', true)
+        .in('creator_id', creatorIdsToCheck)
+        .gt('expires_at', nowIso)
+        .limit(1);
+
+      if (activeFlashResult.error) throw activeFlashResult.error;
+
+      if ((activeFlashResult.data || []).length > 0) {
+        if (typeof window !== 'undefined') {
+          window.alert('Hai già un Flash attivo. Annulla quello prima di crearne un altro.');
+        }
+        return;
+      }
+
+      const cleanDate = now.toISOString().slice(0, 10);
+      const cleanTime = now.toTimeString().slice(0, 8);
+      const expiresAt = new Date(now.getTime() + newDurationHours * 60 * 60 * 1000).toISOString();
+
+        const finalMeetingPlace = `${newResolvedAddress.street} ${newResolvedAddress.streetNumber}`;
+
+      const payload = {
+        creator_id: creatorId,
+        title: cleanTitle,
+        category: 'altro',
+        description: cleanDescription || `Bajuju Flash disponibile per ${newDurationHours} ore.`,
+        city: cleanCity,
+        province: cleanProvince,
+        meeting_place: finalMeetingPlace,
+        activity_date: cleanDate,
+        activity_time: cleanTime,
+        min_participants: 1,
+        max_participants: 10,
+        is_flash: true,
+        expires_at: expiresAt,
+          latitude: newResolvedAddress.latitude,
+          longitude: newResolvedAddress.longitude,
+      };
+
+      const result = await supabase.from('activities').insert(payload).select('*').single();
+
+      if (result.error) {
+        if (typeof window !== 'undefined') {
+          window.alert(`Errore creazione Flash: ${result.error.message}`);
+        }
+        return;
+      }
+
+      await sendBajujuPushNotification({
+        type: 'new_flash',
+        actorUserId: String(payload.creator_id || ''),
+        title: buildFlashNotificationTitle(payload.title),
+        body: `${payload.city}: qualcuno ha creato un Flash Bajuju.`,
+        province: payload.province,
+        city: payload.city,
+        data: {
+          screen: 'flash',
+          activityId: result.data?.id,
+          title: payload.title,
+        },
+      }).catch((error) => {
+        console.log('Errore notifica nuovo Flash.');
+      });
+
+      setNewTitle('');
+      setNewDescription('');
+      setNewCity('');
+      setNewPlace('');
+      setNewResolvedAddress(null);
+      setNewStreetNumber('');
+      setSelectedProvince('Tutte');
+      setSelectedTab('all');
+      setShowCreateForm(false);
+
+      await loadFlashRows();
+
+      const createdFlashId = String(result.data?.id || "").trim();
+      if (createdFlashId) {
+        router.push({ pathname: "/flash-detail", params: { id: createdFlashId } });
+      } else if (typeof window !== "undefined") {
+        window.alert("Flash creato correttamente.");
+      }
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Errore imprevisto durante la creazione del Flash.';
+
+      Alert.alert('Errore creazione Flash', message);
+    } finally {
+      setSavingFlash(false);
+    }
+  }, [loadFlashRows, newCity, newDescription, newDurationHours, newMunicipalities, newPlace, newProvince, newResolvedAddress, newStreetNumber, newTitle, savingFlash]);
+
+  const joinFlash = useCallback(async (row: LooseRow) => {
+    const activityId = String(firstValue(row, ['id', 'activity_id'], ''));
+
+    if (!activityId || joiningActivityId) return;
+
+    if (rowBelongsToUser(row, userId)) {
+      if (typeof window !== 'undefined') {
+        window.alert('Questo Flash lo hai creato tu.');
+      }
+      return;
+    }
+
+    if (joinedActivityIds.has(activityId)) {
+      if (typeof window !== 'undefined') {
+        window.alert('Stai già partecipando a questo Flash.');
+      }
+      return;
+    }
+
+    setJoiningActivityId(activityId);
+
+    try {
+      const authResult = await supabase.auth.getUser();
+      const authUserId = authResult.data.user?.id;
+
+      if (!authUserId) {
+        if (typeof window !== 'undefined') {
+          window.alert('Devi essere collegato per partecipare.');
+        }
+        return;
+      }
+
+      const result = await supabase.from('activity_participants').insert({
+        activity_id: activityId,
+        user_id: authUserId,
+        status: 'accepted',
+      });
+
+      if (result.error) {
+        if (typeof window !== 'undefined') {
+          window.alert(`Errore partecipazione: ${result.error.message}`);
+        }
+        return;
+      }
+
+      await loadFlashRows();
+
+      if (typeof window !== 'undefined') {
+        window.alert('Partecipazione registrata.');
+      }
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Errore imprevisto durante la partecipazione al Flash.';
+
+      Alert.alert('Errore partecipazione', message);
+    } finally {
+      setJoiningActivityId(null);
+    }
+  }, [joinedActivityIds, joiningActivityId, loadFlashRows, userId]);
+
+  const cancelFlash = useCallback(async (row: LooseRow) => {
+    const activityId = String(firstValue(row, ['id', 'activity_id'], ''));
+
+    if (!activityId || cancellingActivityId) return;
+
+    if (!rowBelongsToUser(row, userId)) {
+      if (typeof window !== 'undefined') {
+        window.alert('Puoi annullare solo i Flash creati da te.');
+      }
+      return;
+    }
+
+    const confirmed = await confirmNative(
+      'Annulla Flash',
+      'Vuoi annullare questo Flash? Non sarà più visibile tra i Flash disponibili.',
+      'Sì, annulla'
+    );
+
+    if (!confirmed) return;
+
+    setCancellingActivityId(activityId);
+
+    try {
+      const authResult = await supabase.auth.getUser();
+      const authUserId = authResult.data.user?.id;
+
+      if (!authUserId) {
+        if (typeof window !== 'undefined') {
+          window.alert('Devi essere collegato per annullare il Flash.');
+        }
+        return;
+      }
+
+      const profileByIdResult = await supabase
+        .from('profiles')
+        .select('id,user_id')
+        .eq('id', authUserId)
+        .maybeSingle();
+
+      const profileByUserIdResult = await supabase
+        .from('profiles')
+        .select('id,user_id')
+        .eq('user_id', authUserId)
+        .maybeSingle();
+
+      if (profileByIdResult.error) throw profileByIdResult.error;
+      if (profileByUserIdResult.error) throw profileByUserIdResult.error;
+
+      const creatorIds = new Set<string>([authUserId]);
+
+      if (!profileByIdResult.error && profileByIdResult.data?.id) {
+        creatorIds.add(String(profileByIdResult.data.id));
+      }
+
+      if (!profileByUserIdResult.error && profileByUserIdResult.data?.id) {
+        creatorIds.add(String(profileByUserIdResult.data.id));
+      }
+
+      const result = await supabase
+        .from('activities')
+        .update({ expires_at: new Date().toISOString() })
+        .eq('id', activityId)
+        .in('creator_id', Array.from(creatorIds))
+        .select('id');
+
+      if (result.error) {
+        if (typeof window !== 'undefined') {
+          window.alert(`Errore annullamento Flash: ${result.error.message}`);
+        }
+        return;
+      }
+
+      if (!result.data || result.data.length === 0) {
+        if (typeof window !== 'undefined') {
+          window.alert('Non sono riuscito ad annullare il Flash. Ricarica e riprova.');
+        }
+        return;
+      }
+
+      await loadFlashRows();
+
+      if (typeof window !== 'undefined') {
+        window.alert('Flash annullato correttamente.');
+      }
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Errore imprevisto durante l’annullamento del Flash.';
+
+      Alert.alert('Errore annullamento Flash', message);
+    } finally {
+      setCancellingActivityId(null);
+    }
+  }, [cancellingActivityId, loadFlashRows, userId]);
+
+  const leaveFlash = useCallback(async (row: LooseRow) => {
+    const activityId = String(firstValue(row, ['id', 'activity_id'], ''));
+
+    if (!activityId || leavingActivityId) return;
+
+    const confirmed = await confirmNative(
+      'Abbandona Flash',
+      'Vuoi abbandonare questo Flash?',
+      'Sì, abbandona'
+    );
+
+    if (!confirmed) return;
+
+    setLeavingActivityId(activityId);
+
+    try {
+      const authResult = await supabase.auth.getUser();
+      const authUserId = authResult.data.user?.id;
+
+      if (!authUserId) {
+        if (typeof window !== 'undefined') {
+          window.alert('Devi essere collegato per abbandonare il Flash.');
+        }
+        return;
+      }
+
+      const result = await supabase
+        .from('activity_participants')
+        .delete()
+        .eq('activity_id', activityId)
+        .eq('user_id', authUserId);
+
+      if (result.error) {
+        if (typeof window !== 'undefined') {
+          window.alert(`Errore abbandono Flash: ${result.error.message}`);
+        }
+        return;
+      }
+
+      await loadFlashRows();
+
+      if (typeof window !== 'undefined') {
+        window.alert('Hai abbandonato il Flash.');
+      }
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Errore imprevisto durante l’abbandono del Flash.';
+
+      Alert.alert('Errore abbandono Flash', message);
+    } finally {
+      setLeavingActivityId(null);
+    }
+  }, [leavingActivityId, loadFlashRows]);
+
+  const filteredRows = useMemo(() => {
+    return rows
+      .filter((row) => {
+        const activityId = String(firstValue(row, ['id', 'activity_id'], ''));
+
+        if (selectedTab === 'mine') return rowBelongsToUser(row, userId);
+
+        if (selectedProvince !== 'Tutte') {
+          const province = flashProvince(row).toLowerCase().trim();
+          if (province !== selectedProvince.toLowerCase().trim()) return false;
+        }
+
+        if (selectedTab === 'joined') return rowBelongsToUser(row, userId) || joinedActivityIds.has(activityId);
+
+        return true;
+      })
+      .sort((a, b) => {
+        const aDate = new Date(String(firstValue(a, ['expires_at', 'expiresAt', 'activity_date', 'created_at'], ''))).getTime();
+        const bDate = new Date(String(firstValue(b, ['expires_at', 'expiresAt', 'activity_date', 'created_at'], ''))).getTime();
+
+        if (Number.isNaN(aDate) && Number.isNaN(bDate)) return 0;
+        if (Number.isNaN(aDate)) return 1;
+        if (Number.isNaN(bDate)) return -1;
+
+        return bDate - aDate;
+      });
+  }, [joinedActivityIds, rows, selectedProvince, selectedTab, userId]);
+
+  const isCreatePage = forcedSection === 'create';
+  const isFindPage = forcedSection === 'find';
+  const isMenuPage = !forcedSection;
+  const dedicatedTitleLead =
+    isCreatePage
+      ? 'Crea un '
+      : selectedSection === 'availability'
+        ? 'Renditi '
+        : selectedSection === 'available'
+          ? 'Chi è '
+          : 'Trova ';
+  const dedicatedTitleAccent =
+    selectedSection === 'availability' || selectedSection === 'available'
+      ? 'disponibile'
+      : 'Flash';
+
+  const flashMapItems: BajujuMapItem[] = filteredRows.flatMap((row) => {
+    const id = flashId(row);
+    const coordinates = getCoordinates(row);
+
+    if (!id || !coordinates) return [];
+
+    return [{
+      id,
+      latitude: coordinates.latitude,
+      longitude: coordinates.longitude,
+      icon: '⚡',
+      kicker: 'Bajuju Flash',
+      title: flashTitle(row),
+      locationText: [flashCity(row), flashProvince(row)].filter(Boolean).join(' · '),
+      dateText: formatDate(getFlashDate(row)),
+    }];
+  });
+
+  function openFlashMapItem(item: BajujuMapItem) {
+    router.push({
+      pathname: '/flash-detail',
+      params: { id: item.id },
+    });
+  }
+
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView
+        contentContainerStyle={styles.page}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      >
+      {isMenuPage ? (
+        <View style={styles.flashHeroCard}>
+        <View style={[styles.flashHeroBlob, styles.flashHeroBlobTop]} />
+        <View style={[styles.flashHeroBlob, styles.flashHeroBlobBottom]} />
+        <Text style={[styles.flashHeroDoodle, styles.flashHeroDoodleLeft]}>‹‹</Text>
+        <Text style={[styles.flashHeroDoodle, styles.flashHeroDoodleRight]}>✦</Text>
+        <Pressable style={styles.flashBackButton} onPress={() => router.push(forcedSection ? '/flash' : '/home')}>
+          <Text style={styles.flashBackText}>{forcedSection ? '← Bajuju Flash' : '← Home'}</Text>
+        </Pressable>
+
+        <View style={styles.flashHeroTopRow}>
+          <View style={styles.flashHeroTextBlock}>
+            <Text style={styles.kicker}>
+              <Text style={styles.flashHeroTitlePlum}>Bajuju </Text>
+              <Text style={styles.flashHeroTitlePink}>Flash</Text>
+            </Text>
+            <Text style={styles.flashHeroPhrase}>Fatti vedere ed esci subito.</Text>
+          </View>
+        </View>
+
+        <Text style={styles.flashInstructions}>Crea, trova o raggiungi qualcuno disponibile adesso.</Text>
+
+        <Pressable
+          style={[styles.flashChoiceButton, styles.flashCreateChoiceButton, styles.flashMainChoiceButton, styles.flashWideMainButton]}
+          onPress={() => router.push('/flash-create')}
+        >
+          <Text style={[styles.flashChoiceIcon, styles.flashMainChoiceIcon]}>FLASH</Text>
+          <Text style={[styles.flashChoiceText, styles.flashMainChoiceText]}>Crea un nuovo Flash</Text>
+          <Text style={styles.flashMainChoiceSubtext}>Lancia un invito e raduna le persone.</Text>
+          <Text style={styles.flashChoiceArrow}>→</Text>
+        </Pressable>
+
+        <View style={styles.flashChoiceRow}>
+          <Pressable
+            style={[styles.flashChoiceButton, styles.flashFindChoiceButton]}
+            onPress={() => router.push('/flash-find')}
+          >
+            <Text style={[styles.flashChoiceIcon, styles.flashSecondaryChoiceIcon]}>CERCA</Text>
+            <Text style={[styles.flashChoiceText, styles.flashSecondaryChoiceText]}>Trova Flash</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.flashChoiceButton, styles.flashFindChoiceButton]}
+            onPress={() => router.push('/flash-availability')}
+          >
+            <Text style={[styles.flashChoiceIcon, styles.flashSecondaryChoiceIcon]}>ORA</Text>
+            <Text style={[styles.flashChoiceText, styles.flashSecondaryChoiceText]}>Renditi disponibile</Text>
+          </Pressable>
+
+        </View>
+
+        <Pressable
+          style={[styles.flashChoiceButton, styles.flashFindChoiceButton, styles.flashLiveWideButton]}
+          onPress={() => router.push('/flash-available')}
+        >
+          <Text style={[styles.flashChoiceIcon, styles.flashSecondaryChoiceIcon]}>LIVE</Text>
+          <Text style={[styles.flashChoiceText, styles.flashSecondaryChoiceText]}>Guarda chi è disponibile</Text>
+          <Text style={styles.flashChoiceArrow}>→</Text>
+        </Pressable>
+        </View>
+      ) : null}
+
+      {!isMenuPage ? (
+        <View style={styles.flashDedicatedHeroCard}>
+          <View style={[styles.flashHeroBlob, styles.flashHeroBlobTop]} />
+          <View style={[styles.flashHeroBlob, styles.flashHeroBlobBottom]} />
+          <Text style={[styles.flashHeroDoodle, styles.flashHeroDoodleLeft]}>‹‹</Text>
+          <Text style={[styles.flashHeroDoodle, styles.flashHeroDoodleRight]}>✦</Text>
+          <Pressable style={styles.flashBackButton} onPress={() => router.push('/flash')}>
+            <Text style={styles.flashBackText}>← Bajuju Flash</Text>
+          </Pressable>
+
+          <Text style={styles.flashDedicatedTitle}>
+            <Text style={styles.flashHeroTitlePlum}>{dedicatedTitleLead}</Text>
+            <Text style={styles.flashHeroTitlePink}>{dedicatedTitleAccent}</Text>
+          </Text>
+          <Text style={styles.flashDedicatedText}>
+            {isCreatePage
+              ? 'Compila pochi dati e pubblicalo subito.'
+              : selectedSection === 'availability' ? 'Scegli dove e per quanto tempo.' : selectedSection === 'available' ? 'Invita una persona al tuo Flash attivo.' : 'Guarda i Flash disponibili adesso.'}
+          </Text>
+        </View>
+      ) : null}
+
+      <View style={[styles.card, !(selectedSection === 'find' || selectedSection === 'availability' || selectedSection === 'available' || isFindPage) && styles.hiddenSection]}>
+        {selectedSection === 'available' ? (
+          <Text style={styles.sectionTitle}>Guarda chi è disponibile</Text>
+        ) : null}
+
+        <View style={[styles.availabilityHeroCard, selectedSection !== 'availability' && styles.hiddenSection]}>
+          <View style={styles.availabilityIntroBanner}>
+            <Text style={styles.availabilityKicker}>La parte forte di Bajuju Flash</Text>
+            <Text style={styles.availabilityText}>
+              Gli altri potranno trovarti e invitarti a fare qualcosa dal vivo.
+            </Text>
+          </View>
+
+          <Text style={styles.availabilityLabel}>Per quanto tempo vuoi farti vedere?</Text>
+          <View style={styles.choiceRow}>
+            {[
+              { value: 1 as AvailabilityDuration, label: '1 ora' },
+              { value: 2 as AvailabilityDuration, label: '2 ore' },
+              { value: 3 as AvailabilityDuration, label: '3 ore' },
+              { value: 'evening' as AvailabilityDuration, label: 'Fino a stasera' },
+            ].map((duration) => (
+              <Pressable
+                key={`availability-duration-${duration.value}`}
+                style={[
+                  styles.durationChip,
+                  availabilityDurationHours === duration.value && styles.durationChipActive,
+                ]}
+                onPress={() => setAvailabilityDurationHours(duration.value)}
+              >
+                <Text
+                  style={[
+                    styles.durationChipText,
+                    availabilityDurationHours === duration.value && styles.durationChipTextActive,
+                  ]}
+                >
+                  {availabilityDurationHours === duration.value ? `✓ ${duration.label}` : duration.label}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+
+          {myActiveAvailability ? (
+            <View style={styles.activeAvailabilityBox}>
+              <Text style={styles.activeAvailabilityTitle}>Sei già disponibile</Text>
+              <Text style={styles.activeAvailabilityText}>
+                La tua disponibilità è attiva. Se vuoi cambiarla, annullala e creane una nuova.
+              </Text>
+            </View>
+          ) : null}
+
+          <Pressable
+            style={[
+              styles.availabilityMainButton,
+              (savingAvailability || !!myActiveAvailability) && styles.buttonDisabled,
+            ]}
+            onPress={saveAvailability}
+            disabled={savingAvailability || !!myActiveAvailability}
+          >
+            <Text style={styles.availabilityMainButtonText}>
+              {savingAvailability ? 'Ti sto rendendo visibile...' : myActiveAvailability ? 'Disponibilità già attiva' : 'Mi rendo disponibile'}
+            </Text>
+          </Pressable>
+
+          {myActiveAvailability ? (
+            <Pressable
+              style={[styles.cancelAvailabilityButton, cancellingAvailability && styles.buttonDisabled]}
+              onPress={cancelAvailability}
+              disabled={cancellingAvailability}
+            >
+              <Text style={styles.cancelAvailabilityButtonText}>
+                {cancellingAvailability ? 'Annullamento...' : 'Annulla disponibilità'}
+              </Text>
+            </Pressable>
+          ) : null}
+        </View>
+
+        <View style={[styles.availablePeopleSection, selectedSection !== 'available' && styles.hiddenSection]}>
+          <View style={styles.availablePeopleHeader}>
+            <View style={styles.availablePeopleHeaderText}>
+              <Text style={styles.availablePeopleTitle}>Persone disponibili ora</Text>
+              <Text style={styles.availablePeopleSubtitle}>Scorri chi è disponibile ora. Per invitare una persona devi avere un tuo Flash attivo.</Text>
+            </View>
+            <Text style={styles.availablePeopleCount}>
+              {availableRowsByDistance.length}
+            </Text>
+          </View>
+
+          {loadingAvailableUsers ? (
+            <View style={styles.emptyBox}>
+              <ActivityIndicator />
+              <Text style={styles.mutedText}>Cerco persone disponibili...</Text>
+            </View>
+          ) : availableRowsByDistance.length === 0 ? (
+            <View style={styles.availableEmptyState}>
+              <Text style={styles.availableEmptyIcon}>☻</Text>
+              <Text style={styles.availableEmptyTitle}>Ancora nessuno disponibile</Text>
+              <Text style={styles.availablePeopleEmpty}>Prova a cambiare provincia o filtri.</Text>
+              <Pressable style={styles.availableRefreshButton} onPress={loadAvailableUsers}>
+                <Text style={styles.availableRefreshButtonText}>Aggiorna la ricerca</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.availableCardsRow}>
+              {availableRowsByDistance
+                .map((row, index) => {
+                  const profile = availableProfiles[availableUserId(row)];
+                  const photo = availableProfilePhoto(profile);
+
+                  return (
+                    <View key={`available-user-${firstText(row, ['id'], String(index))}`} style={styles.availablePersonCard}>
+                      <View style={styles.availablePhotoBox}>
+                        {photo ? (
+                          <Image source={{ uri: photo }} style={styles.availablePhoto} resizeMode="cover" />
+                        ) : (
+                          <Image source={bajujuLogo} style={styles.availablePhotoFallback} resizeMode="contain" />
+                        )}
+                      </View>
+
+                      <Text style={styles.availableName} numberOfLines={1}>
+                        {availableProfileName(profile)}
+                        {availableProfileAge(profile) ? ` · ${availableProfileAge(profile)} anni` : ''}
+                      </Text>
+                      <Text style={styles.availableZone} numberOfLines={1}>
+                        {availabilityDistanceText(row, viewerCoordinates)}
+                      </Text>
+                      <Text style={styles.availableTime}>{availabilityRemainingText(row)}</Text>
+
+                      <Pressable
+                        style={[
+                          styles.availableInviteButton,
+                          sendingAvailabilityInviteTo === availableUserId(row) && styles.buttonDisabled,
+                        ]}
+                        onPress={() => sendAvailabilityInvite(availableUserId(row))}
+                        disabled={sendingAvailabilityInviteTo === availableUserId(row)}
+                      >
+                        <Text style={styles.availableInviteButtonText}>
+                          {sendingAvailabilityInviteTo === availableUserId(row) ? 'Invio...' : 'Invita al mio Flash'}
+                        </Text>
+                      </Pressable>
+                    </View>
+                  );
+                })}
+            </ScrollView>
+          )}
+        </View>
+
+        <View style={[selectedSection !== 'find' && !isFindPage && styles.hiddenSection]}>
+          <Text style={styles.sectionTitleSmall}>Provincia</Text>
+
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
+            {['Tutte', ...ACTIVE_PROVINCES].map((province) => (
+              <Pressable
+                key={province}
+                style={[styles.chip, selectedProvince === province && styles.chipActive]}
+                onPress={() => setSelectedProvince(province)}
+              >
+                <Text style={[styles.chipText, selectedProvince === province && styles.chipTextActive]}>
+                  {province}
+                </Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+
+          <Text style={styles.sectionTitleSmall}>Filtri</Text>
+
+          <View style={styles.tabsRow}>
+            <Pressable
+              style={[styles.tabButton, selectedTab === 'all' && styles.tabButtonActive]}
+              onPress={() => setSelectedTab('all')}
+            >
+              <Text style={[styles.tabText, selectedTab === 'all' && styles.tabTextActive]}>Tutti</Text>
+            </Pressable>
+
+            <Pressable
+              style={[styles.tabButton, selectedTab === 'mine' && styles.tabButtonActive]}
+              onPress={() => setSelectedTab('mine')}
+            >
+              <Text style={[styles.tabText, selectedTab === 'mine' && styles.tabTextActive]}>I miei</Text>
+            </Pressable>
+
+            <Pressable
+              style={[styles.tabButton, selectedTab === 'joined' && styles.tabButtonActive]}
+              onPress={() => setSelectedTab('joined')}
+            >
+              <Text style={[styles.tabText, selectedTab === 'joined' && styles.tabTextActive]}>A cui partecipo</Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+
+      <View style={[styles.card, !(selectedSection === 'create' || isCreatePage) && styles.hiddenSection]}>
+        <Text style={styles.sectionTitle}>Crea un Flash</Text>
+
+        {!isCreatePage ? (
+          <Pressable style={styles.secondaryButton} onPress={() => setShowCreateForm((value) => !value)}>
+            <Text style={styles.secondaryButtonText}>
+              {showCreateForm ? 'Nascondi modulo' : 'Apri modulo crea Flash'}
+            </Text>
+          </Pressable>
+        ) : null}
+
+        {isCreatePage || showCreateForm ? (
+          <>
+            <Text style={styles.label}>Titolo Flash</Text>
+            <TextInput
+              value={newTitle}
+              onChangeText={setNewTitle}
+              placeholder="Es. Aperitivo tra mezz'ora"
+              placeholderTextColor="#a36a86"
+              style={styles.input}
+              maxLength={80}
+            />
+
+            <Text style={styles.label}>Descrizione breve</Text>
+            <TextInput
+              value={newDescription}
+              onChangeText={setNewDescription}
+              placeholder="Es. Ci troviamo per bere qualcosa e fare due chiacchiere"
+              placeholderTextColor="#a36a86"
+              style={[styles.input, styles.flashDescriptionInput]}
+              multiline
+              maxLength={140}
+              textAlignVertical="top"
+            />
+            <Text style={styles.flashDescriptionCounter}>
+              {newDescription.length}/140
+            </Text>
+
+              <AddressAutocompleteField
+                value={newPlace}
+                resolvedAddress={newResolvedAddress}
+                onValueChange={setNewPlace}
+                onResolvedAddressChange={(address) => {
+                  setNewResolvedAddress(address);
+                  setNewProvince(address?.province ?? '');
+                  setNewCity(address?.city ?? '');
+                  setNewStreetNumber(address?.streetNumber ?? '');
+                }}
+                disabled={savingFlash}
+              />
+
+              <Text style={styles.formNote}>
+                Inizia a scrivere l’indirizzo e seleziona quello corretto dai suggerimenti.
+              </Text>
+
+            <Text style={styles.label}>Disponibilità</Text>
+            <View style={styles.durationRow}>
+              {[3, 5, 8, 12].map((hours) => (
+                <Pressable
+                  key={hours}
+                  style={[styles.durationButton, newDurationHours === hours && styles.durationButtonActive]}
+                  onPress={() => setNewDurationHours(hours as FlashDuration)}
+                >
+                  <Text style={[styles.durationText, newDurationHours === hours && styles.durationTextActive]}>
+                    {hours} {hours === 1 ? 'ora' : 'ore'}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+
+            <Text style={styles.formNote}>
+              Per i Flash non devi inserire data e ora: partono subito e restano disponibili per il tempo scelto.
+            </Text>
+
+            <Pressable
+              style={[styles.button, savingFlash && styles.buttonDisabled]}
+              onPress={createFlash}
+              disabled={savingFlash}
+            >
+              <Text style={styles.buttonText}>{savingFlash ? 'Creazione in corso...' : 'Crea un Flash'}</Text>
+            </Pressable>
+
+            <Pressable
+              style={[styles.secondaryButton, savingFlash && styles.buttonDisabled]}
+              disabled={savingFlash}
+              onPress={() => {
+                setNewTitle('');
+                setNewDescription('');
+                setNewCity('');
+                setNewPlace('');
+                setNewResolvedAddress(null);
+                setNewStreetNumber('');
+                setNewProvince('Bergamo');
+                setNewDurationHours(3);
+                setShowCreateForm(false);
+              }}
+            >
+              <Text style={styles.secondaryButtonText}>Annulla creazione</Text>
+            </Pressable>
+
+          </>
+        ) : null}
+      </View>
+
+      {selectedSection === 'find' || isFindPage ? (
+        <View>
+          {!loading && !errorMessage ? (
+            <BajujuMap
+              items={flashMapItems}
+              mapTitle="Flash sulla mappa"
+              mapSubtitle="Tocca un marker per vedere l’anteprima."
+              emptyText="Nessun Flash con coordinate disponibile con questi filtri."
+              previewActionText="Tocca questa anteprima per aprire il Flash"
+              onOpenItem={openFlashMapItem}
+            />
+          ) : null}
+        </View>
+      ) : null}
+
+      <View style={[styles.card, !(selectedSection === 'find' || isFindPage) && styles.hiddenSection]}>
+        <Text style={styles.sectionTitle}>Flash disponibili</Text>
+
+        {loading ? (
+          <View style={styles.emptyBox}>
+            <ActivityIndicator />
+            <Text style={styles.mutedText}>Caricamento Flash...</Text>
+          </View>
+        ) : errorMessage ? (
+          <View style={styles.emptyBox}>
+            <Text style={styles.errorTitle}>Errore caricamento</Text>
+            <Text style={styles.errorText}>{errorMessage}</Text>
+            <Pressable style={styles.smallButton} onPress={retryLoadFlashRows}>
+              <Text style={styles.smallButtonText}>Riprova</Text>
+            </Pressable>
+          </View>
+        ) : filteredRows.length === 0 ? (
+          <View style={styles.emptyBox}>
+            <Text style={styles.emptyTitle}>
+              {selectedTab === 'mine'
+                ? 'Non hai Flash attivi'
+                : selectedTab === 'joined'
+                  ? 'Non stai partecipando a nessun Flash'
+                  : 'Nessun Flash trovato'}
+            </Text>
+            <Text style={styles.mutedText}>
+              {selectedTab === 'mine'
+                ? 'Quando crei un Flash, lo vedrai qui finché resta disponibile.'
+                : selectedTab === 'joined'
+                  ? 'Quando partecipi a un Flash, lo ritroverai in questa sezione.'
+                  : 'Non ci sono ancora Flash disponibili con questi filtri.'}
+            </Text>
+          </View>
+        ) : (
+          filteredRows.map((row, index) => (
+            <View key={String(firstValue(row, ['id', 'activity_id']) || `${flashTitle(row)}-${flashCity(row)}-${formatDate(getFlashDate(row))}`)} style={styles.flashBox}>
+              <Text style={styles.flashTitle}>{flashTitle(row)}</Text>
+
+              {firstText(row, ['description', 'descrizione'], '').trim() ? (
+                <Text style={styles.flashDescription} numberOfLines={3}>
+                  {firstText(row, ['description', 'descrizione'], '').trim()}
+                </Text>
+              ) : null}
+
+              <Text style={styles.flashMeta}>{flashCity(row)}{flashProvince(row) ? ` · ${flashProvince(row)}` : ''}</Text>
+              {flashCreator(row) || creatorNames[flashCreatorId(row)] ? (
+                <Text style={styles.flashMeta}>
+                  Creato da: {flashCreator(row) || creatorNames[flashCreatorId(row)]}
+                </Text>
+              ) : null}
+              <Text style={styles.flashMeta}>{formatDate(firstValue(row, [
+                'start_at',
+                'starts_at',
+                'start_time',
+                'event_start_at',
+                'activity_start_at',
+                'scheduled_at',
+                'date_time',
+                'activity_date',
+                'event_date',
+                'data_ora',
+                'date',
+                'data',
+                'day',
+                'giorno',
+              ]))}</Text>
+
+              {flashPlace(row) ? <Text style={styles.flashPlace}>{flashPlace(row)}</Text> : null}
+
+              <Text style={styles.flashMeta}>
+                Partecipanti: {participantCounts[String(firstValue(row, ['id', 'activity_id'], ''))] ?? 0}
+              </Text>
+
+              {firstValue(row, ['expires_at', 'expiresAt', 'expiry_at', 'expires']) ? (
+                <Text style={styles.flashMeta}>
+                  Disponibile fino a: {formatDate(firstValue(row, ['expires_at', 'expiresAt', 'expiry_at', 'expires']))}
+                </Text>
+              ) : null}
+
+              <Text style={styles.flashStatusText}>
+                {rowBelongsToUser(row, userId)
+                  ? 'Tu organizzi questo Flash'
+                  : joinedActivityIds.has(String(firstValue(row, ['id', 'activity_id'], '')))
+                    ? 'Partecipi a questo Flash'
+                    : 'Puoi partecipare a questo Flash'}
+              </Text>
+
+              <View style={styles.flashActionsRow}>
+                <Pressable
+                  style={[styles.smallButton, styles.flashActionButton]}
+                  onPress={() => router.push({
+                    pathname: '/flash-detail',
+                    params: { id: String(firstValue(row, ['id', 'activity_id'], '')) },
+                  })}
+                >
+                  <Text style={styles.smallButtonText}>Vedi dettaglio</Text>
+                </Pressable>
+
+                <Pressable
+                  style={[styles.shareFlashButton, styles.flashActionButton]}
+                  onPress={() =>
+                    shareBajujuFlash({
+                      title: flashTitle(row),
+                      city: flashCity(row),
+                      province: flashProvince(row),
+                      date: String(firstValue(row, ['activity_date', 'date', 'data', 'day', 'giorno'], '') || ''),
+                      time: String(firstValue(row, ['activity_time', 'time', 'ora'], '') || ''),
+                    })
+                  }
+                >
+                  <Text style={styles.shareFlashButtonText}>Condividi</Text>
+                </Pressable>
+              </View>
+
+              {rowBelongsToUser(row, userId) ? (
+                <View style={styles.ownerActions}>
+                  <Text style={styles.ownerBadge}>Creato da: te</Text>
+
+                  <Pressable
+                    style={[
+                      styles.cancelButton,
+                      cancellingActivityId === String(firstValue(row, ['id', 'activity_id'], '')) && styles.buttonDisabled,
+                    ]}
+                    onPress={() => cancelFlash(row)}
+                    disabled={cancellingActivityId === String(firstValue(row, ['id', 'activity_id'], ''))}
+                  >
+                    <Text style={styles.cancelButtonText}>
+                      {cancellingActivityId === String(firstValue(row, ['id', 'activity_id'], ''))
+                        ? 'Annullamento...'
+                        : 'Annulla Flash'}
+                    </Text>
+                  </Pressable>
+                </View>
+              ) : joinedActivityIds.has(String(firstValue(row, ['id', 'activity_id'], ''))) ? (
+                <View style={styles.joinedActions}>
+                  <Text style={styles.joinedBadge}>Stai partecipando</Text>
+
+                  <Pressable
+                    style={[
+                      styles.leaveButton,
+                      leavingActivityId === String(firstValue(row, ['id', 'activity_id'], '')) && styles.buttonDisabled,
+                    ]}
+                    onPress={() => leaveFlash(row)}
+                    disabled={leavingActivityId === String(firstValue(row, ['id', 'activity_id'], ''))}
+                  >
+                    <Text style={styles.leaveButtonText}>
+                      {leavingActivityId === String(firstValue(row, ['id', 'activity_id'], ''))
+                        ? 'Uscita...'
+                        : 'Abbandona Flash'}
+                    </Text>
+                  </Pressable>
+                </View>
+              ) : (
+                <Pressable
+                  style={styles.joinButton}
+                  onPress={() => joinFlash(row)}
+                  disabled={joiningActivityId === String(firstValue(row, ['id', 'activity_id'], ''))}
+                >
+                  <Text style={styles.joinButtonText}>
+                    {joiningActivityId === String(firstValue(row, ['id', 'activity_id'], ''))
+                      ? 'Partecipazione...'
+                      : 'Partecipa al Flash'}
+                  </Text>
+                </Pressable>
+              )}
+            </View>
+          ))
+        )}
+      </View>
+      </ScrollView>
+      <BajujuBottomNav active="flash" />
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: BAJUJU_COLORS.background,
+  },
+  flashChoiceArrow: {
+    position: 'absolute',
+    right: 17,
+    top: '50%',
+    marginTop: -24,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    overflow: 'hidden',
+    textAlign: 'center',
+    textAlignVertical: 'center',
+    backgroundColor: BAJUJU_COLORS.softPink,
+    color: BAJUJU_COLORS.brightPink,
+    fontSize: 25,
+    fontWeight: '900',
+  },
+  availabilityIntroBanner: {
+    margin: -18,
+    marginBottom: 10,
+    paddingHorizontal: 18,
+    paddingVertical: 20,
+    borderRadius: 27,
+    backgroundColor: BAJUJU_COLORS.brightPink,
+  },
+  availableEmptyState: {
+    minHeight: 260,
+    paddingHorizontal: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  availableEmptyIcon: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    overflow: 'hidden',
+    textAlign: 'center',
+    textAlignVertical: 'center',
+    backgroundColor: BAJUJU_COLORS.softPink,
+    color: BAJUJU_COLORS.brightPink,
+    fontSize: 34,
+  },
+  availableEmptyTitle: {
+    marginTop: 16,
+    color: BAJUJU_COLORS.plum,
+    fontSize: 19,
+    fontWeight: '900',
+  },
+  availableRefreshButton: {
+    marginTop: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    borderRadius: 22,
+    borderWidth: 1.5,
+    borderColor: BAJUJU_COLORS.line,
+    backgroundColor: BAJUJU_COLORS.softPink,
+  },
+  availableRefreshButtonText: {
+    color: BAJUJU_COLORS.brightPink,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  flashLiveWideButton: {
+    width: '100%',
+    minHeight: 100,
+    marginTop: 14,
+    paddingRight: 72,
+    alignItems: 'flex-start',
+  },
+  flashWideMainButton: {
+    width: '100%',
+    minHeight: 130,
+    marginTop: 0,
+    marginBottom: 14,
+    paddingRight: 72,
+    alignItems: 'flex-start',
+  },
+  flashMainChoiceSubtext: {
+    color: BAJUJU_COLORS.muted,
+    fontSize: 14,
+    fontWeight: '700',
+    lineHeight: 19,
+    marginTop: 6,
+  },
+  flashMainChoiceIcon: {
+    color: '#ef2d82',
+    backgroundColor: '#fff0f7',
+    borderRadius: 999,
+    overflow: 'hidden',
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+  },
+  flashMainChoiceText: {
+    color: BAJUJU_COLORS.plum,
+    fontSize: 22,
+  },
+  flashHeroTopRow: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 14,
+    marginBottom: 10,
+  },
+  flashHeroTextBlock: {
+    flex: 1,
+  },
+  flashDedicatedText: {
+    zIndex: 1,
+    marginTop: 7,
+    color: BAJUJU_COLORS.plum,
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  flashDedicatedTitle: {
+    zIndex: 1,
+    fontSize: 34,
+    lineHeight: 39,
+    fontWeight: '900',
+    letterSpacing: -0.9,
+    textAlign: 'center',
+  },
+  flashDedicatedHeroCard: {
+    width: '100%',
+    marginBottom: 10,
+    minHeight: 206,
+    padding: 20,
+    overflow: 'hidden',
+    borderRadius: 30,
+    backgroundColor: '#FFFFFFDC',
+    borderWidth: 1.5,
+    borderColor: BAJUJU_COLORS.line,
+    shadowColor: '#9B1A5B',
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 3,
+  },
+  page: {
+    flexGrow: 1,
+    backgroundColor: BAJUJU_COLORS.background,
+    paddingTop: 20,
+    paddingHorizontal: 22,
+    paddingBottom: 132,
+    gap: 14,
+  },
+  hiddenSection: {
+    display: 'none',
+  },
+  flashBackButton: {
+    zIndex: 3,
+    alignSelf: 'flex-start',
+    minHeight: 44,
+    marginBottom: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 17,
+    borderRadius: 999,
+    borderWidth: 0,
+    backgroundColor: BAJUJU_COLORS.white,
+  },
+  flashBackText: {
+    color: BAJUJU_COLORS.brightPink,
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  flashHeroCard: {
+    alignItems: 'stretch',
+    padding: 22,
+    borderRadius: 32,
+    overflow: 'hidden',
+    backgroundColor: '#FFFFFFDC',
+    borderWidth: 1.5,
+    borderColor: BAJUJU_COLORS.line,
+    shadowColor: '#9B1A5B',
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 3,
+  },
+  flashHeroBlob: {
+    position: 'absolute',
+    width: 112,
+    height: 80,
+    borderRadius: 56,
+    backgroundColor: BAJUJU_COLORS.palePink,
+    opacity: 0.76,
+  },
+  flashHeroBlobTop: {
+    left: -30,
+    top: -26,
+    transform: [{ rotate: '-18deg' }],
+  },
+  flashHeroBlobBottom: {
+    right: -38,
+    bottom: -30,
+    transform: [{ rotate: '18deg' }],
+  },
+  flashHeroDoodle: {
+    position: 'absolute',
+    zIndex: 2,
+    color: BAJUJU_COLORS.brightPink,
+    fontWeight: '900',
+  },
+  flashHeroDoodleLeft: {
+    left: 28,
+    top: 111,
+    fontSize: 24,
+    transform: [{ rotate: '-8deg' }],
+  },
+  flashHeroDoodleRight: {
+    right: 27,
+    top: 24,
+    fontSize: 23,
+    transform: [{ rotate: '8deg' }],
+  },
+  flashHeroTitlePlum: {
+    color: BAJUJU_COLORS.plum,
+  },
+  flashHeroTitlePink: {
+    color: BAJUJU_COLORS.brightPink,
+  },
+  flashLogoCircle: {
+    width: 62,
+    height: 62,
+    borderRadius: 31,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#f6d7e4',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  flashLogoImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'contain',
+    borderRadius: 999,
+  },
+  flashHeroPhrase: {
+    marginTop: 7,
+    color: BAJUJU_COLORS.plum,
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: '500',
+  },
+  flashHeroText: {
+    color: BAJUJU_COLORS.plum,
+    fontSize: 14,
+    lineHeight: 21,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginBottom: 18,
+  },
+  flashChoiceRow: {
+    width: '100%',
+    flexDirection: 'row',
+    gap: 13,
+  },
+  flashChoiceButton: {
+    position: 'relative',
+    flex: 1,
+    minHeight: 124,
+    borderRadius: 27,
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+    padding: 18,
+    borderWidth: 1.5,
+  },
+  flashCreateChoiceButton: {
+    backgroundColor: BAJUJU_COLORS.white,
+    borderColor: BAJUJU_COLORS.palePink,
+  },
+  flashMainChoiceButton: {
+    shadowColor: '#7A1248',
+    shadowOpacity: 0.24,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 9 },
+    elevation: 7,
+  },
+  flashFindChoiceButton: {
+    backgroundColor: BAJUJU_COLORS.white,
+    borderColor: BAJUJU_COLORS.palePink,
+    shadowColor: '#7A1248',
+    shadowOpacity: 0.2,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 6,
+  },
+  flashSecondaryChoiceIcon: {
+    color: '#ef2d82',
+    backgroundColor: '#fff0f7',
+    borderRadius: 999,
+    overflow: 'hidden',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+  },
+  flashSecondaryChoiceText: {
+    color: BAJUJU_COLORS.plum,
+    fontSize: 19,
+  },
+  flashChoiceIcon: {
+    fontSize: 11,
+    marginBottom: 8,
+    fontWeight: '900',
+    letterSpacing: 0.7,
+  },
+  flashChoiceText: {
+    color: BAJUJU_COLORS.plum,
+    fontSize: 16,
+    fontWeight: '900',
+    textAlign: 'left',
+  },
+  flashAvailabilityHeroButton: {
+    width: '100%',
+    marginTop: 14,
+    borderRadius: 24,
+    paddingVertical: 19,
+    paddingHorizontal: 18,
+    backgroundColor: '#ef2d82',
+    borderWidth: 2,
+    borderColor: '#f7a7cd',
+    shadowColor: '#ef2d82',
+    shadowOpacity: 0.22,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  flashAvailabilityHeroIcon: {
+    fontSize: 30,
+    marginBottom: 6,
+  },
+  flashAvailabilityHeroText: {
+    color: '#ffffff',
+    fontSize: 19,
+    fontWeight: '900',
+    textAlign: 'center',
+  },
+  flashSectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 10,
+  },
+  availabilityHeroCard: {
+    backgroundColor: '#FFFCFE',
+    borderRadius: 29,
+    padding: 18,
+    marginBottom: 18,
+    borderWidth: 2,
+    borderColor: BAJUJU_COLORS.palePink,
+    shadowColor: '#9B1A5B',
+    shadowOpacity: 0.18,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 9 },
+    elevation: 6,
+    gap: 10,
+  },
+  availabilityKicker: {
+    color: BAJUJU_COLORS.white,
+    fontSize: 13,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+    letterSpacing: 0.9,
+  },
+  availabilityTitle: {
+    color: '#ffffff',
+    fontSize: 25,
+    lineHeight: 30,
+    fontWeight: '900',
+  },
+  availabilityText: {
+    marginTop: 8,
+    color: BAJUJU_COLORS.white,
+    fontSize: 15,
+    lineHeight: 21,
+    fontWeight: '500',
+  },
+  availabilityLabel: {
+    color: BAJUJU_COLORS.plum,
+    fontSize: 14,
+    fontWeight: '700',
+    marginTop: 8,
+  },
+  availabilityHelpText: {
+    color: '#ffe5f1',
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: '800',
+    marginBottom: 8,
+  },
+  availabilityMainButton: {
+    backgroundColor: BAJUJU_COLORS.brightPink,
+    borderRadius: 24,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  availabilityMainButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  activeAvailabilityBox: {
+    backgroundColor: '#fff8fb',
+    borderRadius: 18,
+    borderWidth: 2,
+    borderColor: '#ffd3e6',
+    paddingVertical: 12,
+    paddingHorizontal: 13,
+    marginTop: 8,
+  },
+  activeAvailabilityTitle: {
+    color: '#7a1248',
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  activeAvailabilityText: {
+    color: '#9b1f61',
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '800',
+    marginTop: 4,
+  },
+  cancelAvailabilityButton: {
+    backgroundColor: '#ffffff',
+    borderRadius: 18,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    marginTop: 8,
+    borderWidth: 2,
+    borderColor: '#ffd3e6',
+  },
+  cancelAvailabilityButtonText: {
+    color: '#9b1f61',
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  choiceWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  choiceRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  choiceChip: {
+    backgroundColor: BAJUJU_COLORS.softPink,
+    borderRadius: 999,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderWidth: 1.5,
+    borderColor: BAJUJU_COLORS.line,
+  },
+  choiceChipActive: {
+    backgroundColor: BAJUJU_COLORS.brightPink,
+    borderColor: BAJUJU_COLORS.brightPink,
+    borderWidth: 1.5,
+  },
+  choiceChipText: {
+    color: BAJUJU_COLORS.plum,
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  choiceChipTextActive: {
+    color: '#ffffff',
+    fontWeight: '900',
+  },
+  durationChip: {
+    backgroundColor: BAJUJU_COLORS.softPink,
+    borderRadius: 999,
+    paddingVertical: 12,
+    paddingHorizontal: 15,
+    borderWidth: 1.5,
+    borderColor: BAJUJU_COLORS.line,
+  },
+  durationChipActive: {
+    backgroundColor: BAJUJU_COLORS.brightPink,
+    borderColor: BAJUJU_COLORS.brightPink,
+    borderWidth: 1.5,
+  },
+  durationChipText: {
+    color: '#9b1f61',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  durationChipTextActive: {
+    color: '#ffffff',
+    fontWeight: '900',
+  },
+  selectedAvailabilityBox: {
+    backgroundColor: '#ffffff',
+    borderRadius: 18,
+    borderWidth: 3,
+    borderColor: '#ef2d82',
+    paddingVertical: 10,
+    paddingHorizontal: 13,
+    marginTop: 10,
+    marginBottom: 8,
+  },
+  selectedAvailabilityLabel: {
+    color: '#7a1248',
+    fontSize: 11,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+    marginBottom: 3,
+  },
+  selectedAvailabilityValue: {
+    color: '#ef2d82',
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  addressFallbackText: {
+    color: '#8b4b69',
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: '700',
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  municipalityDropdownButton: {
+    backgroundColor: '#FFFAFC',
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: BAJUJU_COLORS.line,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    marginTop: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  municipalityDropdownText: {
+    flex: 1,
+    color: BAJUJU_COLORS.muted,
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  municipalityDropdownTextSelected: {
+    color: '#ef2d82',
+  },
+  municipalityDropdownArrow: {
+    color: '#ef2d82',
+    fontSize: 20,
+    fontWeight: '900',
+  },
+  municipalitySelectBox: {
+    maxHeight: 340,
+    backgroundColor: '#fff8fb',
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: '#ffd3e6',
+    marginTop: 8,
+  },
+  municipalitySelectContent: {
+    padding: 8,
+    gap: 7,
+  },
+  municipalitySelectItem: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    paddingVertical: 11,
+    paddingHorizontal: 13,
+    borderWidth: 2,
+    borderColor: '#ffd3e6',
+  },
+  municipalitySelectItemActive: {
+    backgroundColor: '#ef2d82',
+    borderColor: '#7a1248',
+    borderWidth: 4,
+  },
+  municipalitySelectItemText: {
+    color: '#9b1f61',
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  municipalitySelectItemTextActive: {
+    color: '#ffffff',
+    fontWeight: '900',
+  },
+
+  availablePeopleSection: {
+    backgroundColor: '#FFFCFE',
+    borderRadius: 29,
+    borderWidth: 2,
+    borderColor: BAJUJU_COLORS.palePink,
+    padding: 22,
+    marginBottom: 18,
+    gap: 13,
+    shadowColor: '#9B1A5B',
+    shadowOpacity: 0.18,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 9 },
+    elevation: 6,
+  },
+  availablePeopleHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  availablePeopleHeaderText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  availablePeopleTitle: {
+    color: BAJUJU_COLORS.plum,
+    fontSize: 18,
+    fontWeight: '900',
+  },
+  availablePeopleSubtitle: {
+    color: BAJUJU_COLORS.muted,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '800',
+    marginTop: 3,
+  },
+  availablePeopleCount: {
+    color: BAJUJU_COLORS.brightPink,
+    fontSize: 28,
+    fontWeight: '900',
+  },
+  availablePeopleEmpty: {
+    marginTop: 7,
+    color: BAJUJU_COLORS.muted,
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  availableCardsRow: {
+    gap: 14,
+    paddingRight: 16,
+    paddingBottom: 4,
+  },
+  availablePersonCard: {
+    width: 250,
+    backgroundColor: '#ffffff',
+    borderRadius: 30,
+    borderWidth: 2,
+    borderColor: '#ffd3e6',
+    padding: 13,
+    shadowColor: '#e43f98',
+    shadowOpacity: 0.22,
+    shadowRadius: 22,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 8,
+  },
+  availablePhotoBox: {
+    width: '100%',
+    height: 240,
+    borderRadius: 26,
+    backgroundColor: '#fff0f7',
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 13,
+    borderWidth: 1,
+    borderColor: '#ffd3e6',
+  },
+  availablePhoto: {
+    width: '100%',
+    height: '100%',
+  },
+  availablePhotoFallback: {
+    width: 120,
+    height: 120,
+  },
+  availableName: {
+    color: '#4b1430',
+    fontSize: 20,
+    fontWeight: '900',
+  },
+  availableZone: {
+    color: '#7b4960',
+    fontSize: 13,
+    fontWeight: '800',
+    marginTop: 3,
+  },
+  availableTime: {
+    color: '#e43f98',
+    fontSize: 13,
+    fontWeight: '900',
+    marginTop: 7,
+  },
+  availableInviteButton: {
+    backgroundColor: '#e43f98',
+    borderRadius: 16,
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  availableInviteButtonText: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '900',
+  },
+
+  sectionTitleSmall: {
+    color: BAJUJU_COLORS.plum,
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 10,
+  },
+
+  mapHighlightButton: {
+    width: '100%',
+    borderRadius: 24,
+    backgroundColor: BAJUJU_COLORS.softPink,
+    borderWidth: 2,
+    borderColor: BAJUJU_COLORS.line,
+    paddingVertical: 15,
+    paddingHorizontal: 14,
+    marginTop: 12,
+    marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  mapHighlightIcon: {
+    fontSize: 30,
+  },
+  mapHighlightTextBox: {
+    flex: 1,
+  },
+  mapHighlightTitle: {
+    color: BAJUJU_COLORS.brightPink,
+    fontSize: 16,
+    fontWeight: '900',
+    marginBottom: 3,
+  },
+  mapHighlightSubtitle: {
+    color: BAJUJU_COLORS.plum,
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: '700',
+  },
+
+  mapSmallButton: {
+    borderRadius: 999,
+    backgroundColor: '#e43f98',
+    shadowColor: '#e43f98',
+    shadowOpacity: 0.30,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 9 },
+    elevation: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 13,
+  },
+  mapSmallButtonText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+
+  card: {
+    backgroundColor: '#FFFCFE',
+    borderRadius: 29,
+    padding: 22,
+    borderWidth: 2,
+    borderColor: BAJUJU_COLORS.palePink,
+    shadowColor: '#9B1A5B',
+    shadowOpacity: 0.18,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 6,
+  },
+  flashInstructions: {
+    zIndex: 1,
+    backgroundColor: BAJUJU_COLORS.softPink,
+    borderRadius: 24,
+    color: BAJUJU_COLORS.plum,
+    fontSize: 15,
+    fontWeight: '500',
+    lineHeight: 21,
+    marginBottom: 18,
+    marginTop: 4,
+    paddingHorizontal: 18,
+    paddingVertical: 17,
+  },
+  kicker: {
+    zIndex: 1,
+    fontWeight: '900',
+    fontSize: 34,
+    lineHeight: 39,
+    letterSpacing: -0.9,
+  },
+  title: {
+    color: '#e43f98',
+    fontSize: 33,
+    fontWeight: '900',
+    marginBottom: 14,
+  },
+  text: {
+    color: '#4b1430',
+    fontSize: 16,
+    lineHeight: 23,
+    marginBottom: 18,
+  },
+  button: {
+    backgroundColor: BAJUJU_COLORS.brightPink,
+    borderRadius: 24,
+    paddingVertical: 14,
+    alignItems: 'center',
+    shadowColor: BAJUJU_COLORS.brightPink,
+    shadowOpacity: 0.28,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 6,
+  },
+  buttonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  secondaryButton: {
+    backgroundColor: BAJUJU_COLORS.softPink,
+    borderRadius: 24,
+    paddingVertical: 14,
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: BAJUJU_COLORS.line,
+    marginTop: 10,
+  },
+  secondaryButtonText: {
+    color: '#ef2d82',
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  buttonDisabled: {
+    opacity: 0.65,
+  },
+  label: {
+    color: BAJUJU_COLORS.plum,
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 7,
+  },
+  flashDescriptionInput: {
+    minHeight: 72,
+    maxHeight: 90,
+    paddingTop: 12,
+  },
+  flashDescriptionCounter: {
+    alignSelf: 'flex-end',
+    color: '#9c7b8b',
+    fontSize: 11,
+    fontWeight: '800',
+    marginTop: -6,
+    marginBottom: 2,
+  },
+  flashDescription: {
+    color: '#6f4258',
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '700',
+    marginTop: 6,
+    marginBottom: 4,
+  },
+  input: {
+    minHeight: 58,
+    borderRadius: 18,
+    borderWidth: 2,
+    borderColor: BAJUJU_COLORS.palePink,
+    backgroundColor: BAJUJU_COLORS.white,
+    paddingHorizontal: 14,
+    fontSize: 16,
+    color: BAJUJU_COLORS.plum,
+    marginBottom: 14,
+  },
+  formNote: {
+    color: BAJUJU_COLORS.muted,
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: 10,
+  },
+  durationRow: {
+    gap: 10,
+    marginBottom: 14,
+  },
+  durationButton: {
+    borderRadius: 999,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    backgroundColor: BAJUJU_COLORS.softPink,
+    borderWidth: 1.5,
+    borderColor: BAJUJU_COLORS.line,
+    alignItems: 'center',
+  },
+  durationButtonActive: {
+    backgroundColor: BAJUJU_COLORS.brightPink,
+    borderColor: BAJUJU_COLORS.brightPink,
+  },
+  durationText: {
+    color: '#7b4960',
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  durationTextActive: {
+    color: '#ffffff',
+  },
+  sectionTitle: {
+    color: BAJUJU_COLORS.plum,
+    fontSize: 20,
+    fontWeight: '900',
+    marginBottom: 12,
+  },
+  chipsRow: {
+    gap: 10,
+    paddingBottom: 18,
+  },
+  chip: {
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    backgroundColor: BAJUJU_COLORS.softPink,
+    borderWidth: 1.5,
+    borderColor: BAJUJU_COLORS.line,
+  },
+  chipActive: {
+    backgroundColor: BAJUJU_COLORS.brightPink,
+    borderColor: BAJUJU_COLORS.brightPink,
+  },
+  chipText: {
+    color: BAJUJU_COLORS.plum,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  chipTextActive: {
+    color: '#ffffff',
+  },
+  tabsRow: {
+    flexDirection: 'row',
+    gap: 7,
+    marginBottom: 10,
+  },
+  tabButton: {
+    flex: 1,
+    minHeight: 36,
+    borderRadius: 999,
+    borderWidth: 1.5,
+    borderColor: BAJUJU_COLORS.line,
+    backgroundColor: BAJUJU_COLORS.softPink,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 7,
+    paddingHorizontal: 8,
+  },
+  tabButtonActive: {
+    backgroundColor: BAJUJU_COLORS.brightPink,
+    borderColor: BAJUJU_COLORS.brightPink,
+  },
+  tabText: {
+    color: '#86104f',
+    fontSize: 11,
+    fontWeight: '900',
+    textAlign: 'center',
+  },
+  tabTextActive: {
+    color: BAJUJU_COLORS.white,
+  },
+  emptyBox: {
+    backgroundColor: BAJUJU_COLORS.palePink,
+    borderRadius: 24,
+    padding: 20,
+    borderWidth: 1.5,
+    borderColor: BAJUJU_COLORS.line,
+    gap: 8,
+  },
+  emptyTitle: {
+    color: '#4b1430',
+    fontSize: 17,
+    fontWeight: '900',
+  },
+  mutedText: {
+    color: '#7b4960',
+    fontSize: 15,
+    lineHeight: 21,
+  },
+  errorTitle: {
+    color: '#b00020',
+    fontSize: 17,
+    fontWeight: '900',
+  },
+  errorText: {
+    color: '#7b1d35',
+    fontSize: 15,
+    lineHeight: 21,
+  },
+  smallButton: {
+    backgroundColor: '#ef2d82',
+    borderRadius: 14,
+    paddingVertical: 10,
+    alignItems: 'center',
+    marginTop: 6,
+  },
+  flashActionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  flashActionButton: {
+    flex: 1,
+    borderRadius: 999,
+    minHeight: 42,
+    justifyContent: 'center',
+  },
+  shareFlashButton: {
+    borderRadius: 999,
+    backgroundColor: '#fff7fb',
+    borderWidth: 1,
+    borderColor: '#f4b3d1',
+    paddingVertical: 10,
+    alignItems: 'center',
+    minHeight: 42,
+    justifyContent: 'center',
+  },
+  shareFlashButtonText: {
+    color: '#e43f98',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  smallButtonText: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  flashBox: {
+    backgroundColor: '#FFFCFE',
+    borderRadius: 22,
+    padding: 16,
+    borderWidth: 2,
+    borderColor: BAJUJU_COLORS.palePink,
+    marginBottom: 12,
+    shadowColor: '#e43f98',
+    shadowOpacity: 0.17,
+    shadowRadius: 15,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 5,
+  },
+  flashTitle: {
+    color: '#421229',
+    fontSize: 17,
+    fontWeight: '900',
+    marginBottom: 5,
+    letterSpacing: -0.2,
+  },
+  flashMeta: {
+    color: '#7f5268',
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 2,
+  },
+  flashPlace: {
+    color: '#4b1430',
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 8,
+    fontWeight: '800',
+    backgroundColor: '#fff7fb',
+    borderRadius: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    overflow: 'hidden',
+  },
+  mapButton: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#ef2d82',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginTop: 12,
+  },
+  mapButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  noMapText: {
+    color: '#a36a86',
+    fontSize: 13,
+    fontWeight: '900',
+    marginTop: 10,
+  },
+  ownerActions: {
+    gap: 8,
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#ffe1ee',
+  },
+  cancelButton: {
+    backgroundColor: '#fff7fb',
+    borderRadius: 999,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: '#ef8fbe',
+    alignItems: 'center',
+    minHeight: 40,
+    justifyContent: 'center',
+  },
+  cancelButtonText: {
+    color: '#e43f98',
+    fontWeight: '900',
+    fontSize: 13,
+  },
+  flashStatusText: {
+    alignSelf: 'flex-start',
+    marginTop: 12,
+    color: '#8f3d65',
+    backgroundColor: '#fff2f8',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    fontWeight: '900',
+    fontSize: 12,
+  },
+  joinedActions: {
+    gap: 10,
+    marginTop: 12,
+  },
+  leaveButton: {
+    backgroundColor: '#fff0f7',
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: '#d6457a',
+    alignItems: 'center',
+  },
+  leaveButtonText: {
+    color: '#d6457a',
+    fontWeight: '900',
+    fontSize: 14,
+  },
+  joinButton: {
+    width: '100%',
+    backgroundColor: '#ef2d82',
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginTop: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  joinButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  joinedBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#e8fff2',
+    color: '#187a45',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    fontSize: 13,
+    fontWeight: '900',
+    overflow: 'hidden',
+    marginTop: 10,
+  },
+  ownerBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#ffe3f0',
+    color: '#ef2d82',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    fontSize: 13,
+    fontWeight: '900',
+    overflow: 'hidden',
+    marginTop: 10,
+  },
+});

@@ -7,13 +7,13 @@ const requiredFiles = [
   'app.base.json',
   'app.config.js',
   'app/_layout.tsx',
-  'app/login.tsx',
-  'app/forgot-password.tsx',
-  'app/reset-password.tsx',
-  'app/auth/callback.tsx',
+  'app/(auth)/login.tsx',
+  'app/(auth)/forgot-password.tsx',
+  'app/(auth)/reset-password.tsx',
+  'app/(auth)/auth/callback.tsx',
   'src/lib/authRecovery.ts',
   'src/lib/supabase.ts',
-  'components/BajujuMap.tsx',
+  'src/components/BajujuMap.tsx',
 ];
 
 let failed = false;
@@ -37,7 +37,7 @@ for (const relativePath of requiredFiles) {
   }
 }
 
-const forgotPasswordPath = path.join(root, 'app/forgot-password.tsx');
+const forgotPasswordPath = path.join(root, 'app/(auth)/forgot-password.tsx');
 
 if (fs.existsSync(forgotPasswordPath)) {
   const forgotPassword = fs.readFileSync(forgotPasswordPath, 'utf8');
@@ -49,7 +49,7 @@ if (fs.existsSync(forgotPasswordPath)) {
   }
 }
 
-const callbackPath = path.join(root, 'app/auth/callback.tsx');
+const callbackPath = path.join(root, 'app/(auth)/auth/callback.tsx');
 
 if (fs.existsSync(callbackPath)) {
   const callback = fs.readFileSync(callbackPath, 'utf8');
@@ -61,7 +61,7 @@ if (fs.existsSync(callbackPath)) {
   }
 }
 
-const resetPath = path.join(root, 'app/reset-password.tsx');
+const resetPath = path.join(root, 'app/(auth)/reset-password.tsx');
 
 if (fs.existsSync(resetPath)) {
   const reset = fs.readFileSync(resetPath, 'utf8');
@@ -85,7 +85,7 @@ if (fs.existsSync(resetPath)) {
   }
 }
 
-const mapPath = path.join(root, 'components/BajujuMap.tsx');
+const mapPath = path.join(root, 'src/components/BajujuMap.tsx');
 
 if (fs.existsSync(mapPath)) {
   const map = fs.readFileSync(mapPath, 'utf8');
@@ -153,17 +153,17 @@ function forbidContent(relativePath, needle, label) {
   else success(label.replace(/^È ancora presente /, 'Assente '));
 }
 
-requireContent('app/experiences-map.tsx', 'showUserLocation={viewerCoordinates !== null}', 'Manca protezione permesso GPS prima della posizione utente');
-requireContent('components/BajujuMap.tsx', 'viewportKey?: string', 'Manca protezione dai ricentramenti ripetuti della mappa');
-requireContent('app/admin-create-experience.tsx', 'resolveAddressText', 'Manca geolocalizzazione eventi Admin/ChatGPT');
-requireContent('app/edit-experience.tsx', 'latitude,\n          longitude,', 'Manca aggiornamento coordinate durante modifica evento');
-requireContent('app/notifications.tsx', 'deleteAllNotifications', 'Manca eliminazione notifiche');
+requireContent('app/(experiences)/experiences-map.tsx', 'showUserLocation={viewerCoordinates !== null}', 'Manca protezione permesso GPS prima della posizione utente');
+requireContent('src/components/BajujuMap.tsx', 'viewportKey?: string', 'Manca protezione dai ricentramenti ripetuti della mappa');
+requireContent('app/(admin)/admin-create-experience.tsx', 'resolveAddressText', 'Manca geolocalizzazione eventi Admin/ChatGPT');
+requireContent('app/(experiences)/edit-experience.tsx', 'latitude,\n          longitude,', 'Manca aggiornamento coordinate durante modifica evento');
+requireContent('app/(account)/notifications.tsx', 'deleteAllNotifications', 'Manca eliminazione notifiche');
 requireContent('app/_layout.tsx', 'addNotificationResponseReceivedListener', 'Manca apertura destinazione al tap della push');
-requireContent('app/experience-detail.tsx', 'experience-messages-${experienceId}', 'Manca realtime chat esperienze');
-requireContent('app/flash-detail.tsx', 'flash-messages-${flashId}', 'Manca realtime chat Flash');
-forbidContent('app/create-experience.tsx', "'Brescia',", 'È ancora presente Brescia tra le province attive di Crea esperienza');
-forbidContent('app/create-experience.tsx', "'Torino',", 'È ancora presente Torino tra le province attive di Crea esperienza');
-requireContent('app/create-experience.tsx', "'Verona',", 'Manca Verona tra le province attive di Crea esperienza');
+requireContent('app/(experiences)/experience-detail.tsx', 'experience-messages-${experienceId}', 'Manca realtime chat esperienze');
+requireContent('app/(flash)/flash-detail.tsx', 'flash-messages-${flashId}', 'Manca realtime chat Flash');
+forbidContent('app/(experiences)/create-experience.tsx', "'Brescia',", 'È ancora presente Brescia tra le province attive di Crea esperienza');
+forbidContent('app/(experiences)/create-experience.tsx', "'Torino',", 'È ancora presente Torino tra le province attive di Crea esperienza');
+requireContent('app/(experiences)/create-experience.tsx', "'Verona',", 'Manca Verona tra le province attive di Crea esperienza');
 
 if (failed) {
   console.error('\nCONTROLLO PRE-BUILD NON SUPERATO');

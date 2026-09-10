@@ -1,50 +1,78 @@
-# Welcome to your Expo app 👋
+# Bajuju Mobile
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+App mobile di Bajuju, costruita con [Expo](https://expo.dev) (React Native, file-based routing via [expo-router](https://docs.expo.dev/router/introduction)) e [Supabase](https://supabase.com) come backend.
 
-## Get started
-
-1. Install dependencies
-
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## Avvio rapido
 
 ```bash
-npm run reset-project
+npm install
+npx expo start
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Dall'output di `expo start` puoi aprire l'app in:
 
-## Learn more
+- una [development build](https://docs.expo.dev/develop/development-builds/introduction/)
+- un emulatore Android o un simulatore iOS
+- [Expo Go](https://expo.dev/go)
 
-To learn more about developing your project with Expo, look at the following resources:
+## Struttura del progetto
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+```
+app/                  Schermate (rotte expo-router). Ogni file qui è una rotta reale.
+  (tabs)/             Tab principali (Home, Esplora)
+  (auth)/             Login, registrazione, recupero password, callback OAuth/reset
+  (admin)/             Pannello di amministrazione
+  (experiences)/       Esperienze: lista, mappa, dettaglio, creazione/modifica, waitlist
+  (flash)/             Flash: creazione, ricerca, disponibilità, dettaglio
+  (groups)/             Gruppi: lista, dettaglio, creazione
+  (social)/             Contatti diretti, inviti, condivisione, inviti a data
+  (legal)/              Privacy e regole
+  _layout.tsx           Layout radice: navigazione, gestione notifiche push, controllo profilo
+  home.tsx               Home principale post-login
 
-## Join the community
+src/
+  components/          Componenti riusabili (inclusi i componenti base generati da Expo)
+  constants/            Costanti condivise (tema colori, categorie esperienze)
+  data/                 Dataset statici (es. comuni italiani)
+  hooks/                Hook React condivisi
+  lib/                  Client Supabase, autocompletamento indirizzi, recupero sessione
+  theme/                 Tema visivo Bajuju (colori, font, ombre)
+  utils/                 Utility applicative (notifiche, analytics, condivisione, grading organizzatori)
 
-Join our community of developers creating universal apps.
+supabase/
+  functions/            Edge Functions Supabase
+  migrations/            Migrazioni SQL del database
+  schema-contract.json  Contratto schema verificato da scripts/check-live-contracts.mjs
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+scripts/                Script di supporto (audit rotte, controllo contratti Supabase, controlli pre-build)
+```
+
+> Nota su `app/(nome)/`: le cartelle tra parentesi sono *route group* di expo-router — servono solo a organizzare i file, **non compaiono nell'URL/rotta**. `app/(admin)/admin-users.tsx` resta raggiungibile come `/admin-users`, esattamente come prima del riordino.
+
+L'alias `@/*` punta a `src/*` (vedi `tsconfig.json`): da qualunque file puoi importare con `@/lib/supabase`, `@/components/...`, `@/hooks/...`, ecc.
+
+## Script disponibili
+
+```bash
+npm run lint             # ESLint (config Expo)
+npm run typecheck        # Controllo TypeScript
+npm run doctor            # expo-doctor
+npm run check:contracts   # Verifica che il codice sia allineato allo schema Supabase live
+npm run check:bundle      # Prova di export del bundle Android/iOS
+npm run check:release     # typecheck + doctor + check:contracts + check:bundle (usato in CI)
+```
+
+Script aggiuntivi in `scripts/`:
+
+- `check-routes.js` — verifica che ogni `router.push`/`href` nel codice punti a una rotta esistente in `app/`.
+- `check-before-build.js` — controlli manuali di regressione su alcuni flussi critici (recupero password, mappa, notifiche). Non è ancora collegato a `check:release`.
+
+## Rilascio
+
+Le push OTA a produzione partono dai workflow in `.github/workflows/` (`mobile-release-check.yml`, `mobile-ota-publish.yml`), innescati da push su `main` o dal file `.ota-release-trigger`. Non spostare o rinominare `.ota-release-trigger` / `.ota-release-result.json`: i workflow li referenziano per nome.
+
+## Approfondimenti
+
+- [Documentazione Expo](https://docs.expo.dev/)
+- [Expo Router](https://docs.expo.dev/router/introduction)
+- [Supabase](https://supabase.com/docs)

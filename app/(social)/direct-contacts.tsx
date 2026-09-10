@@ -280,7 +280,7 @@ export default function DirectContactsScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#fff7fb' },
+  safeArea: { flex: 1, backgroundColor: '#FFF9FC' },
   header: { minHeight: 76, paddingHorizontal: 15, flexDirection: 'row', alignItems: 'center' },
   backButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#f3c6dc', alignItems: 'center', justifyContent: 'center' },
   backText: { color: '#8f1658', fontSize: 36, lineHeight: 38, marginTop: -4 },
@@ -297,10 +297,10 @@ const styles = StyleSheet.create({
   directionLabel: { color: '#a95d86', fontSize: 10, fontWeight: '900', letterSpacing: 1 },
   cardTitle: { marginTop: 4, color: '#4b1430', fontSize: 18, fontWeight: '900' },
   typeLabel: { marginTop: 7, color: '#e43f98', fontWeight: '900' },
-  status: { marginTop: 8, alignSelf: 'flex-start', paddingHorizontal: 9, paddingVertical: 5, borderRadius: 999, backgroundColor: '#fff2f8', color: '#8f1658', fontWeight: '900', fontSize: 12 },
+  status: { marginTop: 8, alignSelf: 'flex-start', paddingHorizontal: 9, paddingVertical: 5, borderRadius: 999, backgroundColor: '#FFF0F7', color: '#8f1658', fontWeight: '900', fontSize: 12 },
   statusAccepted: { backgroundColor: '#ecfdf3', color: '#18794e' },
   message: { marginTop: 10, color: '#6b3652', lineHeight: 20, fontWeight: '700' },
-  valueBox: { marginTop: 12, padding: 13, borderRadius: 16, backgroundColor: '#fff8fb', borderWidth: 1, borderColor: '#f3c6dc' },
+  valueBox: { marginTop: 12, padding: 13, borderRadius: 16, backgroundColor: '#FFF9FC', borderWidth: 1, borderColor: '#f3c6dc' },
   valueLabel: { color: '#a95d86', fontWeight: '800', fontSize: 11 },
   valueText: { marginTop: 4, color: '#4b1430', fontWeight: '900', fontSize: 17 },
   hiddenText: { marginTop: 12, color: '#a95d86', fontWeight: '700', fontSize: 12 },

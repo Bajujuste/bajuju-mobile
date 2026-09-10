@@ -348,10 +348,10 @@ function AdminRow({
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#fff8fb' },
+  safeArea: { flex: 1, backgroundColor: '#FFF9FC' },
   page: {
     flexGrow: 1,
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
     padding: 18,
     paddingBottom: 40,
     gap: 14,
@@ -397,7 +397,7 @@ const styles = StyleSheet.create({
   menuRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
     borderRadius: 18,
     padding: 14,
     borderWidth: 1,

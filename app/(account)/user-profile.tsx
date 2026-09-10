@@ -545,7 +545,7 @@ export default function UserProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: '#fff8fb' },
+  page: { flex: 1, backgroundColor: '#FFF9FC' },
   content: { padding: 22, paddingTop: 58 },
   backButton: {
     alignSelf: 'flex-start',
@@ -715,7 +715,7 @@ const styles = StyleSheet.create({
   infoBox: {
     width: '100%',
     borderRadius: 18,
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
     borderWidth: 1,
     borderColor: '#ffd3e7',
     padding: 14,

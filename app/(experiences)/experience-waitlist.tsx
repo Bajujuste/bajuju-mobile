@@ -325,7 +325,7 @@ export default function ExperienceWaitlistScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#fff7fb' },
+  safeArea: { flex: 1, backgroundColor: '#FFF9FC' },
   container: { flex: 1, padding: 20, paddingTop: 58, paddingBottom: 120 },
   backButton: { alignSelf: 'flex-start', paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999, backgroundColor: '#fff0f7', borderWidth: 1, borderColor: '#ffd1e6', marginBottom: 14 },
   backText: { color: '#e43f98', fontWeight: '900' },
@@ -334,7 +334,7 @@ const styles = StyleSheet.create({
   title: { marginTop: 7, color: '#4b1430', fontSize: 25, lineHeight: 30, fontWeight: '900' },
   meta: { marginTop: 7, color: '#8f5573', fontSize: 13, lineHeight: 19, fontWeight: '700' },
   centerBox: { paddingVertical: 34, alignItems: 'center', gap: 10 },
-  noticeBox: { marginTop: 20, padding: 18, borderRadius: 22, backgroundColor: '#fff8fb', borderWidth: 1, borderColor: '#ffd9ea' },
+  noticeBox: { marginTop: 20, padding: 18, borderRadius: 22, backgroundColor: '#FFF9FC', borderWidth: 1, borderColor: '#ffd9ea' },
   priorityBox: { marginTop: 20, padding: 18, borderRadius: 22, backgroundColor: '#fff7dc', borderWidth: 1, borderColor: '#e4bf4f' },
   noticeTitle: { color: '#4b1430', fontSize: 19, fontWeight: '900', textAlign: 'center' },
   positionText: { marginTop: 10, color: '#e43f98', fontSize: 27, fontWeight: '900', textAlign: 'center' },

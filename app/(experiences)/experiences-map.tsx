@@ -644,7 +644,7 @@ const legacyStyles = StyleSheet.create({
 
   page: {
     flexGrow: 1,
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
     paddingTop: 54,
     paddingHorizontal: 16,
     paddingBottom: 36,
@@ -730,7 +730,7 @@ const legacyStyles = StyleSheet.create({
     fontWeight: '900',
   },
   eventBox: {
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
     borderRadius: 20,
     padding: 14,
     borderWidth: 1,
@@ -991,7 +991,7 @@ const styles = StyleSheet.create({
     borderRadius: 25,
     borderWidth: 2,
     borderColor: BAJUJU_COLORS.palePink,
-    backgroundColor: '#FFFCFE',
+    backgroundColor: '#FFFFFF',
     gap: 12,
     shadowColor: '#9B1A5B',
     shadowOpacity: 0.18,

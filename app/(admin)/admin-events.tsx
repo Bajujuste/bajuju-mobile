@@ -652,7 +652,7 @@ export default function AdminEventsScreen() {
 const styles = StyleSheet.create({
   page: {
     flexGrow: 1,
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
     padding: 18,
     paddingBottom: 40,
     gap: 14,
@@ -734,7 +734,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   filterChip: {
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
     borderWidth: 1,
     borderColor: '#ffd3e6',
     borderRadius: 999,
@@ -763,12 +763,12 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 21,
     fontWeight: '700',
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
     padding: 14,
     borderRadius: 16,
   },
   listRow: {
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
     borderRadius: 18,
     padding: 14,
     borderWidth: 1,

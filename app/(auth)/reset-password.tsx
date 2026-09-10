@@ -263,7 +263,7 @@ export default function ResetPasswordScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
   },
   keyboardView: {
     flex: 1,
@@ -321,7 +321,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 13,
     fontWeight: '900',
-    color: '#4b1030',
+    color: '#4B0C2D',
     marginBottom: 7,
     marginTop: 10,
   },
@@ -333,8 +333,8 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
     fontSize: 15,
     fontWeight: '700',
-    color: '#4b1030',
-    backgroundColor: '#fff8fb',
+    color: '#4B0C2D',
+    backgroundColor: '#FFF9FC',
   },
   passwordRow: {
     flexDirection: 'row',
@@ -342,7 +342,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#f5bfd9',
     borderRadius: 18,
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
     overflow: 'hidden',
   },
   passwordInput: {
@@ -351,7 +351,7 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
     fontSize: 15,
     fontWeight: '700',
-    color: '#4b1030',
+    color: '#4B0C2D',
   },
   passwordToggle: {
     paddingHorizontal: 13,
@@ -377,7 +377,7 @@ const styles = StyleSheet.create({
   messageTitle: {
     fontSize: 14,
     fontWeight: '900',
-    color: '#4b1030',
+    color: '#4B0C2D',
     marginBottom: 4,
   },
   messageText: {

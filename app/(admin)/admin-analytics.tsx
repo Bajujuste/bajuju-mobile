@@ -279,7 +279,7 @@ function AnalyticsList({
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#fff8fb' },
+  safeArea: { flex: 1, backgroundColor: '#FFF9FC' },
   container: { padding: 18, paddingBottom: 42, gap: 14 },
   backButton: {
     alignSelf: 'flex-start',

@@ -393,7 +393,7 @@ export default function AdminEventDetailScreen() {
 const styles = StyleSheet.create({
   page: {
     flexGrow: 1,
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
     padding: 18,
     paddingBottom: 40,
     gap: 14,
@@ -480,7 +480,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   detailRow: {
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
     borderRadius: 14,
     padding: 12,
     borderWidth: 1,
@@ -499,7 +499,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   participantRow: {
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
     borderRadius: 14,
     padding: 12,
     borderWidth: 1,

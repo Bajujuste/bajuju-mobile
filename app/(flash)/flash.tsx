@@ -2588,7 +2588,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   availabilityHeroCard: {
-    backgroundColor: '#FFFCFE',
+    backgroundColor: '#FFFFFF',
     borderRadius: 29,
     padding: 18,
     marginBottom: 18,
@@ -2648,7 +2648,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   activeAvailabilityBox: {
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
     borderRadius: 18,
     borderWidth: 2,
     borderColor: '#ffd3e6',
@@ -2796,7 +2796,7 @@ const styles = StyleSheet.create({
   },
   municipalitySelectBox: {
     maxHeight: 340,
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
     borderRadius: 20,
     borderWidth: 2,
     borderColor: '#ffd3e6',
@@ -2830,7 +2830,7 @@ const styles = StyleSheet.create({
   },
 
   availablePeopleSection: {
-    backgroundColor: '#FFFCFE',
+    backgroundColor: '#FFFFFF',
     borderRadius: 29,
     borderWidth: 2,
     borderColor: BAJUJU_COLORS.palePink,
@@ -3004,7 +3004,7 @@ const styles = StyleSheet.create({
   },
 
   card: {
-    backgroundColor: '#FFFCFE',
+    backgroundColor: '#FFFFFF',
     borderRadius: 29,
     padding: 22,
     borderWidth: 2,
@@ -3258,7 +3258,7 @@ const styles = StyleSheet.create({
   },
   shareFlashButton: {
     borderRadius: 999,
-    backgroundColor: '#fff7fb',
+    backgroundColor: '#FFF9FC',
     borderWidth: 1,
     borderColor: '#f4b3d1',
     paddingVertical: 10,
@@ -3277,7 +3277,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   flashBox: {
-    backgroundColor: '#FFFCFE',
+    backgroundColor: '#FFFFFF',
     borderRadius: 22,
     padding: 16,
     borderWidth: 2,
@@ -3308,7 +3308,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     marginTop: 8,
     fontWeight: '800',
-    backgroundColor: '#fff7fb',
+    backgroundColor: '#FFF9FC',
     borderRadius: 14,
     paddingHorizontal: 10,
     paddingVertical: 7,
@@ -3338,10 +3338,10 @@ const styles = StyleSheet.create({
     marginTop: 10,
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: '#ffe1ee',
+    borderTopColor: '#FFDDEB',
   },
   cancelButton: {
-    backgroundColor: '#fff7fb',
+    backgroundColor: '#FFF9FC',
     borderRadius: 999,
     paddingVertical: 10,
     paddingHorizontal: 14,
@@ -3360,7 +3360,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     marginTop: 12,
     color: '#8f3d65',
-    backgroundColor: '#fff2f8',
+    backgroundColor: '#FFF0F7',
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 5,

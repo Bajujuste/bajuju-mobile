@@ -255,7 +255,7 @@ export default function RootLayout() {
         </Stack>
         <AdminPrivateChatEntry />
       </SafeAreaView>
-      <StatusBar style="dark" backgroundColor="#fff8fb" />
+      <StatusBar style="dark" backgroundColor="#FFF9FC" />
     </ThemeProvider>
   );
 }
@@ -263,6 +263,6 @@ export default function RootLayout() {
 const styles = StyleSheet.create({
   appFrame: {
     flex: 1,
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
   },
 });

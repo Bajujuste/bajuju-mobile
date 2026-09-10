@@ -178,7 +178,7 @@ export default function AdminChatReportsScreen() {
 }
 
 const styles = StyleSheet.create({
-  page: { flexGrow: 1, backgroundColor: '#fff8fb', padding: 18, paddingBottom: 40, gap: 14 },
+  page: { flexGrow: 1, backgroundColor: '#FFF9FC', padding: 18, paddingBottom: 40, gap: 14 },
   headerCard: { backgroundColor: '#ffffff', borderRadius: 24, padding: 20, borderWidth: 1, borderColor: '#ffd3e6' },
   card: { backgroundColor: '#ffffff', borderRadius: 24, padding: 18, borderWidth: 1, borderColor: '#ffd3e6' },
   kicker: { color: '#ef2d82', fontSize: 14, fontWeight: '900', marginBottom: 8 },
@@ -188,7 +188,7 @@ const styles = StyleSheet.create({
   backButtonText: { color: '#9b1f61', fontSize: 14, fontWeight: '900' },
   loadingText: { color: '#7b4960', fontWeight: '800', marginTop: 8 },
   emptyText: { color: '#7b4960', fontSize: 15, fontWeight: '800' },
-  reportBox: { backgroundColor: '#fff8fb', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#ffd3e6', marginBottom: 10 },
+  reportBox: { backgroundColor: '#FFF9FC', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#ffd3e6', marginBottom: 10 },
   reportTitle: { color: '#4b1430', fontSize: 17, fontWeight: '900', marginBottom: 6 },
   reportSubtitle: { color: '#7b4960', fontSize: 14, fontWeight: '700', lineHeight: 20 },
   reportMeta: { color: '#9b1f61', fontSize: 12, fontWeight: '900', marginTop: 6 },

@@ -501,17 +501,17 @@ export default function AdminCreateExperienceScreen() {
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: '#fff8fb', padding: 18 },
+  page: { flex: 1, backgroundColor: '#FFF9FC', padding: 18 },
   card: { backgroundColor: '#ffffff', borderRadius: 24, padding: 20, borderWidth: 1, borderColor: '#ffd3e6' },
   title: { color: '#e43f98', fontSize: 28, fontWeight: '900', marginBottom: 12 },
   text: { color: '#4b1430', fontSize: 15, lineHeight: 22, fontWeight: '700', marginBottom: 20 },
   label: { color: '#4b1430', fontSize: 15, fontWeight: '900', marginBottom: 8 },
-  dictationInput: { minHeight: 180, backgroundColor: '#fff8fb', borderRadius: 18, borderWidth: 1, borderColor: '#ffd3e6', padding: 14, color: '#4b1430', fontSize: 16, lineHeight: 23, marginBottom: 10 },
+  dictationInput: { minHeight: 180, backgroundColor: '#FFF9FC', borderRadius: 18, borderWidth: 1, borderColor: '#ffd3e6', padding: 14, color: '#4b1430', fontSize: 16, lineHeight: 23, marginBottom: 10 },
   helper: { color: '#7b4960', fontSize: 13, lineHeight: 18, fontWeight: '700', marginBottom: 20 },
   analyzeButton: { backgroundColor: '#ef2d82', borderRadius: 16, paddingVertical: 14, paddingHorizontal: 18, alignItems: 'center', marginBottom: 14 },
   analyzeButtonText: { color: '#ffffff', fontSize: 16, fontWeight: '900' },
   disabledButton: { opacity: 0.45 },
-  resultCard: { backgroundColor: '#fff8fb', borderRadius: 18, borderWidth: 1, borderColor: '#ffd3e6', padding: 14, marginBottom: 16 },
+  resultCard: { backgroundColor: '#FFF9FC', borderRadius: 18, borderWidth: 1, borderColor: '#ffd3e6', padding: 14, marginBottom: 16 },
   resultTitle: { color: '#4b1430', fontSize: 18, fontWeight: '900', marginBottom: 10 },
   resultText: { color: '#4b1430', fontSize: 14, lineHeight: 20, fontWeight: '600' },
   editableInput: { backgroundColor: '#ffffff', borderRadius: 14, borderWidth: 1, borderColor: '#ffd3e6', paddingVertical: 11, paddingHorizontal: 12, color: '#4b1430', fontSize: 15, marginBottom: 14 },

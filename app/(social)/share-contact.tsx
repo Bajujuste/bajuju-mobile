@@ -379,7 +379,7 @@ export default function ShareContactScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#fff7fb' },
+  safeArea: { flex: 1, backgroundColor: '#FFF9FC' },
   container: { flex: 1, padding: 18 },
   backButton: { alignSelf: 'flex-start', paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999, backgroundColor: '#fff0f7', borderWidth: 1, borderColor: '#ffd1e6', marginBottom: 14 },
   backText: { color: '#e43f98', fontWeight: '900' },
@@ -387,14 +387,14 @@ const styles = StyleSheet.create({
   title: { color: '#e43f98', fontSize: 23, fontWeight: '900' },
   subtitle: { marginTop: 7, color: '#6b3652', fontSize: 14, lineHeight: 20, fontWeight: '700' },
   loadingBox: { minHeight: 130, alignItems: 'center', justifyContent: 'center', gap: 10 },
-  warningBox: { marginTop: 18, borderRadius: 18, padding: 14, backgroundColor: '#fff2f8', borderWidth: 1, borderColor: '#f3c6dc' },
+  warningBox: { marginTop: 18, borderRadius: 18, padding: 14, backgroundColor: '#FFF0F7', borderWidth: 1, borderColor: '#f3c6dc' },
   warningText: { color: '#6b3652', fontWeight: '800', lineHeight: 20 },
   typeRow: { marginTop: 18, flexDirection: 'row', gap: 8 },
-  typeButton: { flex: 1, minHeight: 48, paddingHorizontal: 10, borderRadius: 16, borderWidth: 1, borderColor: '#f3c6dc', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fffafd' },
+  typeButton: { flex: 1, minHeight: 48, paddingHorizontal: 10, borderRadius: 16, borderWidth: 1, borderColor: '#f3c6dc', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFF9FC' },
   typeButtonActive: { backgroundColor: '#e43f98', borderColor: '#e43f98' },
   typeText: { color: '#6b3652', fontWeight: '900', textAlign: 'center', fontSize: 13 },
   typeTextActive: { color: '#ffffff' },
-  input: { marginTop: 16, height: 54, borderWidth: 1, borderColor: '#f3c6dc', borderRadius: 18, paddingHorizontal: 14, color: '#4b1430', backgroundColor: '#fffafd', fontSize: 15 },
+  input: { marginTop: 16, height: 54, borderWidth: 1, borderColor: '#f3c6dc', borderRadius: 18, paddingHorizontal: 14, color: '#4b1430', backgroundColor: '#FFF9FC', fontSize: 15 },
   helper: { marginTop: 9, color: '#a95d86', fontSize: 12, lineHeight: 17, fontWeight: '700' },
   sendButton: { marginTop: 18, height: 52, borderRadius: 18, backgroundColor: '#e43f98', alignItems: 'center', justifyContent: 'center' },
   sendText: { color: '#ffffff', fontWeight: '900', fontSize: 16 },

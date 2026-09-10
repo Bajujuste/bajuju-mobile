@@ -555,7 +555,7 @@ function TabButton({ active, label, onPress }: { active: boolean; label: string;
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#fff7fb' },
+  safeArea: { flex: 1, backgroundColor: '#FFF9FC' },
   container: { padding: 18, paddingBottom: 140 },
   backButton: { alignSelf: 'flex-start', backgroundColor: '#fff0f7', borderRadius: 999, borderWidth: 1, borderColor: '#ffd1e6', paddingHorizontal: 14, paddingVertical: 9, marginBottom: 12 },
   backText: { color: '#e43f98', fontWeight: '900' },

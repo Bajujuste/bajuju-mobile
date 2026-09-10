@@ -490,7 +490,7 @@ export default function FlashDetailScreen() {
 const styles = StyleSheet.create({
   page: {
     flexGrow: 1,
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
     padding: 20,
     gap: 16,
   },
@@ -528,7 +528,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   infoBox: {
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
     borderRadius: 18,
     padding: 14,
     borderWidth: 1,
@@ -594,7 +594,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   participantRow: {
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
     borderColor: '#ffd3e8',
     borderRadius: 16,
     borderWidth: 1,
@@ -613,7 +613,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   messageBox: {
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
     borderColor: '#ffd3e8',
     borderRadius: 16,
     borderWidth: 1,
@@ -636,7 +636,7 @@ const styles = StyleSheet.create({
     marginTop: 14,
   },
   chatInput: {
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
     borderColor: '#ffd3e8',
     borderRadius: 16,
     borderWidth: 1,

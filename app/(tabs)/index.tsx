@@ -174,14 +174,14 @@ export default function WelcomeScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
   },
   loadingBox: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
   },
   loadingText: {
     marginTop: 14,
@@ -193,7 +193,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: 'center',
     padding: 22,
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
   },
   heroCard: {
     width: '100%',

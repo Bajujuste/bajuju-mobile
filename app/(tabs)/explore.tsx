@@ -20,7 +20,7 @@ export default function HiddenRedirectScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
   },
   box: {
     flex: 1,

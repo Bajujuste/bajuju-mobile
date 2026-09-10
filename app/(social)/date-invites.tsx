@@ -365,7 +365,7 @@ export default function DateInvitesScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#fff7fb' },
+  safeArea: { flex: 1, backgroundColor: '#FFF9FC' },
   header: { minHeight: 76, paddingHorizontal: 15, flexDirection: 'row', alignItems: 'center' },
   backButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#f3c6dc', alignItems: 'center', justifyContent: 'center' },
   backText: { color: '#8f1658', fontSize: 36, lineHeight: 38, marginTop: -4 },
@@ -389,12 +389,12 @@ const styles = StyleSheet.create({
   acceptText: { color: '#ffffff', fontWeight: '900' },
   rejectButton: { flex: 1, minHeight: 46, borderRadius: 15, backgroundColor: '#fff0f7', borderWidth: 1, borderColor: '#f3c6dc', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10 },
   rejectText: { color: '#8f1658', fontWeight: '900' },
-  replyBox: { marginTop: 12, padding: 12, borderRadius: 15, backgroundColor: '#fff8fb' },
+  replyBox: { marginTop: 12, padding: 12, borderRadius: 15, backgroundColor: '#FFF9FC' },
   replyLabel: { color: '#e43f98', fontSize: 11, fontWeight: '900' },
   replyText: { marginTop: 4, color: '#5a2842', lineHeight: 19, fontWeight: '700' },
   replyButton: { marginTop: 14, minHeight: 46, borderRadius: 15, borderWidth: 1, borderColor: '#e43f98', alignItems: 'center', justifyContent: 'center' },
   replyButtonText: { color: '#e43f98', fontWeight: '900' },
   replyComposer: { marginTop: 12 },
-  input: { minHeight: 90, padding: 12, borderRadius: 15, borderWidth: 1, borderColor: '#f3c6dc', color: '#4b1430', textAlignVertical: 'top', backgroundColor: '#fffafd' },
+  input: { minHeight: 90, padding: 12, borderRadius: 15, borderWidth: 1, borderColor: '#f3c6dc', color: '#4b1430', textAlignVertical: 'top', backgroundColor: '#FFF9FC' },
   counter: { alignSelf: 'flex-end', marginTop: 5, color: '#a95d86', fontSize: 11, fontWeight: '700' },
 });

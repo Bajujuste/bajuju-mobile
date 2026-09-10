@@ -235,7 +235,7 @@ export default function InviteOutScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#fff7fb' },
+  safeArea: { flex: 1, backgroundColor: '#FFF9FC' },
   container: { flex: 1, padding: 18 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   backButton: { alignSelf: 'flex-start', paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999, backgroundColor: '#fff0f7', borderWidth: 1, borderColor: '#ffd1e6', marginBottom: 14 },
@@ -243,9 +243,9 @@ const styles = StyleSheet.create({
   card: { backgroundColor: '#ffffff', borderRadius: 26, borderWidth: 1, borderColor: '#f3c6dc', padding: 18 },
   title: { color: '#e43f98', fontSize: 23, fontWeight: '900' },
   subtitle: { marginTop: 7, color: '#6b3652', fontSize: 14, lineHeight: 20, fontWeight: '700' },
-  warningBox: { marginTop: 18, borderRadius: 18, padding: 14, backgroundColor: '#fff2f8', borderWidth: 1, borderColor: '#f3c6dc' },
+  warningBox: { marginTop: 18, borderRadius: 18, padding: 14, backgroundColor: '#FFF0F7', borderWidth: 1, borderColor: '#f3c6dc' },
   warningText: { color: '#6b3652', fontWeight: '800', lineHeight: 20 },
-  input: { marginTop: 18, minHeight: 130, borderWidth: 1, borderColor: '#f3c6dc', borderRadius: 20, padding: 14, textAlignVertical: 'top', color: '#4b1430', backgroundColor: '#fffafd', fontSize: 15 },
+  input: { marginTop: 18, minHeight: 130, borderWidth: 1, borderColor: '#f3c6dc', borderRadius: 20, padding: 14, textAlignVertical: 'top', color: '#4b1430', backgroundColor: '#FFF9FC', fontSize: 15 },
   counter: { marginTop: 6, alignSelf: 'flex-end', color: '#a95d86', fontWeight: '700', fontSize: 12 },
   sendButton: { marginTop: 18, height: 52, borderRadius: 18, backgroundColor: '#e43f98', alignItems: 'center', justifyContent: 'center' },
   sendText: { color: '#ffffff', fontWeight: '900', fontSize: 16 },

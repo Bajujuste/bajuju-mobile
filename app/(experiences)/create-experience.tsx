@@ -719,7 +719,7 @@ const styles = StyleSheet.create({
     borderRadius: 27,
     borderWidth: 2,
     borderColor: BAJUJU_COLORS.palePink,
-    backgroundColor: '#FFFCFE',
+    backgroundColor: '#FFFFFF',
     shadowColor: '#9B1A5B',
     shadowOpacity: 0.16,
     shadowRadius: 16,

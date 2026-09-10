@@ -1588,7 +1588,7 @@ const styles = StyleSheet.create({
   },
   page: {
     flex: 1,
-    backgroundColor: '#fff7fb',
+    backgroundColor: '#FFF9FC',
   },
   content: {
     paddingTop: 64,
@@ -1599,7 +1599,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#fff7fb',
+    backgroundColor: '#FFF9FC',
   },
   loadingText: {
     marginTop: 12,
@@ -1751,7 +1751,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
     fontWeight: '800',
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
     borderRadius: 14,
     padding: 10,
   },
@@ -1890,7 +1890,7 @@ const styles = StyleSheet.create({
   locationInfoBox: {
     borderRadius: 18,
     padding: 14,
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
     borderWidth: 1,
     borderColor: '#ffd3e7',
     marginBottom: 16,
@@ -1936,7 +1936,7 @@ const styles = StyleSheet.create({
     flex: 1,
     borderWidth: 1,
     borderColor: '#ffd6ea',
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
     borderRadius: 16,
     paddingVertical: 12,
     alignItems: 'center',
@@ -1946,7 +1946,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     borderWidth: 1,
     borderColor: '#ffd6ea',
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
     borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 7,
@@ -1991,7 +1991,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
     color: '#311028',
-    backgroundColor: '#fffaff',
+    backgroundColor: '#FFF9FC',
     fontWeight: '700',
   },
   optionsGrid: {
@@ -2008,7 +2008,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     borderWidth: 1,
     borderColor: '#f4bdd8',
-    backgroundColor: '#fffaff',
+    backgroundColor: '#FFF9FC',
   },
   optionWide: {
     paddingHorizontal: 14,
@@ -2016,7 +2016,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
     borderColor: '#f4bdd8',
-    backgroundColor: '#fffaff',
+    backgroundColor: '#FFF9FC',
   },
   optionActive: {
     backgroundColor: '#ff2f92',
@@ -2038,7 +2038,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#fffaff',
+    backgroundColor: '#FFF9FC',
   },
   toggleRowActive: {
     borderColor: '#ff2f92',
@@ -2069,10 +2069,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   emptyText: {
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#ffe1ee',
+    borderColor: '#FFDDEB',
     color: '#8d315f',
     fontSize: 14,
     fontWeight: '700',
@@ -2087,7 +2087,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 13,
     marginBottom: 10,
-    backgroundColor: '#fffaff',
+    backgroundColor: '#FFF9FC',
   },
   itemTitle: {
     color: '#48172f',
@@ -2138,10 +2138,10 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   activityRow: {
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#ffe1ee',
+    borderColor: '#FFDDEB',
     marginTop: 10,
     padding: 14,
   },
@@ -2152,7 +2152,7 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
     alignItems: 'center',
     marginBottom: 10,
-    backgroundColor: '#fffaff',
+    backgroundColor: '#FFF9FC',
   },
   linkButtonText: {
     color: '#ff2f92',

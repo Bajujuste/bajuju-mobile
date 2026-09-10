@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import * as Linking from 'expo-linking';
 import * as SecureStore from 'expo-secure-store';
 import {

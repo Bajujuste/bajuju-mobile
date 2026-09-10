@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import * as Location from 'expo-location';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, ActivityIndicator, Image, Pressable, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text as NativeText, TextInput, TextProps, View } from 'react-native';
 
 import BajujuMap, { BajujuMapItem } from '../../src/components/BajujuMap';

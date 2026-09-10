@@ -1,5 +1,5 @@
 import { router, useGlobalSearchParams, usePathname } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { supabase } from '../../lib/supabase';

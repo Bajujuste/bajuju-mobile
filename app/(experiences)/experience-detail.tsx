@@ -422,34 +422,16 @@ export default function ExperienceDetailScreen() {
 
     const nextProfiles: Record<string, ProfileRow> = {};
 
-    for (const userIdToFind of uniqueUserIds) {
-      const byId = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userIdToFind)
-        .maybeSingle();
+    // Una sola query per tutti i profili (prima una o due query in sequenza per partecipante).
+    const profilesResult = await supabase
+      .from('profiles')
+      .select('*')
+      .in('id', uniqueUserIds);
 
-      let profile = byId.data as ProfileRow | null;
-
-      if (!profile) {
-        const byUserId = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('user_id', userIdToFind)
-          .maybeSingle();
-
-        profile = byUserId.data as ProfileRow | null;
-      }
-
-      if (profile) {
-        const id = String(profile.id || '');
-        const profileUserId = String(profile.user_id || '');
-
-        nextProfiles[userIdToFind] = profile;
-        if (id) nextProfiles[id] = profile;
-        if (profileUserId) nextProfiles[profileUserId] = profile;
-      }
-    }
+    ((profilesResult.data || []) as ProfileRow[]).forEach((profile) => {
+      const id = String(profile.id || '');
+      if (id) nextProfiles[id] = profile;
+    });
 
     setProfiles(nextProfiles);
   }, []);

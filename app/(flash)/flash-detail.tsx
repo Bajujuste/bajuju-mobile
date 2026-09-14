@@ -192,33 +192,17 @@ export default function FlashDetailScreen() {
       const uniqueUserIds = [...new Set(userIds)];
       const nextProfiles: Record<string, LooseRow> = {};
 
-      for (const userIdToFind of uniqueUserIds) {
-        const byId = await supabase
+      // Una sola query per tutti i profili (prima una o due query in sequenza per partecipante).
+      if (uniqueUserIds.length > 0) {
+        const profilesResult = await supabase
           .from('profiles')
           .select('*')
-          .eq('id', userIdToFind)
-          .maybeSingle();
+          .in('id', uniqueUserIds);
 
-        let profile = byId.data as LooseRow | null;
-
-        if (!profile) {
-          const byUserId = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('user_id', userIdToFind)
-            .maybeSingle();
-
-          profile = byUserId.data as LooseRow | null;
-        }
-
-        if (profile) {
+        ((profilesResult.data || []) as LooseRow[]).forEach((profile) => {
           const id = String(firstValue(profile, ['id'], '') || '');
-          const profileUserId = String(firstValue(profile, ['user_id'], '') || '');
-
-          nextProfiles[userIdToFind] = profile;
           if (id) nextProfiles[id] = profile;
-          if (profileUserId) nextProfiles[profileUserId] = profile;
-        }
+        });
       }
 
       setProfiles(nextProfiles);

@@ -26,13 +26,9 @@ module.exports = () => {
           apiKey: googleMapsApiKey,
         },
       },
-
-      versionCode: 15,
     },
 
-    ios: {
-      ...baseConfig.expo.ios,
-      buildNumber: '7',
-    },
+    // versionCode (Android) e buildNumber (iOS) vivono solo in app.base.json:
+    // eas.json usa appVersionSource "local", quindi vanno incrementati lì prima di ogni build.
   };
 };

@@ -64,6 +64,9 @@ function nextExperienceMeta(row: HomeActivityRow) {
 
 export default function HomeScreen() {
   const notificationPromptRunningRef = useRef(false);
+  // Al primo focus token push e posizione li gestisce già l'effetto di avvio:
+  // aggiornarli anche qui farebbe partire due registrazioni in parallelo.
+  const homeFocusCountRef = useRef(0);
   const [profilePhotoUrl, setProfilePhotoUrl] = useState('');
   const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
   const [nextExperience, setNextExperience] = useState<NextExperience | null>(null);
@@ -133,7 +136,7 @@ export default function HomeScreen() {
                     { onConflict: 'user_id' }
                   );
                   if (saveResult.error) console.log('Preferenza notifiche No non salvata su Supabase.');
-                })();
+                })().catch(() => console.log('Scelta notifiche No non salvata.'));
               },
             },
             {
@@ -143,7 +146,7 @@ export default function HomeScreen() {
                 void (async () => {
                   await AsyncStorage.setItem(localChoiceKey, 'accepted');
                   await activateNotificationServices(userId);
-                })();
+                })().catch(() => console.log('Attivazione notifiche non riuscita.'));
               },
             },
           ]
@@ -284,11 +287,14 @@ export default function HomeScreen() {
 
           void trackBajujuEvent('home_open');
 
-          const registrationResult = await refreshBajujuPushRegistrationIfAuthorized(userId);
-          if (!registrationResult.ok) console.log('Token push non aggiornato al focus Home.');
+          homeFocusCountRef.current += 1;
+          if (homeFocusCountRef.current > 1) {
+            const registrationResult = await refreshBajujuPushRegistrationIfAuthorized(userId);
+            if (!registrationResult.ok) console.log('Token push non aggiornato al focus Home.');
 
-          const locationResult = await refreshBajujuNotificationLocation(userId, { requestPermission: false });
-          if (!locationResult.ok) console.log('Posizione notifiche non aggiornata al focus Home.');
+            const locationResult = await refreshBajujuNotificationLocation(userId, { requestPermission: false });
+            if (!locationResult.ok) console.log('Posizione notifiche non aggiornata al focus Home.');
+          }
 
           await Promise.all([
             refreshUnreadCount(userId),

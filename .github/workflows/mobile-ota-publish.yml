@@ -1,5 +1,7 @@
 name: Bajuju OTA Production
 
+# Pubblica in produzione solo codice già presente su main (o su avvio manuale).
+# Le pull request NON pubblicano mai: il codice deve essere prima approvato e unito.
 on:
   workflow_dispatch:
   push:
@@ -7,14 +9,13 @@ on:
       - main
     paths:
       - .ota-release-trigger
-  pull_request:
-    branches:
-      - main
-    paths:
-      - .ota-release-trigger
 
 permissions:
   contents: write
+
+concurrency:
+  group: ota-production
+  cancel-in-progress: false
 
 jobs:
   publish-ota:
@@ -38,6 +39,23 @@ jobs:
         id: checks
         run: npm run check:release
 
+      - name: Resolve release info
+        id: release
+        run: |
+          # runtimeVersion usa la policy appVersion: coincide con expo.version.
+          RUNTIME=$(node -p "require('./app.base.json').expo.version")
+          # Messaggio: seconda riga di .ota-release-trigger, altrimenti il titolo dell'ultimo commit.
+          MESSAGE=$(sed -n '2p' .ota-release-trigger | tr -d '\r')
+          if [ -z "$MESSAGE" ]; then
+            MESSAGE=$(git log -1 --format=%s)
+          fi
+          echo "runtime=$RUNTIME" >> "$GITHUB_OUTPUT"
+          {
+            echo "message<<BAJUJU_EOF"
+            echo "Bajuju $RUNTIME: $MESSAGE"
+            echo "BAJUJU_EOF"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Verify Expo token
         id: token
         env:
@@ -53,9 +71,10 @@ jobs:
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           CI: "1"
+          OTA_MESSAGE: ${{ steps.release.outputs.message }}
         run: |
-          npx eas-cli@latest update --channel production --platform android --environment production --message "Bajuju 23 agosto: Gruppi, chat Admin e ultimi fix app"
-          npx eas-cli@latest update --channel production --platform ios --environment production --message "Bajuju 23 agosto: Gruppi, chat Admin e ultimi fix app"
+          npx eas-cli@latest update --channel production --platform android --environment production --message "$OTA_MESSAGE"
+          npx eas-cli@latest update --channel production --platform ios --environment production --message "$OTA_MESSAGE"
 
       - name: Record OTA result
         if: always() && github.event_name == 'push'
@@ -63,10 +82,18 @@ jobs:
           CHECKS_OUTCOME: ${{ steps.checks.outcome }}
           TOKEN_OUTCOME: ${{ steps.token.outcome }}
           PUBLISH_OUTCOME: ${{ steps.publish.outcome }}
+          RUNTIME: ${{ steps.release.outputs.runtime }}
+          OTA_MESSAGE: ${{ steps.release.outputs.message }}
           RUN_ID: ${{ github.run_id }}
           SOURCE_SHA: ${{ github.sha }}
         run: |
-          printf '{\n  "run_id": "%s",\n  "source_sha": "%s",\n  "checks": "%s",\n  "expo_token": "%s",\n  "publish": "%s",\n  "channel": "production",\n  "platform": "android+ios",\n  "runtime": "1.0.3"\n}\n' "$RUN_ID" "$SOURCE_SHA" "$CHECKS_OUTCOME" "$TOKEN_OUTCOME" "$PUBLISH_OUTCOME" > .ota-release-result.json
+          {
+            echo "### Esito OTA"
+            echo "- Messaggio: $OTA_MESSAGE"
+            echo "- Runtime: $RUNTIME"
+            echo "- Controlli: $CHECKS_OUTCOME · Token Expo: $TOKEN_OUTCOME · Pubblicazione: $PUBLISH_OUTCOME"
+          } >> "$GITHUB_STEP_SUMMARY"
+          printf '{\n  "run_id": "%s",\n  "source_sha": "%s",\n  "checks": "%s",\n  "expo_token": "%s",\n  "publish": "%s",\n  "channel": "production",\n  "platform": "android+ios",\n  "runtime": "%s"\n}\n' "$RUN_ID" "$SOURCE_SHA" "$CHECKS_OUTCOME" "$TOKEN_OUTCOME" "$PUBLISH_OUTCOME" "$RUNTIME" > .ota-release-result.json
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add .ota-release-result.json

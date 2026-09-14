@@ -69,7 +69,7 @@ Script aggiuntivi in `scripts/`:
 
 ## Rilascio
 
-Le push OTA a produzione partono dai workflow in `.github/workflows/` (`mobile-release-check.yml`, `mobile-ota-publish.yml`), innescati da push su `main` o dal file `.ota-release-trigger`. Non spostare o rinominare `.ota-release-trigger` / `.ota-release-result.json`: i workflow li referenziano per nome.
+`mobile-release-check.yml` esegue solo i controlli (`npm run check:release`) su pull request e push su `main`. La pubblicazione OTA in produzione avviene solo con `mobile-ota-publish.yml`, quando su `main` arriva una modifica a `.ota-release-trigger` (o con avvio manuale): le pull request non pubblicano mai. In `.ota-release-trigger` la prima riga è la data, la seconda il messaggio dell'aggiornamento; il runtime viene letto da `app.base.json`. Non spostare o rinominare `.ota-release-trigger` / `.ota-release-result.json`: i workflow li referenziano per nome.
 
 ## Approfondimenti
 

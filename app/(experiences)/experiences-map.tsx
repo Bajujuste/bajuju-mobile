@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import * as Location from 'expo-location';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   ActivityIndicator,
@@ -27,6 +27,12 @@ const PROVINCE_OPTIONS = [
 const WHEN_OPTIONS = ['Tutte', 'Oggi', 'Domani', 'Questo weekend', 'Prossimi 7 giorni'] as const;
 
 type ActivityRow = Record<string, any>;
+
+// Geocoding dal telefono solo come ripiego per esperienze senza coordinate (di norma vengono
+// salvate alla creazione). Nominatim consente al massimo 1 richiesta al secondo.
+const MAX_CLIENT_GEOCODES_PER_LOAD = 10;
+const NOMINATIM_DELAY_MS = 1100;
+const geocodeCache = new Map<string, { latitude: number; longitude: number } | null>();
 
 type Coordinates = {
   latitude: number;
@@ -333,6 +339,8 @@ export default function ExperiencesMapScreen() {
   const [provinceMenuOpen, setProvinceMenuOpen] = useState(false);
   const [selectedWhen, setSelectedWhen] = useState('Tutte');
   const [whenMenuOpen, setWhenMenuOpen] = useState(false);
+  // Incrementato a ogni caricamento e alla chiusura: interrompe il geocoding del caricamento precedente.
+  const geocodeRunRef = useRef(0);
 
   const loadRows = useCallback(async () => {
     setErrorMessage(null);
@@ -376,12 +384,29 @@ export default function ExperiencesMapScreen() {
         });
 
       setRows(cleanRows);
+
+      const geocodeRun = ++geocodeRunRef.current;
       void (async () => {
-        for (const row of cleanRows.filter((item) => getCoordinates(item) === null)) {
-          const coordinates = await geocodeEvent(row);
-          if (coordinates === null) continue;
+        const rowsToGeocode = cleanRows
+          .filter((item) => getCoordinates(item) === null && geocodeCache.get(activityId(item)) !== null)
+          .slice(0, MAX_CLIENT_GEOCODES_PER_LOAD);
+
+        for (const row of rowsToGeocode) {
+          if (geocodeRun !== geocodeRunRef.current) return;
+
           const id = activityId(row);
-          setRows((current) => current.map((item) => activityId(item) === id ? { ...item, latitude: coordinates.latitude, longitude: coordinates.longitude } : item));
+          let coordinates = geocodeCache.get(id);
+
+          if (coordinates === undefined) {
+            coordinates = await geocodeEvent(row);
+            geocodeCache.set(id, coordinates);
+            await new Promise((resolve) => setTimeout(resolve, NOMINATIM_DELAY_MS));
+          }
+
+          if (!coordinates || geocodeRun !== geocodeRunRef.current) continue;
+
+          const found = coordinates;
+          setRows((current) => current.map((item) => activityId(item) === id ? { ...item, latitude: found.latitude, longitude: found.longitude } : item));
         }
       })();
     } catch (error: unknown) {
@@ -404,6 +429,7 @@ export default function ExperiencesMapScreen() {
 
     return () => {
       mounted = false;
+      geocodeRunRef.current += 1;
     };
   }, [loadRows]);
 

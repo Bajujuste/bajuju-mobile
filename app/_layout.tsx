@@ -117,6 +117,8 @@ export default function RootLayout() {
   const rootNavigationReady = Boolean(rootNavigationState?.key);
   const pendingPushNotificationRef = useRef<Record<string, unknown> | null>(null);
   const handledPushResponseIdsRef = useRef<Set<string>>(new Set());
+  // Utente il cui profilo è già risultato completo: non serve ricontrollarlo a ogni cambio di rotta.
+  const completeProfileUserIdRef = useRef<string | null>(null);
   const homeAlreadyHandlesSafeArea = pathname === '/home';
   const [fontsLoaded, fontError] = useFonts({
     FredokaRegular: require('../assets/fonts/Fredoka-400.ttf'),
@@ -139,11 +141,13 @@ export default function RootLayout() {
 
     void (async () => {
       try {
-        const authResult = await supabase.auth.getUser();
-        if (authResult.error) return;
+        // getSession legge la sessione salvata: getUser chiamava il server auth a ogni cambio di rotta.
+        const sessionResult = await supabase.auth.getSession();
+        if (sessionResult.error) return;
 
-        const userId = authResult.data.user?.id;
+        const userId = sessionResult.data.session?.user?.id;
         if (!active || !userId) return;
+        if (completeProfileUserIdRef.current === userId) return;
 
         const profileResult = await supabase
           .from('profiles')
@@ -153,7 +157,9 @@ export default function RootLayout() {
 
         if (!active || profileResult.error) return;
 
-        if (!hasCompleteRequiredProfile(profileResult.data as RequiredProfileRow | null)) {
+        if (hasCompleteRequiredProfile(profileResult.data as RequiredProfileRow | null)) {
+          completeProfileUserIdRef.current = userId;
+        } else {
           router.replace('/profile');
         }
       } catch {

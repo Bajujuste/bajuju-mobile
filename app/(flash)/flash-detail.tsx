@@ -244,8 +244,9 @@ export default function FlashDetailScreen() {
   useEffect(() => {
     if (!flashId) return;
 
+    // Nome univoco per istanza: evita di riusare un canale ancora aperto con lo stesso nome.
     const channel = supabase
-      .channel(`flash-messages-${flashId}`)
+      .channel(`flash-messages-${flashId}-${Math.random().toString(36).slice(2)}`)
       .on(
         'postgres_changes',
         {

@@ -297,8 +297,9 @@ export default function HomeScreen() {
           ]);
           if (!active) return;
 
+          // Nome univoco per istanza: al ritorno sulla Home il canale precedente può essere ancora in chiusura.
           channel = supabase
-            .channel(`bajuju-home-notifications-${userId}`)
+            .channel(`bajuju-home-notifications-${userId}-${Math.random().toString(36).slice(2)}`)
             .on(
               'postgres_changes',
               { event: '*', schema: 'public', table: 'push_notification_logs', filter: `user_id=eq.${userId}` },

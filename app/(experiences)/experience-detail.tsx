@@ -525,8 +525,11 @@ export default function ExperienceDetailScreen() {
   useEffect(() => {
     if (!experienceId) return;
 
+    // Nome univoco per istanza: supabase.channel() riusa un canale con lo stesso nome ancora aperto
+    // (es. schermata aperta due volte da una push) e registrare postgres_changes su un canale già
+    // collegato genera un errore.
     const channel = supabase
-      .channel(`experience-messages-${experienceId}`)
+      .channel(`experience-messages-${experienceId}-${Math.random().toString(36).slice(2)}`)
       .on(
         'postgres_changes',
         {

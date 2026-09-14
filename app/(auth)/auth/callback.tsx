@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import * as Linking from 'expo-linking';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -14,13 +14,22 @@ import { establishRecoverySession } from '../../../src/lib/authRecovery';
 
 export default function AuthCallbackScreen() {
   const [errorMessage, setErrorMessage] = useState('');
+  // useLinkingURL segue anche i link aperti mentre l'app è già in esecuzione.
+  const linkingUrl = Linking.useLinkingURL();
+  const completedUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
     let active = true;
 
     async function completeAuthCallback() {
       try {
-        const url = await Linking.getInitialURL();
+        const url = linkingUrl ?? (await Linking.getInitialURL());
+        if (!active) return;
+
+        // Ogni link viene completato una sola volta.
+        if (url && url === completedUrlRef.current) return;
+
+        setErrorMessage('');
         const result = await establishRecoverySession(url);
 
         if (!active) return;
@@ -32,6 +41,8 @@ export default function AuthCallbackScreen() {
           );
           return;
         }
+
+        completedUrlRef.current = url;
 
         const parsedUrl = url ? new URL(url) : null;
         const searchParameters = new URLSearchParams(parsedUrl?.search || '');
@@ -60,7 +71,7 @@ export default function AuthCallbackScreen() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [linkingUrl]);
 
   return (
     <SafeAreaView style={styles.safeArea}>

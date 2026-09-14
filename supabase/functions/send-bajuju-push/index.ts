@@ -495,7 +495,8 @@ Deno.serve(async (request) => {
     .select('id,user_id');
 
   if (logInsertResult.error) {
-    return jsonResponse({ error: `Errore registro notifiche: ${logInsertResult.error.message}` }, 500);
+    console.error('Registro notifiche:', logInsertResult.error.message);
+    return jsonResponse({ error: 'Errore registro notifiche.' }, 500);
   }
 
   const logIdsByUser = new Map<string, string>();
@@ -513,7 +514,10 @@ Deno.serve(async (request) => {
       .in('user_id', pushEligibleUserIds)
       .eq('is_active', true);
 
-    if (tokensResult.error) return jsonResponse({ error: tokensResult.error.message }, 500);
+    if (tokensResult.error) {
+      console.error('Lettura token push:', tokensResult.error.message);
+      return jsonResponse({ error: 'Errore lettura token push.' }, 500);
+    }
     tokens = (tokensResult.data || []) as Row[];
   }
 

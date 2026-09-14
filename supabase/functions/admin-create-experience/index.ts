@@ -65,8 +65,9 @@ function validateEventPayload(payload: EventPayload) {
   const longitude = optionalNumber(payload.longitude);
   const maxParticipants = optionalNumber(payload.max_participants);
 
+  // Stesse regole della RPC admin_create_experience_command: descrizione obbligatoria, 1-99 partecipanti.
   if (!title || title.length > MAX_TEXT_LENGTH) return 'INVALID_TITLE';
-  if (description.length > MAX_LONG_TEXT_LENGTH) return 'INVALID_DESCRIPTION';
+  if (!description || description.length > MAX_LONG_TEXT_LENGTH) return 'INVALID_DESCRIPTION';
   if (!date || !isValidIsoDate(date)) return 'INVALID_ACTIVITY_DATE';
   if (!time || !isValidTime(time)) return 'INVALID_ACTIVITY_TIME';
   if (!city || city.length > MAX_TEXT_LENGTH) return 'INVALID_CITY';
@@ -74,7 +75,7 @@ function validateEventPayload(payload: EventPayload) {
   if (!meetingPlace || meetingPlace.length > MAX_TEXT_LENGTH) return 'INVALID_MEETING_PLACE';
   if (latitude === null || Number.isNaN(latitude) || latitude < -90 || latitude > 90) return 'INVALID_LATITUDE';
   if (longitude === null || Number.isNaN(longitude) || longitude < -180 || longitude > 180) return 'INVALID_LONGITUDE';
-  if (maxParticipants !== null && (Number.isNaN(maxParticipants) || !Number.isInteger(maxParticipants) || maxParticipants < 1 || maxParticipants > 10000)) {
+  if (maxParticipants === null || Number.isNaN(maxParticipants) || !Number.isInteger(maxParticipants) || maxParticipants < 1 || maxParticipants > 99) {
     return 'INVALID_MAX_PARTICIPANTS';
   }
 
@@ -85,12 +86,10 @@ async function notifyNearbyExperience(
   supabaseUrl: string,
   supabaseAnonKey: string,
   authorization: string,
-  userId: string,
-  activityId: string,
-  title: string,
-  province: string
+  activityId: string
 ) {
   try {
+    // Testo e destinatari vengono ricostruiti da send-bajuju-push a partire dall'esperienza.
     const response = await fetch(`${supabaseUrl}/functions/v1/send-bajuju-push`, {
       method: 'POST',
       headers: {
@@ -98,18 +97,7 @@ async function notifyNearbyExperience(
         Authorization: authorization,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        type: 'new_experience',
-        actorUserId: userId,
-        title: `Nuova esperienza: ${title}`,
-        body: `${province}: nuova esperienza su Bajuju.`,
-        province,
-        data: {
-          screen: 'experience',
-          activityId,
-          title,
-        },
-      }),
+      body: JSON.stringify({ type: 'new_experience', activityId }),
     });
 
     if (!response.ok) {
@@ -204,15 +192,7 @@ Deno.serve(async (req) => {
     );
 
     if (activityId) {
-      await notifyNearbyExperience(
-        supabaseUrl,
-        supabaseAnonKey,
-        authorization,
-        userData.user.id,
-        activityId,
-        cleanString(payload.title || payload.activity_title || payload.name),
-        cleanString(payload.province || payload.provincia)
-      );
+      await notifyNearbyExperience(supabaseUrl, supabaseAnonKey, authorization, activityId);
     }
   }
 

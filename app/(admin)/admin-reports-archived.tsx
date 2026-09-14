@@ -189,7 +189,7 @@ export default function AdminReportsArchivedScreen() {
 const styles = StyleSheet.create({
   page: {
     flexGrow: 1,
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
     padding: 18,
     paddingBottom: 40,
     gap: 14,
@@ -251,7 +251,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   reportBox: {
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
     borderRadius: 16,
     padding: 14,
     borderWidth: 1,

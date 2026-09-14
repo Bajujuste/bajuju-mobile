@@ -80,7 +80,7 @@ export default function CreateGroupScreen() {
       }
 
       const picked = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [16, 9],
         quality: 0.9,
@@ -181,7 +181,7 @@ export default function CreateGroupScreen() {
           <Text style={styles.eyebrow}>ORGANIZZATORI</Text>
           <Text style={styles.title}>Crea gruppo</Text>
           <Text style={styles.subtitle}>
-            Costruisci una community e avvisa gli iscritti quando pubblichi un'esperienza dedicata.
+            Costruisci una community e avvisa gli iscritti quando pubblichi un’esperienza dedicata.
           </Text>
         </View>
 

@@ -160,6 +160,9 @@ export default function BajujuMap({
   const mapRef = useRef<MapView | null>(null);
   const [mapReady, setMapReady] = useState(false);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  // Su Android i marker personalizzati vanno ridisegnati solo quando cambiano: con
+  // tracksViewChanges sempre attivo la mappa li ridisegna di continuo (fino a 500 marker).
+  const [markersNeedRedraw, setMarkersNeedRedraw] = useState(true);
   const preferredRegionKeyRef = useRef("");
   const fittedViewportKeyRef = useRef("");
 
@@ -175,6 +178,14 @@ export default function BajujuMap({
     () => buildDisplayMarkers(items),
     [items]
   );
+
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+
+    setMarkersNeedRedraw(true);
+    const timer = setTimeout(() => setMarkersNeedRedraw(false), 700);
+    return () => clearTimeout(timer);
+  }, [items, selectedItemId]);
 
   useEffect(() => {
     if (selectedItemId && !items.some((item) => item.id === selectedItemId)) {
@@ -331,7 +342,7 @@ export default function BajujuMap({
                   longitude: displayMarker.longitude,
                 }}
                 anchor={{ x: 0.5, y: 0.5 }}
-                tracksViewChanges={Platform.OS === "android"}
+                tracksViewChanges={Platform.OS === "android" && markersNeedRedraw}
                 opacity={selected ? 1 : 0.96}
                 zIndex={selected ? 20 : 1}
                 onPress={(event) => {

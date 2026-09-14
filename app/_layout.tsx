@@ -1,4 +1,4 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import { router, Stack, usePathname, useRootNavigationState } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -8,7 +8,6 @@ import { Platform, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import 'react-native-reanimated';
 
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AdminPrivateChatEntry } from '../src/components/admin/AdminPrivateChatEntry';
 import { supabase } from '../src/lib/supabase';
 
@@ -113,12 +112,13 @@ export const unstable_settings = {
 };
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
   const pathname = usePathname();
   const rootNavigationState = useRootNavigationState();
   const rootNavigationReady = Boolean(rootNavigationState?.key);
   const pendingPushNotificationRef = useRef<Record<string, unknown> | null>(null);
   const handledPushResponseIdsRef = useRef<Set<string>>(new Set());
+  // Utente il cui profilo è già risultato completo: non serve ricontrollarlo a ogni cambio di rotta.
+  const completeProfileUserIdRef = useRef<string | null>(null);
   const homeAlreadyHandlesSafeArea = pathname === '/home';
   const [fontsLoaded, fontError] = useFonts({
     FredokaRegular: require('../assets/fonts/Fredoka-400.ttf'),
@@ -141,11 +141,13 @@ export default function RootLayout() {
 
     void (async () => {
       try {
-        const authResult = await supabase.auth.getUser();
-        if (authResult.error) return;
+        // getSession legge la sessione salvata: getUser chiamava il server auth a ogni cambio di rotta.
+        const sessionResult = await supabase.auth.getSession();
+        if (sessionResult.error) return;
 
-        const userId = authResult.data.user?.id;
+        const userId = sessionResult.data.session?.user?.id;
         if (!active || !userId) return;
+        if (completeProfileUserIdRef.current === userId) return;
 
         const profileResult = await supabase
           .from('profiles')
@@ -155,7 +157,9 @@ export default function RootLayout() {
 
         if (!active || profileResult.error) return;
 
-        if (!hasCompleteRequiredProfile(profileResult.data as RequiredProfileRow | null)) {
+        if (hasCompleteRequiredProfile(profileResult.data as RequiredProfileRow | null)) {
+          completeProfileUserIdRef.current = userId;
+        } else {
           router.replace('/profile');
         }
       } catch {
@@ -240,22 +244,20 @@ export default function RootLayout() {
   }
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+    // L'app è solo in tema chiaro (userInterfaceStyle "light" in app.base.json).
+    <ThemeProvider value={DefaultTheme}>
       <SafeAreaView
         style={styles.appFrame}
         edges={homeAlreadyHandlesSafeArea ? [] : ['top', 'left', 'right']}
       >
+        {/* headerShown: false vale per tutte le rotte tramite screenOptions: non servono Stack.Screen
+            dedicate (quelle per login, register, ecc. usavano nomi senza il gruppo (auth) e venivano ignorate). */}
         <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="login" options={{ headerShown: false }} />
-          <Stack.Screen name="register" options={{ headerShown: false }} />
-          <Stack.Screen name="forgot-password" options={{ headerShown: false }} />
-          <Stack.Screen name="reset-password" options={{ headerShown: false }} />
-          <Stack.Screen name="auth/callback" options={{ headerShown: false }} />
+          <Stack.Screen name="(tabs)" />
         </Stack>
         <AdminPrivateChatEntry />
       </SafeAreaView>
-      <StatusBar style="dark" backgroundColor="#fff8fb" />
+      <StatusBar style="dark" backgroundColor="#FFF9FC" />
     </ThemeProvider>
   );
 }
@@ -263,6 +265,6 @@ export default function RootLayout() {
 const styles = StyleSheet.create({
   appFrame: {
     flex: 1,
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
   },
 });

@@ -140,7 +140,8 @@ function requireContent(relativePath, needle, label) {
     fail(`File mancante per controllo: ${relativePath}`);
     return;
   }
-  const content = fs.readFileSync(fullPath, 'utf8');
+  // Normalizza i ritorni a capo: su Windows i file hanno CRLF e i controlli multilinea fallirebbero.
+  const content = fs.readFileSync(fullPath, 'utf8').replace(/\r\n/g, '\n');
   if (!content.includes(needle)) fail(label);
   else success(label.replace(/^Manca /, 'Presente '));
 }
@@ -148,7 +149,8 @@ function requireContent(relativePath, needle, label) {
 function forbidContent(relativePath, needle, label) {
   const fullPath = path.join(root, relativePath);
   if (!fs.existsSync(fullPath)) return;
-  const content = fs.readFileSync(fullPath, 'utf8');
+  // Normalizza i ritorni a capo: su Windows i file hanno CRLF e i controlli multilinea fallirebbero.
+  const content = fs.readFileSync(fullPath, 'utf8').replace(/\r\n/g, '\n');
   if (content.includes(needle)) fail(label);
   else success(label.replace(/^È ancora presente /, 'Assente '));
 }
@@ -161,9 +163,8 @@ requireContent('app/(account)/notifications.tsx', 'deleteAllNotifications', 'Man
 requireContent('app/_layout.tsx', 'addNotificationResponseReceivedListener', 'Manca apertura destinazione al tap della push');
 requireContent('app/(experiences)/experience-detail.tsx', 'experience-messages-${experienceId}', 'Manca realtime chat esperienze');
 requireContent('app/(flash)/flash-detail.tsx', 'flash-messages-${flashId}', 'Manca realtime chat Flash');
-forbidContent('app/(experiences)/create-experience.tsx', "'Brescia',", 'È ancora presente Brescia tra le province attive di Crea esperienza');
-forbidContent('app/(experiences)/create-experience.tsx', "'Torino',", 'È ancora presente Torino tra le province attive di Crea esperienza');
-requireContent('app/(experiences)/create-experience.tsx', "'Verona',", 'Manca Verona tra le province attive di Crea esperienza');
+// I controlli sulle province attive di Crea esperienza sono stati rimossi: dal commit 7b66f00
+// le esperienze si possono creare in tutta Italia, senza elenco di province.
 
 if (failed) {
   console.error('\nCONTROLLO PRE-BUILD NON SUPERATO');

@@ -88,9 +88,10 @@ async function archiveReport(item: ReportItem) {
 
   for (const payload of attempts) {
     try {
-      const result = await supabase.from(item.table).update(payload).eq('id', item.id);
+      // Senza .select() un update filtrato da RLS risponde senza errore ma non modifica nulla.
+      const result = await supabase.from(item.table).update(payload).eq('id', item.id).select('id');
 
-      if (!result.error) return { ok: true, message: '' };
+      if (!result.error && (result.data || []).length > 0) return { ok: true, message: '' };
     } catch {
       // Prova prossimo payload.
     }
@@ -262,7 +263,7 @@ export default function AdminReportsScreen() {
 const styles = StyleSheet.create({
   page: {
     flexGrow: 1,
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
     padding: 18,
     paddingBottom: 40,
     gap: 14,
@@ -341,7 +342,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   reportBox: {
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
     borderRadius: 16,
     padding: 14,
     borderWidth: 1,

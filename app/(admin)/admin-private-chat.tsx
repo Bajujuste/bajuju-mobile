@@ -158,8 +158,9 @@ export default function AdminPrivateChatScreen() {
   useEffect(() => {
     if (!threadId) return;
 
+    // Nome univoco per istanza: evita di riusare un canale ancora aperto con lo stesso nome.
     const channel = supabase
-      .channel(`admin-private-chat-${threadId}`)
+      .channel(`admin-private-chat-${threadId}-${Math.random().toString(36).slice(2)}`)
       .on(
         'postgres_changes',
         {

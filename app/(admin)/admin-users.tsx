@@ -139,9 +139,10 @@ function userStatus(row: LooseRow) {
 async function tryUpdateById(table: string, id: string, payloads: LooseRow[]) {
   for (const payload of payloads) {
     try {
-      const result = await supabase.from(table).update(payload).eq('id', id);
+      // Senza .select() un update filtrato da RLS risponde senza errore ma non modifica nulla.
+      const result = await supabase.from(table).update(payload).eq('id', id).select('id');
 
-      if (!result.error) return { ok: true, message: '' };
+      if (!result.error && (result.data || []).length > 0) return { ok: true, message: '' };
     } catch {
       // Prova payload successivo.
     }
@@ -607,14 +608,14 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     paddingVertical: 11,
     paddingHorizontal: 13,
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
     color: '#4a1230',
     fontSize: 15,
     fontWeight: '800',
   },
   page: {
     flexGrow: 1,
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
     padding: 18,
     paddingBottom: 40,
     gap: 14,
@@ -735,7 +736,7 @@ const styles = StyleSheet.create({
   },
   filterChip: {
     minHeight: 34,
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
     borderWidth: 1,
     borderColor: '#ffd3e6',
     borderRadius: 999,
@@ -767,12 +768,12 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 21,
     fontWeight: '700',
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
     padding: 14,
     borderRadius: 16,
   },
   listRow: {
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
     borderRadius: 18,
     padding: 14,
     borderWidth: 1,

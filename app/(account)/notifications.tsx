@@ -297,8 +297,8 @@ const PINK = '#e43f98';
 const PINK_DARK = '#8f1658';
 const TEXT = '#5a2842';
 const MUTED = '#a95d86';
-const BG = '#fff7fb';
-const SOFT = '#fff2f8';
+const BG = '#FFF9FC';
+const SOFT = '#FFF0F7';
 const BORDER = '#f6c6dc';
 const WHITE = '#ffffff';
 

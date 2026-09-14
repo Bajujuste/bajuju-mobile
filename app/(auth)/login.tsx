@@ -21,13 +21,15 @@ import { supabase } from '../../src/lib/supabase';
 const bajujuLogo = require('../../assets/brand/bajuju-logo.png');
 
 const SAVED_EMAIL_KEY = 'bajuju_saved_email';
-const SAVED_PASSWORD_KEY = 'bajuju_saved_password';
+// Le versioni precedenti salvavano qui la password: ora viene solo cancellata.
+// La sessione Supabase è già persistita e il salvataggio della password è affidato all'autofill di sistema.
+const LEGACY_SAVED_PASSWORD_KEY = 'bajuju_saved_password';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberPassword, setRememberPassword] = useState(false);
+  const [rememberEmail, setRememberEmail] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   const [loading, setLoading] = useState(false);
@@ -39,15 +41,14 @@ export default function LoginScreen() {
 
     async function loadSavedLogin() {
       try {
+        await SecureStore.deleteItemAsync(LEGACY_SAVED_PASSWORD_KEY);
         const savedEmail = await SecureStore.getItemAsync(SAVED_EMAIL_KEY);
-        const savedPassword = await SecureStore.getItemAsync(SAVED_PASSWORD_KEY);
 
         if (!mounted) return;
 
-        if (savedEmail) setEmail(savedEmail);
-        if (savedPassword) {
-          setPassword(savedPassword);
-          setRememberPassword(true);
+        if (savedEmail) {
+          setEmail(savedEmail);
+          setRememberEmail(true);
         }
       } catch {
         // Se SecureStore non è disponibile, il login resta manuale.
@@ -63,12 +64,10 @@ export default function LoginScreen() {
 
   async function updateSavedLogin(cleanEmail: string) {
     try {
-      if (rememberPassword) {
+      if (rememberEmail) {
         await SecureStore.setItemAsync(SAVED_EMAIL_KEY, cleanEmail);
-        await SecureStore.setItemAsync(SAVED_PASSWORD_KEY, password);
       } else {
         await SecureStore.deleteItemAsync(SAVED_EMAIL_KEY);
-        await SecureStore.deleteItemAsync(SAVED_PASSWORD_KEY);
       }
     } catch {
       // Non blocco il login se il salvataggio locale fallisce.
@@ -226,6 +225,8 @@ export default function LoginScreen() {
               autoCapitalize="none"
               autoCorrect={false}
               keyboardType="email-address"
+              autoComplete="email"
+              textContentType="username"
               style={styles.input}
             />
 
@@ -239,6 +240,8 @@ export default function LoginScreen() {
                 secureTextEntry={!showPassword}
                 autoCapitalize="none"
                 autoCorrect={false}
+                autoComplete="current-password"
+                textContentType="password"
                 style={styles.passwordInput}
               />
 
@@ -254,12 +257,12 @@ export default function LoginScreen() {
 
             <Pressable
               style={styles.rememberRow}
-              onPress={() => setRememberPassword((value) => !value)}
+              onPress={() => setRememberEmail((value) => !value)}
             >
-              <View style={[styles.rememberCheck, rememberPassword && styles.rememberCheckActive]}>
-                <Text style={styles.rememberCheckText}>{rememberPassword ? '✓' : ''}</Text>
+              <View style={[styles.rememberCheck, rememberEmail && styles.rememberCheckActive]}>
+                <Text style={styles.rememberCheckText}>{rememberEmail ? '✓' : ''}</Text>
               </View>
-              <Text style={styles.rememberText}>Memorizza password su questo telefono</Text>
+              <Text style={styles.rememberText}>Ricorda la mia email su questo telefono</Text>
             </Pressable>
 
             <Pressable
@@ -317,13 +320,13 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#fff8fb' },
+  safeArea: { flex: 1, backgroundColor: '#FFF9FC' },
   keyboardView: { flex: 1 },
   container: {
     flexGrow: 1,
     justifyContent: 'center',
     padding: 22,
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
   },
   backButton: {
     alignSelf: 'flex-start',
@@ -381,7 +384,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     borderColor: '#ffd3e7',
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
     paddingHorizontal: 16,
     color: '#5f2445',
     fontSize: 16,
@@ -393,7 +396,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     borderColor: '#ffd3e7',
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 16,

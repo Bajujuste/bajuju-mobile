@@ -6,17 +6,11 @@ module.exports = () => {
   return {
     ...baseConfig.expo,
 
-    plugins: (baseConfig.expo.plugins || []).filter((plugin) => {
-      if (typeof plugin === 'string') {
-        return plugin !== 'react-native-maps';
-      }
-
-      return plugin?.[0] !== 'react-native-maps';
-    }),
-
     android: {
       ...baseConfig.expo.android,
-      googleServicesFile: "./google-services.json",
+      // google-services.json è escluso da git: su una macchina senza il file (CI, nuovo PC) la build EAS
+      // può usare una variabile d'ambiente EAS di tipo file chiamata GOOGLE_SERVICES_JSON.
+      googleServicesFile: process.env.GOOGLE_SERVICES_JSON ?? "./google-services.json",
 
       config: {
         ...(baseConfig.expo.android?.config || {}),
@@ -26,13 +20,9 @@ module.exports = () => {
           apiKey: googleMapsApiKey,
         },
       },
-
-      versionCode: 15,
     },
 
-    ios: {
-      ...baseConfig.expo.ios,
-      buildNumber: '7',
-    },
+    // versionCode (Android) e buildNumber (iOS) vivono solo in app.base.json:
+    // eas.json usa appVersionSource "local", quindi vanno incrementati lì prima di ogni build.
   };
 };

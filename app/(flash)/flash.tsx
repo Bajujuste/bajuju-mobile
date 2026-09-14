@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import * as Location from 'expo-location';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, ActivityIndicator, Image, Pressable, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text as NativeText, TextInput, TextProps, View } from 'react-native';
 
 import BajujuMap, { BajujuMapItem } from '../../src/components/BajujuMap';
@@ -10,7 +10,7 @@ import type { ResolvedAddress } from '../../src/lib/addressAutocomplete';
 import { supabase } from '../../src/lib/supabase';
 import { BAJUJU_COLORS, BAJUJU_FONTS } from '../../src/theme/bajujuTheme';
 import { shareBajujuFlash } from '../../src/utils/shareBajuju';
-import { sendBajujuPushNotification, buildFlashNotificationTitle } from '../../src/utils/bajujuNotifications';
+import { sendBajujuPushNotification } from '../../src/utils/bajujuNotifications';
 import { ITALIAN_MUNICIPALITIES_BY_PROVINCE } from '../../src/data/italianMunicipalities';
 
 const bajujuLogo = require('../../assets/brand/bajuju-logo.png');
@@ -712,7 +712,7 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
               const profileId = String(firstValue(profileRow, ['id', 'user_id'], ''));
               const profileName = firstText(
                 profileRow,
-                ['display_name', 'full_name', 'name', 'nome', 'username', 'email'],
+                ['nickname', 'display_name', 'full_name', 'name', 'nome', 'username'],
                 ''
               );
 
@@ -1107,22 +1107,31 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
     }
   }, [cancellingAvailability, loadAvailableUsers, myActiveAvailability]);
 
+  // Lock sincrono: sendingAvailabilityInviteTo si aggiorna solo dopo l'await iniziale,
+  // quindi un doppio tap rapido farebbe partire due inviti e due notifiche.
+  const availabilityInviteLockRef = useRef(false);
+
   const sendAvailabilityInvite = useCallback(async (targetUserId: string) => {
     const cleanTargetUserId = String(targetUserId || '').trim();
 
-    if (!cleanTargetUserId || sendingAvailabilityInviteTo) return;
+    if (!cleanTargetUserId || sendingAvailabilityInviteTo || availabilityInviteLockRef.current) return;
+    availabilityInviteLockRef.current = true;
 
     const authResult = await supabase.auth.getUser();
     const currentUserId = authResult.data.user?.id || null;
 
     if (!currentUserId) {
+      availabilityInviteLockRef.current = false;
       if (typeof window !== 'undefined') {
         window.alert('Devi essere collegato per invitare una persona.');
       }
       return;
     }
 
-    if (currentUserId === cleanTargetUserId) return;
+    if (currentUserId === cleanTargetUserId) {
+      availabilityInviteLockRef.current = false;
+      return;
+    }
 
     setSendingAvailabilityInviteTo(cleanTargetUserId);
 
@@ -1198,7 +1207,7 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
         contact_type: 'flash_invite',
         status: 'pending',
         message: `Ti invito al mio Bajuju Flash “${flashTitle(ownFlash)}”. Ti ho visto disponibile: ti va di partecipare?`,
-      });
+      }).select('id').single();
 
       if (result.error) {
         if (typeof window !== 'undefined') {
@@ -1209,15 +1218,9 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
 
       await sendBajujuPushNotification({
         type: 'contact_request',
-        actorUserId: currentUserId,
         targetUserId: cleanTargetUserId,
-        title: 'Nuovo invito Bajuju Flash',
-        body: `Una persona ti invita al suo Flash: ${flashTitle(ownFlash)}.`,
-        data: {
-          screen: 'profile',
-            section: 'flash-invites',
-          activityId: ownFlashId,
-        },
+        requestId: result.data.id,
+        activityId: ownFlashId,
       }).catch((error) => {
         console.log('Errore notifica invito disponibilità.');
       });
@@ -1233,6 +1236,7 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
 
       Alert.alert('Errore invito', message);
     } finally {
+      availabilityInviteLockRef.current = false;
       setSendingAvailabilityInviteTo(null);
     }
   }, [sendingAvailabilityInviteTo]);
@@ -1335,16 +1339,7 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
 
       await sendBajujuPushNotification({
         type: 'new_flash',
-        actorUserId: String(payload.creator_id || ''),
-        title: buildFlashNotificationTitle(payload.title),
-        body: `${payload.city}: qualcuno ha creato un Flash Bajuju.`,
-        province: payload.province,
-        city: payload.city,
-        data: {
-          screen: 'flash',
-          activityId: result.data?.id,
-          title: payload.title,
-        },
+        activityId: result.data?.id,
       }).catch((error) => {
         console.log('Errore notifica nuovo Flash.');
       });
@@ -1418,8 +1413,20 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
       });
 
       if (result.error) {
+        // Codici sollevati dal trigger guard_flash_participant_insert.
+        const errorMessage = String(result.error.message || '');
+        const friendlyMessage = errorMessage.includes('BAJUJU_EVENT_FULL')
+          ? 'Questo Flash è al completo.'
+          : errorMessage.includes('BAJUJU_FLASH_EXPIRED')
+            ? 'Questo Flash non è più attivo.'
+            : errorMessage.includes('BAJUJU_BLOCKED')
+              ? 'Non puoi partecipare a questo Flash.'
+              : errorMessage.includes('BAJUJU_ALREADY_JOINED')
+                ? 'Stai già partecipando a questo Flash.'
+                : `Errore partecipazione: ${errorMessage}`;
+
         if (typeof window !== 'undefined') {
-          window.alert(`Errore partecipazione: ${result.error.message}`);
+          window.alert(friendlyMessage);
         }
         return;
       }
@@ -1735,7 +1742,8 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
           <View style={[styles.flashHeroBlob, styles.flashHeroBlobBottom]} />
           <Text style={[styles.flashHeroDoodle, styles.flashHeroDoodleLeft]}>‹‹</Text>
           <Text style={[styles.flashHeroDoodle, styles.flashHeroDoodleRight]}>✦</Text>
-          <Pressable style={styles.flashBackButton} onPress={() => router.push('/flash')}>
+          {/* dismissTo torna alla schermata Flash già aperta invece di impilarne una nuova copia. */}
+          <Pressable style={styles.flashBackButton} onPress={() => router.dismissTo('/flash')}>
             <Text style={styles.flashBackText}>← Bajuju Flash</Text>
           </Pressable>
 
@@ -2588,7 +2596,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   availabilityHeroCard: {
-    backgroundColor: '#FFFCFE',
+    backgroundColor: '#FFFFFF',
     borderRadius: 29,
     padding: 18,
     marginBottom: 18,
@@ -2648,7 +2656,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   activeAvailabilityBox: {
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
     borderRadius: 18,
     borderWidth: 2,
     borderColor: '#ffd3e6',
@@ -2796,7 +2804,7 @@ const styles = StyleSheet.create({
   },
   municipalitySelectBox: {
     maxHeight: 340,
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
     borderRadius: 20,
     borderWidth: 2,
     borderColor: '#ffd3e6',
@@ -2830,7 +2838,7 @@ const styles = StyleSheet.create({
   },
 
   availablePeopleSection: {
-    backgroundColor: '#FFFCFE',
+    backgroundColor: '#FFFFFF',
     borderRadius: 29,
     borderWidth: 2,
     borderColor: BAJUJU_COLORS.palePink,
@@ -3004,7 +3012,7 @@ const styles = StyleSheet.create({
   },
 
   card: {
-    backgroundColor: '#FFFCFE',
+    backgroundColor: '#FFFFFF',
     borderRadius: 29,
     padding: 22,
     borderWidth: 2,
@@ -3258,7 +3266,7 @@ const styles = StyleSheet.create({
   },
   shareFlashButton: {
     borderRadius: 999,
-    backgroundColor: '#fff7fb',
+    backgroundColor: '#FFF9FC',
     borderWidth: 1,
     borderColor: '#f4b3d1',
     paddingVertical: 10,
@@ -3277,7 +3285,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   flashBox: {
-    backgroundColor: '#FFFCFE',
+    backgroundColor: '#FFFFFF',
     borderRadius: 22,
     padding: 16,
     borderWidth: 2,
@@ -3308,7 +3316,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     marginTop: 8,
     fontWeight: '800',
-    backgroundColor: '#fff7fb',
+    backgroundColor: '#FFF9FC',
     borderRadius: 14,
     paddingHorizontal: 10,
     paddingVertical: 7,
@@ -3338,10 +3346,10 @@ const styles = StyleSheet.create({
     marginTop: 10,
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: '#ffe1ee',
+    borderTopColor: '#FFDDEB',
   },
   cancelButton: {
-    backgroundColor: '#fff7fb',
+    backgroundColor: '#FFF9FC',
     borderRadius: 999,
     paddingVertical: 10,
     paddingHorizontal: 14,
@@ -3360,7 +3368,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     marginTop: 12,
     color: '#8f3d65',
-    backgroundColor: '#fff2f8',
+    backgroundColor: '#FFF0F7',
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 5,

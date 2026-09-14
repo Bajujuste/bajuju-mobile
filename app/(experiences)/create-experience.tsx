@@ -28,7 +28,7 @@ import type { ResolvedAddress } from '../../src/lib/addressAutocomplete';
 import { supabase } from '../../src/lib/supabase';
 import { BAJUJU_COLORS, BAJUJU_FONTS, BAJUJU_SHADOW } from '../../src/theme/bajujuTheme';
 import { trackBajujuEvent } from '../../src/utils/bajujuAnalytics';
-import { buildExperienceNotificationTitle, sendBajujuPushNotification } from '../../src/utils/bajujuNotifications';
+import { sendBajujuPushNotification } from '../../src/utils/bajujuNotifications';
 
 function categoryToDatabaseValue(value: string) {
   switch (value) {
@@ -197,7 +197,7 @@ export default function CreateExperienceScreen() {
       }
 
       const picked = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [16, 9],
         quality: 0.9,
@@ -310,15 +310,7 @@ export default function CreateExperienceScreen() {
 
       await sendBajujuPushNotification({
         type: 'new_experience',
-        actorUserId: creatorId,
-        title: buildExperienceNotificationTitle(payload.title),
-        body: `${payload.province}: qualcuno ha creato una nuova esperienza su Bajuju.`,
-        province: payload.province,
-        data: {
-          screen: 'experience',
-          activityId: result.data?.id,
-          title: payload.title,
-        },
+        activityId: result.data?.id,
       }).catch(() => {
         console.log('Errore notifica geografica nuova esperienza.');
       });
@@ -719,7 +711,7 @@ const styles = StyleSheet.create({
     borderRadius: 27,
     borderWidth: 2,
     borderColor: BAJUJU_COLORS.palePink,
-    backgroundColor: '#FFFCFE',
+    backgroundColor: '#FFFFFF',
     shadowColor: '#9B1A5B',
     shadowOpacity: 0.16,
     shadowRadius: 16,

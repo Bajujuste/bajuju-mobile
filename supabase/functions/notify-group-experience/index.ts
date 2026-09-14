@@ -23,6 +23,12 @@ function text(row: Row | null, keys: string[], fallback: string) {
   return fallback;
 }
 
+// I dettagli degli errori del database restano nei log della funzione: al client va solo un messaggio generico.
+function serverError(context: string, error: { message?: string } | null, publicMessage: string) {
+  console.error(`${context}:`, error?.message);
+  return json({ error: publicMessage }, 500);
+}
+
 function chunks<T>(items: T[], size: number) {
   const result: T[][] = [];
   for (let i = 0; i < items.length; i += size) result.push(items.slice(i, i + size));
@@ -83,8 +89,8 @@ Deno.serve(async (request) => {
     supabase.from('profiles').select('nickname').eq('id', actorUserId).maybeSingle(),
   ]);
 
-  if (activityResult.error) return json({ error: activityResult.error.message }, 500);
-  if (groupsResult.error) return json({ error: groupsResult.error.message }, 500);
+  if (activityResult.error) return serverError('Lettura esperienza', activityResult.error, 'Errore lettura esperienza.');
+  if (groupsResult.error) return serverError('Lettura gruppi', groupsResult.error, 'Errore lettura gruppi.');
   if (!activityResult.data) return json({ error: 'Esperienza non trovata.' }, 404);
 
   const activity = activityResult.data as Row;
@@ -118,12 +124,12 @@ Deno.serve(async (request) => {
     .upsert(associationRows, { onConflict: 'group_id,activity_id', ignoreDuplicates: true });
 
   if (associationResult.error) {
-    return json({ error: `Errore associazione gruppi: ${associationResult.error.message}` }, 500);
+    return serverError('Associazione gruppi', associationResult.error, 'Errore associazione gruppi.');
   }
 
   const groupIds = selectedGroups.map((group) => String(group.id));
   const membersResult = await supabase.from('group_members').select('user_id').in('group_id', groupIds);
-  if (membersResult.error) return json({ error: membersResult.error.message }, 500);
+  if (membersResult.error) return serverError('Lettura iscritti', membersResult.error, 'Errore lettura iscritti.');
 
   let candidateUserIds = [
     ...new Set(
@@ -224,7 +230,7 @@ Deno.serve(async (request) => {
     .select('id,user_id');
 
   if (logResult.error) {
-    return json({ error: `Errore registro notifiche: ${logResult.error.message}` }, 500);
+    return serverError('Registro notifiche', logResult.error, 'Errore registro notifiche.');
   }
 
   const logByUser = new Map<string, string>();
@@ -240,7 +246,7 @@ Deno.serve(async (request) => {
     .in('user_id', candidateUserIds)
     .eq('is_active', true);
 
-  if (tokensResult.error) return json({ error: tokensResult.error.message }, 500);
+  if (tokensResult.error) return serverError('Lettura token push', tokensResult.error, 'Errore lettura token push.');
 
   const rows = (tokensResult.data || [])
     .map((row: Row) => ({

@@ -15,13 +15,6 @@ export default function TabLayout() {
           title: 'Bajuju',
         }}
       />
-
-      <Tabs.Screen
-        name="explore"
-        options={{
-          href: null,
-        }}
-      />
     </Tabs>
   );
 }

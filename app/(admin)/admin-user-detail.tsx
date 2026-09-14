@@ -132,9 +132,10 @@ function profileStatus(row: LooseRow | null) {
 async function tryUpdateProfile(id: string, payloads: LooseRow[]) {
   for (const payload of payloads) {
     try {
-      const result = await supabase.from('profiles').update(payload).eq('id', id);
+      // Senza .select() un update filtrato da RLS risponde senza errore ma non modifica nulla.
+      const result = await supabase.from('profiles').update(payload).eq('id', id).select('id');
 
-      if (!result.error) {
+      if (!result.error && (result.data || []).length > 0) {
         return { ok: true, message: '' };
       }
     } catch {
@@ -1035,7 +1036,7 @@ export default function AdminUserDetailScreen() {
 const styles = StyleSheet.create({
   page: {
     flexGrow: 1,
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
     padding: 18,
     paddingBottom: 40,
     gap: 14,
@@ -1143,7 +1144,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   detailRow: {
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
     borderRadius: 14,
     padding: 12,
     borderWidth: 1,
@@ -1181,7 +1182,7 @@ const styles = StyleSheet.create({
     marginTop: 18,
     padding: 16,
     borderRadius: 22,
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
     borderWidth: 1,
     borderColor: '#ffd3e7',
     gap: 10,

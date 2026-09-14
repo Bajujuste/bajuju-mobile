@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import * as Linking from 'expo-linking';
 import * as SecureStore from 'expo-secure-store';
 import {
@@ -33,16 +33,30 @@ export default function ResetPasswordScreen() {
   const [messageTitle, setMessageTitle] = useState('');
   const [messageText, setMessageText] = useState('');
   const [done, setDone] = useState(false);
+  // useLinkingURL segue anche i link aperti mentre l'app è già in esecuzione:
+  // getInitialURL da solo restituisce soltanto l'URL con cui l'app è stata avviata.
+  const linkingUrl = Linking.useLinkingURL();
+  const verifiedUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
     let active = true;
 
     async function prepareRecovery() {
       try {
-        const initialUrl = await Linking.getInitialURL();
-        const result = await establishRecoverySession(initialUrl);
+        const recoveryUrl = linkingUrl ?? (await Linking.getInitialURL());
+        if (!active) return;
+
+        // Ogni link viene verificato una sola volta.
+        if (recoveryUrl && recoveryUrl === verifiedUrlRef.current) return;
+
+        setCheckingRecovery(true);
+        setMessageTitle('');
+        setMessageText('');
+
+        const result = await establishRecoverySession(recoveryUrl);
 
         if (!active) return;
+        verifiedUrlRef.current = recoveryUrl;
 
         if (!result.success) {
           setMessageTitle('Link non valido');
@@ -78,7 +92,7 @@ export default function ResetPasswordScreen() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [linkingUrl]);
 
   async function handleUpdatePassword() {
     const cleanPassword = password.trim();
@@ -263,7 +277,7 @@ export default function ResetPasswordScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
   },
   keyboardView: {
     flex: 1,
@@ -321,7 +335,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 13,
     fontWeight: '900',
-    color: '#4b1030',
+    color: '#4B0C2D',
     marginBottom: 7,
     marginTop: 10,
   },
@@ -333,8 +347,8 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
     fontSize: 15,
     fontWeight: '700',
-    color: '#4b1030',
-    backgroundColor: '#fff8fb',
+    color: '#4B0C2D',
+    backgroundColor: '#FFF9FC',
   },
   passwordRow: {
     flexDirection: 'row',
@@ -342,7 +356,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#f5bfd9',
     borderRadius: 18,
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
     overflow: 'hidden',
   },
   passwordInput: {
@@ -351,7 +365,7 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
     fontSize: 15,
     fontWeight: '700',
-    color: '#4b1030',
+    color: '#4B0C2D',
   },
   passwordToggle: {
     paddingHorizontal: 13,
@@ -377,7 +391,7 @@ const styles = StyleSheet.create({
   messageTitle: {
     fontSize: 14,
     fontWeight: '900',
-    color: '#4b1030',
+    color: '#4B0C2D',
     marginBottom: 4,
   },
   messageText: {

@@ -91,7 +91,7 @@ function participantIsActive(row: LooseRow) {
 function profileName(row: LooseRow | null) {
   return firstText(
     row,
-    ['full_name', 'display_name', 'name', 'nome', 'username', 'first_name', 'nickname', 'email'],
+    ['full_name', 'display_name', 'name', 'nome', 'username', 'first_name', 'nickname'],
     'Utente Bajuju'
   );
 }
@@ -125,7 +125,8 @@ export default function FlashDetailScreen() {
       .from('activity_messages')
       .select('*')
       .eq('activity_id', activityId)
-      .order('created_at', { ascending: true })
+      // Ultimi 100 messaggi: ordine decrescente per il limite, poi invertito per mostrarli dal più vecchio.
+      .order('created_at', { ascending: false })
       .limit(100);
 
     if (messagesResult.error) {
@@ -133,7 +134,7 @@ export default function FlashDetailScreen() {
       return;
     }
 
-    setMessages((messagesResult.data || []) as LooseRow[]);
+    setMessages(((messagesResult.data || []) as LooseRow[]).reverse());
   }, []);
 
   const loadFlash = useCallback(async () => {
@@ -191,33 +192,17 @@ export default function FlashDetailScreen() {
       const uniqueUserIds = [...new Set(userIds)];
       const nextProfiles: Record<string, LooseRow> = {};
 
-      for (const userIdToFind of uniqueUserIds) {
-        const byId = await supabase
+      // Una sola query per tutti i profili (prima una o due query in sequenza per partecipante).
+      if (uniqueUserIds.length > 0) {
+        const profilesResult = await supabase
           .from('profiles')
           .select('*')
-          .eq('id', userIdToFind)
-          .maybeSingle();
+          .in('id', uniqueUserIds);
 
-        let profile = byId.data as LooseRow | null;
-
-        if (!profile) {
-          const byUserId = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('user_id', userIdToFind)
-            .maybeSingle();
-
-          profile = byUserId.data as LooseRow | null;
-        }
-
-        if (profile) {
+        ((profilesResult.data || []) as LooseRow[]).forEach((profile) => {
           const id = String(firstValue(profile, ['id'], '') || '');
-          const profileUserId = String(firstValue(profile, ['user_id'], '') || '');
-
-          nextProfiles[userIdToFind] = profile;
           if (id) nextProfiles[id] = profile;
-          if (profileUserId) nextProfiles[profileUserId] = profile;
-        }
+        });
       }
 
       setProfiles(nextProfiles);
@@ -244,8 +229,9 @@ export default function FlashDetailScreen() {
   useEffect(() => {
     if (!flashId) return;
 
+    // Nome univoco per istanza: evita di riusare un canale ancora aperto con lo stesso nome.
     const channel = supabase
-      .channel(`flash-messages-${flashId}`)
+      .channel(`flash-messages-${flashId}-${Math.random().toString(36).slice(2)}`)
       .on(
         'postgres_changes',
         {
@@ -356,7 +342,8 @@ export default function FlashDetailScreen() {
         <Text style={styles.kicker}>Bajuju Flash</Text>
         <Text style={styles.title}>Dettaglio Flash</Text>
 
-        <Pressable style={styles.secondaryButton} onPress={() => router.push('/flash')}>
+        {/* dismissTo torna alla schermata Flash già aperta invece di impilarne una nuova copia. */}
+        <Pressable style={styles.secondaryButton} onPress={() => router.dismissTo('/flash')}>
           <Text style={styles.secondaryButtonText}>Torna a Bajuju Flash</Text>
         </Pressable>
       </View>
@@ -490,7 +477,7 @@ export default function FlashDetailScreen() {
 const styles = StyleSheet.create({
   page: {
     flexGrow: 1,
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
     padding: 20,
     gap: 16,
   },
@@ -528,7 +515,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   infoBox: {
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
     borderRadius: 18,
     padding: 14,
     borderWidth: 1,
@@ -594,7 +581,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   participantRow: {
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
     borderColor: '#ffd3e8',
     borderRadius: 16,
     borderWidth: 1,
@@ -613,7 +600,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   messageBox: {
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
     borderColor: '#ffd3e8',
     borderRadius: 16,
     borderWidth: 1,
@@ -636,7 +623,7 @@ const styles = StyleSheet.create({
     marginTop: 14,
   },
   chatInput: {
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
     borderColor: '#ffd3e8',
     borderRadius: 16,
     borderWidth: 1,

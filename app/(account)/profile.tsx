@@ -441,6 +441,11 @@ export default function ProfileScreen() {
     return firstText(profile, ['nickname', 'username', 'display_name', 'full_name', 'name', 'nome'], user?.email || 'Profilo Bajuju');
   }, [profile, user]);
 
+  // Il nome scelto non si può cambiare, ma un profilo creato senza nome (es. dal caricamento foto)
+  // deve poterlo impostare: altrimenti il salvataggio resta bloccato su "Nome non valido".
+  const savedProfileName = firstText(profile, ['nickname', 'username', 'display_name', 'full_name', 'name', 'nome'], '');
+  const profileNameLocked = savedProfileName.length > 0;
+
   const photoUrl = useMemo(() => {
     return firstText(profile, ['avatar_url', 'photo_url', 'profile_photo_url', 'profile_image_url', 'image_url', 'foto'], '');
   }, [profile]);
@@ -473,33 +478,17 @@ export default function ProfileScreen() {
     return () => clearTimeout(timeout);
   }, [dateInvitesOffsetY, loading, params.section]);
 
-  const checkAdmin = useCallback(async (currentUser: LooseRow, currentProfile: LooseRow | null) => {
-    const directAdmin =
-      booleanFromRow(currentProfile, ['is_admin', 'admin', 'is_master', 'master'], false) ||
-      ['admin', 'master', 'superadmin'].includes(firstText(currentProfile, ['role', 'ruolo', 'user_role']).toLowerCase()) ||
-      booleanFromRow(currentUser?.user_metadata, ['is_admin', 'admin'], false) ||
-      ['admin', 'master', 'superadmin'].includes(firstText(currentUser?.user_metadata, ['role', 'ruolo']).toLowerCase());
-
-    if (directAdmin) return true;
-
-    const rpcNames = ['master_is_admin', 'is_current_user_admin', 'is_admin'];
-    for (const rpcName of rpcNames) {
-      try {
-        const result = await supabase.rpc(rpcName as any);
-        if (!result.error && result.data === true) return true;
-      } catch {
-        // Prova la RPC successiva.
-      }
-    }
+  // Solo profiles.is_admin è affidabile: è protetto dal trigger protect_admin_managed_profile_fields.
+  // user_metadata e colonne come role/master possono essere modificati dall'utente stesso.
+  const checkAdmin = useCallback(async (currentProfile: LooseRow | null) => {
+    if (currentProfile?.is_admin === true) return true;
 
     try {
-      const result = await supabase.rpc('master_get_users_overview' as any);
-      if (!result.error && result.data) return true;
+      const result = await supabase.rpc('is_current_user_admin' as any);
+      return !result.error && result.data === true;
     } catch {
-      // Se la RPC non esiste o non hai permessi, non mostro Area Admin.
+      return false;
     }
-
-    return false;
   }, []);
 
   const loadContactRequests = useCallback(async (userId: string) => {
@@ -793,7 +782,7 @@ export default function ProfileScreen() {
         // Se la tabella non è disponibile, manteniamo il valore predefinito.
       }
 
-      const admin = await checkAdmin(currentUser, currentProfile);
+      const admin = await checkAdmin(currentProfile);
       setIsAdmin(admin);
 
       await Promise.all([
@@ -840,7 +829,7 @@ export default function ProfileScreen() {
       }
 
       const picked = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.78,
@@ -1094,7 +1083,7 @@ export default function ProfileScreen() {
     }
   }, [ageRange, chatNotificationsEnabled, directContactsEnabled, gender, homeCity, loadAll, notificationsEnabled, photoUrl, profile, profileIdField, profileIdValue, profileName, province, user]);
 
-  const answerItem = useCallback(
+  const answerItemUnlocked = useCallback(
     async (item: ContactItem | InviteItem, status: 'accepted' | 'rejected') => {
       const ok = await safeUpdateStatus(item.table, item.id, status);
       if (!ok) {
@@ -1154,15 +1143,8 @@ export default function ProfileScreen() {
         if (targetUserId && targetUserId !== user?.id) {
           await sendBajujuPushNotification({
             type: 'contact_accepted',
-            actorUserId: user?.id,
             targetUserId,
-            title: 'Invito accettato',
-            body: isFlashInvite ? 'Il tuo invito Flash è stato accettato. La persona è stata aggiunta al Flash.' : 'Il tuo invito Bajuju è stato accettato.',
-            data: {
-              screen: isFlashInvite && flashActivityId ? 'flash-detail' : 'profile',
-              requestId: item.id,
-              activityId: flashActivityId || undefined,
-            },
+            requestId: item.id,
           }).catch((error) => {
             console.log('Errore notifica contatto accettato.');
           });
@@ -1177,6 +1159,23 @@ export default function ProfileScreen() {
       await loadAll();
     },
     [loadAll, router, user?.id]
+  );
+
+  // Lock sincrono contro il doppio tap su Accetta/Rifiuta: senza, la seconda chiamata parte prima
+  // che la prima finisca, con doppio inserimento tra i partecipanti e doppia notifica.
+  const answeringItemIdsRef = useRef<Set<string>>(new Set());
+  const answerItem = useCallback(
+    async (item: ContactItem | InviteItem, status: 'accepted' | 'rejected') => {
+      if (answeringItemIdsRef.current.has(item.id)) return;
+      answeringItemIdsRef.current.add(item.id);
+
+      try {
+        await answerItemUnlocked(item, status);
+      } finally {
+        answeringItemIdsRef.current.delete(item.id);
+      }
+    },
+    [answerItemUnlocked]
   );
 
   const removeItemFromList = useCallback(
@@ -1374,10 +1373,12 @@ export default function ProfileScreen() {
 
         <Text style={styles.label}>Nome utente</Text>
         <TextInput
-          value={profileName || 'Nuovo utente'}
-          editable={false}
-          placeholder="Nome scelto in registrazione"
-          style={[styles.input, styles.inputDisabled]}
+          value={profileName}
+          onChangeText={profileNameLocked ? undefined : setProfileName}
+          editable={!profileNameLocked}
+          placeholder={profileNameLocked ? 'Nome scelto in registrazione' : 'Scegli il tuo nome utente'}
+          maxLength={30}
+          style={[styles.input, profileNameLocked && styles.inputDisabled]}
           autoCapitalize="words"
         />
 
@@ -1588,7 +1589,7 @@ const styles = StyleSheet.create({
   },
   page: {
     flex: 1,
-    backgroundColor: '#fff7fb',
+    backgroundColor: '#FFF9FC',
   },
   content: {
     paddingTop: 64,
@@ -1599,7 +1600,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#fff7fb',
+    backgroundColor: '#FFF9FC',
   },
   loadingText: {
     marginTop: 12,
@@ -1751,7 +1752,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
     fontWeight: '800',
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
     borderRadius: 14,
     padding: 10,
   },
@@ -1890,7 +1891,7 @@ const styles = StyleSheet.create({
   locationInfoBox: {
     borderRadius: 18,
     padding: 14,
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
     borderWidth: 1,
     borderColor: '#ffd3e7',
     marginBottom: 16,
@@ -1936,7 +1937,7 @@ const styles = StyleSheet.create({
     flex: 1,
     borderWidth: 1,
     borderColor: '#ffd6ea',
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
     borderRadius: 16,
     paddingVertical: 12,
     alignItems: 'center',
@@ -1946,7 +1947,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     borderWidth: 1,
     borderColor: '#ffd6ea',
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
     borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 7,
@@ -1991,7 +1992,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
     color: '#311028',
-    backgroundColor: '#fffaff',
+    backgroundColor: '#FFF9FC',
     fontWeight: '700',
   },
   optionsGrid: {
@@ -2008,7 +2009,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     borderWidth: 1,
     borderColor: '#f4bdd8',
-    backgroundColor: '#fffaff',
+    backgroundColor: '#FFF9FC',
   },
   optionWide: {
     paddingHorizontal: 14,
@@ -2016,7 +2017,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
     borderColor: '#f4bdd8',
-    backgroundColor: '#fffaff',
+    backgroundColor: '#FFF9FC',
   },
   optionActive: {
     backgroundColor: '#ff2f92',
@@ -2038,7 +2039,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#fffaff',
+    backgroundColor: '#FFF9FC',
   },
   toggleRowActive: {
     borderColor: '#ff2f92',
@@ -2069,10 +2070,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   emptyText: {
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#ffe1ee',
+    borderColor: '#FFDDEB',
     color: '#8d315f',
     fontSize: 14,
     fontWeight: '700',
@@ -2087,7 +2088,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 13,
     marginBottom: 10,
-    backgroundColor: '#fffaff',
+    backgroundColor: '#FFF9FC',
   },
   itemTitle: {
     color: '#48172f',
@@ -2138,10 +2139,10 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   activityRow: {
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#ffe1ee',
+    borderColor: '#FFDDEB',
     marginTop: 10,
     padding: 14,
   },
@@ -2152,7 +2153,7 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
     alignItems: 'center',
     marginBottom: 10,
-    backgroundColor: '#fffaff',
+    backgroundColor: '#FFF9FC',
   },
   linkButtonText: {
     color: '#ff2f92',

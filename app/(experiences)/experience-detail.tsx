@@ -144,7 +144,6 @@ function profileName(profile: ProfileRow | undefined, index: number) {
     profile.username ||
     profile.first_name ||
     profile.nickname ||
-    profile.email ||
     '';
 
   return value ? String(value).trim() : `Partecipante ${index + 1}`;
@@ -343,6 +342,11 @@ export default function ExperienceDetailScreen() {
     return blockedUserIds.has(String(userId || '').trim());
   }
 
+  // loadParticipants legge l'utente da un ref: con currentUserId tra le dipendenze, al primo
+  // caricamento vedeva ancora null (blocchi ignorati) e il cambio di dipendenza rilanciava
+  // loadExperience, caricando tutto una seconda volta.
+  const currentUserIdRef = useRef<string | null>(null);
+
   const loadParticipants = useCallback(async (activityId: string, loadedExperience?: ActivityRow | null) => {
     const participantsResult = await supabase
       .from('activity_participants')
@@ -359,22 +363,24 @@ export default function ExperienceDetailScreen() {
     const rows = ((participantsResult.data || []) as ParticipantRow[]).filter(participantIsActive);
     setParticipants(rows);
 
-    if (currentUserId) {
+    const viewerId = currentUserIdRef.current;
+
+    if (viewerId) {
       const participantIds = rows
         .map((row) => String(row.user_id || '').trim())
-        .filter((id) => id && id !== String(currentUserId));
+        .filter((id) => id && id !== viewerId);
 
       if (participantIds.length > 0) {
         const [blockedByMeResult, blockedMeResult] = await Promise.all([
           supabase
             .from('user_blocks')
             .select('blocked_id')
-            .eq('blocker_id', currentUserId)
+            .eq('blocker_id', viewerId)
             .in('blocked_id', participantIds),
           supabase
             .from('user_blocks')
             .select('blocker_id')
-            .eq('blocked_id', currentUserId)
+            .eq('blocked_id', viewerId)
             .in('blocker_id', participantIds),
         ]);
 
@@ -416,44 +422,27 @@ export default function ExperienceDetailScreen() {
 
     const nextProfiles: Record<string, ProfileRow> = {};
 
-    for (const userIdToFind of uniqueUserIds) {
-      const byId = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userIdToFind)
-        .maybeSingle();
+    // Una sola query per tutti i profili (prima una o due query in sequenza per partecipante).
+    const profilesResult = await supabase
+      .from('profiles')
+      .select('*')
+      .in('id', uniqueUserIds);
 
-      let profile = byId.data as ProfileRow | null;
-
-      if (!profile) {
-        const byUserId = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('user_id', userIdToFind)
-          .maybeSingle();
-
-        profile = byUserId.data as ProfileRow | null;
-      }
-
-      if (profile) {
-        const id = String(profile.id || '');
-        const profileUserId = String(profile.user_id || '');
-
-        nextProfiles[userIdToFind] = profile;
-        if (id) nextProfiles[id] = profile;
-        if (profileUserId) nextProfiles[profileUserId] = profile;
-      }
-    }
+    ((profilesResult.data || []) as ProfileRow[]).forEach((profile) => {
+      const id = String(profile.id || '');
+      if (id) nextProfiles[id] = profile;
+    });
 
     setProfiles(nextProfiles);
-  }, [currentUserId]);
+  }, []);
 
   const loadMessages = useCallback(async (activityId: string) => {
     const messagesResult = await supabase
       .from('activity_messages')
       .select('*')
       .eq('activity_id', activityId)
-      .order('created_at', { ascending: true })
+      // Ultimi 100 messaggi: ordine decrescente per il limite, poi invertito per mostrarli dal più vecchio.
+      .order('created_at', { ascending: false })
       .limit(100);
 
     if (messagesResult.error) {
@@ -461,7 +450,7 @@ export default function ExperienceDetailScreen() {
       return;
     }
 
-    setMessages((messagesResult.data || []) as MessageRow[]);
+    setMessages(((messagesResult.data || []) as MessageRow[]).reverse());
   }, []);
 
   const loadExperience = useCallback(async () => {
@@ -476,6 +465,7 @@ export default function ExperienceDetailScreen() {
 
     const authResult = await supabase.auth.getUser();
     const userId = authResult.data.user?.id || null;
+    currentUserIdRef.current = userId;
     setCurrentUserId(userId);
 
     const result = await supabase
@@ -526,8 +516,11 @@ export default function ExperienceDetailScreen() {
   useEffect(() => {
     if (!experienceId) return;
 
+    // Nome univoco per istanza: supabase.channel() riusa un canale con lo stesso nome ancora aperto
+    // (es. schermata aperta due volte da una push) e registrare postgres_changes su un canale già
+    // collegato genera un errore.
     const channel = supabase
-      .channel(`experience-messages-${experienceId}`)
+      .channel(`experience-messages-${experienceId}-${Math.random().toString(36).slice(2)}`)
       .on(
         'postgres_changes',
         {
@@ -638,14 +631,8 @@ export default function ExperienceDetailScreen() {
       if (organizerId && organizerId !== currentUserId) {
         await sendBajujuPushNotification({
           type: 'new_participant',
-          actorUserId: currentUserId,
           targetUserId: organizerId,
-          title: 'Nuovo partecipante Bajuju',
-          body: `Qualcuno si è unito alla tua esperienza: ${String(experience?.title || 'Bajuju')}.`,
-          data: {
-            screen: 'experience',
-            activityId: experienceId,
-          },
+          activityId: experienceId,
         }).catch(() => {
           console.log('Errore notifica nuovo partecipante.');
         });
@@ -756,14 +743,8 @@ export default function ExperienceDetailScreen() {
                     participantIds.map((targetUserId: string) =>
                       sendBajujuPushNotification({
                         type: 'experience_cancelled',
-                        actorUserId: currentUserId,
                         targetUserId,
-                        title: 'Esperienza annullata',
-                        body: `L’esperienza ${String((experience as any)?.title || 'Bajuju')} è stata annullata.`,
-                        data: {
-                          screen: 'experiences',
-                          activityId: experienceId,
-                        },
+                        activityId: experienceId,
                       }).catch((error) => {
                         console.log('Errore notifica esperienza annullata.');
                       })
@@ -1003,7 +984,7 @@ export default function ExperienceDetailScreen() {
       }
 
       const picked = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         allowsEditing: true,
         quality: 0.78,
       });
@@ -1080,7 +1061,7 @@ export default function ExperienceDetailScreen() {
       }
 
       const picked = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [16, 9],
         quality: 0.8,
@@ -1569,14 +1550,14 @@ export default function ExperienceDetailScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
   },
   container: {
     flexGrow: 1,
     padding: 20,
     paddingTop: 64,
     paddingBottom: 32,
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
   },
   backButton: {
     alignSelf: 'flex-start',
@@ -1647,7 +1628,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     paddingVertical: 10,
     paddingHorizontal: 13,
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
     borderWidth: 1,
     borderColor: '#ffd3e7',
     marginBottom: 14,
@@ -1680,7 +1661,7 @@ const styles = StyleSheet.create({
   infoBox: {
     borderRadius: 20,
     padding: 14,
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
     borderWidth: 1,
     borderColor: '#ffd3e7',
     marginBottom: 12,
@@ -1773,7 +1754,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#ffe1ee',
+    borderColor: '#FFDDEB',
     flexDirection: 'row',
     gap: 12,
     padding: 12,
@@ -2061,7 +2042,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   chatBox: {
-    backgroundColor: '#fff8fb',
+    backgroundColor: '#FFF9FC',
     borderRadius: 24,
     borderWidth: 1,
     borderColor: '#ffd6e8',
@@ -2077,7 +2058,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#ffe1ee',
+    borderColor: '#FFDDEB',
     color: '#8d315f',
     fontSize: 14,
     fontWeight: '700',
@@ -2094,7 +2075,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#ffe1ee',
+    borderColor: '#FFDDEB',
     maxWidth: '88%',
     paddingHorizontal: 13,
     paddingVertical: 10,

@@ -21,6 +21,15 @@ const GOOGLE_PLACES_API_KEY = Deno.env.get('GOOGLE_PLACES_API_KEY');
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY');
 
+// Limiti per utente ogni 10 minuti: le chiamate a Google Places sono a pagamento.
+// resolve_text (Text Search) è la più costosa ed è usata solo al salvataggio di un indirizzo.
+const RATE_LIMIT_WINDOW_SECONDS = 600;
+const RATE_LIMITS: Record<string, number> = {
+  autocomplete: 150,
+  details: 40,
+  resolve_text: 30,
+};
+
 function cleanString(value: unknown, maxLength = 200) {
   return typeof value === 'string' ? value.trim().slice(0, maxLength) : '';
 }
@@ -87,6 +96,23 @@ Deno.serve(async (req) => {
   }
 
   const action = cleanString(body.action, 30);
+
+  if (!RATE_LIMITS[action]) {
+    return jsonResponse({ ok: false, error: 'INVALID_ACTION' }, 400);
+  }
+
+  const rateLimitResult = await supabase.rpc('consume_edge_rate_limit', {
+    p_bucket: `places_${action}`,
+    p_max_requests: RATE_LIMITS[action],
+    p_window_seconds: RATE_LIMIT_WINDOW_SECONDS,
+  });
+
+  if (rateLimitResult.error) {
+    // Se il controllo non è disponibile (es. migrazione non ancora applicata) non blocchiamo l'utente.
+    console.error('Rate limit non disponibile:', rateLimitResult.error.message);
+  } else if (rateLimitResult.data !== true) {
+    return jsonResponse({ ok: false, error: 'RATE_LIMITED' }, 429);
+  }
 
   if (action === 'resolve_text') {
     const query = cleanString(body.query, 300);

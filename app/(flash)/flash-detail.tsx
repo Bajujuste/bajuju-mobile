@@ -125,7 +125,8 @@ export default function FlashDetailScreen() {
       .from('activity_messages')
       .select('*')
       .eq('activity_id', activityId)
-      .order('created_at', { ascending: true })
+      // Ultimi 100 messaggi: ordine decrescente per il limite, poi invertito per mostrarli dal più vecchio.
+      .order('created_at', { ascending: false })
       .limit(100);
 
     if (messagesResult.error) {
@@ -133,7 +134,7 @@ export default function FlashDetailScreen() {
       return;
     }
 
-    setMessages((messagesResult.data || []) as LooseRow[]);
+    setMessages(((messagesResult.data || []) as LooseRow[]).reverse());
   }, []);
 
   const loadFlash = useCallback(async () => {

@@ -452,7 +452,8 @@ export default function ExperienceDetailScreen() {
       .from('activity_messages')
       .select('*')
       .eq('activity_id', activityId)
-      .order('created_at', { ascending: true })
+      // Ultimi 100 messaggi: ordine decrescente per il limite, poi invertito per mostrarli dal più vecchio.
+      .order('created_at', { ascending: false })
       .limit(100);
 
     if (messagesResult.error) {
@@ -460,7 +461,7 @@ export default function ExperienceDetailScreen() {
       return;
     }
 
-    setMessages((messagesResult.data || []) as MessageRow[]);
+    setMessages(((messagesResult.data || []) as MessageRow[]).reverse());
   }, []);
 
   const loadExperience = useCallback(async () => {

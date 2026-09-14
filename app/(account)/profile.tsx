@@ -1083,7 +1083,7 @@ export default function ProfileScreen() {
     }
   }, [ageRange, chatNotificationsEnabled, directContactsEnabled, gender, homeCity, loadAll, notificationsEnabled, photoUrl, profile, profileIdField, profileIdValue, profileName, province, user]);
 
-  const answerItem = useCallback(
+  const answerItemUnlocked = useCallback(
     async (item: ContactItem | InviteItem, status: 'accepted' | 'rejected') => {
       const ok = await safeUpdateStatus(item.table, item.id, status);
       if (!ok) {
@@ -1159,6 +1159,23 @@ export default function ProfileScreen() {
       await loadAll();
     },
     [loadAll, router, user?.id]
+  );
+
+  // Lock sincrono contro il doppio tap su Accetta/Rifiuta: senza, la seconda chiamata parte prima
+  // che la prima finisca, con doppio inserimento tra i partecipanti e doppia notifica.
+  const answeringItemIdsRef = useRef<Set<string>>(new Set());
+  const answerItem = useCallback(
+    async (item: ContactItem | InviteItem, status: 'accepted' | 'rejected') => {
+      if (answeringItemIdsRef.current.has(item.id)) return;
+      answeringItemIdsRef.current.add(item.id);
+
+      try {
+        await answerItemUnlocked(item, status);
+      } finally {
+        answeringItemIdsRef.current.delete(item.id);
+      }
+    },
+    [answerItemUnlocked]
   );
 
   const removeItemFromList = useCallback(

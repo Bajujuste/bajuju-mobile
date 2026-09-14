@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import * as Location from 'expo-location';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, ActivityIndicator, Image, Pressable, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text as NativeText, TextInput, TextProps, View } from 'react-native';
 
 import BajujuMap, { BajujuMapItem } from '../../src/components/BajujuMap';
@@ -1107,22 +1107,31 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
     }
   }, [cancellingAvailability, loadAvailableUsers, myActiveAvailability]);
 
+  // Lock sincrono: sendingAvailabilityInviteTo si aggiorna solo dopo l'await iniziale,
+  // quindi un doppio tap rapido farebbe partire due inviti e due notifiche.
+  const availabilityInviteLockRef = useRef(false);
+
   const sendAvailabilityInvite = useCallback(async (targetUserId: string) => {
     const cleanTargetUserId = String(targetUserId || '').trim();
 
-    if (!cleanTargetUserId || sendingAvailabilityInviteTo) return;
+    if (!cleanTargetUserId || sendingAvailabilityInviteTo || availabilityInviteLockRef.current) return;
+    availabilityInviteLockRef.current = true;
 
     const authResult = await supabase.auth.getUser();
     const currentUserId = authResult.data.user?.id || null;
 
     if (!currentUserId) {
+      availabilityInviteLockRef.current = false;
       if (typeof window !== 'undefined') {
         window.alert('Devi essere collegato per invitare una persona.');
       }
       return;
     }
 
-    if (currentUserId === cleanTargetUserId) return;
+    if (currentUserId === cleanTargetUserId) {
+      availabilityInviteLockRef.current = false;
+      return;
+    }
 
     setSendingAvailabilityInviteTo(cleanTargetUserId);
 
@@ -1227,6 +1236,7 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
 
       Alert.alert('Errore invito', message);
     } finally {
+      availabilityInviteLockRef.current = false;
       setSendingAvailabilityInviteTo(null);
     }
   }, [sendingAvailabilityInviteTo]);

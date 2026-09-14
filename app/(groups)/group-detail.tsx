@@ -53,6 +53,8 @@ export default function GroupDetailScreen() {
   const [group, setGroup] = useState<any>(null);
   const [ownerName, setOwnerName] = useState('Bajuju');
   const [members, setMembers] = useState<MemberRow[]>([]);
+  // L'elenco iscritti è visibile solo a membri, proprietario e admin: il numero arriva a parte.
+  const [memberCount, setMemberCount] = useState(0);
   const [experiences, setExperiences] = useState<ExperienceRow[]>([]);
   const [joined, setJoined] = useState(false);
   const [descriptionDraft, setDescriptionDraft] = useState('');
@@ -96,12 +98,13 @@ export default function GroupDetailScreen() {
       setNameDraft(String(groupResult.data.name || ''));
 
       const ownerId = String(groupResult.data.owner_id || '');
-      const [ownerResult, membersResult, linksResult] = await Promise.all([
+      const [ownerResult, membersResult, linksResult, memberCountResult] = await Promise.all([
         ownerId
           ? supabase.from('profiles').select('nickname').eq('id', ownerId).maybeSingle()
           : Promise.resolve({ data: null, error: null } as any),
         supabase.rpc('get_group_member_profiles', { p_group_id: groupId }),
         supabase.from('group_activities').select('activity_id').eq('group_id', groupId),
+        supabase.rpc('get_group_member_count' as any, { p_group_id: groupId }),
       ]);
 
       if (membersResult.error) throw membersResult.error;
@@ -110,6 +113,12 @@ export default function GroupDetailScreen() {
       setOwnerName(String(ownerResult.data?.nickname || 'Bajuju'));
       const safeMembers = (membersResult.data || []) as MemberRow[];
       setMembers(safeMembers);
+      // Se la funzione di conteggio non è ancora disponibile si usa la lunghezza dell'elenco.
+      setMemberCount(
+        !memberCountResult.error && memberCountResult.data !== null && memberCountResult.data !== undefined
+          ? Number(memberCountResult.data)
+          : safeMembers.length
+      );
       setJoined(safeMembers.some((member) => String(member.user_id || '') === userId));
 
       const activityIds = [
@@ -391,7 +400,7 @@ export default function GroupDetailScreen() {
           {group.category ? <Text style={styles.category}>{group.category}</Text> : null}
           <Text style={styles.description}>{group.description}</Text>
           <Text style={styles.owner}>Gestito da {ownerName}</Text>
-          <Text style={styles.count}>{members.length} {members.length === 1 ? 'iscritto' : 'iscritti'}</Text>
+          <Text style={styles.count}>{memberCount} {memberCount === 1 ? 'iscritto' : 'iscritti'}</Text>
 
           <Pressable style={styles.shareButton} onPress={() => { void handleShareGroup(); }}>
             <Text style={styles.shareButtonText}>↗ Condividi gruppo</Text>
@@ -524,6 +533,11 @@ export default function GroupDetailScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Iscritti</Text>
           <Text style={styles.privacyText}>Nel gruppo sono mostrati solo nome, età e provenienza.</Text>
+          {!(joined || isOwner || isAdmin) ? (
+            <View style={styles.emptyCard}>
+              <Text style={styles.emptyText}>L’elenco degli iscritti è visibile solo a chi fa parte del gruppo.</Text>
+            </View>
+          ) : (
           <View style={styles.membersCard}>
             {members.map((member, index) => (
               <View key={String(member.user_id || index)} style={[styles.memberRow, index > 0 && styles.memberBorder]}>
@@ -542,6 +556,7 @@ export default function GroupDetailScreen() {
               </View>
             ))}
           </View>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>

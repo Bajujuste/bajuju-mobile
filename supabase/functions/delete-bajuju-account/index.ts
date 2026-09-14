@@ -81,6 +81,22 @@ Deno.serve(async (request) => {
     if (!isAdmin) {
       return jsonResponse({ error: 'Permessi amministratore richiesti' }, 403);
     }
+
+    // Un admin non può eliminare definitivamente altri amministratori (incluso l'admin principale).
+    const targetProfileResult = await adminClient
+      .from('profiles')
+      .select('is_admin')
+      .eq('id', requestedUserId)
+      .maybeSingle();
+
+    if (targetProfileResult.error) {
+      console.error('Errore verifica account da eliminare:', targetProfileResult.error.message);
+      return jsonResponse({ error: 'Verifica dell’account non riuscita.' }, 500);
+    }
+
+    if (targetProfileResult.data?.is_admin === true) {
+      return jsonResponse({ error: 'Non è possibile eliminare un account amministratore.' }, 403);
+    }
   }
 
   const { error: deleteError } = await adminClient.auth.admin.deleteUser(
@@ -92,10 +108,7 @@ Deno.serve(async (request) => {
     console.error('Errore eliminazione account:', deleteError.message);
 
     return jsonResponse(
-      {
-        error: 'Non è stato possibile eliminare definitivamente l’account.',
-        details: deleteError.message,
-      },
+      { error: 'Non è stato possibile eliminare definitivamente l’account.' },
       500
     );
   }

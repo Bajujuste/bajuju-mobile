@@ -245,13 +245,10 @@ export default function RootLayout() {
         style={styles.appFrame}
         edges={homeAlreadyHandlesSafeArea ? [] : ['top', 'left', 'right']}
       >
+        {/* headerShown: false vale per tutte le rotte tramite screenOptions: non servono Stack.Screen
+            dedicate (quelle per login, register, ecc. usavano nomi senza il gruppo (auth) e venivano ignorate). */}
         <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="login" options={{ headerShown: false }} />
-          <Stack.Screen name="register" options={{ headerShown: false }} />
-          <Stack.Screen name="forgot-password" options={{ headerShown: false }} />
-          <Stack.Screen name="reset-password" options={{ headerShown: false }} />
-          <Stack.Screen name="auth/callback" options={{ headerShown: false }} />
+          <Stack.Screen name="(tabs)" />
         </Stack>
         <AdminPrivateChatEntry />
       </SafeAreaView>

@@ -473,33 +473,17 @@ export default function ProfileScreen() {
     return () => clearTimeout(timeout);
   }, [dateInvitesOffsetY, loading, params.section]);
 
-  const checkAdmin = useCallback(async (currentUser: LooseRow, currentProfile: LooseRow | null) => {
-    const directAdmin =
-      booleanFromRow(currentProfile, ['is_admin', 'admin', 'is_master', 'master'], false) ||
-      ['admin', 'master', 'superadmin'].includes(firstText(currentProfile, ['role', 'ruolo', 'user_role']).toLowerCase()) ||
-      booleanFromRow(currentUser?.user_metadata, ['is_admin', 'admin'], false) ||
-      ['admin', 'master', 'superadmin'].includes(firstText(currentUser?.user_metadata, ['role', 'ruolo']).toLowerCase());
-
-    if (directAdmin) return true;
-
-    const rpcNames = ['master_is_admin', 'is_current_user_admin', 'is_admin'];
-    for (const rpcName of rpcNames) {
-      try {
-        const result = await supabase.rpc(rpcName as any);
-        if (!result.error && result.data === true) return true;
-      } catch {
-        // Prova la RPC successiva.
-      }
-    }
+  // Solo profiles.is_admin è affidabile: è protetto dal trigger protect_admin_managed_profile_fields.
+  // user_metadata e colonne come role/master possono essere modificati dall'utente stesso.
+  const checkAdmin = useCallback(async (currentProfile: LooseRow | null) => {
+    if (currentProfile?.is_admin === true) return true;
 
     try {
-      const result = await supabase.rpc('master_get_users_overview' as any);
-      if (!result.error && result.data) return true;
+      const result = await supabase.rpc('is_current_user_admin' as any);
+      return !result.error && result.data === true;
     } catch {
-      // Se la RPC non esiste o non hai permessi, non mostro Area Admin.
+      return false;
     }
-
-    return false;
   }, []);
 
   const loadContactRequests = useCallback(async (userId: string) => {
@@ -793,7 +777,7 @@ export default function ProfileScreen() {
         // Se la tabella non è disponibile, manteniamo il valore predefinito.
       }
 
-      const admin = await checkAdmin(currentUser, currentProfile);
+      const admin = await checkAdmin(currentProfile);
       setIsAdmin(admin);
 
       await Promise.all([

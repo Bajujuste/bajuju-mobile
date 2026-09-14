@@ -45,6 +45,72 @@ function optionalText(value: unknown) {
   return typeof value === 'string' ? value.trim() : '';
 }
 
+// Confronto a tempo costante: i digest hanno sempre la stessa lunghezza, quindi il tempo
+// di risposta non rivela quanti caratteri della chiave sono corretti.
+async function constantTimeEqual(left: string, right: string) {
+  const encoder = new TextEncoder();
+  const [leftDigest, rightDigest] = await Promise.all([
+    crypto.subtle.digest('SHA-256', encoder.encode(left)),
+    crypto.subtle.digest('SHA-256', encoder.encode(right)),
+  ]);
+  const leftBytes = new Uint8Array(leftDigest);
+  const rightBytes = new Uint8Array(rightDigest);
+  let difference = 0;
+  for (let index = 0; index < leftBytes.length; index += 1) {
+    difference |= leftBytes[index] ^ rightBytes[index];
+  }
+  return difference === 0;
+}
+
+const MAX_PHOTO_REDIRECTS = 3;
+
+// Il link della foto arriva dall'esterno: accetta solo HTTPS verso nomi host pubblici,
+// mai IP diretti o host locali/interni, per evitare richieste verso la rete interna (SSRF).
+function isPublicHttpsUrl(value: string) {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return false;
+  }
+
+  if (url.protocol !== 'https:' || url.username || url.password) return false;
+
+  const host = url.hostname.toLowerCase();
+  if (!host || host === 'localhost' || /\.(localhost|local|internal)$/.test(host)) return false;
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host) || host.includes(':') || host.startsWith('[')) return false;
+
+  return true;
+}
+
+// Segue i redirect a mano, verificando ogni destinazione.
+async function fetchPublicHttps(initialUrl: string) {
+  let currentUrl = initialUrl;
+
+  for (let hop = 0; hop <= MAX_PHOTO_REDIRECTS; hop += 1) {
+    if (!isPublicHttpsUrl(currentUrl)) {
+      throw new Error('INVALID_PHOTO_ATTACHMENT');
+    }
+
+    const response = await fetch(currentUrl, {
+      redirect: 'manual',
+      signal: AbortSignal.timeout(20_000),
+    });
+
+    if (response.status >= 300 && response.status < 400) {
+      const location = response.headers.get('location');
+      await response.body?.cancel();
+      if (!location) throw new Error('PHOTO_DOWNLOAD_FAILED');
+      currentUrl = new URL(location, currentUrl).toString();
+      continue;
+    }
+
+    return response;
+  }
+
+  throw new Error('PHOTO_DOWNLOAD_FAILED');
+}
+
 function prepareBase64Photo(
   rawValue: string,
   declaredContentType: string
@@ -108,13 +174,7 @@ async function prepareChatAttachment(value: unknown) {
     fileReference.download_link || fileReference.downloadLink
   );
 
-  if (!downloadLink.startsWith('https://')) {
-    throw new Error('INVALID_PHOTO_ATTACHMENT');
-  }
-
-  const response = await fetch(downloadLink, {
-    signal: AbortSignal.timeout(20_000),
-  });
+  const response = await fetchPublicHttps(downloadLink);
 
   if (!response.ok) {
     throw new Error('PHOTO_DOWNLOAD_FAILED');
@@ -209,7 +269,7 @@ Deno.serve(async (req) => {
     : "";
   const apiKey = req.headers.get("x-api-key") || bearerKey;
 
-  if (apiKey !== BAJUJU_CHATGPT_API_KEY) {
+  if (!apiKey || !(await constantTimeEqual(apiKey, BAJUJU_CHATGPT_API_KEY))) {
     return jsonResponse({ ok: false, error: "AUTH_REQUIRED" }, 401);
   }
 

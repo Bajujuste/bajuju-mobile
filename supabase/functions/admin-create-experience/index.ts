@@ -85,12 +85,10 @@ async function notifyNearbyExperience(
   supabaseUrl: string,
   supabaseAnonKey: string,
   authorization: string,
-  userId: string,
-  activityId: string,
-  title: string,
-  province: string
+  activityId: string
 ) {
   try {
+    // Testo e destinatari vengono ricostruiti da send-bajuju-push a partire dall'esperienza.
     const response = await fetch(`${supabaseUrl}/functions/v1/send-bajuju-push`, {
       method: 'POST',
       headers: {
@@ -98,18 +96,7 @@ async function notifyNearbyExperience(
         Authorization: authorization,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        type: 'new_experience',
-        actorUserId: userId,
-        title: `Nuova esperienza: ${title}`,
-        body: `${province}: nuova esperienza su Bajuju.`,
-        province,
-        data: {
-          screen: 'experience',
-          activityId,
-          title,
-        },
-      }),
+      body: JSON.stringify({ type: 'new_experience', activityId }),
     });
 
     if (!response.ok) {
@@ -204,15 +191,7 @@ Deno.serve(async (req) => {
     );
 
     if (activityId) {
-      await notifyNearbyExperience(
-        supabaseUrl,
-        supabaseAnonKey,
-        authorization,
-        userData.user.id,
-        activityId,
-        cleanString(payload.title || payload.activity_title || payload.name),
-        cleanString(payload.province || payload.provincia)
-      );
+      await notifyNearbyExperience(supabaseUrl, supabaseAnonKey, authorization, activityId);
     }
   }
 

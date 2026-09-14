@@ -222,11 +222,8 @@ export default function ExperienceWaitlistScreen() {
       if (currentUserId && activity?.creator_id && currentUserId !== activity.creator_id) {
         await sendBajujuPushNotification({
           type: 'new_participant',
-          actorUserId: currentUserId,
           targetUserId: String(activity.creator_id),
-          title: 'Nuovo partecipante Bajuju',
-          body: `Qualcuno si è unito alla tua esperienza: ${activity.title || 'Bajuju'}.`,
-          data: { screen: 'experience', activityId },
+          activityId,
         }).catch(() => undefined);
       }
 

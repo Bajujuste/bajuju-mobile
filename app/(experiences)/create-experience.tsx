@@ -28,7 +28,7 @@ import type { ResolvedAddress } from '../../src/lib/addressAutocomplete';
 import { supabase } from '../../src/lib/supabase';
 import { BAJUJU_COLORS, BAJUJU_FONTS, BAJUJU_SHADOW } from '../../src/theme/bajujuTheme';
 import { trackBajujuEvent } from '../../src/utils/bajujuAnalytics';
-import { buildExperienceNotificationTitle, sendBajujuPushNotification } from '../../src/utils/bajujuNotifications';
+import { sendBajujuPushNotification } from '../../src/utils/bajujuNotifications';
 
 function categoryToDatabaseValue(value: string) {
   switch (value) {
@@ -310,15 +310,7 @@ export default function CreateExperienceScreen() {
 
       await sendBajujuPushNotification({
         type: 'new_experience',
-        actorUserId: creatorId,
-        title: buildExperienceNotificationTitle(payload.title),
-        body: `${payload.province}: qualcuno ha creato una nuova esperienza su Bajuju.`,
-        province: payload.province,
-        data: {
-          screen: 'experience',
-          activityId: result.data?.id,
-          title: payload.title,
-        },
+        activityId: result.data?.id,
       }).catch(() => {
         console.log('Errore notifica geografica nuova esperienza.');
       });

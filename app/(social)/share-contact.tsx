@@ -290,17 +290,8 @@ export default function ShareContactScreen() {
 
       await sendBajujuPushNotification({
         type: 'contact_request',
-        actorUserId: currentUserId,
         targetUserId,
-        title: `${senderName} vuole condividere un contatto`,
-        body: contactType === 'telefono'
-          ? 'Telefono/WhatsApp: apri Bajuju per accettare o rifiutare.'
-          : 'Telegram: apri Bajuju per accettare o rifiutare.',
-        data: {
-          screen: 'direct-contacts',
-          requestId: insertResult.data.id,
-          activityId,
-        },
+        requestId: insertResult.data.id,
       });
 
       Alert.alert('Richiesta inviata', `${targetName} potrà accettare o rifiutare prima di vedere il contatto.`);

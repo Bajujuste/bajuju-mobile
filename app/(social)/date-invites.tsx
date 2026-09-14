@@ -176,19 +176,8 @@ export default function DateInvitesScreen() {
       if (requesterId) {
         await sendBajujuPushNotification({
           type: status === 'accepted' ? 'contact_accepted' : 'contact_rejected',
-          actorUserId: userId,
           targetUserId: requesterId,
-          title: status === 'accepted'
-            ? `${userName} ha accettato il tuo invito`
-            : `${userName} ha rifiutato il tuo invito`,
-          body: status === 'accepted'
-            ? 'Puoi vedere la risposta nella sezione Inviti a uscire.'
-            : 'L’invito a uscire non è stato accettato.',
-          data: {
-            screen: 'date-invites',
-            requestId: invite.id,
-            activityId: invite.activity_id || undefined,
-          },
+          requestId: invite.id,
         });
       }
 
@@ -244,17 +233,11 @@ export default function DateInvitesScreen() {
 
       const requesterId = String(invite.requester_id || invite.sender_id || '').trim();
       if (requesterId) {
+        // La funzione riconosce la risposta salvata nel messaggio e la inoltra come notifica.
         await sendBajujuPushNotification({
           type: 'contact_accepted',
-          actorUserId: userId,
           targetUserId: requesterId,
-          title: `${userName} ti ha risposto`,
-          body: cleanReply,
-          data: {
-            screen: 'date-invites',
-            requestId: invite.id,
-            activityId: invite.activity_id || undefined,
-          },
+          requestId: invite.id,
         });
       }
 

@@ -278,15 +278,13 @@ export function isBajujuNotificationAllowed(kind: BajujuNotificationKind | strin
 }
 
 
+// Il client passa solo il tipo e gli id di riferimento:
+// titolo, testo e destinatari vengono ricostruiti e verificati dalla funzione send-bajuju-push.
 export type SendBajujuPushInput = {
-  type: BajujuNotificationKind | string;
-  actorUserId?: string | null;
+  type: BajujuNotificationKind;
   targetUserId?: string | null;
-  title: string;
-  body: string;
-  data?: Record<string, unknown>;
-  province?: string | null;
-  city?: string | null;
+  activityId?: string | null;
+  requestId?: string | null;
 };
 
 export async function sendBajujuPushNotification(input: SendBajujuPushInput) {
@@ -315,14 +313,4 @@ export async function sendBajujuPushNotification(input: SendBajujuPushInput) {
     ok: true,
     data: result.data,
   };
-}
-
-export function buildExperienceNotificationTitle(title?: string | null) {
-  const cleanTitle = String(title || '').trim();
-  return cleanTitle ? `Nuova esperienza: ${cleanTitle}` : 'Nuova esperienza Bajuju';
-}
-
-export function buildFlashNotificationTitle(title?: string | null) {
-  const cleanTitle = String(title || '').trim();
-  return cleanTitle ? `Nuovo Flash: ${cleanTitle}` : 'Nuovo Flash Bajuju';
 }

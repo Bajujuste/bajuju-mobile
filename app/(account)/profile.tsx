@@ -1154,15 +1154,8 @@ export default function ProfileScreen() {
         if (targetUserId && targetUserId !== user?.id) {
           await sendBajujuPushNotification({
             type: 'contact_accepted',
-            actorUserId: user?.id,
             targetUserId,
-            title: 'Invito accettato',
-            body: isFlashInvite ? 'Il tuo invito Flash è stato accettato. La persona è stata aggiunta al Flash.' : 'Il tuo invito Bajuju è stato accettato.',
-            data: {
-              screen: isFlashInvite && flashActivityId ? 'flash-detail' : 'profile',
-              requestId: item.id,
-              activityId: flashActivityId || undefined,
-            },
+            requestId: item.id,
           }).catch((error) => {
             console.log('Errore notifica contatto accettato.');
           });

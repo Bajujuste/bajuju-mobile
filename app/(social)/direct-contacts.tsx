@@ -56,7 +56,6 @@ function contactLabel(type: ContactType) {
 
 export default function DirectContactsScreen() {
   const [userId, setUserId] = useState('');
-  const [userName, setUserName] = useState('Utente Bajuju');
   const [contacts, setContacts] = useState<ContactView[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -73,15 +72,6 @@ export default function DirectContactsScreen() {
       const currentUserId = String(authResult.data.user?.id || '').trim();
       if (!currentUserId) throw new Error('Utente non autenticato.');
       setUserId(currentUserId);
-
-      const profileResult = await supabase
-        .from('profiles')
-        .select('nickname')
-        .eq('id', currentUserId)
-        .maybeSingle();
-
-      const currentName = String(profileResult.data?.nickname || 'Utente Bajuju').trim() || 'Utente Bajuju';
-      setUserName(currentName);
 
       const [receivedResult, sentResult] = await Promise.all([
         supabase
@@ -173,19 +163,8 @@ export default function DirectContactsScreen() {
       if (requesterId) {
         await sendBajujuPushNotification({
           type: status === 'accepted' ? 'contact_accepted' : 'contact_rejected',
-          actorUserId: userId,
           targetUserId: requesterId,
-          title: status === 'accepted'
-            ? `${userName} ha accettato il tuo contatto`
-            : `${userName} ha rifiutato il tuo contatto`,
-          body: status === 'accepted'
-            ? `La condivisione ${contactLabel(contact.contact_type)} è stata accettata.`
-            : `La condivisione ${contactLabel(contact.contact_type)} non è stata accettata.`,
-          data: {
-            screen: 'direct-contacts',
-            requestId: contact.id,
-            activityId: contact.activity_id || undefined,
-          },
+          requestId: contact.id,
         });
       }
 

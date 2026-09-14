@@ -140,13 +140,6 @@ export default function InviteOutScreen() {
         return;
       }
 
-      const senderProfileResult = await supabase
-        .from('profiles')
-        .select('nickname')
-        .eq('id', currentUserId)
-        .maybeSingle();
-      const senderName = String(senderProfileResult.data?.nickname || 'Un utente Bajuju').trim() || 'Un utente Bajuju';
-
       const insertResult = await supabase
         .from('direct_contact_requests')
         .insert({
@@ -166,15 +159,8 @@ export default function InviteOutScreen() {
 
       await sendBajujuPushNotification({
         type: 'contact_request',
-        actorUserId: currentUserId,
         targetUserId,
-        title: `${senderName} ti ha invitato a uscire`,
-        body: cleanMessage,
-        data: {
-          screen: 'date-invites',
-          requestId: insertResult.data.id,
-          activityId,
-        },
+        requestId: insertResult.data.id,
       });
 
       Alert.alert('Invito inviato', `Il tuo invito a ${targetName} è stato inviato.`);

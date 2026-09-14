@@ -638,14 +638,8 @@ export default function ExperienceDetailScreen() {
       if (organizerId && organizerId !== currentUserId) {
         await sendBajujuPushNotification({
           type: 'new_participant',
-          actorUserId: currentUserId,
           targetUserId: organizerId,
-          title: 'Nuovo partecipante Bajuju',
-          body: `Qualcuno si è unito alla tua esperienza: ${String(experience?.title || 'Bajuju')}.`,
-          data: {
-            screen: 'experience',
-            activityId: experienceId,
-          },
+          activityId: experienceId,
         }).catch(() => {
           console.log('Errore notifica nuovo partecipante.');
         });
@@ -756,14 +750,8 @@ export default function ExperienceDetailScreen() {
                     participantIds.map((targetUserId: string) =>
                       sendBajujuPushNotification({
                         type: 'experience_cancelled',
-                        actorUserId: currentUserId,
                         targetUserId,
-                        title: 'Esperienza annullata',
-                        body: `L’esperienza ${String((experience as any)?.title || 'Bajuju')} è stata annullata.`,
-                        data: {
-                          screen: 'experiences',
-                          activityId: experienceId,
-                        },
+                        activityId: experienceId,
                       }).catch((error) => {
                         console.log('Errore notifica esperienza annullata.');
                       })

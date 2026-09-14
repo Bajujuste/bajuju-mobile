@@ -10,7 +10,7 @@ import type { ResolvedAddress } from '../../src/lib/addressAutocomplete';
 import { supabase } from '../../src/lib/supabase';
 import { BAJUJU_COLORS, BAJUJU_FONTS } from '../../src/theme/bajujuTheme';
 import { shareBajujuFlash } from '../../src/utils/shareBajuju';
-import { sendBajujuPushNotification, buildFlashNotificationTitle } from '../../src/utils/bajujuNotifications';
+import { sendBajujuPushNotification } from '../../src/utils/bajujuNotifications';
 import { ITALIAN_MUNICIPALITIES_BY_PROVINCE } from '../../src/data/italianMunicipalities';
 
 const bajujuLogo = require('../../assets/brand/bajuju-logo.png');
@@ -1198,7 +1198,7 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
         contact_type: 'flash_invite',
         status: 'pending',
         message: `Ti invito al mio Bajuju Flash “${flashTitle(ownFlash)}”. Ti ho visto disponibile: ti va di partecipare?`,
-      });
+      }).select('id').single();
 
       if (result.error) {
         if (typeof window !== 'undefined') {
@@ -1209,15 +1209,9 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
 
       await sendBajujuPushNotification({
         type: 'contact_request',
-        actorUserId: currentUserId,
         targetUserId: cleanTargetUserId,
-        title: 'Nuovo invito Bajuju Flash',
-        body: `Una persona ti invita al suo Flash: ${flashTitle(ownFlash)}.`,
-        data: {
-          screen: 'profile',
-            section: 'flash-invites',
-          activityId: ownFlashId,
-        },
+        requestId: result.data.id,
+        activityId: ownFlashId,
       }).catch((error) => {
         console.log('Errore notifica invito disponibilità.');
       });
@@ -1335,16 +1329,7 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
 
       await sendBajujuPushNotification({
         type: 'new_flash',
-        actorUserId: String(payload.creator_id || ''),
-        title: buildFlashNotificationTitle(payload.title),
-        body: `${payload.city}: qualcuno ha creato un Flash Bajuju.`,
-        province: payload.province,
-        city: payload.city,
-        data: {
-          screen: 'flash',
-          activityId: result.data?.id,
-          title: payload.title,
-        },
+        activityId: result.data?.id,
       }).catch((error) => {
         console.log('Errore notifica nuovo Flash.');
       });

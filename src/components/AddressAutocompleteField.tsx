@@ -68,6 +68,8 @@ export function AddressAutocompleteField({
       if (cleanValue.length < 3 || resolvedAddress) {
         setSuggestions([]);
       }
+      // Una ricerca in corso annullata da handleChangeText non resetterebbe più lo spinner.
+      setSearching(false);
       return;
     }
 

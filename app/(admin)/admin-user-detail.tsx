@@ -132,9 +132,10 @@ function profileStatus(row: LooseRow | null) {
 async function tryUpdateProfile(id: string, payloads: LooseRow[]) {
   for (const payload of payloads) {
     try {
-      const result = await supabase.from('profiles').update(payload).eq('id', id);
+      // Senza .select() un update filtrato da RLS risponde senza errore ma non modifica nulla.
+      const result = await supabase.from('profiles').update(payload).eq('id', id).select('id');
 
-      if (!result.error) {
+      if (!result.error && (result.data || []).length > 0) {
         return { ok: true, message: '' };
       }
     } catch {

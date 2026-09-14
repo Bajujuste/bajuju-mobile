@@ -139,9 +139,10 @@ function userStatus(row: LooseRow) {
 async function tryUpdateById(table: string, id: string, payloads: LooseRow[]) {
   for (const payload of payloads) {
     try {
-      const result = await supabase.from(table).update(payload).eq('id', id);
+      // Senza .select() un update filtrato da RLS risponde senza errore ma non modifica nulla.
+      const result = await supabase.from(table).update(payload).eq('id', id).select('id');
 
-      if (!result.error) return { ok: true, message: '' };
+      if (!result.error && (result.data || []).length > 0) return { ok: true, message: '' };
     } catch {
       // Prova payload successivo.
     }

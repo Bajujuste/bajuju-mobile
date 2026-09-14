@@ -88,9 +88,10 @@ async function archiveReport(item: ReportItem) {
 
   for (const payload of attempts) {
     try {
-      const result = await supabase.from(item.table).update(payload).eq('id', item.id);
+      // Senza .select() un update filtrato da RLS risponde senza errore ma non modifica nulla.
+      const result = await supabase.from(item.table).update(payload).eq('id', item.id).select('id');
 
-      if (!result.error) return { ok: true, message: '' };
+      if (!result.error && (result.data || []).length > 0) return { ok: true, message: '' };
     } catch {
       // Prova prossimo payload.
     }

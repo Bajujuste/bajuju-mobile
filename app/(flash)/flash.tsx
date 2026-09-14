@@ -1742,7 +1742,8 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
           <View style={[styles.flashHeroBlob, styles.flashHeroBlobBottom]} />
           <Text style={[styles.flashHeroDoodle, styles.flashHeroDoodleLeft]}>‹‹</Text>
           <Text style={[styles.flashHeroDoodle, styles.flashHeroDoodleRight]}>✦</Text>
-          <Pressable style={styles.flashBackButton} onPress={() => router.push('/flash')}>
+          {/* dismissTo torna alla schermata Flash già aperta invece di impilarne una nuova copia. */}
+          <Pressable style={styles.flashBackButton} onPress={() => router.dismissTo('/flash')}>
             <Text style={styles.flashBackText}>← Bajuju Flash</Text>
           </Pressable>
 

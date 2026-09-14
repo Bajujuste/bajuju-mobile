@@ -342,7 +342,8 @@ export default function FlashDetailScreen() {
         <Text style={styles.kicker}>Bajuju Flash</Text>
         <Text style={styles.title}>Dettaglio Flash</Text>
 
-        <Pressable style={styles.secondaryButton} onPress={() => router.push('/flash')}>
+        {/* dismissTo torna alla schermata Flash già aperta invece di impilarne una nuova copia. */}
+        <Pressable style={styles.secondaryButton} onPress={() => router.dismissTo('/flash')}>
           <Text style={styles.secondaryButtonText}>Torna a Bajuju Flash</Text>
         </Pressable>
       </View>

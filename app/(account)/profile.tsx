@@ -441,6 +441,11 @@ export default function ProfileScreen() {
     return firstText(profile, ['nickname', 'username', 'display_name', 'full_name', 'name', 'nome'], user?.email || 'Profilo Bajuju');
   }, [profile, user]);
 
+  // Il nome scelto non si può cambiare, ma un profilo creato senza nome (es. dal caricamento foto)
+  // deve poterlo impostare: altrimenti il salvataggio resta bloccato su "Nome non valido".
+  const savedProfileName = firstText(profile, ['nickname', 'username', 'display_name', 'full_name', 'name', 'nome'], '');
+  const profileNameLocked = savedProfileName.length > 0;
+
   const photoUrl = useMemo(() => {
     return firstText(profile, ['avatar_url', 'photo_url', 'profile_photo_url', 'profile_image_url', 'image_url', 'foto'], '');
   }, [profile]);
@@ -1351,10 +1356,12 @@ export default function ProfileScreen() {
 
         <Text style={styles.label}>Nome utente</Text>
         <TextInput
-          value={profileName || 'Nuovo utente'}
-          editable={false}
-          placeholder="Nome scelto in registrazione"
-          style={[styles.input, styles.inputDisabled]}
+          value={profileName}
+          onChangeText={profileNameLocked ? undefined : setProfileName}
+          editable={!profileNameLocked}
+          placeholder={profileNameLocked ? 'Nome scelto in registrazione' : 'Scegli il tuo nome utente'}
+          maxLength={30}
+          style={[styles.input, profileNameLocked && styles.inputDisabled]}
           autoCapitalize="words"
         />
 

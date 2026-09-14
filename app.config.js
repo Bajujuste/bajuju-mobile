@@ -6,14 +6,6 @@ module.exports = () => {
   return {
     ...baseConfig.expo,
 
-    plugins: (baseConfig.expo.plugins || []).filter((plugin) => {
-      if (typeof plugin === 'string') {
-        return plugin !== 'react-native-maps';
-      }
-
-      return plugin?.[0] !== 'react-native-maps';
-    }),
-
     android: {
       ...baseConfig.expo.android,
       // google-services.json è escluso da git: su una macchina senza il file (CI, nuovo PC) la build EAS

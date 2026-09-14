@@ -342,6 +342,11 @@ export default function ExperienceDetailScreen() {
     return blockedUserIds.has(String(userId || '').trim());
   }
 
+  // loadParticipants legge l'utente da un ref: con currentUserId tra le dipendenze, al primo
+  // caricamento vedeva ancora null (blocchi ignorati) e il cambio di dipendenza rilanciava
+  // loadExperience, caricando tutto una seconda volta.
+  const currentUserIdRef = useRef<string | null>(null);
+
   const loadParticipants = useCallback(async (activityId: string, loadedExperience?: ActivityRow | null) => {
     const participantsResult = await supabase
       .from('activity_participants')
@@ -358,22 +363,24 @@ export default function ExperienceDetailScreen() {
     const rows = ((participantsResult.data || []) as ParticipantRow[]).filter(participantIsActive);
     setParticipants(rows);
 
-    if (currentUserId) {
+    const viewerId = currentUserIdRef.current;
+
+    if (viewerId) {
       const participantIds = rows
         .map((row) => String(row.user_id || '').trim())
-        .filter((id) => id && id !== String(currentUserId));
+        .filter((id) => id && id !== viewerId);
 
       if (participantIds.length > 0) {
         const [blockedByMeResult, blockedMeResult] = await Promise.all([
           supabase
             .from('user_blocks')
             .select('blocked_id')
-            .eq('blocker_id', currentUserId)
+            .eq('blocker_id', viewerId)
             .in('blocked_id', participantIds),
           supabase
             .from('user_blocks')
             .select('blocker_id')
-            .eq('blocked_id', currentUserId)
+            .eq('blocked_id', viewerId)
             .in('blocker_id', participantIds),
         ]);
 
@@ -445,7 +452,7 @@ export default function ExperienceDetailScreen() {
     }
 
     setProfiles(nextProfiles);
-  }, [currentUserId]);
+  }, []);
 
   const loadMessages = useCallback(async (activityId: string) => {
     const messagesResult = await supabase
@@ -476,6 +483,7 @@ export default function ExperienceDetailScreen() {
 
     const authResult = await supabase.auth.getUser();
     const userId = authResult.data.user?.id || null;
+    currentUserIdRef.current = userId;
     setCurrentUserId(userId);
 
     const result = await supabase

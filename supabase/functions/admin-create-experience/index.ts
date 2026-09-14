@@ -65,8 +65,9 @@ function validateEventPayload(payload: EventPayload) {
   const longitude = optionalNumber(payload.longitude);
   const maxParticipants = optionalNumber(payload.max_participants);
 
+  // Stesse regole della RPC admin_create_experience_command: descrizione obbligatoria, 1-99 partecipanti.
   if (!title || title.length > MAX_TEXT_LENGTH) return 'INVALID_TITLE';
-  if (description.length > MAX_LONG_TEXT_LENGTH) return 'INVALID_DESCRIPTION';
+  if (!description || description.length > MAX_LONG_TEXT_LENGTH) return 'INVALID_DESCRIPTION';
   if (!date || !isValidIsoDate(date)) return 'INVALID_ACTIVITY_DATE';
   if (!time || !isValidTime(time)) return 'INVALID_ACTIVITY_TIME';
   if (!city || city.length > MAX_TEXT_LENGTH) return 'INVALID_CITY';
@@ -74,7 +75,7 @@ function validateEventPayload(payload: EventPayload) {
   if (!meetingPlace || meetingPlace.length > MAX_TEXT_LENGTH) return 'INVALID_MEETING_PLACE';
   if (latitude === null || Number.isNaN(latitude) || latitude < -90 || latitude > 90) return 'INVALID_LATITUDE';
   if (longitude === null || Number.isNaN(longitude) || longitude < -180 || longitude > 180) return 'INVALID_LONGITUDE';
-  if (maxParticipants !== null && (Number.isNaN(maxParticipants) || !Number.isInteger(maxParticipants) || maxParticipants < 1 || maxParticipants > 10000)) {
+  if (maxParticipants === null || Number.isNaN(maxParticipants) || !Number.isInteger(maxParticipants) || maxParticipants < 1 || maxParticipants > 99) {
     return 'INVALID_MAX_PARTICIPANTS';
   }
 

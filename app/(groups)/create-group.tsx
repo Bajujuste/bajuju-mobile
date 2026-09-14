@@ -181,7 +181,7 @@ export default function CreateGroupScreen() {
           <Text style={styles.eyebrow}>ORGANIZZATORI</Text>
           <Text style={styles.title}>Crea gruppo</Text>
           <Text style={styles.subtitle}>
-            Costruisci una community e avvisa gli iscritti quando pubblichi un'esperienza dedicata.
+            Costruisci una community e avvisa gli iscritti quando pubblichi un’esperienza dedicata.
           </Text>
         </View>
 

@@ -75,6 +75,13 @@ async function savePushToken(userId: string, token: string) {
       .eq('user_id', userId)
       .maybeSingle();
 
+    if (existingPreferencesResult.error) {
+      // Senza le preferenze attuali l'upsert sotto le riporterebbe tutte a true,
+      // riattivando notifiche che l'utente aveva spento. Il token è già salvato.
+      console.log('Preferenze notifiche non lette: non vengono modificate.');
+      return { ok: true, table: 'push_tokens' };
+    }
+
     const existingPreferences = existingPreferencesResult.data;
 
     const preferencesUpsertResult = await supabase

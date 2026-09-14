@@ -1403,8 +1403,20 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
       });
 
       if (result.error) {
+        // Codici sollevati dal trigger guard_flash_participant_insert.
+        const errorMessage = String(result.error.message || '');
+        const friendlyMessage = errorMessage.includes('BAJUJU_EVENT_FULL')
+          ? 'Questo Flash è al completo.'
+          : errorMessage.includes('BAJUJU_FLASH_EXPIRED')
+            ? 'Questo Flash non è più attivo.'
+            : errorMessage.includes('BAJUJU_BLOCKED')
+              ? 'Non puoi partecipare a questo Flash.'
+              : errorMessage.includes('BAJUJU_ALREADY_JOINED')
+                ? 'Stai già partecipando a questo Flash.'
+                : `Errore partecipazione: ${errorMessage}`;
+
         if (typeof window !== 'undefined') {
-          window.alert(`Errore partecipazione: ${result.error.message}`);
+          window.alert(friendlyMessage);
         }
         return;
       }

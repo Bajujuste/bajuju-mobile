@@ -16,7 +16,9 @@ module.exports = () => {
 
     android: {
       ...baseConfig.expo.android,
-      googleServicesFile: "./google-services.json",
+      // google-services.json è escluso da git: su una macchina senza il file (CI, nuovo PC) la build EAS
+      // può usare una variabile d'ambiente EAS di tipo file chiamata GOOGLE_SERVICES_JSON.
+      googleServicesFile: process.env.GOOGLE_SERVICES_JSON ?? "./google-services.json",
 
       config: {
         ...(baseConfig.expo.android?.config || {}),

@@ -144,7 +144,6 @@ function profileName(profile: ProfileRow | undefined, index: number) {
     profile.username ||
     profile.first_name ||
     profile.nickname ||
-    profile.email ||
     '';
 
   return value ? String(value).trim() : `Partecipante ${index + 1}`;

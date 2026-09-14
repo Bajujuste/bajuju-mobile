@@ -712,7 +712,7 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
               const profileId = String(firstValue(profileRow, ['id', 'user_id'], ''));
               const profileName = firstText(
                 profileRow,
-                ['display_name', 'full_name', 'name', 'nome', 'username', 'email'],
+                ['nickname', 'display_name', 'full_name', 'name', 'nome', 'username'],
                 ''
               );
 

@@ -91,7 +91,7 @@ function participantIsActive(row: LooseRow) {
 function profileName(row: LooseRow | null) {
   return firstText(
     row,
-    ['full_name', 'display_name', 'name', 'nome', 'username', 'first_name', 'nickname', 'email'],
+    ['full_name', 'display_name', 'name', 'nome', 'username', 'first_name', 'nickname'],
     'Utente Bajuju'
   );
 }

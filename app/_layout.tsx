@@ -1,4 +1,4 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import { router, Stack, usePathname, useRootNavigationState } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -8,7 +8,6 @@ import { Platform, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import 'react-native-reanimated';
 
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AdminPrivateChatEntry } from '../src/components/admin/AdminPrivateChatEntry';
 import { supabase } from '../src/lib/supabase';
 
@@ -113,7 +112,6 @@ export const unstable_settings = {
 };
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
   const pathname = usePathname();
   const rootNavigationState = useRootNavigationState();
   const rootNavigationReady = Boolean(rootNavigationState?.key);
@@ -240,7 +238,8 @@ export default function RootLayout() {
   }
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+    // L'app è solo in tema chiaro (userInterfaceStyle "light" in app.base.json).
+    <ThemeProvider value={DefaultTheme}>
       <SafeAreaView
         style={styles.appFrame}
         edges={homeAlreadyHandlesSafeArea ? [] : ['top', 'left', 'right']}

@@ -1,5 +1,5 @@
-import { router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { router, useFocusEffect, useNavigation } from 'expo-router';
+import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -79,10 +79,16 @@ function hasCompleteRequiredProfile(profile: ProfileRow | null) {
 
 export default function WelcomeScreen() {
   const [checkingSession, setCheckingSession] = useState(true);
+  const navigation = useNavigation();
 
-  useEffect(() => {
-    checkExistingSession();
-  }, []);
+  // Il controllo riparte a ogni ritorno su questa schermata: se all'avvio una notifica ha aperto
+  // un'altra schermata sopra, il redirect a Home/Profilo avviene quando l'utente torna qui.
+  useFocusEffect(
+    useCallback(() => {
+      void checkExistingSession();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
+  );
 
   async function checkExistingSession() {
     try {
@@ -105,6 +111,9 @@ export default function WelcomeScreen() {
         }
 
         const profile = profileResult.data as ProfileRow | null;
+        // Aprendo l'app da una notifica, la navigazione verso la schermata di destinazione (es. dettaglio
+        // evento) avviene mentre questo controllo è ancora in corso: replace la sostituirebbe con la Home.
+        if (!navigation.isFocused()) return;
         router.replace(hasCompleteRequiredProfile(profile) ? '/home' : '/profile');
       }
     } catch (error: unknown) {

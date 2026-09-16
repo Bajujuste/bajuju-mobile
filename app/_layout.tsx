@@ -133,6 +133,10 @@ export default function RootLayout() {
     const allowedPaths = new Set([
       '/', '/login', '/register', '/forgot-password', '/reset-password',
       '/auth/callback', '/profile', '/privacy', '/rules',
+      // Rotte aperte da una notifica push: se il controllo profilo scatta subito dopo
+      // l'apertura da notifica, non deve portare via l'utente dalla schermata di destinazione.
+      '/experience-detail', '/experiences', '/flash', '/flash-detail',
+      '/date-invites', '/direct-contacts', '/admin-private-chat', '/experience-waitlist',
     ]);
 
     if (allowedPaths.has(pathname)) return;
@@ -203,7 +207,18 @@ export default function RootLayout() {
           void Notifications.clearLastNotificationResponseAsync().catch(() => {});
         };
 
-        const lastResponse = await Notifications.getLastNotificationResponseAsync();
+        // Subito dopo un avvio a freddo dell'app tramite tap su una notifica, su alcuni
+        // dispositivi Android il modulo nativo non ha ancora reso disponibile la risposta
+        // nel primissimo istante: getLastNotificationResponseAsync() può restituire null
+        // per una pura questione di timing, e l'app si apre allora sulla home come se non
+        // fosse stata aperta da una notifica. Si riprova per un breve periodo prima di
+        // rinunciare, senza bloccare il render (l'effetto è comunque asincrono).
+        let lastResponse = await Notifications.getLastNotificationResponseAsync();
+        for (let attempt = 0; attempt < 5 && active && !lastResponse; attempt += 1) {
+          await new Promise((resolve) => setTimeout(resolve, 300));
+          if (!active) break;
+          lastResponse = await Notifications.getLastNotificationResponseAsync();
+        }
         if (lastResponse) handleResponse(lastResponse);
 
         subscription = Notifications.addNotificationResponseReceivedListener(handleResponse);

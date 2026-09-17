@@ -115,7 +115,6 @@ export default function FlashDetailScreen() {
   const [participants, setParticipants] = useState<LooseRow[]>([]);
   const [profiles, setProfiles] = useState<Record<string, LooseRow>>({});
   const [messages, setMessages] = useState<LooseRow[]>([]);
-  const [blockedUserIds, setBlockedUserIds] = useState<Set<string>>(new Set());
   const [newMessage, setNewMessage] = useState('');
   const [sendingMessage, setSendingMessage] = useState(false);
 
@@ -165,42 +164,23 @@ export default function FlashDetailScreen() {
         setParticipants([]);
         setProfiles({});
         setMessages([]);
-        setBlockedUserIds(new Set());
         return;
       }
 
       const loadedFlash = result.data as LooseRow;
       setFlash(loadedFlash);
 
-      const [participantsResult, blockedResult] = await Promise.all([
-        supabase
-          .from('activity_participants')
-          .select('*')
-          .eq('activity_id', flashId)
-          .limit(200),
-        userId
-          ? supabase.rpc('bajuju_get_current_blocked_user_ids' as any)
-          : Promise.resolve({ data: [], error: null } as any),
-      ]);
-
-      const nextBlockedIds = new Set<string>();
-      if (!blockedResult.error) {
-        ((blockedResult.data || []) as Array<{ user_id?: string | null }>).forEach((row) => {
-          const id = String(row.user_id || '').trim();
-          if (id) nextBlockedIds.add(id);
-        });
-      }
-      setBlockedUserIds(nextBlockedIds);
+      const participantsResult = await supabase
+        .from('activity_participants')
+        .select('*')
+        .eq('activity_id', flashId)
+        .limit(200);
 
       const participantRows = participantsResult.error
         ? []
-        : ((participantsResult.data || []) as LooseRow[])
-            .filter(participantIsActive)
-            .filter((item) => {
-              const id = String(firstValue(item, ['user_id'], '') || '');
-              return !id || !nextBlockedIds.has(id);
-            });
+        : ((participantsResult.data || []) as LooseRow[]).filter(participantIsActive);
 
+      // La RLS nasconde già i partecipanti bloccati in entrambe le direzioni.
       setParticipants(participantRows);
 
       const userIds = participantRows
@@ -209,7 +189,7 @@ export default function FlashDetailScreen() {
 
       const creatorId = flashCreatorId(loadedFlash);
 
-      if (creatorId && !nextBlockedIds.has(creatorId) && !userIds.includes(creatorId)) {
+      if (creatorId && !userIds.includes(creatorId)) {
         userIds.push(creatorId);
       }
 
@@ -281,7 +261,7 @@ export default function FlashDetailScreen() {
     const seen = new Set<string>();
     const rows: LooseRow[] = [];
 
-    if (creatorId && !blockedUserIds.has(creatorId)) {
+    if (creatorId && (creatorId === String(currentUserId || '') || Boolean(profiles[creatorId]))) {
       seen.add(creatorId);
       rows.push({ user_id: creatorId, status: 'creator' });
     }
@@ -289,14 +269,14 @@ export default function FlashDetailScreen() {
     participants.forEach((item) => {
       const userId = String(firstValue(item, ['user_id'], '') || '');
 
-      if (!userId || seen.has(userId) || blockedUserIds.has(userId)) return;
+      if (!userId || seen.has(userId)) return;
 
       seen.add(userId);
       rows.push(item);
     });
 
     return rows;
-  }, [blockedUserIds, flash, participants]);
+  }, [currentUserId, flash, participants, profiles]);
 
   const isOrganizer =
     Boolean(currentUserId) &&

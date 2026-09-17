@@ -9,7 +9,7 @@ import {
   BajujuIconName,
 } from '../icons/BajujuIcon';
 
-type NavKey = 'home' | 'find' | 'groups' | 'flash' | 'profile';
+type NavKey = 'home' | 'find' | 'groups' | 'myEvents' | 'flash' | 'profile';
 
 type BajujuBottomNavProps = {
   active: NavKey;
@@ -20,7 +20,7 @@ const ITEMS: {
   label: string;
   icon: BajujuIconName;
   activeIcon: BajujuIconName;
-  route: '/home' | '/experiences' | '/groups' | '/profile';
+  route: '/home' | '/experiences' | '/groups' | '/my-events' | '/profile';
 }[] = [
   {
     key: 'home',
@@ -37,11 +37,11 @@ const ITEMS: {
     route: '/experiences',
   },
   {
-    key: 'groups',
-    label: 'Gruppi',
-    icon: 'group',
-    activeIcon: 'group',
-    route: '/groups',
+    key: 'myEvents',
+    label: 'I miei eventi',
+    icon: 'calendar',
+    activeIcon: 'calendar',
+    route: '/my-events',
   },
   {
     key: 'profile',
@@ -76,8 +76,7 @@ export function BajujuBottomNav({ active }: BajujuBottomNavProps) {
             accessibilityState={{ selected }}
             onPress={() => {
               if (!selected) {
-                // /groups is a real Expo Router screen. The generated typed-routes
-                // declaration can lag behind newly added routes during CI/typecheck.
+                // Le typed-routes generate possono restare indietro rispetto alle nuove schermate.
                 router.replace(item.route as any);
               }
             }}
@@ -91,7 +90,14 @@ export function BajujuBottomNav({ active }: BajujuBottomNavProps) {
               size={27}
               color={color}
             />
-            <Text style={[styles.navLabel, selected && styles.navLabelActive]}>
+            <Text
+              numberOfLines={1}
+              style={[
+                styles.navLabel,
+                item.key === 'myEvents' && styles.navLabelCompact,
+                selected && styles.navLabelActive,
+              ]}
+            >
               {item.label}
             </Text>
             {selected ? <View style={styles.activeIndicator} /> : null}
@@ -134,6 +140,10 @@ const styles = StyleSheet.create({
     color: BAJUJU_COLORS.plum,
     fontFamily: BAJUJU_FONTS.medium,
     fontSize: 13,
+  },
+  navLabelCompact: {
+    fontSize: 11.5,
+    letterSpacing: -0.15,
   },
   navLabelActive: {
     color: BAJUJU_COLORS.brightPink,

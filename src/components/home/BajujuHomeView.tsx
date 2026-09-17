@@ -59,6 +59,7 @@ type BajujuHomeViewProps = {
   onOpenProfile: () => void;
   onFind: () => void;
   onCreate: () => void;
+  onOpenMyEvents: () => void;
   onOpenGroups: () => void;
   onOpenGroup: (groupId: string) => void;
   onShare: () => void;
@@ -77,6 +78,7 @@ export function BajujuHomeView({
   onOpenProfile,
   onFind,
   onCreate,
+  onOpenMyEvents,
   onOpenGroups,
   onOpenGroup,
   onShare,
@@ -289,7 +291,7 @@ export function BajujuHomeView({
       <View style={[styles.bottomNav, { bottom: Math.max(13, insets.bottom + 7) }]}>
         <NavItem active icon="home" label="Home" onPress={() => undefined} />
         <NavItem icon="search" label="Trova" onPress={onFind} />
-        <NavItem icon="group" label="Gruppi" onPress={onOpenGroups} />
+        <NavItem icon="calendar" label="I miei eventi" onPress={onOpenMyEvents} />
         <NavItem icon="person" label="Profilo" onPress={onOpenProfile} />
       </View>
     </SafeAreaView>
@@ -346,7 +348,16 @@ function NavItem({ active = false, icon, label, onPress }: NavItemProps) {
       style={({ pressed }) => [styles.navItem, pressed && styles.pressed]}
     >
       <BajujuIcon name={icon} size={28} color={color} />
-      <Text style={[styles.navLabel, active && styles.navLabelActive]}>{label}</Text>
+      <Text
+        numberOfLines={1}
+        style={[
+          styles.navLabel,
+          label === 'I miei eventi' && styles.navLabelCompact,
+          active && styles.navLabelActive,
+        ]}
+      >
+        {label}
+      </Text>
       {active ? <View style={styles.activeIndicator} /> : null}
     </Pressable>
   );
@@ -429,6 +440,7 @@ const styles = StyleSheet.create({
   bottomNav: { position: 'absolute', left: 15, right: 15, bottom: 13, height: 94, paddingHorizontal: 4, flexDirection: 'row', alignItems: 'center', borderRadius: 31, borderWidth: 1, borderColor: '#F8D7E8', backgroundColor: COLORS.white, shadowColor: '#761046', shadowOpacity: 0.12, shadowRadius: 14, shadowOffset: { width: 0, height: 8 }, elevation: 4 },
   navItem: { position: 'relative', flex: 1, height: 76, alignItems: 'center', justifyContent: 'center', gap: 4 },
   navLabel: { color: COLORS.plum, fontFamily: 'FredokaMedium', fontSize: 13 },
+  navLabelCompact: { fontSize: 11.5, letterSpacing: -0.15 },
   navLabelActive: { color: COLORS.brightPink, fontFamily: 'FredokaSemiBold' },
   activeIndicator: { position: 'absolute', left: 25, right: 25, bottom: -4, height: 4, borderRadius: 2, backgroundColor: COLORS.brightPink },
   pressed: { opacity: 0.78 },

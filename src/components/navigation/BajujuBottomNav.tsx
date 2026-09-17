@@ -15,6 +15,8 @@ type BajujuBottomNavProps = {
   active: NavKey;
 };
 
+const HOW_IT_WORKS_PASTEL = '#E9A0C4';
+
 const ITEMS: {
   key: Exclude<NavKey, 'flash'>;
   label: string;
@@ -64,9 +66,11 @@ export function BajujuBottomNav({ active }: BajujuBottomNavProps) {
     >
       {ITEMS.map((item) => {
         const selected = item.key === active;
-        const color = selected
-          ? BAJUJU_COLORS.brightPink
-          : BAJUJU_COLORS.plum;
+        const color = item.key === 'how'
+          ? HOW_IT_WORKS_PASTEL
+          : selected
+            ? BAJUJU_COLORS.brightPink
+            : BAJUJU_COLORS.plum;
 
         return (
           <Pressable
@@ -95,12 +99,21 @@ export function BajujuBottomNav({ active }: BajujuBottomNavProps) {
               style={[
                 styles.navLabel,
                 (item.key === 'myEvents' || item.key === 'how') && styles.navLabelCompact,
-                selected && styles.navLabelActive,
+                item.key === 'how' && styles.howLabel,
+                selected && item.key !== 'how' && styles.navLabelActive,
+                selected && item.key === 'how' && styles.howLabelActive,
               ]}
             >
               {item.label}
             </Text>
-            {selected ? <View style={styles.activeIndicator} /> : null}
+            {selected ? (
+              <View
+                style={[
+                  styles.activeIndicator,
+                  item.key === 'how' && styles.howActiveIndicator,
+                ]}
+              />
+            ) : null}
           </Pressable>
         );
       })}
@@ -145,6 +158,13 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     letterSpacing: -0.15,
   },
+  howLabel: {
+    color: HOW_IT_WORKS_PASTEL,
+  },
+  howLabelActive: {
+    color: HOW_IT_WORKS_PASTEL,
+    fontFamily: BAJUJU_FONTS.semiBold,
+  },
   navLabelActive: {
     color: BAJUJU_COLORS.brightPink,
     fontFamily: BAJUJU_FONTS.semiBold,
@@ -157,6 +177,9 @@ const styles = StyleSheet.create({
     height: 4,
     borderRadius: 2,
     backgroundColor: BAJUJU_COLORS.brightPink,
+  },
+  howActiveIndicator: {
+    backgroundColor: HOW_IT_WORKS_PASTEL,
   },
   pressed: {
     opacity: 0.72,

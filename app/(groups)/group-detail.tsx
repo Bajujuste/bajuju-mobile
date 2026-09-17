@@ -76,7 +76,7 @@ export default function GroupDetailScreen() {
       const [groupResult, profileResult] = await Promise.all([
         supabase
           .from('groups')
-          .select('id,name,description,city,province,category,cover_url,owner_id,status')
+          .select('id,name,description,city,province,category,cover_url,owner_id,status,review_note')
           .eq('id', groupId)
           .maybeSingle(),
         userId
@@ -159,6 +159,25 @@ export default function GroupDetailScreen() {
       void refresh();
     }, [refresh])
   );
+
+  async function resubmitForApproval() {
+    if (!groupId || !currentUserId || manageBusy || !group) return;
+    if (String(group.owner_id || '') !== currentUserId || String(group.status || '') !== 'rejected') return;
+
+    setManageBusy(true);
+    try {
+      const result = await supabase.rpc('resubmit_group_for_approval' as any, {
+        p_group_id: groupId,
+      });
+      if (result.error) throw result.error;
+      await refresh();
+      Alert.alert('Richiesta inviata', 'Il gruppo è tornato in approvazione.');
+    } catch (error: any) {
+      Alert.alert('Invio non riuscito', String(error?.message || 'Riprova tra poco.'));
+    } finally {
+      setManageBusy(false);
+    }
+  }
 
   async function toggleMembership() {
     if (!currentUserId || !groupId || busy || !group) return;
@@ -380,6 +399,8 @@ export default function GroupDetailScreen() {
   const place = String(group.city || '').trim();
   const canManageGroup = isOwner || isAdmin;
   const coverUrl = String(group.cover_url || '').trim();
+  const groupStatus = String(group.status || 'active').toLowerCase();
+  const isPublicGroup = groupStatus === 'active';
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -400,17 +421,39 @@ export default function GroupDetailScreen() {
           {group.category ? <Text style={styles.category}>{group.category}</Text> : null}
           <Text style={styles.description}>{group.description}</Text>
           <Text style={styles.owner}>Gestito da {ownerName}</Text>
-          <Text style={styles.count}>{memberCount} {memberCount === 1 ? 'iscritto' : 'iscritti'}</Text>
+          {isPublicGroup ? <Text style={styles.count}>{memberCount} {memberCount === 1 ? 'iscritto' : 'iscritti'}</Text> : null}
 
-          <Pressable style={styles.shareButton} onPress={() => { void handleShareGroup(); }}>
-            <Text style={styles.shareButtonText}>↗ Condividi gruppo</Text>
-          </Pressable>
+          {!isPublicGroup ? (
+            <View style={[styles.statusCard, groupStatus === 'rejected' && styles.statusCardRejected]}>
+              <Text style={[styles.statusTitle, groupStatus === 'rejected' && styles.statusTitleRejected]}>
+                {groupStatus === 'rejected' ? 'Da rivedere' : 'In approvazione'}
+              </Text>
+              <Text style={styles.statusText}>
+                {groupStatus === 'rejected'
+                  ? String(group.review_note || 'Bajuju non ha approvato questa versione del gruppo. Puoi correggerla e inviarla di nuovo.')
+                  : 'Il gruppo è visibile solo a te e agli Admin finché Bajuju non lo approva.'}
+              </Text>
+              {isOwner && groupStatus === 'rejected' ? (
+                <Pressable
+                  style={[styles.resubmitButton, manageBusy && styles.disabled]}
+                  disabled={manageBusy}
+                  onPress={() => { void resubmitForApproval(); }}
+                >
+                  <Text style={styles.resubmitButtonText}>{manageBusy ? 'Invio...' : 'Invia di nuovo per approvazione'}</Text>
+                </Pressable>
+              ) : null}
+            </View>
+          ) : (
+            <Pressable style={styles.shareButton} onPress={() => { void handleShareGroup(); }}>
+              <Text style={styles.shareButtonText}>↗ Condividi gruppo</Text>
+            </Pressable>
+          )}
 
           {isOwner ? (
             <View style={styles.ownerBadge}>
               <Text style={styles.ownerBadgeText}>Sei il proprietario del gruppo</Text>
             </View>
-          ) : (
+          ) : isPublicGroup ? (
             <Pressable
               style={[styles.joinButton, joined && styles.leaveButton, busy && styles.disabled]}
               disabled={busy}
@@ -420,7 +463,7 @@ export default function GroupDetailScreen() {
                 {busy ? 'Aggiorno...' : joined ? 'Abbandona gruppo' : 'Iscriviti al gruppo'}
               </Text>
             </Pressable>
-          )}
+          ) : null}
         </View>
 
         {canManageGroup ? (
@@ -507,6 +550,8 @@ export default function GroupDetailScreen() {
           </View>
         ) : null}
 
+        {isPublicGroup ? (
+          <>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Prossime esperienze</Text>
           {experiences.length === 0 ? (
@@ -558,6 +603,16 @@ export default function GroupDetailScreen() {
           </View>
           )}
         </View>
+          </>
+        ) : (
+          <View style={styles.section}>
+            <View style={styles.emptyCard}>
+              <Text style={styles.emptyText}>
+                Le iscrizioni e le esperienze del gruppo si attivano dopo l’approvazione.
+              </Text>
+            </View>
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -581,6 +636,20 @@ const styles = StyleSheet.create({
   description: { marginTop: 14, color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.medium, fontSize: 15, lineHeight: 21, textAlign: 'center' },
   owner: { marginTop: 14, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.medium, fontSize: 12 },
   count: { marginTop: 4, color: BAJUJU_COLORS.brightPink, fontFamily: BAJUJU_FONTS.bold, fontSize: 14 },
+  statusCard: {
+    marginTop: 14,
+    padding: 14,
+    borderRadius: 19,
+    borderWidth: 1.5,
+    borderColor: '#F0D58E',
+    backgroundColor: '#FFF9E7',
+  },
+  statusCardRejected: { borderColor: '#F4C6D7', backgroundColor: '#FFF1F6' },
+  statusTitle: { color: '#7A5A00', fontFamily: BAJUJU_FONTS.bold, fontSize: 15 },
+  statusTitleRejected: { color: '#A3345E' },
+  statusText: { marginTop: 5, color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.medium, fontSize: 13, lineHeight: 18 },
+  resubmitButton: { marginTop: 12, minHeight: 44, paddingHorizontal: 14, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: BAJUJU_COLORS.brightPink },
+  resubmitButtonText: { color: '#fff', fontFamily: BAJUJU_FONTS.bold, fontSize: 13 },
   shareButton: { minHeight: 48, marginTop: 16, paddingHorizontal: 22, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: BAJUJU_COLORS.palePink },
   shareButtonText: { color: BAJUJU_COLORS.brightPink, fontFamily: BAJUJU_FONTS.bold, fontSize: 14 },
   joinButton: { minHeight: 50, marginTop: 10, paddingHorizontal: 22, borderRadius: 25, alignItems: 'center', justifyContent: 'center', backgroundColor: BAJUJU_COLORS.brightPink },

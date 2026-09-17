@@ -8,6 +8,7 @@ export type BajujuIconName =
   | 'calendar'
   | 'group'
   | 'home'
+  | 'info'
   | 'person'
   | 'pin'
   | 'plus'
@@ -46,6 +47,45 @@ export function BajujuIcon({
       }}
     >
       <View style={{ width: 32, height: 32, transform: [{ scale }] }}>
+        {name === 'info' ? (
+          <>
+            <View
+              style={{
+                position: 'absolute',
+                left: 5,
+                top: 5,
+                width: 22,
+                height: 22,
+                borderRadius: 11,
+                borderWidth: 2.4,
+                borderColor: color,
+              }}
+            />
+            <View
+              style={{
+                position: 'absolute',
+                left: 14.7,
+                top: 10,
+                width: 2.8,
+                height: 2.8,
+                borderRadius: 2,
+                backgroundColor: color,
+              }}
+            />
+            <View
+              style={{
+                position: 'absolute',
+                left: 14.6,
+                top: 15,
+                width: 2.8,
+                height: 8,
+                borderRadius: 2,
+                backgroundColor: color,
+              }}
+            />
+          </>
+        ) : null}
+
         {name === 'search' ? (
           <>
             <View

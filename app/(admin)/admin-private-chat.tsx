@@ -184,13 +184,29 @@ export default function AdminPrivateChatScreen() {
     const clean = draft.trim();
     if (!clean || clean.length > 2000 || sending) return false;
     if (threadId) return true;
-    return isAdmin && Boolean(targetUserId) && targetUserId !== currentUserId;
+    if (isAdmin) return Boolean(targetUserId) && targetUserId !== currentUserId;
+    return Boolean(currentUserId);
   }, [currentUserId, draft, isAdmin, sending, targetUserId, threadId]);
 
   async function ensureThread() {
     if (threadId) return threadId;
-    if (!isAdmin || !currentUserId || !targetUserId || targetUserId === currentUserId) {
-      throw new Error('Solo un amministratore può aprire una nuova conversazione.');
+    if (!currentUserId) {
+      throw new Error('Utente non autenticato.');
+    }
+
+    if (!isAdmin) {
+      const supportResult = await supabase.rpc('bajuju_get_or_create_support_thread' as any);
+      if (supportResult.error || !supportResult.data) {
+        throw supportResult.error || new Error('Conversazione Bajuju non creata.');
+      }
+
+      const createdId = String(supportResult.data);
+      setThreadId(createdId);
+      return createdId;
+    }
+
+    if (!targetUserId || targetUserId === currentUserId) {
+      throw new Error('Seleziona un utente.');
     }
 
     const insertResult = await supabase
@@ -246,17 +262,15 @@ export default function AdminPrivateChatScreen() {
       setDraft('');
       await loadMessages(activeThreadId);
 
-      if (isAdmin && targetUserId && targetUserId !== currentUserId) {
-        const notifyResult = await supabase.functions.invoke('notify-admin-private-message', {
-          body: {
-            messageId: String(insertResult.data.id),
-            threadId: activeThreadId,
-            targetUserId,
-          },
-        });
-        if (notifyResult.error) {
-          console.log('Push messaggio amministratore non inviata:', notifyResult.error.message);
-        }
+      const notifyResult = await supabase.functions.invoke('notify-admin-private-message', {
+        body: {
+          messageId: String(insertResult.data.id),
+          threadId: activeThreadId,
+          targetUserId: isAdmin ? targetUserId : undefined,
+        },
+      });
+      if (notifyResult.error) {
+        console.log('Notifica messaggio Bajuju non inviata:', notifyResult.error.message);
       }
     } catch (error: any) {
       Alert.alert('Invio non riuscito', String(error?.message || 'Riprova tra poco.'));
@@ -307,7 +321,7 @@ export default function AdminPrivateChatScreen() {
             <Text style={styles.emptyText}>
               {adminViewingUser
                 ? 'La conversazione verrà creata quando invii il primo messaggio.'
-                : 'Quando l’amministratore ti scriverà, troverai qui tutta la conversazione.'}
+                : 'Scrivi qui direttamente a Bajuju. Il messaggio arriverà nella casella dell’amministratore.'}
             </Text>
           </View>
         ) : (
@@ -340,7 +354,7 @@ export default function AdminPrivateChatScreen() {
         <TextInput
           value={draft}
           onChangeText={setDraft}
-          placeholder={adminViewingUser ? 'Scrivi un messaggio ufficiale...' : 'Rispondi a Bajuju...'}
+          placeholder={adminViewingUser ? 'Scrivi un messaggio ufficiale...' : 'Scrivi a Bajuju...'}
           placeholderTextColor={BAJUJU_COLORS.muted}
           multiline
           maxLength={2000}

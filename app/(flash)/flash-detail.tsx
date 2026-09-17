@@ -115,6 +115,7 @@ export default function FlashDetailScreen() {
   const [participants, setParticipants] = useState<LooseRow[]>([]);
   const [profiles, setProfiles] = useState<Record<string, LooseRow>>({});
   const [messages, setMessages] = useState<LooseRow[]>([]);
+  const [blockedUserIds, setBlockedUserIds] = useState<Set<string>>(new Set());
   const [newMessage, setNewMessage] = useState('');
   const [sendingMessage, setSendingMessage] = useState(false);
 
@@ -159,23 +160,46 @@ export default function FlashDetailScreen() {
         .single();
 
       if (result.error) {
-        setErrorMessage(result.error.message);
+        setErrorMessage('Flash non disponibile.');
         setFlash(null);
+        setParticipants([]);
+        setProfiles({});
+        setMessages([]);
+        setBlockedUserIds(new Set());
         return;
       }
 
       const loadedFlash = result.data as LooseRow;
       setFlash(loadedFlash);
 
-      const participantsResult = await supabase
-        .from('activity_participants')
-        .select('*')
-        .eq('activity_id', flashId)
-        .limit(200);
+      const [participantsResult, blockedResult] = await Promise.all([
+        supabase
+          .from('activity_participants')
+          .select('*')
+          .eq('activity_id', flashId)
+          .limit(200),
+        userId
+          ? supabase.rpc('bajuju_get_current_blocked_user_ids' as any)
+          : Promise.resolve({ data: [], error: null } as any),
+      ]);
+
+      const nextBlockedIds = new Set<string>();
+      if (!blockedResult.error) {
+        ((blockedResult.data || []) as Array<{ user_id?: string | null }>).forEach((row) => {
+          const id = String(row.user_id || '').trim();
+          if (id) nextBlockedIds.add(id);
+        });
+      }
+      setBlockedUserIds(nextBlockedIds);
 
       const participantRows = participantsResult.error
         ? []
-        : ((participantsResult.data || []) as LooseRow[]).filter(participantIsActive);
+        : ((participantsResult.data || []) as LooseRow[])
+            .filter(participantIsActive)
+            .filter((item) => {
+              const id = String(firstValue(item, ['user_id'], '') || '');
+              return !id || !nextBlockedIds.has(id);
+            });
 
       setParticipants(participantRows);
 
@@ -185,7 +209,7 @@ export default function FlashDetailScreen() {
 
       const creatorId = flashCreatorId(loadedFlash);
 
-      if (creatorId && !userIds.includes(creatorId)) {
+      if (creatorId && !nextBlockedIds.has(creatorId) && !userIds.includes(creatorId)) {
         userIds.push(creatorId);
       }
 
@@ -217,7 +241,7 @@ export default function FlashDetailScreen() {
       setParticipants([]);
       setProfiles({});
       setMessages([]);
-      setErrorMessage(message);
+      setErrorMessage(message === 'BAJUJU_BLOCKED' ? 'Flash non disponibile.' : message);
     } finally {
       setLoading(false);
     }
@@ -257,7 +281,7 @@ export default function FlashDetailScreen() {
     const seen = new Set<string>();
     const rows: LooseRow[] = [];
 
-    if (creatorId) {
+    if (creatorId && !blockedUserIds.has(creatorId)) {
       seen.add(creatorId);
       rows.push({ user_id: creatorId, status: 'creator' });
     }
@@ -265,14 +289,14 @@ export default function FlashDetailScreen() {
     participants.forEach((item) => {
       const userId = String(firstValue(item, ['user_id'], '') || '');
 
-      if (!userId || seen.has(userId)) return;
+      if (!userId || seen.has(userId) || blockedUserIds.has(userId)) return;
 
       seen.add(userId);
       rows.push(item);
     });
 
     return rows;
-  }, [flash, participants]);
+  }, [blockedUserIds, flash, participants]);
 
   const isOrganizer =
     Boolean(currentUserId) &&

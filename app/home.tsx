@@ -398,6 +398,7 @@ export default function HomeScreen() {
         void trackBajujuEvent('find_open', { source: 'home' });
         router.push('/experiences');
       }}
+      onOpenHowItWorks={() => router.push('/how-it-works' as any)}
       onCreate={() => router.push('/create-experience')}
       onOpenMyEvents={() => router.push('/my-events' as any)}
       onOpenGroups={() => router.push('/groups' as any)}

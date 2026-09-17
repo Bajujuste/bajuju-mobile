@@ -399,8 +399,6 @@
     "admin_review_group",
     "bajuju_activity_visible_to_current_user",
     "bajuju_current_user_access_status",
-    "bajuju_current_user_block_conflict",
-    "bajuju_get_current_blocked_user_ids",
     "bajuju_get_or_create_support_thread",
     "bajuju_get_users_blocked_by_me",
     "bajuju_main_admin_id",

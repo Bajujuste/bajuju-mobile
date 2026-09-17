@@ -23,6 +23,7 @@ import {
 
 const bajujuLogo = require('../../assets/brand/bajuju-logo.png');
 const ACTIVE_WINDOW_MS = 6 * 60 * 60 * 1000;
+const PAST_RETENTION_MS = 60 * 24 * 60 * 60 * 1000;
 
 type MyActivity = {
   id: string;
@@ -211,7 +212,12 @@ export default function MyEventsScreen() {
     [loadedAt, ordered]
   );
   const pastEvents = useMemo(
-    () => ordered.filter((row) => temporalState(row, loadedAt) === 'past'),
+    () => ordered.filter((row) => {
+      if (temporalState(row, loadedAt) !== 'past') return false;
+      const start = activityStart(row);
+      if (!start) return false;
+      return loadedAt - start.getTime() <= PAST_RETENTION_MS;
+    }),
     [loadedAt, ordered]
   );
 
@@ -364,7 +370,7 @@ export default function MyEventsScreen() {
             )}
             {renderSection(
               'Passati',
-              'Dal più recente al più vecchio.',
+              'Dal più recente al più vecchio, fino a 60 giorni.',
               pastEvents
             )}
           </>

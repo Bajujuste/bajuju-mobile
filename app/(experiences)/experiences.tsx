@@ -23,7 +23,7 @@ import { trackBajujuEvent } from '../../src/utils/bajujuAnalytics';
 const bajujuLogo = require('../../assets/brand/bajuju-logo.png');
 const PAGE_SIZE = 20;
 const NEARBY_RADIUS_KM = 25;
-const PAST_RETENTION_DAYS = 30;
+const PAST_RETENTION_DAYS = 60;
 
 type Mode = 'nearby' | 'joined' | 'organized' | 'past';
 
@@ -372,7 +372,7 @@ export default function ExperiencesScreen() {
 
         <View style={styles.headerCard}>
           <Text style={styles.title}>Trova esperienze</Text>
-          <Text style={styles.subtitle}>Vicino a te, quelle che vivi e i ricordi degli ultimi 30 giorni.</Text>
+          <Text style={styles.subtitle}>Vicino a te, quelle che vivi e i ricordi degli ultimi 60 giorni.</Text>
         </View>
 
         <Pressable style={styles.mapButton} onPress={() => router.push('/experiences-map')}>
@@ -410,7 +410,7 @@ export default function ExperiencesScreen() {
         {mode === 'past' ? (
           <View style={styles.retentionNote}>
             <Text style={styles.retentionText}>
-              Gli eventi passati restano disponibili per 30 giorni. Dopo 30 giorni evento, chat e fotografie possono essere eliminati definitivamente.
+              Gli eventi passati restano disponibili per 60 giorni. Dopo 60 giorni non vengono più mostrati tra i tuoi ricordi.
             </Text>
           </View>
         ) : null}

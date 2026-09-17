@@ -9,7 +9,7 @@ import {
   BajujuIconName,
 } from '../icons/BajujuIcon';
 
-type NavKey = 'home' | 'find' | 'groups' | 'myEvents' | 'flash' | 'profile';
+type NavKey = 'home' | 'find' | 'how' | 'groups' | 'myEvents' | 'flash' | 'profile';
 
 type BajujuBottomNavProps = {
   active: NavKey;
@@ -20,7 +20,7 @@ const ITEMS: {
   label: string;
   icon: BajujuIconName;
   activeIcon: BajujuIconName;
-  route: '/home' | '/experiences' | '/groups' | '/my-events' | '/profile';
+  route: '/home' | '/experiences' | '/how-it-works' | '/groups' | '/my-events' | '/profile';
 }[] = [
   {
     key: 'home',
@@ -30,11 +30,11 @@ const ITEMS: {
     route: '/home',
   },
   {
-    key: 'find',
-    label: 'Trova',
-    icon: 'search',
-    activeIcon: 'search',
-    route: '/experiences',
+    key: 'how',
+    label: 'Come funziona',
+    icon: 'info',
+    activeIcon: 'info',
+    route: '/how-it-works',
   },
   {
     key: 'myEvents',
@@ -94,7 +94,7 @@ export function BajujuBottomNav({ active }: BajujuBottomNavProps) {
               numberOfLines={1}
               style={[
                 styles.navLabel,
-                item.key === 'myEvents' && styles.navLabelCompact,
+                (item.key === 'myEvents' || item.key === 'how') && styles.navLabelCompact,
                 selected && styles.navLabelActive,
               ]}
             >

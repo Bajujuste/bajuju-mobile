@@ -52,9 +52,9 @@ Deno.serve(async (request) => {
 
   const messageId = cleanText(body.messageId, 100);
   const threadId = cleanText(body.threadId, 100);
-  const targetUserId = cleanText(body.targetUserId, 100);
+  const requestedTargetUserId = cleanText(body.targetUserId, 100);
 
-  if (!messageId || !threadId || !targetUserId) {
+  if (!messageId || !threadId) {
     return jsonResponse({ ok: false, error: 'MISSING_FIELDS' }, 400);
   }
 
@@ -80,12 +80,11 @@ Deno.serve(async (request) => {
     return jsonResponse({ ok: false, error: 'DATABASE_READ_FAILED' }, 500);
   }
 
-  if (!mainAdminResult.data || String(mainAdminResult.data) !== actorUserId) {
-    return jsonResponse({ ok: false, error: 'MAIN_BAJUJU_ADMIN_REQUIRED' }, 403);
-  }
+  const mainAdminId = String(mainAdminResult.data || '');
+  const threadUserId = String(threadResult.data?.user_id || '');
 
-  if (!threadResult.data || String(threadResult.data.user_id || '') !== targetUserId) {
-    return jsonResponse({ ok: false, error: 'INVALID_TARGET_THREAD' }, 403);
+  if (!mainAdminId || !threadResult.data || !threadUserId) {
+    return jsonResponse({ ok: false, error: 'THREAD_OR_ADMIN_NOT_FOUND' }, 404);
   }
 
   if (
@@ -93,14 +92,47 @@ Deno.serve(async (request) => {
     String(messageResult.data.thread_id || '') !== threadId ||
     String(messageResult.data.sender_id || '') !== actorUserId
   ) {
-    return jsonResponse({ ok: false, error: 'INVALID_ADMIN_MESSAGE' }, 403);
+    return jsonResponse({ ok: false, error: 'INVALID_MESSAGE' }, 403);
+  }
+
+  const adminToUser = actorUserId === mainAdminId && threadUserId !== mainAdminId;
+  const userToAdmin = actorUserId === threadUserId && actorUserId !== mainAdminId;
+
+  if (!adminToUser && !userToAdmin) {
+    return jsonResponse({ ok: false, error: 'NOT_A_THREAD_PARTICIPANT' }, 403);
+  }
+
+  let recipientUserId = '';
+  let notificationType = '';
+  let title = '';
+
+  if (adminToUser) {
+    if (requestedTargetUserId && requestedTargetUserId !== threadUserId) {
+      return jsonResponse({ ok: false, error: 'INVALID_TARGET_THREAD' }, 403);
+    }
+
+    recipientUserId = threadUserId;
+    notificationType = 'admin_message';
+    title = 'Messaggio da Bajuju';
+  } else {
+    recipientUserId = mainAdminId;
+    notificationType = 'support_message';
+
+    const profileResult = await supabase
+      .from('profiles')
+      .select('nickname')
+      .eq('id', actorUserId)
+      .maybeSingle();
+
+    const senderName = String(profileResult.data?.nickname || 'Un utente').trim() || 'Un utente';
+    title = `${senderName} ha scritto a Bajuju`;
   }
 
   const existingLogResult = await supabase
     .from('push_notification_logs')
     .select('id')
-    .eq('user_id', targetUserId)
-    .eq('notification_type', 'admin_message')
+    .eq('user_id', recipientUserId)
+    .eq('notification_type', notificationType)
     .contains('data', { messageId })
     .limit(1);
 
@@ -110,9 +142,8 @@ Deno.serve(async (request) => {
 
   const fullMessage = cleanText(messageResult.data.message, 2000);
   const preview = fullMessage.length > 150 ? `${fullMessage.slice(0, 147)}...` : fullMessage;
-  const title = 'Messaggio dall’amministratore';
   const data = {
-    type: 'admin_message',
+    type: notificationType,
     screen: 'admin-private-chat',
     threadId,
     messageId,
@@ -121,9 +152,9 @@ Deno.serve(async (request) => {
   const logInsertResult = await supabase
     .from('push_notification_logs')
     .insert({
-      user_id: targetUserId,
-      notification_type: 'admin_message',
-      type: 'admin_message',
+      user_id: recipientUserId,
+      notification_type: notificationType,
+      type: notificationType,
       title,
       body: preview,
       data,
@@ -144,10 +175,10 @@ Deno.serve(async (request) => {
   const preferenceResult = await supabase
     .from('notification_preferences')
     .select('enabled')
-    .eq('user_id', targetUserId)
+    .eq('user_id', recipientUserId)
     .maybeSingle();
 
-  const pushEnabled = !preferenceResult.error && preferenceResult.data?.enabled === true;
+  const pushEnabled = !preferenceResult.error && preferenceResult.data?.enabled !== false;
 
   if (!pushEnabled) {
     await supabase
@@ -165,7 +196,7 @@ Deno.serve(async (request) => {
   const tokensResult = await supabase
     .from('push_tokens')
     .select('expo_push_token')
-    .eq('user_id', targetUserId)
+    .eq('user_id', recipientUserId)
     .eq('is_active', true);
 
   if (tokensResult.error) {
@@ -191,7 +222,7 @@ Deno.serve(async (request) => {
     return jsonResponse({ ok: true, sent: 0, inAppRegistered: 1, reason: 'NO_PUSH_TOKEN' });
   }
 
-  const messages = tokens.map((token) => ({
+  const pushMessages = tokens.map((token) => ({
     to: token,
     sound: 'default',
     title,
@@ -208,7 +239,7 @@ Deno.serve(async (request) => {
       'Accept-encoding': 'gzip, deflate',
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify(messages),
+    body: JSON.stringify(pushMessages),
   });
 
   const expoResult = await expoResponse.json().catch(() => null);
@@ -253,5 +284,11 @@ Deno.serve(async (request) => {
     })
     .eq('id', logId);
 
-  return jsonResponse({ ok: true, sent, inAppRegistered: 1, expoResult });
+  return jsonResponse({
+    ok: true,
+    sent,
+    inAppRegistered: 1,
+    direction: adminToUser ? 'admin_to_user' : 'user_to_admin',
+    expoResult,
+  });
 });

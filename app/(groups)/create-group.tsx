@@ -40,20 +40,10 @@ export default function CreateGroupScreen() {
         const id = authResult.data.user?.id || '';
         if (!id) return;
 
-        const profileResult = await supabase
-          .from('profiles')
-          .select('is_admin,is_premium_organizer')
-          .eq('id', id)
-          .maybeSingle();
-
-        if (profileResult.error) throw profileResult.error;
         if (!active) return;
 
         setUserId(id);
-        setAllowed(
-          profileResult.data?.is_admin === true ||
-          profileResult.data?.is_premium_organizer === true
-        );
+        setAllowed(true);
       } catch (error) {
         console.log('Errore verifica permessi gruppo:', error);
       } finally {
@@ -137,10 +127,10 @@ export default function CreateGroupScreen() {
       }
 
       Alert.alert(
-        'Gruppo creato',
+        'Richiesta inviata',
         coverWarning
-          ? `Il gruppo è online. La copertina non è stata caricata: ${coverWarning}`
-          : 'Il gruppo è online e gli utenti possono iscriversi.'
+          ? `Il gruppo è stato inviato a Bajuju per l’approvazione. La copertina non è stata caricata: ${coverWarning}`
+          : 'Il gruppo è stato inviato a Bajuju per l’approvazione. Finché non viene approvato lo vedi solo tu e gli Admin.'
       );
       router.replace({ pathname: '/group-detail' as any, params: { id: groupId } });
     } catch (error: any) {
@@ -158,9 +148,9 @@ export default function CreateGroupScreen() {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.denied}>
-          <Text style={styles.deniedTitle}>Creazione riservata</Text>
+          <Text style={styles.deniedTitle}>Accedi per creare un gruppo</Text>
           <Text style={styles.deniedText}>
-            I gruppi possono essere creati solo da Admin e Organizzatori Premium.
+            Tutti gli utenti Bajuju possono proporre un gruppo. Dopo l’invio verrà controllato prima della pubblicazione.
           </Text>
           <Pressable style={styles.secondaryButton} onPress={() => router.replace('/groups' as any)}>
             <Text style={styles.secondaryButtonText}>Torna ai gruppi</Text>
@@ -178,10 +168,10 @@ export default function CreateGroupScreen() {
         </Pressable>
 
         <View style={styles.header}>
-          <Text style={styles.eyebrow}>ORGANIZZATORI</Text>
+          <Text style={styles.eyebrow}>COMMUNITY BAJUJU</Text>
           <Text style={styles.title}>Crea gruppo</Text>
           <Text style={styles.subtitle}>
-            Costruisci una community e avvisa gli iscritti quando pubblichi un’esperienza dedicata.
+            Crea la tua community. Prima di diventare pubblica, Bajuju controllerà la richiesta.
           </Text>
         </View>
 
@@ -253,7 +243,7 @@ export default function CreateGroupScreen() {
             disabled={!canSave}
             onPress={() => { void handleCreate(); }}
           >
-            <Text style={styles.mainButtonText}>{saving ? 'Creazione...' : 'Crea gruppo'}</Text>
+            <Text style={styles.mainButtonText}>{saving ? 'Invio...' : 'Invia per approvazione'}</Text>
           </Pressable>
         </View>
       </ScrollView>

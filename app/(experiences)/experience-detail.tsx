@@ -232,7 +232,6 @@ export default function ExperienceDetailScreen() {
   const [leaving, setLeaving] = useState(false);
   const [sendingMessage, setSendingMessage] = useState(false);
   const [blockedUserIds, setBlockedUserIds] = useState<Set<string>>(new Set());
-  const [blockedByOrganizer, setBlockedByOrganizer] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const activeParticipants = useMemo(() => {
@@ -242,7 +241,7 @@ export default function ExperienceDetailScreen() {
     participants.filter(participantIsActive).forEach((participant) => {
       const userId = String(participant.user_id || '').trim();
 
-      if (!userId || seen.has(userId)) return;
+      if (!userId || seen.has(userId) || blockedUserIds.has(userId)) return;
 
       seen.add(userId);
       rows.push(participant);
@@ -256,7 +255,7 @@ export default function ExperienceDetailScreen() {
     const seen = new Set<string>();
     const rows: ParticipantRow[] = [];
 
-    if (creatorId) {
+    if (creatorId && !blockedUserIds.has(creatorId)) {
       seen.add(creatorId);
       rows.push({ activity_id: experience?.id || null, user_id: creatorId, status: 'creator' });
     }
@@ -271,7 +270,7 @@ export default function ExperienceDetailScreen() {
     });
 
     return rows;
-  }, [activeParticipants, experience]);
+  }, [activeParticipants, blockedUserIds, experience]);
 
   const isOrganizer =
     Boolean(currentUserId) &&
@@ -288,7 +287,9 @@ export default function ExperienceDetailScreen() {
   const albumIsFull = albumPhotos.length >= 15;
   const userAlbumLimitReached = userAlbumPhotoCount >= 3;
 
-  const visibleAlbumPhotos = albumPhotos.filter((photo) => !!albumPhotoUrl(photo));
+  const visibleAlbumPhotos = albumPhotos.filter(
+    (photo) => !!albumPhotoUrl(photo) && !blockedUserIds.has(albumPhotoOwnerId(photo))
+  );
   const selectedAlbumPhoto =
     selectedAlbumPhotoIndex !== null ? visibleAlbumPhotos[selectedAlbumPhotoIndex] : null;
   const selectedAlbumPhotoUrl = selectedAlbumPhoto ? albumPhotoUrl(selectedAlbumPhoto) : '';
@@ -348,59 +349,42 @@ export default function ExperienceDetailScreen() {
   const currentUserIdRef = useRef<string | null>(null);
 
   const loadParticipants = useCallback(async (activityId: string, loadedExperience?: ActivityRow | null) => {
-    const participantsResult = await supabase
-      .from('activity_participants')
-      .select('activity_id,user_id,status')
-      .eq('activity_id', activityId)
-      .limit(200);
+    const viewerId = currentUserIdRef.current;
+
+    const [participantsResult, blockedResult] = await Promise.all([
+      supabase
+        .from('activity_participants')
+        .select('activity_id,user_id,status')
+        .eq('activity_id', activityId)
+        .limit(200),
+      viewerId
+        ? supabase.rpc('bajuju_get_current_blocked_user_ids' as any)
+        : Promise.resolve({ data: [], error: null } as any),
+    ]);
 
     if (participantsResult.error) {
       setParticipants([]);
       setProfiles({});
+      setBlockedUserIds(new Set());
       return;
     }
 
-    const rows = ((participantsResult.data || []) as ParticipantRow[]).filter(participantIsActive);
-    setParticipants(rows);
-
-    const viewerId = currentUserIdRef.current;
-
-    if (viewerId) {
-      const participantIds = rows
-        .map((row) => String(row.user_id || '').trim())
-        .filter((id) => id && id !== viewerId);
-
-      if (participantIds.length > 0) {
-        const [blockedByMeResult, blockedMeResult] = await Promise.all([
-          supabase
-            .from('user_blocks')
-            .select('blocked_id')
-            .eq('blocker_id', viewerId)
-            .in('blocked_id', participantIds),
-          supabase
-            .from('user_blocks')
-            .select('blocker_id')
-            .eq('blocked_id', viewerId)
-            .in('blocker_id', participantIds),
-        ]);
-
-        const nextBlockedIds = new Set<string>();
-
-        (blockedByMeResult.data || []).forEach((row: any) => {
-          if (row.blocked_id) nextBlockedIds.add(String(row.blocked_id));
-        });
-
-        (blockedMeResult.data || []).forEach((row: any) => {
-          if (row.blocker_id) nextBlockedIds.add(String(row.blocker_id));
-        });
-
-        setBlockedUserIds(nextBlockedIds);
-      } else {
-        setBlockedUserIds(new Set());
-      }
-    } else {
-      setBlockedUserIds(new Set());
+    const nextBlockedIds = new Set<string>();
+    if (!blockedResult.error) {
+      ((blockedResult.data || []) as Array<{ user_id?: string | null }>).forEach((row) => {
+        const id = String(row.user_id || '').trim();
+        if (id) nextBlockedIds.add(id);
+      });
     }
+    setBlockedUserIds(nextBlockedIds);
+
+    const rows = ((participantsResult.data || []) as ParticipantRow[])
+      .filter(participantIsActive)
+      .filter((row) => {
+        const id = String(row.user_id || '').trim();
+        return !id || !nextBlockedIds.has(id);
+      });
+    setParticipants(rows);
 
     const userIds = rows
       .map((item) => String(item.user_id || ''))
@@ -409,7 +393,7 @@ export default function ExperienceDetailScreen() {
     const sourceExperience = loadedExperience ?? null;
     const creatorId = getExperienceCreatorId(sourceExperience);
 
-    if (creatorId && !userIds.includes(creatorId)) {
+    if (creatorId && !nextBlockedIds.has(creatorId) && !userIds.includes(creatorId)) {
       userIds.push(creatorId);
     }
 
@@ -422,7 +406,6 @@ export default function ExperienceDetailScreen() {
 
     const nextProfiles: Record<string, ProfileRow> = {};
 
-    // Una sola query per tutti i profili (prima una o due query in sequenza per partecipante).
     const profilesResult = await supabase
       .from('profiles')
       .select('*')
@@ -475,7 +458,12 @@ export default function ExperienceDetailScreen() {
       .single();
 
     if (result.error) {
-      setErrorMessage(result.error.message || 'Non sono riuscito a caricare l’esperienza.');
+      setExperience(null);
+      setParticipants([]);
+      setProfiles({});
+      setMessages([]);
+      setAlbumPhotos([]);
+      setErrorMessage('Esperienza non disponibile.');
       setLoading(false);
       return;
     }
@@ -483,25 +471,6 @@ export default function ExperienceDetailScreen() {
     const loadedExperience = result.data as ActivityRow;
 
     setExperience(loadedExperience);
-
-    if (userId) {
-      const organizerId = getExperienceCreatorId(loadedExperience);
-
-      if (organizerId && organizerId !== userId) {
-        const organizerBlockResult = await supabase
-          .from('user_blocks')
-          .select('id')
-          .eq('blocker_id', organizerId)
-          .eq('blocked_id', userId)
-          .maybeSingle();
-
-        setBlockedByOrganizer(Boolean(organizerBlockResult.data));
-      } else {
-        setBlockedByOrganizer(false);
-      }
-    } else {
-      setBlockedByOrganizer(false);
-    }
 
     await loadParticipants(experienceId, loadedExperience);
     await loadMessages(experienceId);

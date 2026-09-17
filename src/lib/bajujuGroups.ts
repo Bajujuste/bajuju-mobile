@@ -123,7 +123,7 @@ export async function createBajujuGroup(input: {
     longitude: input.longitude,
     owner_id: input.ownerId,
     created_by: input.ownerId,
-    status: 'active',
+    status: 'pending',
   };
 
   const result = await supabase.from('groups').insert(payload).select('id').single();

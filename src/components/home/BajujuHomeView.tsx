@@ -27,6 +27,7 @@ const COLORS = {
   brightPink: '#F32189',
   softPink: '#FFF0F7',
   palePink: '#FFDDEB',
+  howPastel: '#E9A0C4',
   line: '#F3C6DC',
   plum: '#4B0C2D',
   muted: '#A95D86',
@@ -339,7 +340,12 @@ function InfoItem({ icon, text }: InfoItemProps) {
 type NavItemProps = { active?: boolean; icon: BajujuIconName; label: string; onPress: () => void };
 
 function NavItem({ active = false, icon, label, onPress }: NavItemProps) {
-  const color = active ? COLORS.brightPink : COLORS.plum;
+  const isHowItWorks = label === 'Come funziona';
+  const color = isHowItWorks
+    ? COLORS.howPastel
+    : active
+      ? COLORS.brightPink
+      : COLORS.plum;
 
   return (
     <Pressable
@@ -355,12 +361,15 @@ function NavItem({ active = false, icon, label, onPress }: NavItemProps) {
         style={[
           styles.navLabel,
           (label === 'I miei eventi' || label === 'Come funziona') && styles.navLabelCompact,
-          active && styles.navLabelActive,
+          isHowItWorks && styles.howNavLabel,
+          active && !isHowItWorks && styles.navLabelActive,
         ]}
       >
         {label}
       </Text>
-      {active ? <View style={styles.activeIndicator} /> : null}
+      {active ? (
+        <View style={[styles.activeIndicator, isHowItWorks && styles.howActiveIndicator]} />
+      ) : null}
     </Pressable>
   );
 }
@@ -443,7 +452,9 @@ const styles = StyleSheet.create({
   navItem: { position: 'relative', flex: 1, height: 76, alignItems: 'center', justifyContent: 'center', gap: 4 },
   navLabel: { color: COLORS.plum, fontFamily: 'FredokaMedium', fontSize: 13 },
   navLabelCompact: { fontSize: 11.5, letterSpacing: -0.15 },
+  howNavLabel: { color: COLORS.howPastel },
   navLabelActive: { color: COLORS.brightPink, fontFamily: 'FredokaSemiBold' },
   activeIndicator: { position: 'absolute', left: 25, right: 25, bottom: -4, height: 4, borderRadius: 2, backgroundColor: COLORS.brightPink },
+  howActiveIndicator: { backgroundColor: COLORS.howPastel },
   pressed: { opacity: 0.78 },
 });

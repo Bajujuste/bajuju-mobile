@@ -17,9 +17,18 @@ import { BajujuGroupCard, loadBajujuGroups } from '../../src/lib/bajujuGroups';
 import { supabase } from '../../src/lib/supabase';
 import { BAJUJU_COLORS, BAJUJU_FONTS, BAJUJU_SHADOW } from '../../src/theme/bajujuTheme';
 
+type GroupRequestRow = {
+  id: string;
+  name?: string | null;
+  city?: string | null;
+  status?: string | null;
+  review_note?: string | null;
+};
+
 export default function GroupsScreen() {
   const [groups, setGroups] = useState<BajujuGroupCard[]>([]);
   const [myGroups, setMyGroups] = useState<BajujuGroupCard[]>([]);
+  const [groupRequests, setGroupRequests] = useState<GroupRequestRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
   const [canCreate, setCanCreate] = useState(false);
@@ -35,6 +44,7 @@ export default function GroupsScreen() {
       if (!currentUserId) {
         setGroups([]);
         setMyGroups([]);
+        setGroupRequests([]);
         setCanCreate(false);
         setUserId('');
         return;
@@ -42,26 +52,27 @@ export default function GroupsScreen() {
 
       setUserId(currentUserId);
 
-      const [profileResult, loadedGroups] = await Promise.all([
-        supabase
-          .from('profiles')
-          .select('is_admin,is_premium_organizer')
-          .eq('id', currentUserId)
-          .maybeSingle(),
+      const [loadedGroups, requestsResult] = await Promise.all([
         loadBajujuGroups(currentUserId, { limit: 100 }),
+        supabase
+          .from('groups')
+          .select('id,name,city,status,review_note')
+          .eq('owner_id', currentUserId)
+          .in('status', ['pending', 'rejected'])
+          .order('created_at', { ascending: false })
+          .limit(50),
       ]);
 
-      if (profileResult.error) throw profileResult.error;
-      setCanCreate(
-        profileResult.data?.is_admin === true ||
-        profileResult.data?.is_premium_organizer === true
-      );
+      if (requestsResult.error) throw requestsResult.error;
+      setCanCreate(true);
       setGroups(loadedGroups);
       setMyGroups(loadedGroups.filter((group) => group.joinedByMe));
+      setGroupRequests((requestsResult.data || []) as GroupRequestRow[]);
     } catch (error) {
       console.log('Errore caricamento gruppi:', error);
       setGroups([]);
       setMyGroups([]);
+      setGroupRequests([]);
     } finally {
       setLoading(false);
     }
@@ -144,6 +155,31 @@ export default function GroupsScreen() {
           </View>
         ) : (
           <>
+            {!hasSearch && groupRequests.length > 0 ? (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Le mie richieste</Text>
+                <Text style={styles.sectionHint}>I gruppi diventano pubblici solo dopo l’approvazione di Bajuju.</Text>
+                {groupRequests.map((group) => (
+                  <Pressable
+                    key={`request-${group.id}`}
+                    style={({ pressed }) => [styles.requestCard, pressed && styles.pressed]}
+                    onPress={() => openGroup(group.id)}
+                  >
+                    <View style={styles.requestCopy}>
+                      <Text style={styles.groupName} numberOfLines={1}>{group.name || 'Gruppo Bajuju'}</Text>
+                      {group.city ? <Text style={styles.groupMeta}>{group.city}</Text> : null}
+                      {group.status === 'rejected' && group.review_note ? (
+                        <Text style={styles.requestNote} numberOfLines={2}>{group.review_note}</Text>
+                      ) : null}
+                    </View>
+                    <Text style={[styles.requestBadge, group.status === 'rejected' && styles.requestBadgeRejected]}>
+                      {group.status === 'rejected' ? 'DA RIVEDERE' : 'IN APPROVAZIONE'}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
+
             {!hasSearch && myGroups.length > 0 ? (
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>I miei gruppi</Text>
@@ -166,7 +202,7 @@ export default function GroupsScreen() {
                   <Text style={styles.emptyText}>
                     {hasSearch
                       ? 'Prova con un altro nome o con il Comune.'
-                      : 'Quando Admin e Organizzatori Premium ne creeranno uno, lo vedrai qui.'}
+                      : 'Quando verranno approvati nuovi gruppi, li vedrai qui.'}
                   </Text>
                 </View>
               ) : (
@@ -282,6 +318,35 @@ const styles = StyleSheet.create({
     fontSize: 22,
   },
   sectionHint: { marginBottom: 12, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.medium, fontSize: 12 },
+  requestCard: {
+    minHeight: 82,
+    marginBottom: 11,
+    padding: 14,
+    borderRadius: 22,
+    borderWidth: 1.5,
+    borderColor: BAJUJU_COLORS.palePink,
+    backgroundColor: '#fff',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    ...BAJUJU_SHADOW,
+  },
+  requestCopy: { flex: 1, minWidth: 0 },
+  requestNote: { marginTop: 5, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.medium, fontSize: 11, lineHeight: 15 },
+  requestBadge: {
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+    borderRadius: 999,
+    overflow: 'hidden',
+    backgroundColor: '#FFF4C7',
+    color: '#7A5A00',
+    fontFamily: BAJUJU_FONTS.bold,
+    fontSize: 9,
+  },
+  requestBadgeRejected: {
+    backgroundColor: '#FCE5EC',
+    color: '#A3345E',
+  },
   groupCard: {
     minHeight: 88,
     marginBottom: 11,

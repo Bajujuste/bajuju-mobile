@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-18T10:45:00.000Z",
+  "generated_at": "2026-09-18T00:00:00.000Z",
   "tables": {
     "reports": [
       "id",
@@ -396,7 +396,12 @@
     "admin_delete_activity",
     "admin_get_pending_deleted_profiles",
     "admin_remove_participant",
+    "admin_review_group",
+    "bajuju_activity_visible_to_current_user",
     "bajuju_current_user_access_status",
+    "bajuju_current_user_block_conflict",
+    "bajuju_get_current_blocked_user_ids",
+    "bajuju_get_or_create_support_thread",
     "bajuju_main_admin_id",
     "claim_push_token_for_current_user",
     "consume_edge_rate_limit",
@@ -407,6 +412,7 @@
     "get_group_member_profiles",
     "get_my_activity_waitlist",
     "guard_flash_participant_insert",
+    "guard_participant_block_conflict",
     "guard_single_active_availability",
     "guard_single_active_flash",
     "guard_standard_activity_participant_insert",
@@ -442,9 +448,7 @@
     "protect_admin_managed_profile_fields",
     "purge_due_deleted_accounts",
     "request_account_deletion",
-    "set_updated_at",
-    "admin_review_group",
     "resubmit_group_for_approval",
-    "bajuju_get_or_create_support_thread"
+    "set_updated_at"
   ]
 }

@@ -58,6 +58,7 @@ type BajujuHomeViewProps = {
   onOpenNotifications: () => void;
   onOpenProfile: () => void;
   onFind: () => void;
+  onOpenHowItWorks: () => void;
   onCreate: () => void;
   onOpenMyEvents: () => void;
   onOpenGroups: () => void;
@@ -77,6 +78,7 @@ export function BajujuHomeView({
   onOpenNotifications,
   onOpenProfile,
   onFind,
+  onOpenHowItWorks,
   onCreate,
   onOpenMyEvents,
   onOpenGroups,
@@ -290,7 +292,7 @@ export function BajujuHomeView({
 
       <View style={[styles.bottomNav, { bottom: Math.max(13, insets.bottom + 7) }]}>
         <NavItem active icon="home" label="Home" onPress={() => undefined} />
-        <NavItem icon="search" label="Trova" onPress={onFind} />
+        <NavItem icon="info" label="Come funziona" onPress={onOpenHowItWorks} />
         <NavItem icon="calendar" label="I miei eventi" onPress={onOpenMyEvents} />
         <NavItem icon="person" label="Profilo" onPress={onOpenProfile} />
       </View>
@@ -352,7 +354,7 @@ function NavItem({ active = false, icon, label, onPress }: NavItemProps) {
         numberOfLines={1}
         style={[
           styles.navLabel,
-          label === 'I miei eventi' && styles.navLabelCompact,
+          (label === 'I miei eventi' || label === 'Come funziona') && styles.navLabelCompact,
           active && styles.navLabelActive,
         ]}
       >

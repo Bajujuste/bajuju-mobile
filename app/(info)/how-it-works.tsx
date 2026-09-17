@@ -55,7 +55,7 @@ const ITEMS: GuideItem[] = [
   {
     emoji: '🛡️',
     title: 'Blocca quando vuoi',
-    text: 'Puoi bloccare un utente in qualsiasi momento. Da quel momento non potrà più contattarti su Bajuju.',
+    text: 'Puoi bloccare un utente in qualsiasi momento. Da quel momento non vi vedrete più, non potrete contattarvi e non vedrete gli eventi a cui l’altro partecipa.',
   },
   {
     emoji: '📅',

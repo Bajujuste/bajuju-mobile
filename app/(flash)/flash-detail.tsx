@@ -159,8 +159,11 @@ export default function FlashDetailScreen() {
         .single();
 
       if (result.error) {
-        setErrorMessage(result.error.message);
+        setErrorMessage('Flash non disponibile.');
         setFlash(null);
+        setParticipants([]);
+        setProfiles({});
+        setMessages([]);
         return;
       }
 
@@ -177,6 +180,7 @@ export default function FlashDetailScreen() {
         ? []
         : ((participantsResult.data || []) as LooseRow[]).filter(participantIsActive);
 
+      // La RLS nasconde già i partecipanti bloccati in entrambe le direzioni.
       setParticipants(participantRows);
 
       const userIds = participantRows
@@ -217,7 +221,7 @@ export default function FlashDetailScreen() {
       setParticipants([]);
       setProfiles({});
       setMessages([]);
-      setErrorMessage(message);
+      setErrorMessage(message === 'BAJUJU_BLOCKED' ? 'Flash non disponibile.' : message);
     } finally {
       setLoading(false);
     }
@@ -257,7 +261,7 @@ export default function FlashDetailScreen() {
     const seen = new Set<string>();
     const rows: LooseRow[] = [];
 
-    if (creatorId) {
+    if (creatorId && (creatorId === String(currentUserId || '') || Boolean(profiles[creatorId]))) {
       seen.add(creatorId);
       rows.push({ user_id: creatorId, status: 'creator' });
     }
@@ -272,7 +276,7 @@ export default function FlashDetailScreen() {
     });
 
     return rows;
-  }, [flash, participants]);
+  }, [currentUserId, flash, participants, profiles]);
 
   const isOrganizer =
     Boolean(currentUserId) &&

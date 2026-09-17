@@ -177,7 +177,7 @@ export default function UserProfileScreen() {
 
       if (!byId.data) {
         setProfile(null);
-        setErrorText('Profilo non trovato.');
+        setErrorText('Profilo non disponibile.');
         return;
       }
 
@@ -334,7 +334,13 @@ export default function UserProfileScreen() {
       setIsBlockedByMe(true);
       Alert.alert(
         'Utente bloccato',
-        'L’utente è stato bloccato. Non potrà più interagire con te e non riceverà notifiche relative alle tue attività.'
+        'Da ora non vi vedrete più su Bajuju, non potrete contattarvi e non vedrete gli eventi a cui l’altro partecipa. Se eravate già entrambi nello stesso evento, l’evento resta disponibile ma non vedrete più profilo, messaggi o foto reciproci.',
+        [
+          {
+            text: 'OK',
+            onPress: () => router.back(),
+          },
+        ]
       );
     } catch (error: unknown) {
       const message =

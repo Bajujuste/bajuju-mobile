@@ -1559,6 +1559,9 @@ export default function ProfileScreen() {
         <Pressable style={styles.linkButton} onPress={() => router.push('/rules')}>
           <Text style={styles.linkButtonText}>Apri Regole community</Text>
         </Pressable>
+        <Pressable style={styles.linkButton} onPress={() => router.push('/blocked-users' as any)}>
+          <Text style={styles.linkButtonText}>Utenti bloccati</Text>
+        </Pressable>
         <Pressable style={styles.deleteButton} onPress={requestProfileDeletion}>
           <Text style={styles.deleteButtonText}>Elimina definitivamente account</Text>
         </Pressable>

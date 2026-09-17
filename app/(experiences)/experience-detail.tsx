@@ -231,8 +231,6 @@ export default function ExperienceDetailScreen() {
   const [joining, setJoining] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const [sendingMessage, setSendingMessage] = useState(false);
-  const [blockedUserIds, setBlockedUserIds] = useState<Set<string>>(new Set());
-  const [blockedByOrganizer, setBlockedByOrganizer] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const activeParticipants = useMemo(() => {
@@ -256,7 +254,7 @@ export default function ExperienceDetailScreen() {
     const seen = new Set<string>();
     const rows: ParticipantRow[] = [];
 
-    if (creatorId) {
+    if (creatorId && (creatorId === String(currentUserId || '') || Boolean(profiles[creatorId]))) {
       seen.add(creatorId);
       rows.push({ activity_id: experience?.id || null, user_id: creatorId, status: 'creator' });
     }
@@ -271,7 +269,7 @@ export default function ExperienceDetailScreen() {
     });
 
     return rows;
-  }, [activeParticipants, experience]);
+  }, [activeParticipants, currentUserId, experience, profiles]);
 
   const isOrganizer =
     Boolean(currentUserId) &&
@@ -338,15 +336,6 @@ export default function ExperienceDetailScreen() {
     return () => clearTimeout(timeout);
   }, [canUseChat, loading, messages.length, requestedSection]);
 
-  function isBlockedUser(userId: string) {
-    return blockedUserIds.has(String(userId || '').trim());
-  }
-
-  // loadParticipants legge l'utente da un ref: con currentUserId tra le dipendenze, al primo
-  // caricamento vedeva ancora null (blocchi ignorati) e il cambio di dipendenza rilanciava
-  // loadExperience, caricando tutto una seconda volta.
-  const currentUserIdRef = useRef<string | null>(null);
-
   const loadParticipants = useCallback(async (activityId: string, loadedExperience?: ActivityRow | null) => {
     const participantsResult = await supabase
       .from('activity_participants')
@@ -360,47 +349,9 @@ export default function ExperienceDetailScreen() {
       return;
     }
 
+    // La RLS nasconde già i partecipanti bloccati in entrambe le direzioni.
     const rows = ((participantsResult.data || []) as ParticipantRow[]).filter(participantIsActive);
     setParticipants(rows);
-
-    const viewerId = currentUserIdRef.current;
-
-    if (viewerId) {
-      const participantIds = rows
-        .map((row) => String(row.user_id || '').trim())
-        .filter((id) => id && id !== viewerId);
-
-      if (participantIds.length > 0) {
-        const [blockedByMeResult, blockedMeResult] = await Promise.all([
-          supabase
-            .from('user_blocks')
-            .select('blocked_id')
-            .eq('blocker_id', viewerId)
-            .in('blocked_id', participantIds),
-          supabase
-            .from('user_blocks')
-            .select('blocker_id')
-            .eq('blocked_id', viewerId)
-            .in('blocker_id', participantIds),
-        ]);
-
-        const nextBlockedIds = new Set<string>();
-
-        (blockedByMeResult.data || []).forEach((row: any) => {
-          if (row.blocked_id) nextBlockedIds.add(String(row.blocked_id));
-        });
-
-        (blockedMeResult.data || []).forEach((row: any) => {
-          if (row.blocker_id) nextBlockedIds.add(String(row.blocker_id));
-        });
-
-        setBlockedUserIds(nextBlockedIds);
-      } else {
-        setBlockedUserIds(new Set());
-      }
-    } else {
-      setBlockedUserIds(new Set());
-    }
 
     const userIds = rows
       .map((item) => String(item.user_id || ''))
@@ -422,7 +373,6 @@ export default function ExperienceDetailScreen() {
 
     const nextProfiles: Record<string, ProfileRow> = {};
 
-    // Una sola query per tutti i profili (prima una o due query in sequenza per partecipante).
     const profilesResult = await supabase
       .from('profiles')
       .select('*')
@@ -465,7 +415,6 @@ export default function ExperienceDetailScreen() {
 
     const authResult = await supabase.auth.getUser();
     const userId = authResult.data.user?.id || null;
-    currentUserIdRef.current = userId;
     setCurrentUserId(userId);
 
     const result = await supabase
@@ -475,7 +424,12 @@ export default function ExperienceDetailScreen() {
       .single();
 
     if (result.error) {
-      setErrorMessage(result.error.message || 'Non sono riuscito a caricare l’esperienza.');
+      setExperience(null);
+      setParticipants([]);
+      setProfiles({});
+      setMessages([]);
+      setAlbumPhotos([]);
+      setErrorMessage('Esperienza non disponibile.');
       setLoading(false);
       return;
     }
@@ -483,25 +437,6 @@ export default function ExperienceDetailScreen() {
     const loadedExperience = result.data as ActivityRow;
 
     setExperience(loadedExperience);
-
-    if (userId) {
-      const organizerId = getExperienceCreatorId(loadedExperience);
-
-      if (organizerId && organizerId !== userId) {
-        const organizerBlockResult = await supabase
-          .from('user_blocks')
-          .select('id')
-          .eq('blocker_id', organizerId)
-          .eq('blocked_id', userId)
-          .maybeSingle();
-
-        setBlockedByOrganizer(Boolean(organizerBlockResult.data));
-      } else {
-        setBlockedByOrganizer(false);
-      }
-    } else {
-      setBlockedByOrganizer(false);
-    }
 
     await loadParticipants(experienceId, loadedExperience);
     await loadMessages(experienceId);
@@ -1282,7 +1217,7 @@ export default function ExperienceDetailScreen() {
                               </Text>
                             </View>
 
-                            {canShowInviteOut && userId !== String(currentUserId || '') && !isBlockedUser(userId) ? (
+                            {canShowInviteOut && userId !== String(currentUserId || '') ? (
                               <Pressable
                                 style={styles.inviteOutButton}
                                 onPress={(event) => {

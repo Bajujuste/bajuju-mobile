@@ -18,6 +18,8 @@ type AdminStats = {
   activities: number;
   reports: number;
   chatReports: number;
+  groupApprovals: number;
+  supportUnread: number;
 };
 
 function firstValue(row: Record<string, any> | null | undefined, keys: string[]) {
@@ -184,6 +186,37 @@ async function countChatReports() {
   return 0;
 }
 
+
+async function countPendingGroups() {
+  try {
+    const result = await supabase
+      .from('groups')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'pending');
+    return result.error ? 0 : result.count || 0;
+  } catch {
+    return 0;
+  }
+}
+
+async function countSupportUnread() {
+  try {
+    const authResult = await supabase.auth.getUser();
+    const userId = authResult.data.user?.id || '';
+    if (!userId) return 0;
+
+    const result = await supabase
+      .from('admin_private_messages')
+      .select('id', { count: 'exact', head: true })
+      .neq('sender_id', userId)
+      .is('read_at', null);
+
+    return result.error ? 0 : result.count || 0;
+  } catch {
+    return 0;
+  }
+}
+
 export default function AdminScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -192,17 +225,21 @@ export default function AdminScreen() {
     activities: 0,
     reports: 0,
     chatReports: 0,
+    groupApprovals: 0,
+    supportUnread: 0,
   });
 
   const loadStats = useCallback(async () => {
-    const [users, activities, reports, chatReports] = await Promise.all([
+    const [users, activities, reports, chatReports, groupApprovals, supportUnread] = await Promise.all([
       countActiveUsers(),
       countAvailableActivities(),
       countReports(),
       countChatReports(),
+      countPendingGroups(),
+      countSupportUnread(),
     ]);
 
-    setStats({ users, activities, reports, chatReports });
+    setStats({ users, activities, reports, chatReports, groupApprovals, supportUnread });
   }, []);
 
   useEffect(() => {
@@ -283,6 +320,22 @@ export default function AdminScreen() {
             subtitle="Controlla utenti attivi, stati profilo e azioni di sicurezza."
             count={stats.users}
             onPress={() => router.push('/admin-users')}
+          />
+
+          <AdminRow
+            icon="✅"
+            title="Gruppi da approvare"
+            subtitle="Controlla le nuove richieste e scegli se pubblicarle."
+            count={stats.groupApprovals}
+            onPress={() => router.push('/admin-groups' as any)}
+          />
+
+          <AdminRow
+            icon="💌"
+            title="Messaggi Bajuju"
+            subtitle="Conversazioni private degli utenti con l’amministrazione."
+            count={stats.supportUnread}
+            onPress={() => router.push('/admin-support-inbox' as any)}
           />
 
           <AdminRow

@@ -399,6 +399,7 @@ export default function HomeScreen() {
         router.push('/experiences');
       }}
       onCreate={() => router.push('/create-experience')}
+      onOpenMyEvents={() => router.push('/my-events' as any)}
       onOpenGroups={() => router.push('/groups' as any)}
       onOpenGroup={(groupId) => {
         router.push({ pathname: '/group-detail' as any, params: { id: groupId } });

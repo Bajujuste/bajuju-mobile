@@ -15,7 +15,7 @@ type BajujuBottomNavProps = {
   active: NavKey;
 };
 
-const HOW_IT_WORKS_PASTEL = '#E9A0C4';
+const HOW_IT_WORKS_PINK = '#F32189';
 
 const ITEMS: {
   key: Exclude<NavKey, 'flash'>;
@@ -67,7 +67,9 @@ export function BajujuBottomNav({ active }: BajujuBottomNavProps) {
       {ITEMS.map((item) => {
         const selected = item.key === active;
         const color = item.key === 'how'
-          ? HOW_IT_WORKS_PASTEL
+          ? selected
+            ? BAJUJU_COLORS.white
+            : HOW_IT_WORKS_PINK
           : selected
             ? BAJUJU_COLORS.brightPink
             : BAJUJU_COLORS.plum;
@@ -86,6 +88,8 @@ export function BajujuBottomNav({ active }: BajujuBottomNavProps) {
             }}
             style={({ pressed }) => [
               styles.navItem,
+              item.key === 'how' && styles.howNavItem,
+              item.key === 'how' && selected && styles.howNavItemActive,
               pressed && styles.pressed,
             ]}
           >
@@ -158,12 +162,30 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     letterSpacing: -0.15,
   },
+  howNavItem: {
+    height: 68,
+    marginHorizontal: 3,
+    borderRadius: 23,
+    borderWidth: 1.5,
+    borderColor: '#F4A7CA',
+    backgroundColor: '#FFE8F3',
+    shadowColor: '#C91B70',
+    shadowOpacity: 0.16,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+  },
+  howNavItemActive: {
+    borderColor: HOW_IT_WORKS_PINK,
+    backgroundColor: HOW_IT_WORKS_PINK,
+  },
   howLabel: {
-    color: HOW_IT_WORKS_PASTEL,
+    color: HOW_IT_WORKS_PINK,
+    fontFamily: BAJUJU_FONTS.semiBold,
   },
   howLabelActive: {
-    color: HOW_IT_WORKS_PASTEL,
-    fontFamily: BAJUJU_FONTS.semiBold,
+    color: BAJUJU_COLORS.white,
+    fontFamily: BAJUJU_FONTS.bold,
   },
   navLabelActive: {
     color: BAJUJU_COLORS.brightPink,
@@ -179,7 +201,7 @@ const styles = StyleSheet.create({
     backgroundColor: BAJUJU_COLORS.brightPink,
   },
   howActiveIndicator: {
-    backgroundColor: HOW_IT_WORKS_PASTEL,
+    backgroundColor: BAJUJU_COLORS.white,
   },
   pressed: {
     opacity: 0.72,

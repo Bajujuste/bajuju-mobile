@@ -16,6 +16,7 @@ type BajujuBottomNavProps = {
 };
 
 const HOW_IT_WORKS_PINK = '#F32189';
+const MY_EVENTS_YELLOW = '#D6A100';
 
 const ITEMS: {
   key: Exclude<NavKey, 'flash'>;
@@ -70,9 +71,11 @@ export function BajujuBottomNav({ active }: BajujuBottomNavProps) {
           ? selected
             ? BAJUJU_COLORS.white
             : HOW_IT_WORKS_PINK
-          : selected
-            ? BAJUJU_COLORS.brightPink
-            : BAJUJU_COLORS.plum;
+          : item.key === 'myEvents'
+            ? MY_EVENTS_YELLOW
+            : selected
+              ? BAJUJU_COLORS.brightPink
+              : BAJUJU_COLORS.plum;
 
         return (
           <Pressable
@@ -104,8 +107,10 @@ export function BajujuBottomNav({ active }: BajujuBottomNavProps) {
                 styles.navLabel,
                 (item.key === 'myEvents' || item.key === 'how') && styles.navLabelCompact,
                 item.key === 'how' && styles.howLabel,
-                selected && item.key !== 'how' && styles.navLabelActive,
+                item.key === 'myEvents' && styles.myEventsLabel,
+                selected && item.key !== 'how' && item.key !== 'myEvents' && styles.navLabelActive,
                 selected && item.key === 'how' && styles.howLabelActive,
+                selected && item.key === 'myEvents' && styles.myEventsLabelActive,
               ]}
             >
               {item.label}
@@ -115,6 +120,7 @@ export function BajujuBottomNav({ active }: BajujuBottomNavProps) {
                 style={[
                   styles.activeIndicator,
                   item.key === 'how' && styles.howActiveIndicator,
+                  item.key === 'myEvents' && styles.myEventsActiveIndicator,
                 ]}
               />
             ) : null}
@@ -187,6 +193,14 @@ const styles = StyleSheet.create({
     color: BAJUJU_COLORS.white,
     fontFamily: BAJUJU_FONTS.bold,
   },
+  myEventsLabel: {
+    color: MY_EVENTS_YELLOW,
+    fontFamily: BAJUJU_FONTS.semiBold,
+  },
+  myEventsLabelActive: {
+    color: MY_EVENTS_YELLOW,
+    fontFamily: BAJUJU_FONTS.bold,
+  },
   navLabelActive: {
     color: BAJUJU_COLORS.brightPink,
     fontFamily: BAJUJU_FONTS.semiBold,
@@ -202,6 +216,9 @@ const styles = StyleSheet.create({
   },
   howActiveIndicator: {
     backgroundColor: BAJUJU_COLORS.white,
+  },
+  myEventsActiveIndicator: {
+    backgroundColor: MY_EVENTS_YELLOW,
   },
   pressed: {
     opacity: 0.72,

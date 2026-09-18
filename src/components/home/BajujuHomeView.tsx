@@ -28,6 +28,9 @@ const COLORS = {
   softPink: '#FFF0F7',
   palePink: '#FFDDEB',
   howHighlight: '#F32189',
+  green: '#2FAE66',
+  greenSoft: '#EAF8F0',
+  yellow: '#D6A100',
   line: '#F3C6DC',
   plum: '#4B0C2D',
   muted: '#A95D86',
@@ -63,6 +66,7 @@ type BajujuHomeViewProps = {
   onCreate: () => void;
   onOpenMyEvents: () => void;
   onOpenGroups: () => void;
+  onCreateGroup: () => void;
   onOpenGroup: (groupId: string) => void;
   onShare: () => void;
   onOpenRules: () => void;
@@ -83,6 +87,7 @@ export function BajujuHomeView({
   onCreate,
   onOpenMyEvents,
   onOpenGroups,
+  onCreateGroup,
   onOpenGroup,
   onShare,
   onOpenRules,
@@ -169,10 +174,12 @@ export function BajujuHomeView({
               onPress={onFind}
             />
             <ActionCard
-              icon={<BajujuIcon name="plus" size={40} color={COLORS.pink} />}
+              icon={<BajujuIcon name="plus" size={40} color={COLORS.green} />}
               title="Crea"
               description="Proponi un’uscita"
               accessibilityLabel="Crea un'esperienza"
+              accentColor={COLORS.green}
+              accentBackground={COLORS.greenSoft}
               onPress={onCreate}
             />
           </View>
@@ -188,51 +195,51 @@ export function BajujuHomeView({
               </Pressable>
             </View>
 
-            {groups.length > 0 ? (
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.groupsScroll}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.groupsScroll}
+            >
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Crea gruppo"
+                onPress={onCreateGroup}
+                style={({ pressed }) => [styles.groupCard, styles.createGroupCard, pressed && styles.pressed]}
               >
-                {groups.map((group) => {
-                  const place = [group.city, group.province].filter(Boolean).join(' · ');
-                  return (
-                    <Pressable
-                      key={group.id}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Apri gruppo ${group.name}`}
-                      onPress={() => onOpenGroup(group.id)}
-                      style={({ pressed }) => [styles.groupCard, pressed && styles.pressed]}
-                    >
-                      {group.coverUrl ? (
-                        <Image source={{ uri: group.coverUrl }} resizeMode="cover" style={styles.groupCover} />
-                      ) : (
-                        <View style={styles.groupIcon}>
-                          <BajujuIcon name="group" size={28} color={COLORS.brightPink} />
-                        </View>
-                      )}
-                      <Text style={styles.groupName} numberOfLines={2}>{group.name}</Text>
-                      {place ? <Text style={styles.groupPlace} numberOfLines={1}>{place}</Text> : null}
-                      <Text style={styles.groupMembers}>
-                        {group.memberCount} {group.memberCount === 1 ? 'iscritto' : 'iscritti'}
-                      </Text>
-                      {group.joinedByMe ? <Text style={styles.groupJoined}>Sei iscritto</Text> : null}
-                    </Pressable>
-                  );
-                })}
-              </ScrollView>
-            ) : (
-              <Pressable style={styles.groupsEmpty} onPress={onOpenGroups}>
-                <View style={styles.groupsEmptyIcon}>
-                  <BajujuIcon name="group" size={28} color={COLORS.brightPink} />
+                <View style={styles.createGroupPlus}>
+                  <BajujuIcon name="plus" size={42} color={COLORS.green} />
                 </View>
-                <View style={styles.groupsEmptyCopy}>
-                  <Text style={styles.groupsEmptyTitle}>Scopri i gruppi Bajuju</Text>
-                  <Text style={styles.groupsEmptyText}>Community per interessi, zona e nuove esperienze.</Text>
-                </View>
-                <BajujuIcon name="arrow" size={24} color={COLORS.brightPink} />
+                <Text style={styles.createGroupTitle}>Crea gruppo</Text>
+                <Text style={styles.createGroupText}>Proponi la tua community</Text>
               </Pressable>
-            )}
+
+              {groups.slice(0, 2).map((group) => {
+                const place = [group.city, group.province].filter(Boolean).join(' · ');
+                return (
+                  <Pressable
+                    key={group.id}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Apri gruppo ${group.name}`}
+                    onPress={() => onOpenGroup(group.id)}
+                    style={({ pressed }) => [styles.groupCard, pressed && styles.pressed]}
+                  >
+                    {group.coverUrl ? (
+                      <Image source={{ uri: group.coverUrl }} resizeMode="cover" style={styles.groupCover} />
+                    ) : (
+                      <View style={styles.groupIcon}>
+                        <BajujuIcon name="group" size={28} color={COLORS.brightPink} />
+                      </View>
+                    )}
+                    <Text style={styles.groupName} numberOfLines={2}>{group.name}</Text>
+                    {place ? <Text style={styles.groupPlace} numberOfLines={1}>{place}</Text> : null}
+                    <Text style={styles.groupMembers}>
+                      {group.memberCount} {group.memberCount === 1 ? 'iscritto' : 'iscritti'}
+                    </Text>
+                    {group.joinedByMe ? <Text style={styles.groupJoined}>Sei iscritto</Text> : null}
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
           </View>
 
           {nextExperience ? (
@@ -306,10 +313,12 @@ type ActionCardProps = {
   title: string;
   description: string;
   accessibilityLabel: string;
+  accentColor?: string;
+  accentBackground?: string;
   onPress: () => void;
 };
 
-function ActionCard({ icon, title, description, accessibilityLabel, onPress }: ActionCardProps) {
+function ActionCard({ icon, title, description, accessibilityLabel, accentColor, accentBackground, onPress }: ActionCardProps) {
   return (
     <Pressable
       accessibilityRole="button"
@@ -317,9 +326,9 @@ function ActionCard({ icon, title, description, accessibilityLabel, onPress }: A
       onPress={onPress}
       style={({ pressed }) => [styles.actionCard, pressed && styles.pressed]}
     >
-      <View style={styles.iconBlob}>{icon}</View>
-      <Text style={styles.actionTitle}>{title}</Text>
-      <View style={styles.titleUnderline} />
+      <View style={[styles.iconBlob, accentBackground ? { backgroundColor: accentBackground } : null]}>{icon}</View>
+      <Text style={[styles.actionTitle, accentColor ? { color: accentColor } : null]}>{title}</Text>
+      <View style={[styles.titleUnderline, accentColor ? { backgroundColor: accentColor } : null]} />
       <Text style={styles.actionDescription}>{description}</Text>
       <View style={styles.cardArrow}><BajujuIcon name="arrow" size={23} color={COLORS.brightPink} /></View>
     </Pressable>
@@ -341,13 +350,16 @@ type NavItemProps = { active?: boolean; icon: BajujuIconName; label: string; onP
 
 function NavItem({ active = false, icon, label, onPress }: NavItemProps) {
   const isHowItWorks = label === 'Come funziona';
+  const isMyEvents = label === 'I miei eventi';
   const color = isHowItWorks
     ? active
       ? COLORS.white
       : COLORS.howHighlight
-    : active
-      ? COLORS.brightPink
-      : COLORS.plum;
+    : isMyEvents
+      ? COLORS.yellow
+      : active
+        ? COLORS.brightPink
+        : COLORS.plum;
 
   return (
     <Pressable
@@ -369,14 +381,22 @@ function NavItem({ active = false, icon, label, onPress }: NavItemProps) {
           styles.navLabel,
           (label === 'I miei eventi' || label === 'Come funziona') && styles.navLabelCompact,
           isHowItWorks && styles.howNavLabel,
-          active && !isHowItWorks && styles.navLabelActive,
+          isMyEvents && styles.myEventsNavLabel,
+          active && !isHowItWorks && !isMyEvents && styles.navLabelActive,
           isHowItWorks && active && styles.howNavLabelActive,
+          isMyEvents && active && styles.myEventsNavLabelActive,
         ]}
       >
         {label}
       </Text>
       {active ? (
-        <View style={[styles.activeIndicator, isHowItWorks && styles.howActiveIndicator]} />
+        <View
+          style={[
+            styles.activeIndicator,
+            isHowItWorks && styles.howActiveIndicator,
+            isMyEvents && styles.myEventsActiveIndicator,
+          ]}
+        />
       ) : null}
     </Pressable>
   );
@@ -424,6 +444,10 @@ const styles = StyleSheet.create({
   groupsSeeAll: { color: COLORS.brightPink, fontFamily: 'FredokaSemiBold', fontSize: 13 },
   groupsScroll: { paddingHorizontal: 22, paddingBottom: 4, gap: 11 },
   groupCard: { width: 154, minHeight: 205, padding: 15, borderRadius: 25, borderWidth: 1.5, borderColor: COLORS.line, backgroundColor: COLORS.white, shadowColor: '#9B1A5B', shadowOpacity: 0.09, shadowRadius: 11, shadowOffset: { width: 0, height: 6 }, elevation: 2 },
+  createGroupCard: { borderColor: '#A9DFC2', backgroundColor: '#F6FCF8', alignItems: 'center', justifyContent: 'center' },
+  createGroupPlus: { width: 74, height: 74, borderRadius: 30, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.greenSoft },
+  createGroupTitle: { marginTop: 14, color: COLORS.green, fontFamily: 'FredokaBold', fontSize: 20, textAlign: 'center' },
+  createGroupText: { marginTop: 6, color: '#4E8E68', fontFamily: 'FredokaMedium', fontSize: 12, lineHeight: 16, textAlign: 'center' },
   groupCover: { width: '100%', height: 70, borderRadius: 17, backgroundColor: COLORS.softPink },
   groupIcon: { width: 47, height: 47, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.softPink },
   groupName: { marginTop: 10, color: COLORS.plum, fontFamily: 'FredokaBold', fontSize: 17, lineHeight: 20 },
@@ -476,8 +500,11 @@ const styles = StyleSheet.create({
   howNavItemActive: { borderColor: COLORS.howHighlight, backgroundColor: COLORS.howHighlight },
   howNavLabel: { color: COLORS.howHighlight, fontFamily: 'FredokaSemiBold' },
   howNavLabelActive: { color: COLORS.white, fontFamily: 'FredokaBold' },
+  myEventsNavLabel: { color: COLORS.yellow, fontFamily: 'FredokaSemiBold' },
+  myEventsNavLabelActive: { color: COLORS.yellow, fontFamily: 'FredokaBold' },
   navLabelActive: { color: COLORS.brightPink, fontFamily: 'FredokaSemiBold' },
   activeIndicator: { position: 'absolute', left: 25, right: 25, bottom: -4, height: 4, borderRadius: 2, backgroundColor: COLORS.brightPink },
   howActiveIndicator: { backgroundColor: COLORS.white },
+  myEventsActiveIndicator: { backgroundColor: COLORS.yellow },
   pressed: { opacity: 0.78 },
 });

@@ -44,6 +44,33 @@ function signupErrorMessage(payload: SignupResponse, fallback: string) {
   );
 }
 
+function isDuplicateNicknameError(message: string) {
+  const normalized = String(message || '').toLowerCase();
+
+  return (
+    normalized.includes('profiles_nickname_unique_lower_idx') ||
+    normalized.includes('nome utente è già in uso') ||
+    normalized.includes('nome utente gia in uso') ||
+    normalized.includes('nickname') && normalized.includes('unique') ||
+    normalized.includes('duplicate key') && normalized.includes('profile') ||
+    normalized.includes('unique constraint') && normalized.includes('profile')
+  );
+}
+
+function isEmailAlreadyRegisteredError(message: string) {
+  const normalized = String(message || '').toLowerCase();
+
+  return (
+    normalized.includes('email') &&
+    (
+      normalized.includes('already') ||
+      normalized.includes('registered') ||
+      normalized.includes('exists') ||
+      normalized.includes('già')
+    )
+  );
+}
+
 function unknownErrorMessage(error: unknown) {
   if (typeof error === 'string' && error.trim()) return error;
 
@@ -140,16 +167,22 @@ export default function RegisterScreen() {
 
       if (!response.ok) {
         const errorMessage = signupErrorMessage(payload, `Errore registrazione (${response.status}).`);
-        const normalized = errorMessage.toLowerCase();
 
+        if (isDuplicateNicknameError(errorMessage)) {
+          setMessageTitle('Nome utente non disponibile');
+          setMessageText('Questo nome utente è già stato scelto. Scegline un altro.');
+          return;
+        }
+
+        if (isEmailAlreadyRegisteredError(errorMessage)) {
+          setMessageTitle('Email già utilizzata');
+          setMessageText('Questa email è già registrata. Accedi oppure usa un’altra email.');
+          return;
+        }
+
+        // Non mostrare mai all’utente errori tecnici di database, constraint o trigger.
         setMessageTitle('Registrazione non riuscita');
-        setMessageText(
-          normalized.includes('already') ||
-          normalized.includes('registered') ||
-          normalized.includes('exists')
-            ? 'Questa email è già registrata. Accedi oppure usa un’altra email.'
-            : errorMessage
-        );
+        setMessageText('Non siamo riusciti a completare la registrazione. Riprova tra poco.');
         return;
       }
 
@@ -194,8 +227,15 @@ export default function RegisterScreen() {
       await new Promise((resolve) => setTimeout(resolve, 1600));
       router.replace('/login');
     } catch (error: unknown) {
-      setMessageTitle('Errore collegamento');
-      setMessageText(unknownErrorMessage(error));
+      const errorMessage = unknownErrorMessage(error);
+
+      if (isDuplicateNicknameError(errorMessage)) {
+        setMessageTitle('Nome utente non disponibile');
+        setMessageText('Questo nome utente è già stato scelto. Scegline un altro.');
+      } else {
+        setMessageTitle('Errore collegamento');
+        setMessageText('Non siamo riusciti a collegarci. Riprova tra poco.');
+      }
     } finally {
       setLoading(false);
     }

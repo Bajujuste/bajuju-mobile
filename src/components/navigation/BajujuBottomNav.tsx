@@ -16,7 +16,7 @@ type BajujuBottomNavProps = {
 };
 
 const HOW_IT_WORKS_PINK = '#F32189';
-const MY_EVENTS_YELLOW = '#D6A100';
+const MY_EVENTS_PETROL = '#168C9E';
 
 const ITEMS: {
   key: Exclude<NavKey, 'flash'>;
@@ -72,7 +72,7 @@ export function BajujuBottomNav({ active }: BajujuBottomNavProps) {
             ? BAJUJU_COLORS.white
             : HOW_IT_WORKS_PINK
           : item.key === 'myEvents'
-            ? MY_EVENTS_YELLOW
+            ? MY_EVENTS_PETROL
             : selected
               ? BAJUJU_COLORS.brightPink
               : BAJUJU_COLORS.plum;
@@ -194,11 +194,11 @@ const styles = StyleSheet.create({
     fontFamily: BAJUJU_FONTS.bold,
   },
   myEventsLabel: {
-    color: MY_EVENTS_YELLOW,
+    color: MY_EVENTS_PETROL,
     fontFamily: BAJUJU_FONTS.semiBold,
   },
   myEventsLabelActive: {
-    color: MY_EVENTS_YELLOW,
+    color: MY_EVENTS_PETROL,
     fontFamily: BAJUJU_FONTS.bold,
   },
   navLabelActive: {
@@ -218,7 +218,7 @@ const styles = StyleSheet.create({
     backgroundColor: BAJUJU_COLORS.white,
   },
   myEventsActiveIndicator: {
-    backgroundColor: MY_EVENTS_YELLOW,
+    backgroundColor: MY_EVENTS_PETROL,
   },
   pressed: {
     opacity: 0.72,

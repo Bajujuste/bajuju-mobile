@@ -179,7 +179,10 @@ export default function HomeScreen() {
 
       async function refreshGroups(userId: string) {
         try {
-          const loadedGroups = await loadBajujuGroups(userId, { limit: 9 });
+          // Aggiorna la posizione solo se il permesso è già stato concesso:
+          // get_bajuju_groups ordina poi automaticamente i gruppi per distanza.
+          await refreshBajujuNotificationLocation(userId, { requestPermission: false }).catch(() => null);
+          const loadedGroups = await loadBajujuGroups(userId, { limit: 2 });
           if (!active) return;
           setGroups(
             loadedGroups.map((group) => ({
@@ -402,6 +405,7 @@ export default function HomeScreen() {
       onCreate={() => router.push('/create-experience')}
       onOpenMyEvents={() => router.push('/my-events' as any)}
       onOpenGroups={() => router.push('/groups' as any)}
+      onCreateGroup={() => router.push('/create-group' as any)}
       onOpenGroup={(groupId) => {
         router.push({ pathname: '/group-detail' as any, params: { id: groupId } });
       }}

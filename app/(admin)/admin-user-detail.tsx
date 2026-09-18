@@ -782,6 +782,18 @@ export default function AdminUserDetailScreen() {
               </View>
             </View>
 
+            <Pressable
+              style={styles.privateChatButton}
+              onPress={() =>
+                router.push({
+                  pathname: '/admin-private-chat' as any,
+                  params: { userId: currentProfileId },
+                })
+              }
+            >
+              <Text style={styles.privateChatButtonText}>💬 Chatta con questo utente</Text>
+            </Pressable>
+
             <View style={styles.detailRow}>
               <Text style={styles.detailLabel}>Email</Text>
               <Text style={styles.detailValue}>
@@ -1142,6 +1154,25 @@ const styles = StyleSheet.create({
     fontSize: 21,
     fontWeight: '900',
     marginBottom: 8,
+  },
+  privateChatButton: {
+    minHeight: 52,
+    marginTop: 14,
+    marginBottom: 8,
+    borderRadius: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#E43F98',
+    shadowColor: '#8C124E',
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 4,
+  },
+  privateChatButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '900',
   },
   detailRow: {
     backgroundColor: '#FFF9FC',

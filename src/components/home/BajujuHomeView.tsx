@@ -27,7 +27,7 @@ const COLORS = {
   brightPink: '#F32189',
   softPink: '#FFF0F7',
   palePink: '#FFDDEB',
-  howPastel: '#E9A0C4',
+  howHighlight: '#F32189',
   line: '#F3C6DC',
   plum: '#4B0C2D',
   muted: '#A95D86',
@@ -342,7 +342,9 @@ type NavItemProps = { active?: boolean; icon: BajujuIconName; label: string; onP
 function NavItem({ active = false, icon, label, onPress }: NavItemProps) {
   const isHowItWorks = label === 'Come funziona';
   const color = isHowItWorks
-    ? COLORS.howPastel
+    ? active
+      ? COLORS.white
+      : COLORS.howHighlight
     : active
       ? COLORS.brightPink
       : COLORS.plum;
@@ -353,7 +355,12 @@ function NavItem({ active = false, icon, label, onPress }: NavItemProps) {
       accessibilityLabel={label}
       accessibilityState={{ selected: active }}
       onPress={onPress}
-      style={({ pressed }) => [styles.navItem, pressed && styles.pressed]}
+      style={({ pressed }) => [
+        styles.navItem,
+        isHowItWorks && styles.howNavItem,
+        isHowItWorks && active && styles.howNavItemActive,
+        pressed && styles.pressed,
+      ]}
     >
       <BajujuIcon name={icon} size={28} color={color} />
       <Text
@@ -363,6 +370,7 @@ function NavItem({ active = false, icon, label, onPress }: NavItemProps) {
           (label === 'I miei eventi' || label === 'Come funziona') && styles.navLabelCompact,
           isHowItWorks && styles.howNavLabel,
           active && !isHowItWorks && styles.navLabelActive,
+          isHowItWorks && active && styles.howNavLabelActive,
         ]}
       >
         {label}
@@ -452,9 +460,24 @@ const styles = StyleSheet.create({
   navItem: { position: 'relative', flex: 1, height: 76, alignItems: 'center', justifyContent: 'center', gap: 4 },
   navLabel: { color: COLORS.plum, fontFamily: 'FredokaMedium', fontSize: 13 },
   navLabelCompact: { fontSize: 11.5, letterSpacing: -0.15 },
-  howNavLabel: { color: COLORS.howPastel },
+  howNavItem: {
+    height: 68,
+    marginHorizontal: 3,
+    borderRadius: 23,
+    borderWidth: 1.5,
+    borderColor: '#F4A7CA',
+    backgroundColor: '#FFE8F3',
+    shadowColor: '#C91B70',
+    shadowOpacity: 0.16,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+  },
+  howNavItemActive: { borderColor: COLORS.howHighlight, backgroundColor: COLORS.howHighlight },
+  howNavLabel: { color: COLORS.howHighlight, fontFamily: 'FredokaSemiBold' },
+  howNavLabelActive: { color: COLORS.white, fontFamily: 'FredokaBold' },
   navLabelActive: { color: COLORS.brightPink, fontFamily: 'FredokaSemiBold' },
   activeIndicator: { position: 'absolute', left: 25, right: 25, bottom: -4, height: 4, borderRadius: 2, backgroundColor: COLORS.brightPink },
-  howActiveIndicator: { backgroundColor: COLORS.howPastel },
+  howActiveIndicator: { backgroundColor: COLORS.white },
   pressed: { opacity: 0.78 },
 });

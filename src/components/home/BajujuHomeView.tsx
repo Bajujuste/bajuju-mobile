@@ -30,7 +30,7 @@ const COLORS = {
   howHighlight: '#F32189',
   green: '#2FAE66',
   greenSoft: '#EAF8F0',
-  yellow: '#D6A100',
+  myEvents: '#168C9E',
   line: '#F3C6DC',
   plum: '#4B0C2D',
   muted: '#A95D86',
@@ -356,7 +356,7 @@ function NavItem({ active = false, icon, label, onPress }: NavItemProps) {
       ? COLORS.white
       : COLORS.howHighlight
     : isMyEvents
-      ? COLORS.yellow
+      ? COLORS.myEvents
       : active
         ? COLORS.brightPink
         : COLORS.plum;
@@ -500,11 +500,11 @@ const styles = StyleSheet.create({
   howNavItemActive: { borderColor: COLORS.howHighlight, backgroundColor: COLORS.howHighlight },
   howNavLabel: { color: COLORS.howHighlight, fontFamily: 'FredokaSemiBold' },
   howNavLabelActive: { color: COLORS.white, fontFamily: 'FredokaBold' },
-  myEventsNavLabel: { color: COLORS.yellow, fontFamily: 'FredokaSemiBold' },
-  myEventsNavLabelActive: { color: COLORS.yellow, fontFamily: 'FredokaBold' },
+  myEventsNavLabel: { color: COLORS.myEvents, fontFamily: 'FredokaSemiBold' },
+  myEventsNavLabelActive: { color: COLORS.myEvents, fontFamily: 'FredokaBold' },
   navLabelActive: { color: COLORS.brightPink, fontFamily: 'FredokaSemiBold' },
   activeIndicator: { position: 'absolute', left: 25, right: 25, bottom: -4, height: 4, borderRadius: 2, backgroundColor: COLORS.brightPink },
   howActiveIndicator: { backgroundColor: COLORS.white },
-  myEventsActiveIndicator: { backgroundColor: COLORS.yellow },
+  myEventsActiveIndicator: { backgroundColor: COLORS.myEvents },
   pressed: { opacity: 0.78 },
 });

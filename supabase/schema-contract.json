@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-18T00:00:00.000Z",
+  "generated_at": "2026-09-19T08:12:29.000Z",
   "tables": {
     "reports": [
       "id",
@@ -387,6 +387,13 @@
       "updated_at",
       "handled_at",
       "admin_note"
+    ],
+    "group_messages": [
+      "id",
+      "group_id",
+      "user_id",
+      "message",
+      "created_at"
     ]
   },
   "functions": [

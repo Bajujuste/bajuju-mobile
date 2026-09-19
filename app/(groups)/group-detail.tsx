@@ -15,6 +15,7 @@ import {
   View,
 } from 'react-native';
 
+import { BajujuGroupChat } from '../../src/components/groups/BajujuGroupChat';
 import {
   joinBajujuGroup,
   leaveBajujuGroup,
@@ -552,6 +553,13 @@ export default function GroupDetailScreen() {
 
         {isPublicGroup ? (
           <>
+        <BajujuGroupChat
+          groupId={groupId}
+          currentUserId={currentUserId}
+          canUseChat={joined || isOwner}
+          members={members}
+        />
+
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Prossime esperienze</Text>
           {experiences.length === 0 ? (

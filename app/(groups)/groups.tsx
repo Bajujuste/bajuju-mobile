@@ -135,7 +135,7 @@ export default function GroupsScreen() {
           <TextInput
             value={search}
             onChangeText={setSearch}
-            placeholder="Cerca gruppo o Comune"
+            placeholder="Cerca per parola chiave"
             placeholderTextColor={BAJUJU_COLORS.muted}
             style={styles.searchInput}
             autoCorrect={false}
@@ -201,7 +201,7 @@ export default function GroupsScreen() {
                   <Text style={styles.emptyTitle}>{hasSearch ? 'Nessun gruppo trovato' : 'I primi gruppi stanno arrivando'}</Text>
                   <Text style={styles.emptyText}>
                     {hasSearch
-                      ? 'Prova con un altro nome o con il Comune.'
+                      ? 'Prova con un’altra parola chiave.'
                       : 'Quando verranno approvati nuovi gruppi, li vedrai qui.'}
                   </Text>
                 </View>

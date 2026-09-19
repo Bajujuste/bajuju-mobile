@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 
 import { createBajujuGroup, uploadBajujuGroupCover } from '../../src/lib/bajujuGroups';
+import { BAJUJU_GROUP_CATEGORIES } from '../../src/constants/groupCategories';
 import { resolveAddressText } from '../../src/lib/addressAutocomplete';
 import { supabase } from '../../src/lib/supabase';
 import { BAJUJU_COLORS, BAJUJU_FONTS, BAJUJU_SHADOW } from '../../src/theme/bajujuTheme';
@@ -59,7 +60,8 @@ export default function CreateGroupScreen() {
     !saving &&
     name.trim().length >= 3 &&
     description.trim().length >= 10 &&
-    city.trim().length >= 2;
+    city.trim().length >= 2 &&
+    category.length > 0;
 
   async function handlePickCover() {
     try {
@@ -229,14 +231,23 @@ export default function CreateGroupScreen() {
           </Text>
 
           <Text style={styles.label}>Categoria</Text>
-          <TextInput
-            value={category}
-            onChangeText={setCategory}
-            placeholder="Es. Single, Trekking, Sport..."
-            placeholderTextColor={BAJUJU_COLORS.muted}
-            style={styles.input}
-            maxLength={60}
-          />
+          <Text style={styles.helper}>Scegli una categoria: serve per rendere i gruppi facili da trovare.</Text>
+          <View style={styles.categoryGrid}>
+            {BAJUJU_GROUP_CATEGORIES.map((item) => {
+              const selected = category === item;
+              return (
+                <Pressable
+                  key={item}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected }}
+                  style={[styles.categoryChip, selected && styles.categoryChipSelected]}
+                  onPress={() => setCategory(item)}
+                >
+                  <Text style={[styles.categoryChipText, selected && styles.categoryChipTextSelected]}>{item}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
 
           <Pressable
             style={[styles.mainButton, !canSave && styles.disabled]}
@@ -301,6 +312,11 @@ const styles = StyleSheet.create({
   coverButton: { minHeight: 48, marginTop: 10, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: BAJUJU_COLORS.palePink },
   coverButtonText: { color: BAJUJU_COLORS.brightPink, fontFamily: BAJUJU_FONTS.bold, fontSize: 14 },
   helper: { marginTop: -4, marginBottom: 13, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.regular, fontSize: 12, lineHeight: 17 },
+  categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 18 },
+  categoryChip: { minHeight: 40, paddingHorizontal: 13, paddingVertical: 9, borderRadius: 20, borderWidth: 1.5, borderColor: BAJUJU_COLORS.palePink, backgroundColor: '#fff', justifyContent: 'center' },
+  categoryChipSelected: { borderColor: BAJUJU_COLORS.brightPink, backgroundColor: BAJUJU_COLORS.brightPink },
+  categoryChipText: { color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.semiBold, fontSize: 12 },
+  categoryChipTextSelected: { color: '#fff' },
   mainButton: { minHeight: 54, marginTop: 8, borderRadius: 27, alignItems: 'center', justifyContent: 'center', backgroundColor: BAJUJU_COLORS.brightPink },
   mainButtonText: { color: '#fff', fontFamily: BAJUJU_FONTS.bold, fontSize: 16 },
   disabled: { opacity: 0.45 },

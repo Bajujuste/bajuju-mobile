@@ -81,6 +81,7 @@ function formatMessageTime(value: string | null | undefined) {
 export function BajujuGroupChat({ groupId, currentUserId, canUseChat, members }: Props) {
   const scrollRef = useRef<ScrollView | null>(null);
   const initialScrollDoneRef = useRef(false);
+  const atBottomRef = useRef(true);
 
   const [messages, setMessages] = useState<GroupMessageRow[]>([]);
   const [draft, setDraft] = useState('');
@@ -164,6 +165,7 @@ export function BajujuGroupChat({ groupId, currentUserId, canUseChat, members }:
     setMessages([]);
     setDraft('');
     setHasOlder(true);
+    atBottomRef.current = true;
     setAtBottom(true);
 
     if (canUseChat) void loadLatest();
@@ -186,7 +188,7 @@ export function BajujuGroupChat({ groupId, currentUserId, canUseChat, members }:
           const row = payload.new as GroupMessageRow;
           setMessages((current) => mergeMessages(current, [row]));
 
-          if (atBottom || String(row.user_id || '') === currentUserId) {
+          if (atBottomRef.current || String(row.user_id || '') === currentUserId) {
             requestAnimationFrame(() => {
               scrollRef.current?.scrollToEnd({ animated: true });
             });
@@ -198,7 +200,7 @@ export function BajujuGroupChat({ groupId, currentUserId, canUseChat, members }:
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [atBottom, canUseChat, currentUserId, groupId]);
+  }, [canUseChat, currentUserId, groupId]);
 
   async function sendMessage() {
     const cleanMessage = draft.trim();
@@ -219,6 +221,7 @@ export function BajujuGroupChat({ groupId, currentUserId, canUseChat, members }:
       if (result.error) throw result.error;
 
       setDraft('');
+      atBottomRef.current = true;
       setAtBottom(true);
       setMessages((current) => mergeMessages(current, [result.data as GroupMessageRow]));
       requestAnimationFrame(() => {
@@ -236,6 +239,7 @@ export function BajujuGroupChat({ groupId, currentUserId, canUseChat, members }:
     const distanceFromBottom = contentSize.height - (contentOffset.y + layoutMeasurement.height);
     const nextAtBottom = distanceFromBottom < 48;
 
+    atBottomRef.current = nextAtBottom;
     setAtBottom(nextAtBottom);
 
     if (contentOffset.y <= 24 && hasOlder && !loadingOlder) {
@@ -244,6 +248,7 @@ export function BajujuGroupChat({ groupId, currentUserId, canUseChat, members }:
   }
 
   function scrollToLatest() {
+    atBottomRef.current = true;
     setAtBottom(true);
     scrollRef.current?.scrollToEnd({ animated: true });
   }

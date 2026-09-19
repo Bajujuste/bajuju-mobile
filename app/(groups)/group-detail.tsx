@@ -556,7 +556,7 @@ export default function GroupDetailScreen() {
         <BajujuGroupChat
           groupId={groupId}
           currentUserId={currentUserId}
-          canUseChat={joined || isOwner || isAdmin}
+          canUseChat={joined || isOwner}
           members={members}
         />
 

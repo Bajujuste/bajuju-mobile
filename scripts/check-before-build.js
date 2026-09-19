@@ -163,6 +163,9 @@ requireContent('app/(account)/notifications.tsx', 'deleteAllNotifications', 'Man
 requireContent('app/_layout.tsx', 'addNotificationResponseReceivedListener', 'Manca apertura destinazione al tap della push');
 requireContent('app/(experiences)/experience-detail.tsx', 'experience-messages-${experienceId}', 'Manca realtime chat esperienze');
 requireContent('app/(flash)/flash-detail.tsx', 'flash-messages-${flashId}', 'Manca realtime chat Flash');
+requireContent('src/components/groups/BajujuGroupChat.tsx', 'group-messages-${groupId}', 'Manca realtime chat gruppi');
+requireContent('app/(groups)/create-group.tsx', 'BAJUJU_GROUP_CATEGORIES.map', 'Mancano categorie fisse per i gruppi');
+requireContent('app/(groups)/groups.tsx', 'Cerca per parola chiave', 'Manca ricerca gruppi per parola chiave');
 // I controlli sulle province attive di Crea esperienza sono stati rimossi: dal commit 7b66f00
 // le esperienze si possono creare in tutta Italia, senza elenco di province.
 

@@ -147,19 +147,6 @@ export function BajujuHomeView({
         </View>
 
         <View style={styles.content}>
-          <View style={styles.hero}>
-            <View style={[styles.heroBlob, styles.heroBlobTop]} />
-            <View style={[styles.heroBlob, styles.heroBlobBottom]} />
-            <Text style={[styles.doodle, styles.doodleLeft]}>‹‹</Text>
-            <Text style={[styles.doodle, styles.doodleRight]}>✦</Text>
-
-            <Text style={styles.claimTop}>Dal Vivo è</Text>
-            <Text style={styles.claimBottom}>Meglio</Text>
-            <Text style={styles.heroCopy}>
-              Trova persone, crea esperienze{'\n'}e organizza qualcosa subito.
-            </Text>
-          </View>
-
           <View style={styles.questionRow}>
             <View style={styles.questionAccent} />
             <Text style={styles.question}>COSA VUOI FARE OGGI?</Text>

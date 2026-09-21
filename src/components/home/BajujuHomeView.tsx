@@ -200,7 +200,7 @@ export function BajujuHomeView({
                 <Text style={styles.createGroupText}>Proponi la tua community</Text>
               </Pressable>
 
-              {groups.slice(0, 2).map((group) => {
+              {groups.map((group) => {
                 const place = [group.city, group.province].filter(Boolean).join(' · ');
                 return (
                   <Pressable

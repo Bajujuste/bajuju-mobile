@@ -495,8 +495,8 @@ export default function ProfileScreen() {
 
   const loadContactRequests = useCallback(async (userId: string) => {
     const blockedIds = await blockedUserIdsForCurrentUser(userId);
-    const tables = ['contact_requests', 'direct_contact_requests', 'user_contact_requests'];
-    const columns = ['receiver_id', 'recipient_id', 'to_user_id', 'target_user_id', 'profile_id', 'user_id'];
+    const tables = ['direct_contact_requests'];
+    const columns = ['receiver_id'];
     const collected: ContactItem[] = [];
 
     for (const table of tables) {
@@ -564,8 +564,8 @@ export default function ProfileScreen() {
 
   const loadInvites = useCallback(async (userId: string) => {
     const blockedIds = await blockedUserIdsForCurrentUser(userId);
-    const tables = ['activity_invitations', 'activity_invites', 'event_invites', 'invitations', 'direct_contact_requests'];
-    const columns = ['receiver_id', 'recipient_id', 'to_user_id', 'invited_user_id', 'user_id', 'profile_id'];
+    const tables = ['direct_contact_requests'];
+    const columns = ['receiver_id'];
     const collected: InviteItem[] = [];
 
     for (const table of tables) {
@@ -632,8 +632,8 @@ export default function ProfileScreen() {
       }))
     );
 
-    const participantTables = ['activity_participants', 'event_participants', 'participants'];
-    const participantColumns = ['user_id', 'profile_id', 'participant_id'];
+    const participantTables = ['activity_participants'];
+    const participantColumns = ['user_id'];
     let participationRows: LooseRow[] = [];
 
     for (const table of participantTables) {

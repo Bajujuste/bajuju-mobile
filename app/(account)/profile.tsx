@@ -18,6 +18,7 @@ import {
 } from 'react-native';
 import { supabase } from '../../src/lib/supabase';
 import { refreshBajujuNotificationLocation } from '../../src/utils/bajujuNotificationLocation';
+import { hasCompleteRequiredProfile } from '../../src/utils/profileCompletion';
 import {
   registerForBajujuPushNotifications,
   sendBajujuPushNotification,
@@ -451,6 +452,7 @@ export default function ProfileScreen() {
   }, [profile]);
 
   const shouldShowProfilePhoto = Boolean(photoUrl) && !photoLoadError;
+  const profileComplete = useMemo(() => hasCompleteRequiredProfile(profile), [profile]);
 
   const profileIdField = useMemo(() => {
     return 'id';
@@ -1300,8 +1302,16 @@ export default function ProfileScreen() {
       contentContainerStyle={styles.content}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
-      <Pressable style={styles.profileBackButton} onPress={() => router.push('/home')}>
-        <Text style={styles.profileBackText}>← Home</Text>
+      <Pressable
+        style={[styles.profileBackButton, !profileComplete && styles.profileBackButtonDisabled]}
+        onPress={() => {
+          if (profileComplete) router.push('/home');
+        }}
+        disabled={!profileComplete}
+      >
+        <Text style={styles.profileBackText}>
+          {profileComplete ? '← Home' : 'Completa prima il profilo'}
+        </Text>
       </Pressable>
 
       <View style={styles.profileHeroCard}>
@@ -1584,6 +1594,9 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     paddingHorizontal: 14,
     paddingVertical: 9,
+  },
+  profileBackButtonDisabled: {
+    opacity: 0.6,
   },
   profileBackText: {
     color: '#e43f98',

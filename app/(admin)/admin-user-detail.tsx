@@ -224,7 +224,18 @@ export default function AdminUserDetailScreen() {
       const profileId = String(firstValue(loadedProfile, ['id']) || userId).trim();
       const rawOverride = firstText(loadedProfile, ['organizer_grade_override'], '');
 
-      setProfile(loadedProfile);
+      const identityResult = await supabase.rpc('master_get_user_identity' as any, {
+        target_user_id: profileId,
+      });
+      const identityRow = Array.isArray(identityResult.data)
+        ? (identityResult.data[0] as LooseRow | undefined)
+        : (identityResult.data as LooseRow | null);
+      const adminEmail = firstText(identityRow, ['email'], '');
+      const loadedProfileWithEmail = adminEmail
+        ? { ...loadedProfile, email: adminEmail }
+        : loadedProfile;
+
+      setProfile(loadedProfileWithEmail);
       setGradeOverride(isOrganizerGradeLabel(rawOverride) ? rawOverride : '');
       setLocationText(
         firstText(

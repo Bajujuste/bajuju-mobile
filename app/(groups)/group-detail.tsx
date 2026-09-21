@@ -125,11 +125,13 @@ export default function GroupDetailScreen() {
 
       if (avatarsResult.error) throw avatarsResult.error;
 
-      const avatarByUserId = new Map(
-        (avatarsResult.data || []).map((profile: any) => [
-          String(profile.id || ''),
-          String(profile.avatar_url || '').trim(),
-        ])
+      const avatarByUserId = new Map<string, string>(
+        (avatarsResult.data || []).map(
+          (profile: any): [string, string] => [
+            String(profile.id || ''),
+            String(profile.avatar_url || '').trim(),
+          ]
+        )
       );
 
       const membersWithPhotos = safeMembers.map((member) => ({

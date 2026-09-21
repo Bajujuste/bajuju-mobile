@@ -158,7 +158,7 @@ async function countRows(table: string) {
 }
 
 async function countReports() {
-  for (const table of ['reports', 'user_reports', 'activity_reports']) {
+  for (const table of ['reports', 'user_reports']) {
     const count = await countRows(table);
     if (count > 0) return count;
   }

@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 
 import { supabase } from '../../src/lib/supabase';
+import { getProfileCompletion } from '../../src/utils/profileCompletion';
 
 type LooseRow = Record<string, any>;
 
@@ -131,6 +132,7 @@ function userStatus(row: LooseRow) {
   if (isDeletedUser(row)) return 'Eliminato / disattivato';
   if (suspendedUntil) return `Sospeso fino a ${formatDate(suspendedUntil)}`;
   if (blockedUntil) return `Bloccato fino a ${formatDate(blockedUntil)}`;
+  if (!getProfileCompletion(row).complete) return 'Profilo incompleto';
   if (rawStatus) return rawStatus;
 
   return 'Attivo';

@@ -4,12 +4,13 @@ import { router, Stack, usePathname, useRootNavigationState } from 'expo-router'
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useRef } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { Platform, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import 'react-native-reanimated';
 
 import { AdminPrivateChatEntry } from '../src/components/admin/AdminPrivateChatEntry';
 import { supabase } from '../src/lib/supabase';
+import { hasCompleteRequiredProfile } from '../src/utils/profileCompletion';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -57,56 +58,6 @@ function openPushNotification(data: Record<string, unknown>) {
   }
 }
 
-type RequiredProfileRow = Record<string, unknown>;
-
-function requiredProfileText(row: RequiredProfileRow | null, keys: string[]) {
-  if (!row) return '';
-
-  for (const key of keys) {
-    const value = row[key];
-
-    if (typeof value === 'string' && value.trim()) return value.trim();
-    if (typeof value === 'number') return String(value);
-  }
-
-  return '';
-}
-
-function hasCompleteRequiredProfile(profile: RequiredProfileRow | null) {
-  if (!profile) return false;
-
-  const photo = requiredProfileText(
-    profile,
-    ['avatar_url', 'photo_url', 'profile_photo_url', 'profile_image_url', 'image_url', 'foto']
-  );
-
-  const city = requiredProfileText(
-    profile,
-    ['city', 'citta', 'comune', 'location_city']
-  );
-
-  const rawAge = requiredProfileText(
-    profile,
-    ['age', 'eta', 'età', 'user_age', 'age_range', 'fascia_eta', 'age_band', 'eta_range']
-  );
-
-  const gender = requiredProfileText(
-    profile,
-    ['gender', 'genere', 'sex']
-  ).toLowerCase();
-
-  const age = Number(rawAge);
-
-  const validGender = [
-    'maschio', 'uomo', 'male', 'femmina', 'donna', 'female',
-    'non_binario', 'non binario', 'non-binary', 'nonbinary',
-  ].includes(gender);
-
-  return Boolean(
-    photo && city && Number.isInteger(age) && age >= 18 && age <= 99 && validGender
-  );
-}
-
 export const unstable_settings = {
   anchor: '(tabs)',
 };
@@ -128,15 +79,9 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
-    if (Platform.OS === 'web') return;
-
     const allowedPaths = new Set([
       '/', '/login', '/register', '/forgot-password', '/reset-password',
       '/auth/callback', '/profile', '/privacy', '/rules',
-      // Rotte aperte da una notifica push: se il controllo profilo scatta subito dopo
-      // l'apertura da notifica, non deve portare via l'utente dalla schermata di destinazione.
-      '/experience-detail', '/experiences', '/flash', '/flash-detail',
-      '/date-invites', '/direct-contacts', '/admin-private-chat', '/experience-waitlist',
     ]);
 
     if (allowedPaths.has(pathname)) return;
@@ -161,7 +106,7 @@ export default function RootLayout() {
 
         if (!active || profileResult.error) return;
 
-        if (hasCompleteRequiredProfile(profileResult.data as RequiredProfileRow | null)) {
+        if (hasCompleteRequiredProfile(profileResult.data)) {
           completeProfileUserIdRef.current = userId;
         } else {
           router.replace('/profile');

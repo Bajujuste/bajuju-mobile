@@ -6,6 +6,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Modal,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -28,6 +29,7 @@ import { shareBajujuGroup } from '../../src/utils/shareBajuju';
 type MemberRow = {
   user_id?: string | null;
   nickname?: string | null;
+  avatar_url?: string | null;
   age_range?: string | null;
   origin?: string | null;
 };
@@ -54,7 +56,7 @@ export default function GroupDetailScreen() {
   const [group, setGroup] = useState<any>(null);
   const [ownerName, setOwnerName] = useState('Bajuju');
   const [members, setMembers] = useState<MemberRow[]>([]);
-  // L'elenco iscritti è visibile solo a membri, proprietario e admin: il numero arriva a parte.
+  const [selectedMemberPhotoUrl, setSelectedMemberPhotoUrl] = useState<string | null>(null);
   const [memberCount, setMemberCount] = useState(0);
   const [experiences, setExperiences] = useState<ExperienceRow[]>([]);
   const [joined, setJoined] = useState(false);
@@ -113,7 +115,29 @@ export default function GroupDetailScreen() {
 
       setOwnerName(String(ownerResult.data?.nickname || 'Bajuju'));
       const safeMembers = (membersResult.data || []) as MemberRow[];
-      setMembers(safeMembers);
+      const memberIds = safeMembers
+        .map((member) => String(member.user_id || '').trim())
+        .filter(Boolean);
+
+      const avatarsResult = memberIds.length
+        ? await supabase.from('profiles').select('id,avatar_url').in('id', memberIds)
+        : ({ data: [], error: null } as any);
+
+      if (avatarsResult.error) throw avatarsResult.error;
+
+      const avatarByUserId = new Map(
+        (avatarsResult.data || []).map((profile: any) => [
+          String(profile.id || ''),
+          String(profile.avatar_url || '').trim(),
+        ])
+      );
+
+      const membersWithPhotos = safeMembers.map((member) => ({
+        ...member,
+        avatar_url: avatarByUserId.get(String(member.user_id || '')) || null,
+      }));
+
+      setMembers(membersWithPhotos);
       // Se la funzione di conteggio non è ancora disponibile si usa la lunghezza dell'elenco.
       setMemberCount(
         !memberCountResult.error && memberCountResult.data !== null && memberCountResult.data !== undefined
@@ -585,31 +609,51 @@ export default function GroupDetailScreen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Iscritti</Text>
-          <Text style={styles.privacyText}>Nel gruppo sono mostrati solo nome, età e provenienza.</Text>
-          {!(joined || isOwner || isAdmin) ? (
-            <View style={styles.emptyCard}>
-              <Text style={styles.emptyText}>L’elenco degli iscritti è visibile solo a chi fa parte del gruppo.</Text>
-            </View>
-          ) : (
+          <Text style={styles.privacyText}>Tocca la foto per ingrandirla oppure il nome per aprire il profilo.</Text>
           <View style={styles.membersCard}>
-            {members.map((member, index) => (
-              <View key={String(member.user_id || index)} style={[styles.memberRow, index > 0 && styles.memberBorder]}>
-                <View style={styles.memberAvatar}>
-                  <Text style={styles.memberAvatarText}>{String(member.nickname || '?').slice(0, 1).toUpperCase()}</Text>
+            {members.map((member, index) => {
+              const memberId = String(member.user_id || '').trim();
+              const avatarUrl = String(member.avatar_url || '').trim();
+              return (
+                <View key={memberId || String(index)} style={[styles.memberRow, index > 0 && styles.memberBorder]}>
+                  <Pressable
+                    style={styles.memberAvatar}
+                    disabled={!avatarUrl}
+                    onPress={() => {
+                      if (avatarUrl) setSelectedMemberPhotoUrl(avatarUrl);
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel={avatarUrl ? `Ingrandisci la foto di ${member.nickname || 'questo utente'}` : undefined}
+                  >
+                    {avatarUrl ? (
+                      <Image source={{ uri: avatarUrl }} style={styles.memberAvatarImage} resizeMode="cover" />
+                    ) : (
+                      <Text style={styles.memberAvatarText}>{String(member.nickname || '?').slice(0, 1).toUpperCase()}</Text>
+                    )}
+                  </Pressable>
+
+                  <Pressable
+                    style={styles.memberCopy}
+                    disabled={!memberId}
+                    onPress={() => {
+                      if (!memberId) return;
+                      router.push({ pathname: '/user-profile' as any, params: { userId: memberId } });
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Apri il profilo di ${member.nickname || 'questo utente'}`}
+                  >
+                    <Text style={styles.memberName}>{member.nickname || 'Utente Bajuju'}</Text>
+                    <Text style={styles.memberMeta}>
+                      {[
+                        member.age_range ? `${member.age_range} anni` : '',
+                        member.origin || '',
+                      ].filter(Boolean).join(' · ') || 'Informazioni non disponibili'}
+                    </Text>
+                  </Pressable>
                 </View>
-                <View style={styles.memberCopy}>
-                  <Text style={styles.memberName}>{member.nickname || 'Utente Bajuju'}</Text>
-                  <Text style={styles.memberMeta}>
-                    {[
-                      member.age_range ? `${member.age_range} anni` : '',
-                      member.origin || '',
-                    ].filter(Boolean).join(' · ') || 'Informazioni non disponibili'}
-                  </Text>
-                </View>
-              </View>
-            ))}
+              );
+            })}
           </View>
-          )}
         </View>
           </>
         ) : (
@@ -622,6 +666,24 @@ export default function GroupDetailScreen() {
           </View>
         )}
       </ScrollView>
+
+      <Modal
+        visible={Boolean(selectedMemberPhotoUrl)}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSelectedMemberPhotoUrl(null)}
+      >
+        <Pressable style={styles.photoModalBackdrop} onPress={() => setSelectedMemberPhotoUrl(null)}>
+          <Pressable style={styles.photoModalContent} onPress={() => {}}>
+            {selectedMemberPhotoUrl ? (
+              <Image source={{ uri: selectedMemberPhotoUrl }} style={styles.photoModalImage} resizeMode="contain" />
+            ) : null}
+            <Pressable style={styles.photoModalClose} onPress={() => setSelectedMemberPhotoUrl(null)}>
+              <Text style={styles.photoModalCloseText}>Chiudi</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -695,9 +757,15 @@ const styles = StyleSheet.create({
   membersCard: { borderRadius: 23, overflow: 'hidden', borderWidth: 1.5, borderColor: BAJUJU_COLORS.palePink, backgroundColor: '#fff' },
   memberRow: { minHeight: 72, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center' },
   memberBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: BAJUJU_COLORS.line },
-  memberAvatar: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: BAJUJU_COLORS.palePink },
+  memberAvatar: { width: 52, height: 52, borderRadius: 26, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: BAJUJU_COLORS.palePink },
+  memberAvatarImage: { width: '100%', height: '100%' },
   memberAvatarText: { color: BAJUJU_COLORS.brightPink, fontFamily: BAJUJU_FONTS.bold, fontSize: 18 },
-  memberCopy: { flex: 1, minWidth: 0, marginLeft: 12 },
+  memberCopy: { flex: 1, minWidth: 0, marginLeft: 12, paddingVertical: 12 },
   memberName: { color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.bold, fontSize: 15 },
   memberMeta: { marginTop: 3, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.medium, fontSize: 12 },
+  photoModalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.88)', alignItems: 'center', justifyContent: 'center', padding: 18 },
+  photoModalContent: { width: '100%', height: '86%', alignItems: 'center', justifyContent: 'center' },
+  photoModalImage: { width: '100%', height: '100%', borderRadius: 18 },
+  photoModalClose: { position: 'absolute', top: 12, right: 12, minHeight: 44, paddingHorizontal: 18, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.94)' },
+  photoModalCloseText: { color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.bold, fontSize: 14 },
 });

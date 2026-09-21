@@ -151,7 +151,7 @@ export default function AdminAnalyticsScreen() {
           <>
             <View style={styles.grid}>
               <StatCard label="Utenti attivi" value={numberValue(summary?.active_users)} />
-              <StatCard label="Eventi tracciati" value={numberValue(summary?.events_total)} />
+              <StatCard label="Azioni tracciate" value={numberValue(summary?.events_total)} />
               <StatCard label="Home aperte" value={numberValue(summary?.home_opens)} />
               <StatCard label="Trova aperto" value={numberValue(summary?.find_opens)} />
               <StatCard label="Esperienze create" value={numberValue(summary?.experiences_created)} />

@@ -50,18 +50,6 @@ export default function AdminChatReportsScreen() {
 
     const attempts = [
       {
-        source: 'activity_messages.reported',
-        run: () => supabase.from('activity_messages').select('*').eq('reported', true).order('created_at', { ascending: false }).limit(100),
-      },
-      {
-        source: 'activity_messages.is_reported',
-        run: () => supabase.from('activity_messages').select('*').eq('is_reported', true).order('created_at', { ascending: false }).limit(100),
-      },
-      {
-        source: 'activity_messages.reported_at',
-        run: () => supabase.from('activity_messages').select('*').not('reported_at', 'is', null).order('created_at', { ascending: false }).limit(100),
-      },
-      {
         source: 'chat_reports',
         run: () => supabase.from('chat_reports').select('*').order('created_at', { ascending: false }).limit(100),
       },

@@ -182,7 +182,7 @@ export default function HomeScreen() {
           // Aggiorna la posizione solo se il permesso è già stato concesso:
           // get_bajuju_groups ordina poi automaticamente i gruppi per distanza.
           await refreshBajujuNotificationLocation(userId, { requestPermission: false }).catch(() => null);
-          const loadedGroups = await loadBajujuGroups(userId, { limit: 2 });
+          const loadedGroups = await loadBajujuGroups(userId, { limit: 30 });
           if (!active) return;
           setGroups(
             loadedGroups.map((group) => ({

@@ -166,20 +166,12 @@ async function countReports() {
 }
 
 async function countChatReports() {
-  const attempts = [
-    async () => supabase.from('activity_messages').select('*', { count: 'exact', head: true }).eq('reported', true),
-    async () => supabase.from('activity_messages').select('*', { count: 'exact', head: true }).eq('is_reported', true),
-    async () => supabase.from('activity_messages').select('*', { count: 'exact', head: true }).not('reported_at', 'is', null),
-    async () => supabase.from('chat_reports').select('*', { count: 'exact', head: true }),
-    async () => supabase.from('message_reports').select('*', { count: 'exact', head: true }),
-  ];
-
-  for (const attempt of attempts) {
+  for (const table of ['chat_reports', 'message_reports']) {
     try {
-      const result = await attempt();
-      if (!result.error && typeof result.count === 'number') return result.count;
+      const result = await supabase.from(table).select('*', { count: 'exact', head: true });
+      if (!result.error && typeof result.count === 'number' && result.count > 0) return result.count;
     } catch {
-      // Prova successiva.
+      // Prova la tabella di segnalazioni successiva.
     }
   }
 

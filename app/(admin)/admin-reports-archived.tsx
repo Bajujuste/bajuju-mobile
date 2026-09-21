@@ -78,7 +78,7 @@ export default function AdminReportsArchivedScreen() {
   const [reports, setReports] = useState<ReportItem[]>([]);
 
   const loadReports = useCallback(async () => {
-    const tables = ['reports', 'user_reports', 'activity_reports'];
+    const tables = ['reports', 'user_reports'];
     const collected: ReportItem[] = [];
 
     for (const table of tables) {

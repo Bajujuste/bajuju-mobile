@@ -304,10 +304,15 @@ export default function GroupDetailScreen() {
       const result = await supabase
         .from('groups')
         .update({ description: cleanDescription })
-        .eq('id', groupId);
+        .eq('id', groupId)
+        .select('id,description')
+        .maybeSingle();
 
       if (result.error) throw result.error;
-      await refresh();
+      if (!result.data) throw new Error('La modifica non è stata applicata.');
+
+      setGroup((current: any) => current ? { ...current, description: result.data.description } : current);
+      setDescriptionDraft(String(result.data.description || ''));
       Alert.alert('Descrizione aggiornata', 'La nuova descrizione del gruppo è online.');
     } catch (error: any) {
       Alert.alert('Modifica non riuscita', String(error?.message || 'Riprova tra poco.'));
@@ -316,21 +321,41 @@ export default function GroupDetailScreen() {
     }
   }
 
-  async function saveGroupName() {
+  async function saveGroupChanges() {
     const cleanName = nameDraft.trim();
-    if (!isAdmin || !groupId || manageBusy || cleanName.length < 3) {
-      if (cleanName.length < 3) Alert.alert('Nome troppo corto', 'Inserisci almeno 3 caratteri.');
+    const cleanDescription = descriptionDraft.trim();
+
+    if (!isAdmin || !groupId || manageBusy) return;
+    if (cleanName.length < 3) {
+      Alert.alert('Nome troppo corto', 'Inserisci almeno 3 caratteri.');
+      return;
+    }
+    if (cleanDescription.length < 10) {
+      Alert.alert('Descrizione troppo corta', 'Inserisci almeno 10 caratteri.');
       return;
     }
 
     setManageBusy(true);
     try {
-      const result = await supabase.from('groups').update({ name: cleanName }).eq('id', groupId);
+      const result = await supabase
+        .from('groups')
+        .update({
+          name: cleanName,
+          description: cleanDescription,
+        })
+        .eq('id', groupId)
+        .select('id,name,description')
+        .maybeSingle();
+
       if (result.error) throw result.error;
-      await refresh();
-      Alert.alert('Gruppo rinominato', 'Il nuovo nome è stato salvato.');
+      if (!result.data) throw new Error('Le modifiche non sono state applicate.');
+
+      setGroup((current: any) => current ? { ...current, ...result.data } : current);
+      setNameDraft(String(result.data.name || ''));
+      setDescriptionDraft(String(result.data.description || ''));
+      Alert.alert('Gruppo aggiornato', 'Nome e descrizione sono stati salvati.');
     } catch (error: any) {
-      Alert.alert('Rinomina non riuscita', String(error?.message || 'Riprova tra poco.'));
+      Alert.alert('Modifica non riuscita', String(error?.message || 'Riprova tra poco.'));
     } finally {
       setManageBusy(false);
     }
@@ -520,13 +545,6 @@ export default function GroupDetailScreen() {
                   placeholder="Nome gruppo"
                   placeholderTextColor={BAJUJU_COLORS.muted}
                 />
-                <Pressable
-                  style={[styles.secondaryAction, manageBusy && styles.disabled]}
-                  disabled={manageBusy}
-                  onPress={() => { void saveGroupName(); }}
-                >
-                  <Text style={styles.secondaryActionText}>Rinomina gruppo</Text>
-                </Pressable>
               </>
             ) : null}
 
@@ -544,9 +562,11 @@ export default function GroupDetailScreen() {
             <Pressable
               style={[styles.saveButton, manageBusy && styles.disabled]}
               disabled={manageBusy}
-              onPress={() => { void saveDescription(); }}
+              onPress={() => { void (isAdmin ? saveGroupChanges() : saveDescription()); }}
             >
-              <Text style={styles.saveButtonText}>{manageBusy ? 'Salvataggio...' : 'Salva descrizione'}</Text>
+              <Text style={styles.saveButtonText}>
+                {manageBusy ? 'Salvataggio...' : isAdmin ? 'Salva modifiche' : 'Salva descrizione'}
+              </Text>
             </Pressable>
 
             {isAdmin ? (

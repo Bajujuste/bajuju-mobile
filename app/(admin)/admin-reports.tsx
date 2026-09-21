@@ -75,31 +75,25 @@ function formatDate(value: string) {
 }
 
 async function archiveReport(item: ReportItem) {
-  const now = new Date().toISOString();
+  try {
+    const payload =
+      item.table === 'reports'
+        ? { status: 'chiusa' }
+        : { status: 'archived', report_status: 'archived' };
 
-  const attempts = [
-    { status: 'archived', archived_at: now },
-    { status: 'archived' },
-    { report_status: 'archived', archived_at: now },
-    { archived_at: now },
-    { is_archived: true },
-    { stato: 'archiviata' },
-  ];
+    // Senza .select() un update filtrato da RLS può rispondere senza errore ma non modificare righe.
+    const result = await supabase.from(item.table).update(payload).eq('id', item.id).select('id');
 
-  for (const payload of attempts) {
-    try {
-      // Senza .select() un update filtrato da RLS risponde senza errore ma non modifica nulla.
-      const result = await supabase.from(item.table).update(payload).eq('id', item.id).select('id');
-
-      if (!result.error && (result.data || []).length > 0) return { ok: true, message: '' };
-    } catch {
-      // Prova prossimo payload.
+    if (!result.error && (result.data || []).length > 0) {
+      return { ok: true, message: '' };
     }
+  } catch {
+    // Gestito dal messaggio finale.
   }
 
   return {
     ok: false,
-    message: 'Non sono riuscito ad archiviare la segnalazione. Probabile policy Supabase o colonna mancante.',
+    message: 'Non sono riuscito ad archiviare la segnalazione.',
   };
 }
 
@@ -109,7 +103,7 @@ export default function AdminReportsScreen() {
   const [reports, setReports] = useState<ReportItem[]>([]);
 
   const loadReports = useCallback(async () => {
-    const tables = ['reports', 'user_reports', 'activity_reports'];
+    const tables = ['reports', 'user_reports'];
     const collected: ReportItem[] = [];
 
     for (const table of tables) {

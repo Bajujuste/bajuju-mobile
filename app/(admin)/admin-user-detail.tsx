@@ -4,6 +4,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Modal,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -14,6 +15,7 @@ import {
 } from 'react-native';
 
 import { supabase } from '../../src/lib/supabase';
+import { getProfileCompletion, profileGenderLabel } from '../../src/utils/profileCompletion';
 import {
   ORGANIZER_GRADE_OPTIONS,
   effectiveOrganizerGrade,
@@ -125,6 +127,7 @@ function profileStatus(row: LooseRow | null) {
   if (deletedAt) return 'Eliminato / disattivato';
   if (suspendedUntil) return `Sospeso fino a ${formatDate(suspendedUntil)}`;
   if (blockedUntil) return `Bloccato fino a ${formatDate(blockedUntil)}`;
+  if (!getProfileCompletion(row).complete) return 'Profilo incompleto';
   if (rawStatus) return rawStatus;
   return 'Attivo';
 }
@@ -191,6 +194,7 @@ export default function AdminUserDetailScreen() {
   const [organizedCount, setOrganizedCount] = useState(0);
   const [locationText, setLocationText] = useState('');
   const [savingRole, setSavingRole] = useState(false);
+  const [photoPreviewOpen, setPhotoPreviewOpen] = useState(false);
 
   const loadProfile = useCallback(async () => {
     if (!userId) {
@@ -292,6 +296,7 @@ export default function AdminUserDetailScreen() {
 
   const currentProfileId = String(firstValue(profile, ['id', 'user_id']) || userId);
   const photoUrl = profilePhoto(profile);
+  const profileCompletion = getProfileCompletion(profile);
   const premiumColumn = firstExistingColumn(
     profile,
     ['is_premium_organizer', 'is_premium', 'premium', 'premium_user']
@@ -738,7 +743,8 @@ export default function AdminUserDetailScreen() {
   }, [currentProfileId, profile]);
 
   return (
-    <ScrollView
+    <>
+      <ScrollView
       contentContainerStyle={styles.page}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
@@ -769,7 +775,13 @@ export default function AdminUserDetailScreen() {
           <View style={styles.card}>
             <View style={styles.profileHeader}>
               {photoUrl ? (
-                <Image source={{ uri: photoUrl }} style={styles.profilePhoto} resizeMode="cover" />
+                <Pressable
+                  onPress={() => setPhotoPreviewOpen(true)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Apri foto profilo a tutto schermo"
+                >
+                  <Image source={{ uri: photoUrl }} style={styles.profilePhoto} resizeMode="cover" />
+                </Pressable>
               ) : (
                 <View style={styles.profilePhotoPlaceholder}>
                   <Text style={styles.profilePhotoPlaceholderText}>Nessuna foto</Text>
@@ -781,6 +793,15 @@ export default function AdminUserDetailScreen() {
                 <Text style={styles.profileSubtitle}>Dati utente</Text>
               </View>
             </View>
+
+            {!profileCompletion.complete ? (
+              <View style={styles.incompleteBanner}>
+                <Text style={styles.incompleteBannerTitle}>Registrazione incompleta</Text>
+                <Text style={styles.incompleteBannerText}>
+                  Mancano: {profileCompletion.missing.join(', ')}.
+                </Text>
+              </View>
+            ) : null}
 
             <Pressable
               style={styles.privateChatButton}
@@ -804,21 +825,21 @@ export default function AdminUserDetailScreen() {
             <View style={styles.detailRow}>
               <Text style={styles.detailLabel}>Età</Text>
               <Text style={styles.detailValue}>
-                {firstText(profile, ['age', 'eta', 'età'], 'Età non indicata')}
+                {firstText(profile, ['age', 'eta', 'età', 'user_age', 'age_range', 'fascia_eta', 'age_band', 'eta_range'], 'Età non indicata')}
               </Text>
             </View>
 
             <View style={styles.detailRow}>
               <Text style={styles.detailLabel}>Sesso</Text>
               <Text style={styles.detailValue}>
-                {firstText(profile, ['gender', 'genere', 'sex'], 'Non indicato')}
+                {profileGenderLabel(profile)}
               </Text>
             </View>
 
             <View style={styles.detailRow}>
               <Text style={styles.detailLabel}>Città</Text>
               <Text style={styles.detailValue}>
-                {firstText(profile, ['city', 'citta', 'comune'], 'Città non indicata')}
+                {firstText(profile, ['city', 'citta', 'comune', 'location_city'], 'Città non indicata')}
               </Text>
             </View>
 
@@ -1041,7 +1062,24 @@ export default function AdminUserDetailScreen() {
           </View>
         </>
       ) : null}
-    </ScrollView>
+      </ScrollView>
+
+      <Modal
+        visible={photoPreviewOpen && Boolean(photoUrl)}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPhotoPreviewOpen(false)}
+      >
+        <Pressable style={styles.photoModalBackdrop} onPress={() => setPhotoPreviewOpen(false)}>
+          <Pressable style={styles.photoModalContent} onPress={() => {}}>
+            <Image source={{ uri: photoUrl }} style={styles.photoModalImage} resizeMode="contain" />
+            <Pressable style={styles.photoModalClose} onPress={() => setPhotoPreviewOpen(false)}>
+              <Text style={styles.photoModalCloseText}>Chiudi</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
+    </>
   );
 }
 
@@ -1137,6 +1175,57 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '900',
     textAlign: 'center',
+  },
+  incompleteBanner: {
+    marginTop: 6,
+    borderRadius: 16,
+    padding: 13,
+    backgroundColor: '#fff3d6',
+    borderWidth: 1,
+    borderColor: '#e0a328',
+  },
+  incompleteBannerTitle: {
+    color: '#7b4a00',
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  incompleteBannerText: {
+    marginTop: 4,
+    color: '#7b4a00',
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: '800',
+  },
+  photoModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.92)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 18,
+  },
+  photoModalContent: {
+    width: '100%',
+    height: '88%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  photoModalImage: {
+    width: '100%',
+    height: '88%',
+  },
+  photoModalClose: {
+    marginTop: 14,
+    minWidth: 120,
+    alignItems: 'center',
+    borderRadius: 999,
+    paddingVertical: 11,
+    paddingHorizontal: 18,
+    backgroundColor: '#ffffff',
+  },
+  photoModalCloseText: {
+    color: '#4b1430',
+    fontSize: 14,
+    fontWeight: '900',
   },
   profileSubtitle: {
     marginTop: 4,

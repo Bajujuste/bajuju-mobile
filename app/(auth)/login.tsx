@@ -17,6 +17,7 @@ import {
 import * as SecureStore from 'expo-secure-store';
 
 import { supabase } from '../../src/lib/supabase';
+import { hasCompleteRequiredProfile } from '../../src/utils/profileCompletion';
 
 const bajujuLogo = require('../../assets/brand/bajuju-logo.png');
 
@@ -156,30 +157,14 @@ export default function LoginScreen() {
         profile = byId.data;
       }
 
-      const profileProvince = String(
-        profile?.province ||
-          profile?.provincia ||
-          profile?.location_province ||
-          ''
-      ).trim();
-
-      const profileAge = String(
-        profile?.age ||
-          profile?.eta ||
-          profile?.['età'] ||
-          profile?.user_age ||
-          profile?.age_range ||
-          profile?.fascia_eta ||
-          profile?.age_band ||
-          profile?.eta_range ||
-          ''
-      ).trim();
-
-      if (profile && profileProvince && profileAge) {
+      if (hasCompleteRequiredProfile(profile)) {
         router.replace('/home');
         return;
       }
 
+      setMessageTitle('Completa il profilo');
+      setMessageText('Per entrare in Bajuju devi inserire foto, età, città e sesso.');
+      await new Promise((resolve) => setTimeout(resolve, 700));
       router.replace('/profile');
     } catch (error: unknown) {
       const message =

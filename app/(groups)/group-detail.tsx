@@ -311,8 +311,9 @@ export default function GroupDetailScreen() {
       if (result.error) throw result.error;
       if (!result.data) throw new Error('La modifica non è stata applicata.');
 
-      setGroup((current: any) => current ? { ...current, description: result.data.description } : current);
-      setDescriptionDraft(String(result.data.description || ''));
+      const savedDescription = result.data.description;
+      setGroup((current: any) => current ? { ...current, description: savedDescription } : current);
+      setDescriptionDraft(String(savedDescription || ''));
       Alert.alert('Descrizione aggiornata', 'La nuova descrizione del gruppo è online.');
     } catch (error: any) {
       Alert.alert('Modifica non riuscita', String(error?.message || 'Riprova tra poco.'));
@@ -350,9 +351,10 @@ export default function GroupDetailScreen() {
       if (result.error) throw result.error;
       if (!result.data) throw new Error('Le modifiche non sono state applicate.');
 
-      setGroup((current: any) => current ? { ...current, ...result.data } : current);
-      setNameDraft(String(result.data.name || ''));
-      setDescriptionDraft(String(result.data.description || ''));
+      const savedGroup = result.data;
+      setGroup((current: any) => current ? { ...current, ...savedGroup } : current);
+      setNameDraft(String(savedGroup.name || ''));
+      setDescriptionDraft(String(savedGroup.description || ''));
       Alert.alert('Gruppo aggiornato', 'Nome e descrizione sono stati salvati.');
     } catch (error: any) {
       Alert.alert('Modifica non riuscita', String(error?.message || 'Riprova tra poco.'));

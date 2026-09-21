@@ -239,7 +239,26 @@ export default function AdminUsersScreen() {
         throw result.error;
       }
 
-      const allRows = (result.data || []) as LooseRow[];
+      const profileRows = (result.data || []) as LooseRow[];
+
+      const identityResult = await supabase.rpc('master_get_users_identity' as any);
+      const emailById = new Map<string, string>();
+
+      if (!identityResult.error && Array.isArray(identityResult.data)) {
+        (identityResult.data as LooseRow[]).forEach((identity) => {
+          const id = userId(identity);
+          const email = firstText(identity, ['email'], '');
+
+          if (id && email) {
+            emailById.set(id, email);
+          }
+        });
+      }
+
+      const allRows = profileRows.map((row) => {
+        const email = emailById.get(userId(row));
+        return email ? { ...row, email } : row;
+      });
 
       const now = new Date();
 

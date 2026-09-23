@@ -29,6 +29,7 @@ export default function CreateGroupScreen() {
   const [description, setDescription] = useState('');
   const [city, setCity] = useState('');
   const [category, setCategory] = useState('');
+  const [requiresApproval, setRequiresApproval] = useState(false);
   const [coverUri, setCoverUri] = useState<string | null>(null);
 
   useEffect(() => {
@@ -111,6 +112,7 @@ export default function CreateGroupScreen() {
         category,
         latitude: coordinates.latitude,
         longitude: coordinates.longitude,
+        requiresApproval,
       });
 
       let coverWarning = '';
@@ -249,6 +251,31 @@ export default function CreateGroupScreen() {
             })}
           </View>
 
+          <Text style={styles.label}>Iscrizione degli utenti</Text>
+          <Text style={styles.helper}>
+            Scegli se gli utenti possono entrare subito oppure devono essere approvati da te.
+          </Text>
+          <View style={styles.joinModeBox}>
+            <Pressable
+              style={[styles.joinModeButton, !requiresApproval && styles.joinModeButtonSelected]}
+              onPress={() => setRequiresApproval(false)}
+            >
+              <Text style={[styles.joinModeTitle, !requiresApproval && styles.joinModeTitleSelected]}>Iscrizione libera</Text>
+              <Text style={[styles.joinModeText, !requiresApproval && styles.joinModeTextSelected]}>
+                Chi si iscrive entra subito nel gruppo.
+              </Text>
+            </Pressable>
+            <Pressable
+              style={[styles.joinModeButton, requiresApproval && styles.joinModeButtonSelected]}
+              onPress={() => setRequiresApproval(true)}
+            >
+              <Text style={[styles.joinModeTitle, requiresApproval && styles.joinModeTitleSelected]}>Con approvazione</Text>
+              <Text style={[styles.joinModeText, requiresApproval && styles.joinModeTextSelected]}>
+                Decidi tu se accettare o rifiutare ogni richiesta.
+              </Text>
+            </Pressable>
+          </View>
+
           <Pressable
             style={[styles.mainButton, !canSave && styles.disabled]}
             disabled={!canSave}
@@ -317,6 +344,13 @@ const styles = StyleSheet.create({
   categoryChipSelected: { borderColor: BAJUJU_COLORS.brightPink, backgroundColor: BAJUJU_COLORS.brightPink },
   categoryChipText: { color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.semiBold, fontSize: 12 },
   categoryChipTextSelected: { color: '#fff' },
+  joinModeBox: { gap: 10, marginBottom: 18 },
+  joinModeButton: { padding: 14, borderRadius: 18, borderWidth: 1.5, borderColor: BAJUJU_COLORS.palePink, backgroundColor: '#fff' },
+  joinModeButtonSelected: { borderColor: BAJUJU_COLORS.brightPink, backgroundColor: BAJUJU_COLORS.palePink },
+  joinModeTitle: { color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.bold, fontSize: 14 },
+  joinModeTitleSelected: { color: BAJUJU_COLORS.brightPink },
+  joinModeText: { marginTop: 3, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.regular, fontSize: 12, lineHeight: 17 },
+  joinModeTextSelected: { color: BAJUJU_COLORS.plum },
   mainButton: { minHeight: 54, marginTop: 8, borderRadius: 27, alignItems: 'center', justifyContent: 'center', backgroundColor: BAJUJU_COLORS.brightPink },
   mainButtonText: { color: '#fff', fontFamily: BAJUJU_FONTS.bold, fontSize: 16 },
   disabled: { opacity: 0.45 },

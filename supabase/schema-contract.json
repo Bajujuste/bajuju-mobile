@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-19T08:12:29.000Z",
+  "generated_at": "2026-09-23T20:20:26.000Z",
   "tables": {
     "reports": [
       "id",
@@ -94,7 +94,8 @@
       "updated_at",
       "review_note",
       "reviewed_at",
-      "reviewed_by"
+      "reviewed_by",
+      "join_approval_required"
     ],
     "group_members": [
       "group_id",
@@ -394,6 +395,14 @@
       "user_id",
       "message",
       "created_at"
+    ],
+    "group_join_requests": [
+      "group_id",
+      "user_id",
+      "status",
+      "requested_at",
+      "responded_at",
+      "responded_by"
     ]
   },
   "functions": [
@@ -409,11 +418,14 @@
     "bajuju_get_or_create_support_thread",
     "bajuju_get_users_blocked_by_me",
     "bajuju_main_admin_id",
+    "cancel_group_join_request",
     "claim_push_token_for_current_user",
     "consume_edge_rate_limit",
     "current_user_is_admin",
     "enforce_one_time_direct_contact_request",
     "get_bajuju_groups",
+    "get_group_join_requests",
+    "get_group_join_state",
     "get_group_member_count",
     "get_group_member_profiles",
     "get_my_activity_waitlist",
@@ -454,7 +466,9 @@
     "protect_admin_managed_profile_fields",
     "purge_due_deleted_accounts",
     "request_account_deletion",
+    "request_group_join",
     "resubmit_group_for_approval",
+    "review_group_join_request",
     "set_updated_at"
   ]
 }

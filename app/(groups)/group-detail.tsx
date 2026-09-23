@@ -18,8 +18,14 @@ import {
 
 import { BajujuGroupChat } from '../../src/components/groups/BajujuGroupChat';
 import {
+  cancelBajujuGroupJoinRequest,
+  GroupJoinRequest,
+  GroupJoinState,
   joinBajujuGroup,
   leaveBajujuGroup,
+  loadBajujuGroupJoinRequests,
+  loadBajujuGroupJoinState,
+  reviewBajujuGroupJoinRequest,
   uploadBajujuGroupCover,
 } from '../../src/lib/bajujuGroups';
 import { supabase } from '../../src/lib/supabase';
@@ -60,6 +66,11 @@ export default function GroupDetailScreen() {
   const [memberCount, setMemberCount] = useState(0);
   const [experiences, setExperiences] = useState<ExperienceRow[]>([]);
   const [joined, setJoined] = useState(false);
+  const [joinState, setJoinState] = useState<GroupJoinState>('none');
+  const [joinRequests, setJoinRequests] = useState<GroupJoinRequest[]>([]);
+  const [requestsOpen, setRequestsOpen] = useState(false);
+  const [reviewBusyUserId, setReviewBusyUserId] = useState('');
+  const [approvalModeBusy, setApprovalModeBusy] = useState(false);
   const [descriptionDraft, setDescriptionDraft] = useState('');
   const [nameDraft, setNameDraft] = useState('');
 
@@ -79,7 +90,7 @@ export default function GroupDetailScreen() {
       const [groupResult, profileResult] = await Promise.all([
         supabase
           .from('groups')
-          .select('id,name,description,city,province,category,cover_url,owner_id,status,review_note')
+          .select('id,name,description,city,province,category,cover_url,owner_id,status,review_note,join_approval_required')
           .eq('id', groupId)
           .maybeSingle(),
         userId
@@ -101,6 +112,16 @@ export default function GroupDetailScreen() {
       setNameDraft(String(groupResult.data.name || ''));
 
       const ownerId = String(groupResult.data.owner_id || '');
+      const canManageJoinRequests = Boolean(
+        userId && (ownerId === userId || profileResult.data?.is_admin === true)
+      );
+      const [currentJoinState, pendingJoinRequests] = await Promise.all([
+        userId ? loadBajujuGroupJoinState(groupId) : Promise.resolve('none' as GroupJoinState),
+        canManageJoinRequests ? loadBajujuGroupJoinRequests(groupId) : Promise.resolve([] as GroupJoinRequest[]),
+      ]);
+      setJoinState(currentJoinState);
+      setJoinRequests(pendingJoinRequests);
+
       const [ownerResult, membersResult, linksResult, memberCountResult] = await Promise.all([
         ownerId
           ? supabase.from('profiles').select('nickname').eq('id', ownerId).maybeSingle()
@@ -146,7 +167,10 @@ export default function GroupDetailScreen() {
           ? Number(memberCountResult.data)
           : safeMembers.length
       );
-      setJoined(safeMembers.some((member) => String(member.user_id || '') === userId));
+      setJoined(
+        currentJoinState === 'joined'
+        || safeMembers.some((member) => String(member.user_id || '') === userId)
+      );
 
       const activityIds = [
         ...new Set(
@@ -215,13 +239,69 @@ export default function GroupDetailScreen() {
       if (joined) {
         await leaveBajujuGroup(groupId, currentUserId);
       } else {
-        await joinBajujuGroup(groupId, currentUserId);
+        const nextState = await joinBajujuGroup(groupId, currentUserId);
+        if (nextState === 'pending') {
+          Alert.alert('Richiesta inviata', 'Il gestore del gruppo potrà accettarla o rifiutarla.');
+        }
       }
       await refresh();
     } catch (error: any) {
       Alert.alert('Operazione non riuscita', String(error?.message || 'Riprova tra poco.'));
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function cancelJoinRequest() {
+    if (!groupId || busy) return;
+
+    setBusy(true);
+    try {
+      await cancelBajujuGroupJoinRequest(groupId);
+      await refresh();
+    } catch (error: any) {
+      Alert.alert('Operazione non riuscita', String(error?.message || 'Riprova tra poco.'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function setApprovalRequirement(required: boolean) {
+    if (!groupId || !group || approvalModeBusy) return;
+    const canManage = isAdmin || String(group.owner_id || '') === currentUserId;
+    if (!canManage) return;
+
+    setApprovalModeBusy(true);
+    try {
+      const result = await supabase
+        .from('groups')
+        .update({ join_approval_required: required })
+        .eq('id', groupId)
+        .select('id,join_approval_required')
+        .maybeSingle();
+
+      if (result.error) throw result.error;
+      if (!result.data) throw new Error('La modifica non è stata applicata.');
+
+      setGroup((current: any) => current ? { ...current, join_approval_required: required } : current);
+    } catch (error: any) {
+      Alert.alert('Modifica non riuscita', String(error?.message || 'Riprova tra poco.'));
+    } finally {
+      setApprovalModeBusy(false);
+    }
+  }
+
+  async function reviewJoinRequest(userId: string, accept: boolean) {
+    if (!groupId || !userId || reviewBusyUserId) return;
+
+    setReviewBusyUserId(userId);
+    try {
+      await reviewBajujuGroupJoinRequest(groupId, userId, accept);
+      await refresh();
+    } catch (error: any) {
+      Alert.alert('Operazione non riuscita', String(error?.message || 'Riprova tra poco.'));
+    } finally {
+      setReviewBusyUserId('');
     }
   }
 
@@ -455,6 +535,8 @@ export default function GroupDetailScreen() {
   const coverUrl = String(group.cover_url || '').trim();
   const groupStatus = String(group.status || 'active').toLowerCase();
   const isPublicGroup = groupStatus === 'active';
+  const requiresApproval = group.join_approval_required === true;
+  const hasPendingJoinRequest = joinState === 'pending';
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -508,15 +590,43 @@ export default function GroupDetailScreen() {
               <Text style={styles.ownerBadgeText}>Sei il proprietario del gruppo</Text>
             </View>
           ) : isPublicGroup ? (
-            <Pressable
-              style={[styles.joinButton, joined && styles.leaveButton, busy && styles.disabled]}
-              disabled={busy}
-              onPress={() => { void toggleMembership(); }}
-            >
-              <Text style={[styles.joinButtonText, joined && styles.leaveButtonText]}>
-                {busy ? 'Aggiorno...' : joined ? 'Abbandona gruppo' : 'Iscriviti al gruppo'}
-              </Text>
-            </Pressable>
+            <>
+              <Pressable
+                style={[
+                  styles.joinButton,
+                  joined && styles.leaveButton,
+                  hasPendingJoinRequest && styles.pendingJoinButton,
+                  busy && styles.disabled,
+                ]}
+                disabled={busy || hasPendingJoinRequest}
+                onPress={() => { void toggleMembership(); }}
+              >
+                <Text style={[
+                  styles.joinButtonText,
+                  joined && styles.leaveButtonText,
+                  hasPendingJoinRequest && styles.pendingJoinButtonText,
+                ]}>
+                  {busy
+                    ? 'Aggiorno...'
+                    : joined
+                      ? 'Abbandona gruppo'
+                      : hasPendingJoinRequest
+                        ? 'Richiesta inviata'
+                        : requiresApproval
+                          ? (joinState === 'rejected' ? 'Richiedi di nuovo' : 'Richiedi di entrare')
+                          : 'Iscriviti al gruppo'}
+                </Text>
+              </Pressable>
+              {hasPendingJoinRequest ? (
+                <Pressable
+                  style={styles.cancelRequestButton}
+                  disabled={busy}
+                  onPress={() => { void cancelJoinRequest(); }}
+                >
+                  <Text style={styles.cancelRequestButtonText}>Annulla richiesta</Text>
+                </Pressable>
+              ) : null}
+            </>
           ) : null}
         </View>
 
@@ -524,6 +634,31 @@ export default function GroupDetailScreen() {
           <View style={styles.managementCard}>
             <Text style={styles.managementEyebrow}>{isAdmin ? 'GESTIONE ADMIN' : 'GESTIONE GRUPPO'}</Text>
             <Text style={styles.managementTitle}>Gestisci il gruppo</Text>
+
+            <Text style={styles.fieldLabel}>Iscrizione degli utenti</Text>
+            <Text style={styles.approvalHelper}>
+              Scegli se gli utenti entrano subito oppure devono essere approvati da chi gestisce il gruppo.
+            </Text>
+            <View style={styles.approvalModeRow}>
+              <Pressable
+                style={[styles.approvalModeButton, !requiresApproval && styles.approvalModeButtonSelected]}
+                disabled={approvalModeBusy}
+                onPress={() => { void setApprovalRequirement(false); }}
+              >
+                <Text style={[styles.approvalModeButtonText, !requiresApproval && styles.approvalModeButtonTextSelected]}>
+                  Libera
+                </Text>
+              </Pressable>
+              <Pressable
+                style={[styles.approvalModeButton, requiresApproval && styles.approvalModeButtonSelected]}
+                disabled={approvalModeBusy}
+                onPress={() => { void setApprovalRequirement(true); }}
+              >
+                <Text style={[styles.approvalModeButtonText, requiresApproval && styles.approvalModeButtonTextSelected]}>
+                  Con approvazione
+                </Text>
+              </Pressable>
+            </View>
 
             <Text style={styles.fieldLabel}>Immagine di copertina</Text>
             <Pressable
@@ -596,6 +731,89 @@ export default function GroupDetailScreen() {
                 Il creatore può modificare copertina e descrizione. Nome, proprietà ed eliminazione sono riservati agli Admin.
               </Text>
             )}
+          </View>
+        ) : null}
+
+        {canManageGroup && isPublicGroup && joinRequests.length > 0 ? (
+          <View style={styles.requestsCard}>
+            <Pressable
+              style={styles.requestsHeader}
+              onPress={() => setRequestsOpen((current) => !current)}
+            >
+              <View>
+                <Text style={styles.requestsEyebrow}>GESTIONE ISCRIZIONI</Text>
+                <Text style={styles.requestsTitle}>Richieste in attesa · {joinRequests.length}</Text>
+              </View>
+              <Text style={styles.requestsChevron}>{requestsOpen ? '−' : '+'}</Text>
+            </Pressable>
+
+            {requestsOpen ? (
+              <View style={styles.requestsList}>
+                {joinRequests.map((request, index) => {
+                  const requestUserId = String(request.user_id || '').trim();
+                  const avatarUrl = String(request.avatar_url || '').trim();
+                  const requestBusy = reviewBusyUserId === requestUserId;
+                  return (
+                    <View
+                      key={requestUserId || String(index)}
+                      style={[styles.requestRow, index > 0 && styles.requestBorder]}
+                    >
+                      <Pressable
+                        style={styles.memberAvatar}
+                        disabled={!avatarUrl}
+                        onPress={() => {
+                          if (avatarUrl) setSelectedMemberPhotoUrl(avatarUrl);
+                        }}
+                      >
+                        {avatarUrl ? (
+                          <Image source={{ uri: avatarUrl }} style={styles.memberAvatarImage} resizeMode="cover" />
+                        ) : (
+                          <Text style={styles.memberAvatarText}>
+                            {String(request.nickname || '?').slice(0, 1).toUpperCase()}
+                          </Text>
+                        )}
+                      </Pressable>
+
+                      <View style={styles.requestMain}>
+                        <Pressable
+                          disabled={!requestUserId}
+                          onPress={() => {
+                            if (!requestUserId) return;
+                            router.push({ pathname: '/user-profile' as any, params: { userId: requestUserId } });
+                          }}
+                        >
+                          <Text style={styles.memberName}>{request.nickname || 'Utente Bajuju'}</Text>
+                          <Text style={styles.memberMeta}>
+                            {[
+                              request.gender || '',
+                              request.age_range ? `${request.age_range} anni` : '',
+                              request.origin || '',
+                            ].filter(Boolean).join(' · ') || 'Apri il profilo per vedere i dettagli'}
+                          </Text>
+                        </Pressable>
+
+                        <View style={styles.requestActions}>
+                          <Pressable
+                            style={[styles.rejectRequestButton, requestBusy && styles.disabled]}
+                            disabled={requestBusy}
+                            onPress={() => { void reviewJoinRequest(requestUserId, false); }}
+                          >
+                            <Text style={styles.rejectRequestText}>Rifiuta</Text>
+                          </Pressable>
+                          <Pressable
+                            style={[styles.acceptRequestButton, requestBusy && styles.disabled]}
+                            disabled={requestBusy}
+                            onPress={() => { void reviewJoinRequest(requestUserId, true); }}
+                          >
+                            <Text style={styles.acceptRequestText}>{requestBusy ? '...' : 'Accetta'}</Text>
+                          </Pressable>
+                        </View>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            ) : null}
           </View>
         ) : null}
 
@@ -750,12 +968,22 @@ const styles = StyleSheet.create({
   joinButtonText: { color: '#fff', fontFamily: BAJUJU_FONTS.bold, fontSize: 15 },
   leaveButton: { backgroundColor: '#fff', borderWidth: 1.5, borderColor: BAJUJU_COLORS.brightPink },
   leaveButtonText: { color: BAJUJU_COLORS.brightPink },
+  pendingJoinButton: { backgroundColor: BAJUJU_COLORS.palePink },
+  pendingJoinButtonText: { color: BAJUJU_COLORS.brightPink },
+  cancelRequestButton: { minHeight: 40, marginTop: 5, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center' },
+  cancelRequestButtonText: { color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.semiBold, fontSize: 12, textDecorationLine: 'underline' },
   ownerBadge: { minHeight: 46, marginTop: 10, paddingHorizontal: 18, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: BAJUJU_COLORS.palePink },
   ownerBadgeText: { color: BAJUJU_COLORS.brightPink, fontFamily: BAJUJU_FONTS.bold, fontSize: 13 },
   disabled: { opacity: 0.5 },
   managementCard: { marginTop: 22, padding: 20, borderRadius: 28, borderWidth: 1.5, borderColor: BAJUJU_COLORS.palePink, backgroundColor: '#fff', ...BAJUJU_SHADOW },
   managementEyebrow: { color: BAJUJU_COLORS.brightPink, fontFamily: BAJUJU_FONTS.bold, fontSize: 11, letterSpacing: 0.9 },
   managementTitle: { marginTop: 3, color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.bold, fontSize: 23 },
+  approvalHelper: { color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.regular, fontSize: 12, lineHeight: 17 },
+  approvalModeRow: { flexDirection: 'row', gap: 9, marginBottom: 4 },
+  approvalModeButton: { flex: 1, minHeight: 44, paddingHorizontal: 10, borderRadius: 22, borderWidth: 1.5, borderColor: BAJUJU_COLORS.palePink, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' },
+  approvalModeButtonSelected: { borderColor: BAJUJU_COLORS.brightPink, backgroundColor: BAJUJU_COLORS.palePink },
+  approvalModeButtonText: { color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.semiBold, fontSize: 12, textAlign: 'center' },
+  approvalModeButtonTextSelected: { color: BAJUJU_COLORS.brightPink },
   fieldLabel: { marginTop: 16, marginBottom: 7, color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.semiBold, fontSize: 13 },
   input: { minHeight: 52, paddingHorizontal: 14, borderRadius: 17, borderWidth: 1.5, borderColor: BAJUJU_COLORS.palePink, color: BAJUJU_COLORS.plum, backgroundColor: BAJUJU_COLORS.white, fontFamily: BAJUJU_FONTS.medium, fontSize: 15 },
   textArea: { minHeight: 112, paddingTop: 13 },
@@ -769,6 +997,20 @@ const styles = StyleSheet.create({
   deleteButton: { minHeight: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFF0F0', borderWidth: 1.5, borderColor: '#E15A5A' },
   deleteButtonText: { color: '#B82424', fontFamily: BAJUJU_FONTS.bold, fontSize: 14 },
   ownerRuleText: { marginTop: 14, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.regular, fontSize: 12, lineHeight: 17 },
+  requestsCard: { marginTop: 18, borderRadius: 24, borderWidth: 1.5, borderColor: BAJUJU_COLORS.palePink, backgroundColor: '#fff', overflow: 'hidden', ...BAJUJU_SHADOW },
+  requestsHeader: { minHeight: 74, paddingHorizontal: 17, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  requestsEyebrow: { color: BAJUJU_COLORS.brightPink, fontFamily: BAJUJU_FONTS.bold, fontSize: 10, letterSpacing: 0.8 },
+  requestsTitle: { marginTop: 2, color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.bold, fontSize: 18 },
+  requestsChevron: { color: BAJUJU_COLORS.brightPink, fontFamily: BAJUJU_FONTS.bold, fontSize: 28 },
+  requestsList: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: BAJUJU_COLORS.line },
+  requestRow: { padding: 14, flexDirection: 'row', alignItems: 'flex-start' },
+  requestBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: BAJUJU_COLORS.line },
+  requestMain: { flex: 1, minWidth: 0, marginLeft: 12 },
+  requestActions: { flexDirection: 'row', gap: 8, marginTop: 10 },
+  rejectRequestButton: { flex: 1, minHeight: 40, borderRadius: 20, borderWidth: 1.5, borderColor: '#E3A0B8', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' },
+  rejectRequestText: { color: '#A3345E', fontFamily: BAJUJU_FONTS.bold, fontSize: 12 },
+  acceptRequestButton: { flex: 1, minHeight: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: BAJUJU_COLORS.brightPink },
+  acceptRequestText: { color: '#fff', fontFamily: BAJUJU_FONTS.bold, fontSize: 12 },
   section: { marginTop: 26 },
   sectionTitle: { color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.bold, fontSize: 22 },
   privacyText: { marginTop: 4, marginBottom: 11, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.regular, fontSize: 12, lineHeight: 17 },

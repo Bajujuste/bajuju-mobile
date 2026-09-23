@@ -85,12 +85,72 @@ export async function loadOwnedBajujuGroups(userId: string) {
   return loadBajujuGroups(userId, { ownerId: userId, limit: 100 });
 }
 
-export async function joinBajujuGroup(groupId: string, userId: string) {
-  const result = await supabase
-    .from('group_members')
-    .insert({ group_id: groupId, user_id: userId });
+export type GroupJoinState = 'none' | 'pending' | 'rejected' | 'joined' | 'owner';
 
-  if (result.error && result.error.code !== '23505') throw result.error;
+export type GroupJoinRequest = {
+  user_id?: string | null;
+  nickname?: string | null;
+  avatar_url?: string | null;
+  age_range?: string | null;
+  gender?: string | null;
+  origin?: string | null;
+  requested_at?: string | null;
+};
+
+export async function joinBajujuGroup(groupId: string, userId: string) {
+  if (!groupId || !userId) throw new Error('Dati iscrizione gruppo non validi.');
+
+  const result = await supabase.rpc('request_group_join' as any, {
+    p_group_id: groupId,
+  });
+
+  if (result.error) throw result.error;
+  return String(result.data || 'none') as GroupJoinState;
+}
+
+export async function loadBajujuGroupJoinState(groupId: string) {
+  if (!groupId) return 'none' as GroupJoinState;
+
+  const result = await supabase.rpc('get_group_join_state' as any, {
+    p_group_id: groupId,
+  });
+
+  if (result.error) throw result.error;
+  return String(result.data || 'none') as GroupJoinState;
+}
+
+export async function loadBajujuGroupJoinRequests(groupId: string) {
+  if (!groupId) return [] as GroupJoinRequest[];
+
+  const result = await supabase.rpc('get_group_join_requests' as any, {
+    p_group_id: groupId,
+  });
+
+  if (result.error) throw result.error;
+  return (result.data || []) as GroupJoinRequest[];
+}
+
+export async function cancelBajujuGroupJoinRequest(groupId: string) {
+  if (!groupId) return;
+
+  const result = await supabase.rpc('cancel_group_join_request' as any, {
+    p_group_id: groupId,
+  });
+
+  if (result.error) throw result.error;
+}
+
+export async function reviewBajujuGroupJoinRequest(groupId: string, userId: string, accept: boolean) {
+  if (!groupId || !userId) throw new Error('Richiesta gruppo non valida.');
+
+  const result = await supabase.rpc('review_group_join_request' as any, {
+    p_group_id: groupId,
+    p_user_id: userId,
+    p_accept: accept,
+  });
+
+  if (result.error) throw result.error;
+  return String(result.data || '');
 }
 
 export async function leaveBajujuGroup(groupId: string, userId: string) {
@@ -111,6 +171,7 @@ export async function createBajujuGroup(input: {
   category?: string;
   latitude: number;
   longitude: number;
+  requiresApproval?: boolean;
 }) {
   const payload = {
     name: input.name.trim(),
@@ -121,6 +182,7 @@ export async function createBajujuGroup(input: {
     category: input.category?.trim() || null,
     latitude: input.latitude,
     longitude: input.longitude,
+    join_approval_required: input.requiresApproval === true,
     owner_id: input.ownerId,
     created_by: input.ownerId,
     status: 'pending',

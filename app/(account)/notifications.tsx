@@ -118,6 +118,7 @@ export default function NotificationsScreen() {
     const screen = typeof notificationData.screen === 'string' ? notificationData.screen : '';
     const activityId = typeof notificationData.activityId === 'string' ? notificationData.activityId : '';
     const section = typeof notificationData.section === 'string' ? notificationData.section : '';
+    const threadId = typeof notificationData.threadId === 'string' ? notificationData.threadId : '';
 
     if (notification.notification_type === 'waitlist_spot_available' && activityId) {
       router.push({ pathname: '/experience-waitlist' as any, params: { id: activityId } });
@@ -148,6 +149,13 @@ export default function NotificationsScreen() {
       case 'profile':
         if (section) router.push({ pathname: '/profile' as any, params: { section } });
         else router.push('/profile' as any);
+        return;
+      case 'admin-private-chat':
+        router.push(
+          threadId
+            ? ({ pathname: '/admin-private-chat' as any, params: { threadId } } as any)
+            : ('/admin-private-chat' as any)
+        );
         return;
       default:
         return;

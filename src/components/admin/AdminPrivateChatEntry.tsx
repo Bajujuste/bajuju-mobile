@@ -11,6 +11,7 @@ export function AdminPrivateChatEntry() {
   const targetUserId = String(params.id || '').trim();
   const [unread, setUnread] = useState(0);
   const [canAdminMessage, setCanAdminMessage] = useState(false);
+  const [isMainAdmin, setIsMainAdmin] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -20,6 +21,7 @@ export function AdminPrivateChatEntry() {
         if (active) {
           setUnread(0);
           setCanAdminMessage(false);
+          setIsMainAdmin(false);
         }
         return;
       }
@@ -43,6 +45,15 @@ export function AdminPrivateChatEntry() {
         }
 
         setCanAdminMessage(false);
+
+        const mainAdminResult = await supabase.rpc('bajuju_main_admin_id' as any);
+        if (active) {
+          setIsMainAdmin(
+            !mainAdminResult.error &&
+            String(mainAdminResult.data || '') === userId
+          );
+        }
+
         const threadResult = await supabase
           .from('admin_private_threads')
           .select('id')
@@ -65,6 +76,7 @@ export function AdminPrivateChatEntry() {
         if (active) {
           setUnread(0);
           setCanAdminMessage(false);
+          setIsMainAdmin(false);
         }
       }
     })();
@@ -83,7 +95,7 @@ export function AdminPrivateChatEntry() {
         onPress={() => router.push('/admin-private-chat' as any)}
       >
         <Text style={styles.profileIcon}>💬</Text>
-        <Text style={styles.profileText}>Messaggi Bajuju</Text>
+        <Text style={styles.profileText}>{isMainAdmin ? 'Messaggi Bajuju' : 'Scrivi a Bajuju'}</Text>
         {unread > 0 ? (
           <View style={styles.badge}>
             <Text style={styles.badgeText}>{unread > 99 ? '99+' : unread}</Text>
@@ -118,7 +130,7 @@ const styles = StyleSheet.create({
   profileButton: {
     position: 'absolute',
     right: 18,
-    bottom: 24,
+    bottom: 84,
     zIndex: 50,
     minHeight: 52,
     paddingHorizontal: 16,

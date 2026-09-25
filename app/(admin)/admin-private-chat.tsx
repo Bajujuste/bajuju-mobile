@@ -12,6 +12,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { supabase } from '../../src/lib/supabase';
 import { BAJUJU_COLORS, BAJUJU_FONTS, BAJUJU_SHADOW } from '../../src/theme/bajujuTheme';
@@ -37,6 +38,7 @@ function formatMessageTime(value: string) {
 }
 
 export default function AdminPrivateChatScreen() {
+  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ userId?: string; threadId?: string }>();
   const requestedUserId = String(params.userId || '').trim();
   const requestedThreadId = String(params.threadId || '').trim();
@@ -293,7 +295,7 @@ export default function AdminPrivateChatScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.screen}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}
     >
       <View style={styles.header}>
@@ -350,13 +352,19 @@ export default function AdminPrivateChatScreen() {
         )}
       </ScrollView>
 
-      <View style={styles.composer}>
+      <View
+        style={[
+          styles.composer,
+          { paddingBottom: Math.max(12, insets.bottom) },
+        ]}
+      >
         <TextInput
           value={draft}
           onChangeText={setDraft}
           placeholder={adminViewingUser ? 'Scrivi un messaggio ufficiale...' : 'Scrivi a Bajuju...'}
           placeholderTextColor={BAJUJU_COLORS.muted}
           multiline
+          textAlignVertical="top"
           maxLength={2000}
           style={styles.input}
         />

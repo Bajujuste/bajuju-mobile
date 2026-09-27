@@ -1267,6 +1267,21 @@ export default function ExperienceDetailScreen() {
                       {experience.meeting_place || experience.city || 'Non indicato'}
                     </Text>
                   </View>
+
+                  <View style={styles.compactInfoDivider} />
+
+                  <View style={styles.compactInfoRow}>
+                    <Text style={styles.compactInfoLabel}>Ingresso</Text>
+                    <Text
+                      style={[
+                        styles.compactInfoValue,
+                        styles.participationModeValue,
+                        approvalRequired && styles.participationModeRequestValue,
+                      ]}
+                    >
+                      {approvalRequired ? 'Partecipazione su richiesta' : 'Partecipazione libera'}
+                    </Text>
+                  </View>
                 </View>
 
                 {experience.budget_amount !== null && experience.budget_amount !== undefined ? (
@@ -1821,6 +1836,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
     lineHeight: 19,
+  },
+  participationModeValue: {
+    color: '#22633c',
+    fontWeight: '900',
+  },
+  participationModeRequestValue: {
+    color: '#8a5b00',
   },
   compactInfoDivider: {
     height: 1,

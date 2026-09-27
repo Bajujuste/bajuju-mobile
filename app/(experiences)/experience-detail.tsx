@@ -39,6 +39,7 @@ type ActivityRow = {
   description?: string | null;
   meeting_place?: string | null;
   max_participants?: number | null;
+  join_approval_required?: boolean | null;
   budget_amount?: number | null;
   image_url?: string | null;
   photo_url?: string | null;
@@ -50,6 +51,18 @@ type ParticipantRow = {
   activity_id?: string | null;
   user_id?: string | null;
   status?: string | null;
+};
+
+type ActivityJoinState = 'none' | 'owner' | 'joined' | 'pending' | 'approved' | 'rejected';
+
+type ActivityJoinRequest = {
+  user_id?: string | null;
+  nickname?: string | null;
+  avatar_url?: string | null;
+  age_range?: string | null;
+  gender?: string | null;
+  origin?: string | null;
+  requested_at?: string | null;
 };
 
 type ProfileRow = {
@@ -231,6 +244,10 @@ export default function ExperienceDetailScreen() {
   const [joining, setJoining] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const [sendingMessage, setSendingMessage] = useState(false);
+  const [joinState, setJoinState] = useState<ActivityJoinState>('none');
+  const [joinRequests, setJoinRequests] = useState<ActivityJoinRequest[]>([]);
+  const [requestsOpen, setRequestsOpen] = useState(false);
+  const [reviewBusyUserId, setReviewBusyUserId] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const activeParticipants = useMemo(() => {
@@ -315,6 +332,7 @@ export default function ExperienceDetailScreen() {
 
   const maxParticipants = Number(experience?.max_participants || 0);
   const isFull = maxParticipants > 0 && participantCount >= maxParticipants;
+  const approvalRequired = experience?.join_approval_required === true;
 
   const canUseChat = isOrganizer || isParticipant;
   const canShowInviteOut = canUseChat && canInviteOutAfterExperience(experience);
@@ -403,6 +421,40 @@ export default function ExperienceDetailScreen() {
     setMessages(((messagesResult.data || []) as MessageRow[]).reverse());
   }, []);
 
+  const loadJoinApprovalState = useCallback(async (
+    activityId: string,
+    userId: string | null,
+    loadedExperience: ActivityRow | null
+  ) => {
+    if (!userId) {
+      setJoinState('none');
+      setJoinRequests([]);
+      return;
+    }
+
+    const organizerId = getExperienceCreatorId(loadedExperience);
+    const canManageRequests = organizerId === userId;
+
+    const [stateResult, requestsResult] = await Promise.all([
+      supabase.rpc('get_activity_join_state' as any, { p_activity_id: activityId }),
+      canManageRequests
+        ? supabase.rpc('get_activity_join_requests' as any, { p_activity_id: activityId })
+        : Promise.resolve({ data: [], error: null } as any),
+    ]);
+
+    if (!stateResult.error) {
+      setJoinState(String(stateResult.data || 'none') as ActivityJoinState);
+    } else {
+      setJoinState('none');
+    }
+
+    if (!requestsResult.error && Array.isArray(requestsResult.data)) {
+      setJoinRequests(requestsResult.data as ActivityJoinRequest[]);
+    } else {
+      setJoinRequests([]);
+    }
+  }, []);
+
   const loadExperience = useCallback(async () => {
     if (!experienceId) {
       setErrorMessage('Esperienza non trovata.');
@@ -438,15 +490,24 @@ export default function ExperienceDetailScreen() {
 
     setExperience(loadedExperience);
 
-    await loadParticipants(experienceId, loadedExperience);
-    await loadMessages(experienceId);
+    await Promise.all([
+      loadParticipants(experienceId, loadedExperience),
+      loadMessages(experienceId),
+      loadJoinApprovalState(experienceId, userId, loadedExperience),
+    ]);
 
     setLoading(false);
-  }, [experienceId, loadMessages, loadParticipants]);
+  }, [experienceId, loadJoinApprovalState, loadMessages, loadParticipants]);
 
   useEffect(() => {
     loadExperience();
   }, [loadExperience]);
+
+  useEffect(() => {
+    if (requestedSection === 'requests' && joinRequests.length > 0) {
+      setRequestsOpen(true);
+    }
+  }, [joinRequests.length, requestedSection]);
 
   useEffect(() => {
     if (!experienceId) return;
@@ -493,7 +554,7 @@ export default function ExperienceDetailScreen() {
       return;
     }
 
-    if (isFull) {
+    if (isFull && !approvalRequired) {
       router.push({
         pathname: '/experience-waitlist' as any,
         params: { id: experienceId },
@@ -504,7 +565,7 @@ export default function ExperienceDetailScreen() {
     setJoining(true);
 
     try {
-      const result = await supabase.rpc('join_standard_activity' as any, {
+      const result = await supabase.rpc('request_activity_join' as any, {
         p_activity_id: experienceId,
       });
 
@@ -557,8 +618,25 @@ export default function ExperienceDetailScreen() {
       }
 
       if (String(data?.status || '') === 'already_joined') {
+        setJoinState('joined');
         await loadParticipants(experienceId, experience);
         Alert.alert('Sei già dentro', 'Risulti già partecipante a questa esperienza.');
+        return;
+      }
+
+      if (String(data?.status || '') === 'pending') {
+        setJoinState('pending');
+        const organizerId = getExperienceCreatorId(experience);
+        if (organizerId && organizerId !== currentUserId) {
+          await sendBajujuPushNotification({
+            type: 'experience_join_request',
+            targetUserId: organizerId,
+            activityId: experienceId,
+          }).catch(() => {
+            console.log('Errore notifica richiesta partecipazione.');
+          });
+        }
+        Alert.alert('Richiesta inviata', 'L’organizzatore vedrà la tua richiesta direttamente dentro l’esperienza.');
         return;
       }
 
@@ -573,6 +651,7 @@ export default function ExperienceDetailScreen() {
         });
       }
 
+      setJoinState('joined');
       await loadParticipants(experienceId, experience);
       await loadMessages(experienceId);
       Alert.alert('Ci sei!', 'Partecipazione registrata.');
@@ -586,6 +665,63 @@ export default function ExperienceDetailScreen() {
       );
     } finally {
       setJoining(false);
+    }
+  }
+
+  async function cancelJoinRequest() {
+    if (!experienceId || !currentUserId || joining) return;
+
+    setJoining(true);
+    try {
+      const result = await supabase.rpc('cancel_activity_join_request' as any, {
+        p_activity_id: experienceId,
+      });
+      if (result.error) throw result.error;
+      setJoinState('none');
+      Alert.alert('Richiesta annullata', 'La richiesta di partecipazione è stata annullata.');
+    } catch (error: unknown) {
+      Alert.alert(
+        'Errore',
+        error instanceof Error ? error.message : 'Non sono riuscito ad annullare la richiesta.'
+      );
+    } finally {
+      setJoining(false);
+    }
+  }
+
+  async function reviewJoinRequest(requestUserId: string, accept: boolean) {
+    if (!experienceId || !currentUserId || !isOrganizer || !requestUserId || reviewBusyUserId) return;
+
+    setReviewBusyUserId(requestUserId);
+    try {
+      const result = await supabase.rpc('review_activity_join_request' as any, {
+        p_activity_id: experienceId,
+        p_user_id: requestUserId,
+        p_accept: accept,
+      });
+      if (result.error) throw result.error;
+
+      await Promise.all([
+        loadParticipants(experienceId, experience),
+        loadJoinApprovalState(experienceId, currentUserId, experience),
+      ]);
+
+      await sendBajujuPushNotification({
+        type: accept ? 'experience_join_accepted' : 'experience_join_rejected',
+        targetUserId: requestUserId,
+        activityId: experienceId,
+      }).catch(() => {
+        console.log('Errore notifica esito richiesta partecipazione.');
+      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error || '');
+      if (message.includes('BAJUJU_EVENT_FULL') || message.includes('BAJUJU_SPOT_RESERVED')) {
+        Alert.alert('Evento al completo', 'Non ci sono posti disponibili in questo momento. La richiesta resta in attesa.');
+      } else {
+        Alert.alert('Errore richiesta', message || 'Non sono riuscito a gestire la richiesta.');
+      }
+    } finally {
+      setReviewBusyUserId('');
     }
   }
 
@@ -1244,6 +1380,86 @@ export default function ExperienceDetailScreen() {
                   )}
                 </View>
 
+                {isOrganizer && approvalRequired && joinRequests.length > 0 ? (
+                  <View style={styles.requestsCard}>
+                    <Pressable
+                      style={styles.requestsHeader}
+                      onPress={() => setRequestsOpen((current) => !current)}
+                    >
+                      <View style={styles.requestsHeaderCopy}>
+                        <Text style={styles.requestsEyebrow}>GESTIONE PARTECIPAZIONI</Text>
+                        <Text style={styles.requestsTitle}>Richieste in attesa · {joinRequests.length}</Text>
+                      </View>
+                      <Text style={styles.requestsChevron}>{requestsOpen ? '−' : '+'}</Text>
+                    </Pressable>
+
+                    {requestsOpen ? (
+                      <View style={styles.requestsList}>
+                        {joinRequests.map((request, index) => {
+                          const requestUserId = String(request.user_id || '').trim();
+                          const avatarUrl = String(request.avatar_url || '').trim();
+                          const requestBusy = reviewBusyUserId === requestUserId;
+                          return (
+                            <View
+                              key={requestUserId || String(index)}
+                              style={[styles.requestRow, index > 0 && styles.requestBorder]}
+                            >
+                              <Pressable
+                                onPress={() => {
+                                  if (!requestUserId) return;
+                                  router.push({ pathname: '/user-profile' as any, params: { userId: requestUserId } });
+                                }}
+                              >
+                                <Image
+                                  source={avatarUrl ? { uri: avatarUrl } : bajujuLogo}
+                                  style={styles.requestAvatar}
+                                  resizeMode="cover"
+                                />
+                              </Pressable>
+
+                              <View style={styles.requestMain}>
+                                <Pressable
+                                  disabled={!requestUserId}
+                                  onPress={() => {
+                                    if (!requestUserId) return;
+                                    router.push({ pathname: '/user-profile' as any, params: { userId: requestUserId } });
+                                  }}
+                                >
+                                  <Text style={styles.requestName}>{request.nickname || 'Utente Bajuju'}</Text>
+                                  <Text style={styles.requestMeta}>
+                                    {[
+                                      request.gender || '',
+                                      request.age_range ? `${request.age_range} anni` : '',
+                                      request.origin || '',
+                                    ].filter(Boolean).join(' · ') || 'Apri il profilo per vedere i dettagli'}
+                                  </Text>
+                                </Pressable>
+
+                                <View style={styles.requestActions}>
+                                  <Pressable
+                                    style={[styles.rejectRequestButton, requestBusy && styles.mainButtonDisabled]}
+                                    disabled={requestBusy}
+                                    onPress={() => { void reviewJoinRequest(requestUserId, false); }}
+                                  >
+                                    <Text style={styles.rejectRequestText}>Rifiuta</Text>
+                                  </Pressable>
+                                  <Pressable
+                                    style={[styles.acceptRequestButton, requestBusy && styles.mainButtonDisabled]}
+                                    disabled={requestBusy}
+                                    onPress={() => { void reviewJoinRequest(requestUserId, true); }}
+                                  >
+                                    <Text style={styles.acceptRequestText}>{requestBusy ? '...' : 'Accetta'}</Text>
+                                  </Pressable>
+                                </View>
+                              </View>
+                            </View>
+                          );
+                        })}
+                      </View>
+                    ) : null}
+                  </View>
+                ) : null}
+
                 <View style={styles.albumBox}>
                   <View style={styles.albumHeaderRow}>
                     <View>
@@ -1444,7 +1660,22 @@ export default function ExperienceDetailScreen() {
                         </Text>
                       </Pressable>
                     </>
-                  ) : isFull ? (
+                  ) : joinState === 'pending' ? (
+                    <>
+                      <View style={styles.smallStatusButton}>
+                        <Text style={styles.smallStatusButtonText}>Richiesta inviata</Text>
+                      </View>
+                      <Pressable
+                        style={[styles.smallLeaveButton, joining && styles.mainButtonDisabled]}
+                        onPress={cancelJoinRequest}
+                        disabled={joining}
+                      >
+                        <Text style={styles.smallLeaveButtonText}>
+                          {joining ? 'Annullamento...' : 'Annulla richiesta'}
+                        </Text>
+                      </Pressable>
+                    </>
+                  ) : isFull && !approvalRequired ? (
                     <Pressable
                       style={styles.smallJoinButton}
                       onPress={() =>
@@ -1466,7 +1697,9 @@ export default function ExperienceDetailScreen() {
                       disabled={joining}
                     >
                       <Text style={styles.smallJoinButtonText}>
-                        {joining ? 'Registrazione...' : 'Partecipa ora'}
+                        {joining
+                          ? approvalRequired ? 'Invio richiesta...' : 'Registrazione...'
+                          : approvalRequired ? (joinState === 'rejected' ? 'Richiedi di nuovo' : 'Richiedi di partecipare') : 'Partecipa ora'}
                       </Text>
                     </Pressable>
                   )}
@@ -1844,6 +2077,102 @@ const styles = StyleSheet.create({
   },
   smallCancelButtonText: {
     color: '#9b1f61',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  requestsCard: {
+    marginTop: 16,
+    padding: 15,
+    borderRadius: 22,
+    backgroundColor: '#FFF9FC',
+    borderWidth: 1.5,
+    borderColor: '#f7a7cd',
+  },
+  requestsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  requestsHeaderCopy: { flex: 1 },
+  requestsEyebrow: {
+    color: '#e43f98',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.7,
+  },
+  requestsTitle: {
+    marginTop: 3,
+    color: '#331426',
+    fontSize: 17,
+    fontWeight: '900',
+  },
+  requestsChevron: {
+    color: '#e43f98',
+    fontSize: 24,
+    fontWeight: '900',
+  },
+  requestsList: { marginTop: 12 },
+  requestRow: {
+    flexDirection: 'row',
+    gap: 11,
+    paddingVertical: 11,
+  },
+  requestBorder: {
+    borderTopWidth: 1,
+    borderTopColor: '#ffddea',
+  },
+  requestAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 2,
+    borderColor: '#f0328b',
+    backgroundColor: '#fff0f7',
+  },
+  requestMain: { flex: 1, minWidth: 0 },
+  requestName: {
+    color: '#48172f',
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  requestMeta: {
+    marginTop: 3,
+    color: '#8d315f',
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 17,
+  },
+  requestActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 9,
+  },
+  rejectRequestButton: {
+    flex: 1,
+    minHeight: 38,
+    borderRadius: 19,
+    borderWidth: 1,
+    borderColor: '#e43f98',
+    backgroundColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rejectRequestText: {
+    color: '#9b1f61',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  acceptRequestButton: {
+    flex: 1,
+    minHeight: 38,
+    borderRadius: 19,
+    backgroundColor: '#e43f98',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  acceptRequestText: {
+    color: '#ffffff',
     fontSize: 12,
     fontWeight: '900',
   },

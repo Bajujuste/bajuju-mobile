@@ -93,6 +93,7 @@ export default function CreateExperienceScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [maxParticipants, setMaxParticipants] = useState('10');
+  const [joinApprovalRequired, setJoinApprovalRequired] = useState(false);
   const [budgetAmount, setBudgetAmount] = useState('');
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -260,6 +261,7 @@ export default function CreateExperienceScreen() {
         activity_time: cleanTime,
         min_participants: 1,
         max_participants: cleanMaxParticipants,
+        join_approval_required: joinApprovalRequired,
         budget_amount: needsBudget ? cleanBudgetAmount : null,
         is_flash: false,
         expires_at: null,
@@ -338,6 +340,7 @@ export default function CreateExperienceScreen() {
       setHour('');
       setMinute('');
       setMaxParticipants('10');
+      setJoinApprovalRequired(false);
       setBudgetAmount('');
       setPhotoUri(null);
       setSelectedGroupIds([]);
@@ -505,6 +508,48 @@ export default function CreateExperienceScreen() {
               ) : null}
             </View>
 
+            <Text style={styles.label}>Partecipazione</Text>
+            <View style={styles.approvalModeRow}>
+              <Pressable
+                style={[
+                  styles.approvalModeButton,
+                  !joinApprovalRequired && styles.approvalModeButtonSelected,
+                ]}
+                onPress={() => setJoinApprovalRequired(false)}
+              >
+                <Text
+                  style={[
+                    styles.approvalModeButtonText,
+                    !joinApprovalRequired && styles.approvalModeButtonTextSelected,
+                  ]}
+                >
+                  Aperta a tutti
+                </Text>
+              </Pressable>
+
+              <Pressable
+                style={[
+                  styles.approvalModeButton,
+                  joinApprovalRequired && styles.approvalModeButtonSelected,
+                ]}
+                onPress={() => setJoinApprovalRequired(true)}
+              >
+                <Text
+                  style={[
+                    styles.approvalModeButtonText,
+                    joinApprovalRequired && styles.approvalModeButtonTextSelected,
+                  ]}
+                >
+                  Su approvazione
+                </Text>
+              </Pressable>
+            </View>
+            <Text style={styles.approvalModeHelper}>
+              {joinApprovalRequired
+                ? 'Chi vuole partecipare invia una richiesta. Decidi tu chi accettare direttamente dentro l’esperienza.'
+                : 'Chi tocca Partecipa entra subito, finché ci sono posti disponibili.'}
+            </Text>
+
             <Text style={styles.label}>Descrizione</Text>
             <TextInput
               value={description}
@@ -595,6 +640,9 @@ export default function CreateExperienceScreen() {
             <Text style={styles.previewSmall}>
               Max {maxParticipants || '0'} partecipanti
               {needsBudget ? ` · Budget ${budgetAmount || '0'} €` : ''}
+            </Text>
+            <Text style={styles.previewSmall}>
+              {joinApprovalRequired ? 'Partecipazione su approvazione' : 'Partecipazione aperta a tutti'}
             </Text>
             {selectedGroupIds.length > 0 ? (
               <Text style={styles.previewGroups}>
@@ -769,6 +817,39 @@ const styles = StyleSheet.create({
   compactDetailsRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   participantsColumn: { width: 132 },
   budgetColumn: { width: 132 },
+  approvalModeRow: { flexDirection: 'row', gap: 10, marginBottom: 8 },
+  approvalModeButton: {
+    flex: 1,
+    minHeight: 46,
+    borderRadius: 23,
+    borderWidth: 1.5,
+    borderColor: BAJUJU_COLORS.line,
+    backgroundColor: BAJUJU_COLORS.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+  },
+  approvalModeButtonSelected: {
+    borderColor: BAJUJU_COLORS.brightPink,
+    backgroundColor: BAJUJU_COLORS.softPink,
+  },
+  approvalModeButtonText: {
+    color: BAJUJU_COLORS.muted,
+    fontFamily: BAJUJU_FONTS.semiBold,
+    fontSize: 13,
+    textAlign: 'center',
+  },
+  approvalModeButtonTextSelected: {
+    color: BAJUJU_COLORS.brightPink,
+    fontFamily: BAJUJU_FONTS.bold,
+  },
+  approvalModeHelper: {
+    marginBottom: 14,
+    color: BAJUJU_COLORS.muted,
+    fontFamily: BAJUJU_FONTS.regular,
+    fontSize: 12,
+    lineHeight: 17,
+  },
   textArea: { minHeight: 92, paddingTop: 14, textAlignVertical: 'top' },
   photoPicker: {
     width: '100%',

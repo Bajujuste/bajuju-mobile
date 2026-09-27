@@ -1380,7 +1380,7 @@ export default function ExperienceDetailScreen() {
                   )}
                 </View>
 
-                {isOrganizer && approvalRequired && joinRequests.length > 0 ? (
+                {isOrganizer && joinRequests.length > 0 ? (
                   <View style={styles.requestsCard}>
                     <Pressable
                       style={styles.requestsHeader}

@@ -172,6 +172,8 @@ export async function createBajujuGroup(input: {
   latitude: number;
   longitude: number;
   requiresApproval?: boolean;
+  minAge?: number | null;
+  maxAge?: number | null;
 }) {
   const payload = {
     name: input.name.trim(),
@@ -183,6 +185,8 @@ export async function createBajujuGroup(input: {
     latitude: input.latitude,
     longitude: input.longitude,
     join_approval_required: input.requiresApproval === true,
+    min_age: input.minAge ?? null,
+    max_age: input.maxAge ?? null,
     owner_id: input.ownerId,
     created_by: input.ownerId,
     status: 'pending',

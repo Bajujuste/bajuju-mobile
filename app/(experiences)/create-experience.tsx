@@ -94,6 +94,9 @@ export default function CreateExperienceScreen() {
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [maxParticipants, setMaxParticipants] = useState('10');
   const [joinApprovalRequired, setJoinApprovalRequired] = useState(false);
+  const [ageRestricted, setAgeRestricted] = useState(false);
+  const [minAge, setMinAge] = useState('18');
+  const [maxAge, setMaxAge] = useState('80');
   const [budgetAmount, setBudgetAmount] = useState('');
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -135,6 +138,17 @@ export default function CreateExperienceScreen() {
   const cleanMaxParticipants = Number(maxParticipants || '0');
   const cleanBudgetAmount = budgetAmount ? Number(budgetAmount) : null;
   const maxParticipantsIsValid = Number.isInteger(cleanMaxParticipants) && cleanMaxParticipants >= 1 && cleanMaxParticipants <= 99;
+  const cleanMinAge = Number(minAge);
+  const cleanMaxAge = Number(maxAge);
+  const ageRangeIsValid =
+    !ageRestricted ||
+    (
+      Number.isInteger(cleanMinAge) &&
+      Number.isInteger(cleanMaxAge) &&
+      cleanMinAge >= 18 &&
+      cleanMaxAge <= 80 &&
+      cleanMinAge <= cleanMaxAge
+    );
   const budgetIsValid = !needsBudget || (
     cleanBudgetAmount !== null &&
     Number.isInteger(cleanBudgetAmount) &&
@@ -153,6 +167,7 @@ export default function CreateExperienceScreen() {
     Boolean(isoDate) &&
     Boolean(cleanTime) &&
     maxParticipantsIsValid &&
+    ageRangeIsValid &&
     budgetIsValid &&
     !saving;
 
@@ -262,6 +277,8 @@ export default function CreateExperienceScreen() {
         min_participants: 1,
         max_participants: cleanMaxParticipants,
         join_approval_required: joinApprovalRequired,
+        min_age: ageRestricted ? cleanMinAge : null,
+        max_age: ageRestricted ? cleanMaxAge : null,
         budget_amount: needsBudget ? cleanBudgetAmount : null,
         is_flash: false,
         expires_at: null,
@@ -341,6 +358,9 @@ export default function CreateExperienceScreen() {
       setMinute('');
       setMaxParticipants('10');
       setJoinApprovalRequired(false);
+      setAgeRestricted(false);
+      setMinAge('18');
+      setMaxAge('80');
       setBudgetAmount('');
       setPhotoUri(null);
       setSelectedGroupIds([]);
@@ -550,6 +570,81 @@ export default function CreateExperienceScreen() {
                 : 'Chi tocca Partecipa entra subito, finché ci sono posti disponibili.'}
             </Text>
 
+            <Text style={styles.label}>Età dei partecipanti</Text>
+            <View style={styles.approvalModeRow}>
+              <Pressable
+                style={[
+                  styles.approvalModeButton,
+                  !ageRestricted && styles.approvalModeButtonSelected,
+                ]}
+                onPress={() => setAgeRestricted(false)}
+              >
+                <Text
+                  style={[
+                    styles.approvalModeButtonText,
+                    !ageRestricted && styles.approvalModeButtonTextSelected,
+                  ]}
+                >
+                  Tutte le età
+                </Text>
+              </Pressable>
+
+              <Pressable
+                style={[
+                  styles.approvalModeButton,
+                  ageRestricted && styles.approvalModeButtonSelected,
+                ]}
+                onPress={() => setAgeRestricted(true)}
+              >
+                <Text
+                  style={[
+                    styles.approvalModeButtonText,
+                    ageRestricted && styles.approvalModeButtonTextSelected,
+                  ]}
+                >
+                  Fascia d’età
+                </Text>
+              </Pressable>
+            </View>
+            <Text style={styles.approvalModeHelper}>
+              {ageRestricted
+                ? 'Solo gli utenti nella fascia scelta potranno partecipare o inviare una nuova richiesta.'
+                : 'L’esperienza è aperta a tutti gli utenti maggiorenni di Bajuju.'}
+            </Text>
+
+            {ageRestricted ? (
+              <View style={styles.ageInputsRow}>
+                <View style={styles.ageInputColumn}>
+                  <Text style={styles.label}>Da</Text>
+                  <TextInput
+                    value={minAge}
+                    onChangeText={(value) => setMinAge(onlyDigits(value, 2))}
+                    placeholder="18"
+                    placeholderTextColor="#9c7b8b"
+                    style={styles.input}
+                    keyboardType="number-pad"
+                    maxLength={2}
+                  />
+                </View>
+                <View style={styles.ageInputColumn}>
+                  <Text style={styles.label}>A</Text>
+                  <TextInput
+                    value={maxAge}
+                    onChangeText={(value) => setMaxAge(onlyDigits(value, 2))}
+                    placeholder="80"
+                    placeholderTextColor="#9c7b8b"
+                    style={styles.input}
+                    keyboardType="number-pad"
+                    maxLength={2}
+                  />
+                </View>
+              </View>
+            ) : null}
+
+            {ageRestricted && !ageRangeIsValid ? (
+              <Text style={styles.ageError}>Inserisci una fascia valida da 18 a 80 anni.</Text>
+            ) : null}
+
             <Text style={styles.label}>Descrizione</Text>
             <TextInput
               value={description}
@@ -643,6 +738,9 @@ export default function CreateExperienceScreen() {
             </Text>
             <Text style={styles.previewSmall}>
               {joinApprovalRequired ? 'Partecipazione su approvazione' : 'Partecipazione aperta a tutti'}
+            </Text>
+            <Text style={styles.previewSmall}>
+              {ageRestricted ? `Età: ${minAge || '18'}–${maxAge || '80'} anni` : 'Età: aperto a tutti'}
             </Text>
             {selectedGroupIds.length > 0 ? (
               <Text style={styles.previewGroups}>
@@ -814,6 +912,9 @@ const styles = StyleSheet.create({
   selectButtonText: { flex: 1, color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.medium, fontSize: 15 },
   selectPlaceholder: { color: BAJUJU_COLORS.muted },
   selectChevron: { marginLeft: 8, color: BAJUJU_COLORS.brightPink, fontFamily: BAJUJU_FONTS.bold, fontSize: 18 },
+  ageInputsRow: { flexDirection: 'row', gap: 12, marginTop: 4 },
+  ageInputColumn: { flex: 1 },
+  ageError: { marginTop: -6, marginBottom: 10, color: '#b42318', fontFamily: BAJUJU_FONTS.semiBold, fontSize: 12 },
   compactDetailsRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   participantsColumn: { width: 132 },
   budgetColumn: { width: 132 },

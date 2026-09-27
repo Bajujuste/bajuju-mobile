@@ -30,6 +30,7 @@ type ActivityRow = {
   meeting_place: string | null;
   category: string | null;
   max_participants: number | null;
+  join_approval_required: boolean | null;
   budget_amount: number | null;
   is_flash: boolean | null;
   latitude: number | null;
@@ -98,6 +99,7 @@ export default function EditExperienceScreen() {
   const [meetingPlace, setMeetingPlace] = useState('');
   const [category, setCategory] = useState('');
   const [maxParticipants, setMaxParticipants] = useState('');
+  const [joinApprovalRequired, setJoinApprovalRequired] = useState(false);
   const [budgetAmount, setBudgetAmount] = useState('');
   const originalLocationRef = useRef({ signature: '', latitude: null as number | null, longitude: null as number | null });
 
@@ -121,7 +123,7 @@ export default function EditExperienceScreen() {
 
       const result = await supabase
         .from('activities')
-        .select('id,creator_id,title,description,activity_date,activity_time,city,province,meeting_place,category,max_participants,budget_amount,is_flash,latitude,longitude')
+        .select('id,creator_id,title,description,activity_date,activity_time,city,province,meeting_place,category,max_participants,join_approval_required,budget_amount,is_flash,latitude,longitude')
         .eq('id', experienceId)
         .eq('creator_id', userId)
         .eq('is_flash', false)
@@ -162,6 +164,7 @@ export default function EditExperienceScreen() {
       setMeetingPlace(String(row.meeting_place || ''));
       setCategory(normalizeExperienceCategory(row.category));
       setMaxParticipants(row.max_participants ? String(row.max_participants) : '');
+      setJoinApprovalRequired(row.join_approval_required === true);
       setBudgetAmount(row.budget_amount !== null && row.budget_amount !== undefined ? String(row.budget_amount) : '');
       originalLocationRef.current = {
         signature: [String(row.meeting_place || '').trim(), String(row.city || '').trim(), String(row.province || '').trim()].join('|').toLowerCase(),
@@ -258,6 +261,7 @@ export default function EditExperienceScreen() {
           meeting_place: cleanMeetingPlace,
           category: categoryToDatabaseValue(category),
           max_participants: parsedMax,
+          join_approval_required: joinApprovalRequired,
           budget_amount: parsedBudget,
           latitude,
           longitude,
@@ -413,6 +417,48 @@ export default function EditExperienceScreen() {
                 </View>
               </View>
 
+              <Text style={styles.label}>Modalità di partecipazione</Text>
+              <View style={styles.approvalModeRow}>
+                <Pressable
+                  style={[
+                    styles.approvalModeButton,
+                    !joinApprovalRequired && styles.approvalModeButtonActive,
+                  ]}
+                  onPress={() => setJoinApprovalRequired(false)}
+                >
+                  <Text
+                    style={[
+                      styles.approvalModeText,
+                      !joinApprovalRequired && styles.approvalModeTextActive,
+                    ]}
+                  >
+                    Aperta a tutti
+                  </Text>
+                </Pressable>
+
+                <Pressable
+                  style={[
+                    styles.approvalModeButton,
+                    joinApprovalRequired && styles.approvalModeButtonActive,
+                  ]}
+                  onPress={() => setJoinApprovalRequired(true)}
+                >
+                  <Text
+                    style={[
+                      styles.approvalModeText,
+                      joinApprovalRequired && styles.approvalModeTextActive,
+                    ]}
+                  >
+                    Su approvazione
+                  </Text>
+                </Pressable>
+              </View>
+              <Text style={styles.hint}>
+                {joinApprovalRequired
+                  ? 'Le nuove richieste dovranno essere accettate dall’organizzatore.'
+                  : 'I nuovi utenti entreranno direttamente finché ci sono posti disponibili.'}
+              </Text>
+
               <Text style={styles.notice}>La foto, il creatore, i partecipanti, la chat e la galleria non vengono modificati.</Text>
 
               <Pressable style={[styles.saveButton, saving && styles.disabledButton]} onPress={saveExperience} disabled={saving}>
@@ -478,6 +524,29 @@ const styles = StyleSheet.create({
   textArea: { minHeight: 130 },
   row: { flexDirection: 'row', gap: 10 },
   rowItem: { flex: 1, minWidth: 0 },
+  approvalModeRow: { flexDirection: 'row', gap: 10, marginTop: 2 },
+  approvalModeButton: {
+    flex: 1,
+    minHeight: 44,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: '#ffd3e7',
+    backgroundColor: '#FFF9FC',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+  },
+  approvalModeButtonActive: {
+    backgroundColor: '#e43f98',
+    borderColor: '#e43f98',
+  },
+  approvalModeText: {
+    color: '#7b4960',
+    fontSize: 12,
+    fontWeight: '900',
+    textAlign: 'center',
+  },
+  approvalModeTextActive: { color: '#ffffff' },
   categories: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   categoryButton: {
     borderRadius: 999,

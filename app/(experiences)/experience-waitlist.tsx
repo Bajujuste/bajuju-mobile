@@ -146,6 +146,17 @@ export default function ExperienceWaitlistScreen() {
           Alert.alert('C’è un posto', 'L’esperienza non è più al completo: puoi partecipare subito.');
         } else if (data?.reason === 'ALREADY_JOINED') {
           Alert.alert('Sei già dentro', 'Risulti già partecipante a questa esperienza.');
+        } else if (data?.reason === 'PROFILE_AGE_REQUIRED') {
+          Alert.alert(
+            'Età richiesta',
+            'Inserisci la tua età precisa nel profilo prima di entrare in lista d’attesa.',
+            [
+              { text: 'Annulla', style: 'cancel' },
+              { text: 'Apri profilo', onPress: () => router.push('/profile' as any) },
+            ]
+          );
+        } else if (data?.reason === 'AGE_RESTRICTED') {
+          Alert.alert('Evento riservato per età', 'La tua età non rientra nella fascia prevista per questo evento.');
         } else {
           Alert.alert('Lista d’attesa', 'Non è possibile entrare in lista d’attesa in questo momento.');
         }
@@ -205,6 +216,17 @@ export default function ExperienceWaitlistScreen() {
           Alert.alert('Esperienza al completo', 'Il posto è stato occupato. Resti in lista d’attesa.');
         } else if (reason === 'RESERVED') {
           Alert.alert('Posto riservato', 'Il posto libero è temporaneamente riservato a chi è prima in lista d’attesa.');
+        } else if (reason === 'PROFILE_AGE_REQUIRED') {
+          Alert.alert(
+            'Età richiesta',
+            'Inserisci la tua età precisa nel profilo prima di partecipare.',
+            [
+              { text: 'Annulla', style: 'cancel' },
+              { text: 'Apri profilo', onPress: () => router.push('/profile' as any) },
+            ]
+          );
+        } else if (reason === 'AGE_RESTRICTED') {
+          Alert.alert('Evento riservato per età', 'La tua età non rientra nella fascia prevista per questo evento.');
         } else if (reason === 'BLOCKED') {
           Alert.alert('Non disponibile', 'Non puoi partecipare a questa esperienza.');
         } else {

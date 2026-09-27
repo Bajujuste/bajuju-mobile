@@ -45,7 +45,7 @@ export function getProfileCompletion(row: ProfileRowLike): ProfileCompletion {
 
   const parsedAge = Number(rawAge);
   const age =
-    Number.isInteger(parsedAge) && parsedAge >= 18 && parsedAge <= 99
+    Number.isInteger(parsedAge) && parsedAge >= 18 && parsedAge <= 80
       ? parsedAge
       : null;
 

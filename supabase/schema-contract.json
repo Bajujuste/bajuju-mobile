@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-27T21:09:19.000Z",
+  "generated_at": "2026-09-27T22:01:31.101Z",
   "tables": {
     "reports": [
       "id",
@@ -47,7 +47,8 @@
       "location_profile_text",
       "allow_direct_contacts",
       "province",
-      "organizer_grade_override"
+      "organizer_grade_override",
+      "age"
     ],
     "activities": [
       "id",
@@ -76,7 +77,9 @@
       "photo_url",
       "budget_amount",
       "deleted_at",
-      "join_approval_required"
+      "join_approval_required",
+      "min_age",
+      "max_age"
     ],
     "groups": [
       "id",
@@ -96,7 +99,9 @@
       "review_note",
       "reviewed_at",
       "reviewed_by",
-      "join_approval_required"
+      "join_approval_required",
+      "min_age",
+      "max_age"
     ],
     "group_members": [
       "group_id",

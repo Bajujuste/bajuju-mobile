@@ -85,7 +85,7 @@ export async function loadOwnedBajujuGroups(userId: string) {
   return loadBajujuGroups(userId, { ownerId: userId, limit: 100 });
 }
 
-export type GroupJoinState = 'none' | 'pending' | 'rejected' | 'joined' | 'owner';
+export type GroupJoinState = 'none' | 'pending' | 'rejected' | 'joined' | 'owner' | 'age_required' | 'age_restricted';
 
 export type GroupJoinRequest = {
   user_id?: string | null;

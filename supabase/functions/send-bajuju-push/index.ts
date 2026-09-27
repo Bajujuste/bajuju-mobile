@@ -24,6 +24,9 @@ const CLIENT_TYPES = new Set([
   'new_experience',
   'new_flash',
   'new_participant',
+  'experience_join_request',
+  'experience_join_accepted',
+  'experience_join_rejected',
   'contact_request',
   'contact_accepted',
   'contact_rejected',
@@ -43,7 +46,10 @@ function preferenceColumn(type: string) {
   switch (type) {
     case 'new_experience': return 'notify_new_experience';
     case 'new_flash': return 'notify_new_flash';
-    case 'new_participant': return 'notify_new_participant';
+    case 'new_participant':
+    case 'experience_join_request':
+    case 'experience_join_accepted':
+    case 'experience_join_rejected': return 'notify_new_participant';
     case 'contact_request': return 'notify_contact_request';
     case 'contact_accepted':
     case 'contact_rejected': return 'notify_contact_accepted';
@@ -255,6 +261,93 @@ Deno.serve(async (request) => {
     body = `${participantName} partecipa a “${activityTitleOf(activity, 'questa esperienza')}”.`;
     data = { screen: 'experience', activityId };
     dedupKey = { activityId, participantId: actorUserId };
+  }
+
+
+  if (type === 'experience_join_request') {
+    if (!activityId) return jsonResponse({ error: 'activityId obbligatorio.' }, 400);
+
+    const [{ error, activity }, requestResult] = await Promise.all([
+      loadActivity(activityId),
+      supabase
+        .from('activity_join_requests')
+        .select('user_id,status,requested_at')
+        .eq('activity_id', activityId)
+        .eq('user_id', actorUserId)
+        .maybeSingle(),
+    ]);
+
+    if (error || requestResult.error) return jsonResponse({ error: 'Errore lettura richiesta partecipazione.' }, 500);
+    if (!activity || !requestResult.data) return jsonResponse({ error: 'Richiesta non trovata.' }, 404);
+    if (creatorIdOf(activity) !== targetUserId) return jsonResponse({ error: 'Destinatario non corrisponde all’organizzatore.' }, 403);
+    if (activity.join_approval_required !== true) return jsonResponse({ error: 'Esperienza senza approvazione.' }, 403);
+    if (String(requestResult.data.status || '') !== 'pending') return jsonResponse({ error: 'Richiesta non più in attesa.' }, 403);
+
+    const requesterName = await loadActorName('Un utente Bajuju');
+    const requestedAt = String(requestResult.data.requested_at || '');
+    title = 'Nuova richiesta di partecipazione';
+    body = `${requesterName} vuole partecipare a “${activityTitleOf(activity, 'questa esperienza')}”.`;
+    data = {
+      screen: 'experience',
+      activityId,
+      section: 'requests',
+      requestUserId: actorUserId,
+      requestedAt,
+    };
+    dedupKey = { activityId, requestUserId: actorUserId, requestedAt };
+  }
+
+  if (type === 'experience_join_accepted' || type === 'experience_join_rejected') {
+    if (!activityId) return jsonResponse({ error: 'activityId obbligatorio.' }, 400);
+    const accepted = type === 'experience_join_accepted';
+
+    const [{ error, activity }, requestResult, participantResult] = await Promise.all([
+      loadActivity(activityId),
+      supabase
+        .from('activity_join_requests')
+        .select('user_id,status,responded_at')
+        .eq('activity_id', activityId)
+        .eq('user_id', targetUserId)
+        .maybeSingle(),
+      accepted
+        ? supabase
+            .from('activity_participants')
+            .select('user_id,status')
+            .eq('activity_id', activityId)
+            .eq('user_id', targetUserId)
+            .limit(10)
+        : Promise.resolve({ data: [], error: null }),
+    ]);
+
+    if (error || requestResult.error || participantResult.error) return jsonResponse({ error: 'Errore lettura esito richiesta.' }, 500);
+    if (!activity || !requestResult.data) return jsonResponse({ error: 'Richiesta non trovata.' }, 404);
+    if (creatorIdOf(activity) !== actorUserId) return jsonResponse({ error: 'Solo l’organizzatore può inviare questo esito.' }, 403);
+
+    const expectedStatus = accepted ? 'approved' : 'rejected';
+    if (String(requestResult.data.status || '') !== expectedStatus) {
+      return jsonResponse({ error: 'Esito richiesta non coerente.' }, 403);
+    }
+
+    if (accepted) {
+      const activeParticipation = ((participantResult.data || []) as Row[])
+        .some((row) => participantStatusIsActive(row.status));
+      if (!activeParticipation) return jsonResponse({ error: 'Utente non risulta partecipante attivo.' }, 403);
+    }
+
+    const experienceTitle = activityTitleOf(activity, 'questa esperienza');
+    const respondedAt = String(requestResult.data.responded_at || '');
+    title = accepted ? 'Richiesta accettata' : 'Richiesta non accettata';
+    body = accepted
+      ? `Sei stato accettato a “${experienceTitle}”.`
+      : `La tua richiesta per “${experienceTitle}” non è stata accettata.`;
+    data = {
+      screen: 'experience',
+      activityId,
+      requestUserId: targetUserId,
+      status: expectedStatus,
+      respondedAt,
+    };
+    dedupKey = { activityId, requestUserId: targetUserId, status: expectedStatus, respondedAt };
   }
 
   if (type === 'contact_request' || type === 'contact_accepted' || type === 'contact_rejected') {

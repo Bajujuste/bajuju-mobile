@@ -18,7 +18,7 @@ import {
 } from 'react-native';
 import { supabase } from '../../src/lib/supabase';
 import { refreshBajujuNotificationLocation } from '../../src/utils/bajujuNotificationLocation';
-import { hasCompleteRequiredProfile } from '../../src/utils/profileCompletion';
+import { getProfileCompletion, hasCompleteRequiredProfile } from '../../src/utils/profileCompletion';
 import {
   registerForBajujuPushNotifications,
   sendBajujuPushNotification,
@@ -452,7 +452,9 @@ export default function ProfileScreen() {
   }, [profile]);
 
   const shouldShowProfilePhoto = Boolean(photoUrl) && !photoLoadError;
-  const profileComplete = useMemo(() => hasCompleteRequiredProfile(profile), [profile]);
+  const profileCompletion = useMemo(() => getProfileCompletion(profile), [profile]);
+  const profileComplete = profileCompletion.complete;
+  const preciseAgeRequired = profileCompletion.missing.includes('età');
 
   const profileIdField = useMemo(() => {
     return 'id';
@@ -743,7 +745,13 @@ export default function ProfileScreen() {
           ''
         ).slice(0, 25)
       );
-      setAgeRange(firstText(currentProfile, ['age', 'eta', 'età', 'user_age', 'age_range', 'fascia_eta', 'age_band', 'eta_range'], ''));
+      const loadedAgeText = firstText(currentProfile, ['age', 'eta', 'età', 'user_age', 'age_range', 'fascia_eta', 'age_band', 'eta_range'], '');
+      const loadedAgeNumber = Number(loadedAgeText);
+      setAgeRange(
+        Number.isInteger(loadedAgeNumber) && loadedAgeNumber >= 18 && loadedAgeNumber <= 80
+          ? String(loadedAgeNumber)
+          : ''
+      );
       setGender(firstText(currentProfile, ['gender', 'genere', 'sex'], ''));
       setDirectContactsEnabled(
         booleanFromRow(
@@ -948,8 +956,8 @@ export default function ProfileScreen() {
 
     const numericAge = Number(cleanAge);
 
-    if (!Number.isInteger(numericAge) || numericAge < 18 || numericAge > 99) {
-      Alert.alert('Età non valida', 'Inserisci un’età reale. Bajuju è riservato a utenti maggiorenni.');
+    if (!Number.isInteger(numericAge) || numericAge < 18 || numericAge > 80) {
+      Alert.alert('Età non valida', 'Inserisci la tua età precisa, da 18 a 80 anni.');
       return;
     }
 
@@ -1379,6 +1387,15 @@ export default function ProfileScreen() {
       </View>
 
       <View style={styles.card}>
+        {preciseAgeRequired ? (
+          <View style={styles.requiredAgeNotice}>
+            <Text style={styles.requiredAgeNoticeTitle}>Inserisci la tua età per continuare a usare Bajuju</Text>
+            <Text style={styles.requiredAgeNoticeText}>
+              Le vecchie fasce d’età non sono più valide. Inserisci la tua età precisa, da 18 a 80 anni.
+            </Text>
+          </View>
+        ) : null}
+
         <Text style={styles.sectionTitle}>Dati profilo</Text>
 
         <Text style={styles.label}>Nome utente</Text>
@@ -1972,6 +1989,27 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
     color: '#7a4267',
+  },
+  requiredAgeNotice: {
+    marginBottom: 18,
+    borderRadius: 18,
+    borderWidth: 2,
+    borderColor: '#e43f98',
+    backgroundColor: '#fff0f7',
+    padding: 15,
+  },
+  requiredAgeNoticeTitle: {
+    color: '#9b1f61',
+    fontSize: 17,
+    fontWeight: '900',
+    lineHeight: 22,
+  },
+  requiredAgeNoticeText: {
+    marginTop: 6,
+    color: '#6b3652',
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 19,
   },
   sectionTitle: {
     fontSize: 19,

@@ -40,6 +40,8 @@ type ActivityRow = {
   meeting_place?: string | null;
   max_participants?: number | null;
   join_approval_required?: boolean | null;
+  min_age?: number | null;
+  max_age?: number | null;
   budget_amount?: number | null;
   image_url?: string | null;
   photo_url?: string | null;
@@ -607,6 +609,17 @@ export default function ExperienceDetailScreen() {
               },
             ]
           );
+        } else if (reason === 'PROFILE_AGE_REQUIRED') {
+          Alert.alert(
+            'Età richiesta',
+            'Inserisci la tua età precisa nel profilo prima di partecipare a un evento.',
+            [
+              { text: 'Annulla', style: 'cancel' },
+              { text: 'Apri profilo', onPress: () => router.push('/profile' as any) },
+            ]
+          );
+        } else if (reason === 'AGE_RESTRICTED') {
+          Alert.alert('Evento riservato per età', 'La tua età non rientra nella fascia prevista per questo evento.');
         } else if (reason === 'BLOCKED') {
           Alert.alert('Non disponibile', 'Non puoi partecipare a questa esperienza.');
         } else if (reason === 'PAST' || reason === 'UNAVAILABLE') {
@@ -717,6 +730,10 @@ export default function ExperienceDetailScreen() {
       const message = error instanceof Error ? error.message : String(error || '');
       if (message.includes('BAJUJU_EVENT_FULL') || message.includes('BAJUJU_SPOT_RESERVED')) {
         Alert.alert('Evento al completo', 'Non ci sono posti disponibili in questo momento. La richiesta resta in attesa.');
+      } else if (message.includes('BAJUJU_PROFILE_AGE_REQUIRED')) {
+        Alert.alert('Età mancante', 'Questo utente deve inserire la sua età precisa prima di poter essere accettato.');
+      } else if (message.includes('BAJUJU_AGE_RESTRICTED')) {
+        Alert.alert('Fuori fascia', 'Questo utente non rientra più nella fascia d’età impostata per l’evento. La richiesta resta in attesa.');
       } else {
         Alert.alert('Errore richiesta', message || 'Non sono riuscito a gestire la richiesta.');
       }
@@ -1280,6 +1297,18 @@ export default function ExperienceDetailScreen() {
                       ]}
                     >
                       {approvalRequired ? 'Partecipazione su richiesta' : 'Partecipazione libera'}
+                    </Text>
+                  </View>
+
+                  <View style={styles.compactInfoDivider} />
+
+                  <View style={styles.compactInfoRow}>
+                    <Text style={styles.compactInfoLabel}>Età</Text>
+                    <Text style={styles.compactInfoValue}>
+                      {experience.min_age !== null && experience.min_age !== undefined &&
+                       experience.max_age !== null && experience.max_age !== undefined
+                        ? `${experience.min_age}–${experience.max_age} anni`
+                        : 'Aperto a tutti'}
                     </Text>
                   </View>
                 </View>

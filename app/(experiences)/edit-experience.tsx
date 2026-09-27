@@ -31,6 +31,8 @@ type ActivityRow = {
   category: string | null;
   max_participants: number | null;
   join_approval_required: boolean | null;
+  min_age: number | null;
+  max_age: number | null;
   budget_amount: number | null;
   is_flash: boolean | null;
   latitude: number | null;
@@ -100,6 +102,9 @@ export default function EditExperienceScreen() {
   const [category, setCategory] = useState('');
   const [maxParticipants, setMaxParticipants] = useState('');
   const [joinApprovalRequired, setJoinApprovalRequired] = useState(false);
+  const [ageRestricted, setAgeRestricted] = useState(false);
+  const [minAge, setMinAge] = useState('18');
+  const [maxAge, setMaxAge] = useState('80');
   const [budgetAmount, setBudgetAmount] = useState('');
   const originalLocationRef = useRef({ signature: '', latitude: null as number | null, longitude: null as number | null });
 
@@ -123,7 +128,7 @@ export default function EditExperienceScreen() {
 
       const result = await supabase
         .from('activities')
-        .select('id,creator_id,title,description,activity_date,activity_time,city,province,meeting_place,category,max_participants,join_approval_required,budget_amount,is_flash,latitude,longitude')
+        .select('id,creator_id,title,description,activity_date,activity_time,city,province,meeting_place,category,max_participants,join_approval_required,min_age,max_age,budget_amount,is_flash,latitude,longitude')
         .eq('id', experienceId)
         .eq('creator_id', userId)
         .eq('is_flash', false)
@@ -165,6 +170,12 @@ export default function EditExperienceScreen() {
       setCategory(normalizeExperienceCategory(row.category));
       setMaxParticipants(row.max_participants ? String(row.max_participants) : '');
       setJoinApprovalRequired(row.join_approval_required === true);
+      const hasAgeRestriction =
+        row.min_age !== null && row.min_age !== undefined &&
+        row.max_age !== null && row.max_age !== undefined;
+      setAgeRestricted(hasAgeRestriction);
+      setMinAge(hasAgeRestriction ? String(row.min_age) : '18');
+      setMaxAge(hasAgeRestriction ? String(row.max_age) : '80');
       setBudgetAmount(row.budget_amount !== null && row.budget_amount !== undefined ? String(row.budget_amount) : '');
       originalLocationRef.current = {
         signature: [String(row.meeting_place || '').trim(), String(row.city || '').trim(), String(row.province || '').trim()].join('|').toLowerCase(),
@@ -192,6 +203,8 @@ export default function EditExperienceScreen() {
     const cleanMeetingPlace = meetingPlace.trim();
     const normalizedTime = cleanTime(activityTime);
     const parsedMax = Number(maxParticipants);
+    const parsedMinAge = Number(minAge);
+    const parsedMaxAge = Number(maxAge);
     const parsedBudget = budgetAmount.trim() ? Number(String(budgetAmount).replace(',', '.')) : null;
 
     if (!cleanTitle || !cleanDescription || !cleanCity || !cleanProvince || !cleanMeetingPlace || !category) {
@@ -214,6 +227,20 @@ export default function EditExperienceScreen() {
         'Partecipanti non validi',
         `Il massimo deve essere un numero intero tra ${minimumParticipants} e 500. Non può essere inferiore alle persone già presenti.`
       );
+      return;
+    }
+
+    if (
+      ageRestricted &&
+      (
+        !Number.isInteger(parsedMinAge) ||
+        !Number.isInteger(parsedMaxAge) ||
+        parsedMinAge < 18 ||
+        parsedMaxAge > 80 ||
+        parsedMinAge > parsedMaxAge
+      )
+    ) {
+      Alert.alert('Fascia d’età non valida', 'Inserisci un’età minima e massima valide, da 18 a 80 anni.');
       return;
     }
 
@@ -262,6 +289,8 @@ export default function EditExperienceScreen() {
           category: categoryToDatabaseValue(category),
           max_participants: parsedMax,
           join_approval_required: joinApprovalRequired,
+          min_age: ageRestricted ? parsedMinAge : null,
+          max_age: ageRestricted ? parsedMaxAge : null,
           budget_amount: parsedBudget,
           latitude,
           longitude,
@@ -288,7 +317,10 @@ export default function EditExperienceScreen() {
         longitude,
       };
 
-      Alert.alert('Evento aggiornato', 'Le modifiche sono state salvate.', [
+      Alert.alert(
+        'Evento aggiornato',
+        'Le modifiche sono state salvate. La fascia d’età vale solo per le nuove partecipazioni: chi è già nell’evento rimane dentro.',
+        [
         {
           text: 'Apri evento',
           onPress: () =>
@@ -297,7 +329,8 @@ export default function EditExperienceScreen() {
               params: { id: experienceId },
             }),
         },
-      ]);
+      ]
+      );
     } catch (error: any) {
       Alert.alert('Errore', error?.message || 'Non sono riuscito a salvare le modifiche.');
     } finally {
@@ -458,6 +491,71 @@ export default function EditExperienceScreen() {
                   ? 'Le nuove richieste dovranno essere accettate dall’organizzatore.'
                   : 'I nuovi utenti entreranno direttamente finché ci sono posti disponibili.'}
               </Text>
+
+              <Text style={styles.label}>Età dei partecipanti</Text>
+              <View style={styles.approvalModeRow}>
+                <Pressable
+                  style={[
+                    styles.approvalModeButton,
+                    !ageRestricted && styles.approvalModeButtonActive,
+                  ]}
+                  onPress={() => setAgeRestricted(false)}
+                >
+                  <Text
+                    style={[
+                      styles.approvalModeText,
+                      !ageRestricted && styles.approvalModeTextActive,
+                    ]}
+                  >
+                    Tutte le età
+                  </Text>
+                </Pressable>
+
+                <Pressable
+                  style={[
+                    styles.approvalModeButton,
+                    ageRestricted && styles.approvalModeButtonActive,
+                  ]}
+                  onPress={() => setAgeRestricted(true)}
+                >
+                  <Text
+                    style={[
+                      styles.approvalModeText,
+                      ageRestricted && styles.approvalModeTextActive,
+                    ]}
+                  >
+                    Fascia d’età
+                  </Text>
+                </Pressable>
+              </View>
+              <Text style={styles.hint}>
+                La fascia vale solo per le nuove partecipazioni. Chi è già dentro rimane nell’evento.
+              </Text>
+
+              {ageRestricted ? (
+                <View style={styles.row}>
+                  <View style={styles.rowItem}>
+                    <Text style={styles.label}>Età minima</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={minAge}
+                      onChangeText={(value) => setMinAge(value.replace(/[^0-9]/g, '').slice(0, 2))}
+                      keyboardType="number-pad"
+                      maxLength={2}
+                    />
+                  </View>
+                  <View style={styles.rowItem}>
+                    <Text style={styles.label}>Età massima</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={maxAge}
+                      onChangeText={(value) => setMaxAge(value.replace(/[^0-9]/g, '').slice(0, 2))}
+                      keyboardType="number-pad"
+                      maxLength={2}
+                    />
+                  </View>
+                </View>
+              ) : null}
 
               <Text style={styles.notice}>La foto, il creatore, i partecipanti, la chat e la galleria non vengono modificati.</Text>
 

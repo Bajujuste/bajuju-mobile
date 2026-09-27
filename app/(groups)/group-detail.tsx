@@ -71,6 +71,10 @@ export default function GroupDetailScreen() {
   const [requestsOpen, setRequestsOpen] = useState(false);
   const [reviewBusyUserId, setReviewBusyUserId] = useState('');
   const [approvalModeBusy, setApprovalModeBusy] = useState(false);
+  const [ageModeBusy, setAgeModeBusy] = useState(false);
+  const [ageRestrictedDraft, setAgeRestrictedDraft] = useState(false);
+  const [minAgeDraft, setMinAgeDraft] = useState('18');
+  const [maxAgeDraft, setMaxAgeDraft] = useState('80');
   const [descriptionDraft, setDescriptionDraft] = useState('');
   const [nameDraft, setNameDraft] = useState('');
 
@@ -90,7 +94,7 @@ export default function GroupDetailScreen() {
       const [groupResult, profileResult] = await Promise.all([
         supabase
           .from('groups')
-          .select('id,name,description,city,province,category,cover_url,owner_id,status,review_note,join_approval_required')
+          .select('id,name,description,city,province,category,cover_url,owner_id,status,review_note,join_approval_required,min_age,max_age')
           .eq('id', groupId)
           .maybeSingle(),
         userId
@@ -110,6 +114,12 @@ export default function GroupDetailScreen() {
       setGroup(groupResult.data);
       setDescriptionDraft(String(groupResult.data.description || ''));
       setNameDraft(String(groupResult.data.name || ''));
+      const hasAgeRestriction =
+        Number.isInteger(Number(groupResult.data.min_age)) &&
+        Number.isInteger(Number(groupResult.data.max_age));
+      setAgeRestrictedDraft(hasAgeRestriction);
+      setMinAgeDraft(hasAgeRestriction ? String(groupResult.data.min_age) : '18');
+      setMaxAgeDraft(hasAgeRestriction ? String(groupResult.data.max_age) : '80');
 
       const ownerId = String(groupResult.data.owner_id || '');
       const canManageJoinRequests = Boolean(
@@ -240,6 +250,21 @@ export default function GroupDetailScreen() {
         await leaveBajujuGroup(groupId, currentUserId);
       } else {
         const nextState = await joinBajujuGroup(groupId, currentUserId);
+        if (nextState === 'age_required') {
+          Alert.alert(
+            'Età richiesta',
+            'Inserisci la tua età precisa nel profilo prima di iscriverti a un gruppo.',
+            [
+              { text: 'Annulla', style: 'cancel' },
+              { text: 'Apri profilo', onPress: () => router.push('/profile' as any) },
+            ]
+          );
+          return;
+        }
+        if (nextState === 'age_restricted') {
+          Alert.alert('Gruppo riservato per età', 'La tua età non rientra nella fascia prevista per questo gruppo.');
+          return;
+        }
         if (nextState === 'pending') {
           Alert.alert('Richiesta inviata', 'Il gestore del gruppo potrà accettarla o rifiutarla.');
         }
@@ -291,6 +316,56 @@ export default function GroupDetailScreen() {
     }
   }
 
+  async function saveAgeRestriction() {
+    if (!groupId || !group || ageModeBusy) return;
+    const canManage = isAdmin || String(group.owner_id || '') === currentUserId;
+    if (!canManage) return;
+
+    const parsedMin = Number(minAgeDraft);
+    const parsedMax = Number(maxAgeDraft);
+
+    if (
+      ageRestrictedDraft &&
+      (
+        !Number.isInteger(parsedMin) ||
+        !Number.isInteger(parsedMax) ||
+        parsedMin < 18 ||
+        parsedMax > 80 ||
+        parsedMin > parsedMax
+      )
+    ) {
+      Alert.alert('Fascia non valida', 'Inserisci un’età minima e massima valide, da 18 a 80 anni.');
+      return;
+    }
+
+    setAgeModeBusy(true);
+    try {
+      const payload = ageRestrictedDraft
+        ? { min_age: parsedMin, max_age: parsedMax }
+        : { min_age: null, max_age: null };
+
+      const result = await supabase
+        .from('groups')
+        .update(payload)
+        .eq('id', groupId)
+        .select('id,min_age,max_age')
+        .maybeSingle();
+
+      if (result.error) throw result.error;
+      if (!result.data) throw new Error('La modifica non è stata applicata.');
+
+      setGroup((current: any) => current ? { ...current, ...result.data } : current);
+      Alert.alert(
+        'Fascia d’età aggiornata',
+        'La nuova regola vale solo per le nuove iscrizioni. Chi è già nel gruppo rimane iscritto.'
+      );
+    } catch (error: any) {
+      Alert.alert('Modifica non riuscita', String(error?.message || 'Riprova tra poco.'));
+    } finally {
+      setAgeModeBusy(false);
+    }
+  }
+
   async function reviewJoinRequest(userId: string, accept: boolean) {
     if (!groupId || !userId || reviewBusyUserId) return;
 
@@ -299,7 +374,14 @@ export default function GroupDetailScreen() {
       await reviewBajujuGroupJoinRequest(groupId, userId, accept);
       await refresh();
     } catch (error: any) {
-      Alert.alert('Operazione non riuscita', String(error?.message || 'Riprova tra poco.'));
+      const message = String(error?.message || '');
+      if (message.includes('BAJUJU_PROFILE_AGE_REQUIRED')) {
+        Alert.alert('Età mancante', 'Questo utente deve inserire la sua età precisa prima di poter essere accettato.');
+      } else if (message.includes('BAJUJU_AGE_RESTRICTED')) {
+        Alert.alert('Fuori fascia', 'Questo utente non rientra più nella fascia d’età impostata per il gruppo. La richiesta resta in attesa.');
+      } else {
+        Alert.alert('Operazione non riuscita', message || 'Riprova tra poco.');
+      }
     } finally {
       setReviewBusyUserId('');
     }
@@ -555,6 +637,11 @@ export default function GroupDetailScreen() {
           <Text style={styles.title}>{group.name}</Text>
           {place ? <Text style={styles.place}>{place}</Text> : null}
           {group.category ? <Text style={styles.category}>{group.category}</Text> : null}
+          <Text style={styles.ageRule}>
+            {group.min_age !== null && group.min_age !== undefined && group.max_age !== null && group.max_age !== undefined
+              ? `Età: ${group.min_age}–${group.max_age} anni`
+              : 'Età: aperto a tutti'}
+          </Text>
           <Text style={styles.description}>{group.description}</Text>
           <Text style={styles.owner}>Gestito da {ownerName}</Text>
           {isPublicGroup ? <Text style={styles.count}>{memberCount} {memberCount === 1 ? 'iscritto' : 'iscritti'}</Text> : null}
@@ -659,6 +746,66 @@ export default function GroupDetailScreen() {
                 </Text>
               </Pressable>
             </View>
+
+            <Text style={styles.fieldLabel}>Età degli iscritti</Text>
+            <Text style={styles.approvalHelper}>
+              La fascia vale solo per le nuove iscrizioni. Chi è già nel gruppo resta dentro anche se la modifichi.
+            </Text>
+            <View style={styles.approvalModeRow}>
+              <Pressable
+                style={[styles.approvalModeButton, !ageRestrictedDraft && styles.approvalModeButtonSelected]}
+                disabled={ageModeBusy}
+                onPress={() => setAgeRestrictedDraft(false)}
+              >
+                <Text style={[styles.approvalModeButtonText, !ageRestrictedDraft && styles.approvalModeButtonTextSelected]}>
+                  Tutte le età
+                </Text>
+              </Pressable>
+              <Pressable
+                style={[styles.approvalModeButton, ageRestrictedDraft && styles.approvalModeButtonSelected]}
+                disabled={ageModeBusy}
+                onPress={() => setAgeRestrictedDraft(true)}
+              >
+                <Text style={[styles.approvalModeButtonText, ageRestrictedDraft && styles.approvalModeButtonTextSelected]}>
+                  Fascia d’età
+                </Text>
+              </Pressable>
+            </View>
+
+            {ageRestrictedDraft ? (
+              <View style={styles.ageInputsRow}>
+                <View style={styles.ageInputBox}>
+                  <Text style={styles.fieldLabel}>Da</Text>
+                  <TextInput
+                    value={minAgeDraft}
+                    onChangeText={(value) => setMinAgeDraft(value.replace(/[^0-9]/g, '').slice(0, 2))}
+                    keyboardType="numeric"
+                    style={styles.input}
+                    maxLength={2}
+                  />
+                </View>
+                <View style={styles.ageInputBox}>
+                  <Text style={styles.fieldLabel}>A</Text>
+                  <TextInput
+                    value={maxAgeDraft}
+                    onChangeText={(value) => setMaxAgeDraft(value.replace(/[^0-9]/g, '').slice(0, 2))}
+                    keyboardType="numeric"
+                    style={styles.input}
+                    maxLength={2}
+                  />
+                </View>
+              </View>
+            ) : null}
+
+            <Pressable
+              style={[styles.secondaryAction, ageModeBusy && styles.disabled]}
+              disabled={ageModeBusy}
+              onPress={() => { void saveAgeRestriction(); }}
+            >
+              <Text style={styles.secondaryActionText}>
+                {ageModeBusy ? 'Salvataggio...' : 'Salva fascia d’età'}
+              </Text>
+            </Pressable>
 
             <Text style={styles.fieldLabel}>Immagine di copertina</Text>
             <Pressable
@@ -945,6 +1092,13 @@ const styles = StyleSheet.create({
   title: { marginTop: 13, color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.bold, fontSize: 31, textAlign: 'center' },
   place: { marginTop: 4, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.medium, fontSize: 13 },
   category: { marginTop: 7, paddingHorizontal: 12, paddingVertical: 5, borderRadius: 99, overflow: 'hidden', color: BAJUJU_COLORS.brightPink, backgroundColor: BAJUJU_COLORS.palePink, fontFamily: BAJUJU_FONTS.semiBold, fontSize: 12 },
+  ageRule: {
+    marginTop: 8,
+    alignSelf: 'center',
+    color: BAJUJU_COLORS.brightPink,
+    fontFamily: BAJUJU_FONTS.bold,
+    fontSize: 13,
+  },
   description: { marginTop: 14, color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.medium, fontSize: 15, lineHeight: 21, textAlign: 'center' },
   owner: { marginTop: 14, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.medium, fontSize: 12 },
   count: { marginTop: 4, color: BAJUJU_COLORS.brightPink, fontFamily: BAJUJU_FONTS.bold, fontSize: 14 },
@@ -989,6 +1143,8 @@ const styles = StyleSheet.create({
   textArea: { minHeight: 112, paddingTop: 13 },
   saveButton: { minHeight: 50, marginTop: 11, borderRadius: 25, alignItems: 'center', justifyContent: 'center', backgroundColor: BAJUJU_COLORS.brightPink },
   saveButtonText: { color: '#fff', fontFamily: BAJUJU_FONTS.bold, fontSize: 14 },
+  ageInputsRow: { flexDirection: 'row', gap: 12, marginTop: 8 },
+  ageInputBox: { flex: 1 },
   secondaryAction: { minHeight: 48, marginTop: 10, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: BAJUJU_COLORS.palePink },
   secondaryActionText: { color: BAJUJU_COLORS.brightPink, fontFamily: BAJUJU_FONTS.bold, fontSize: 14 },
   adminDangerZone: { marginTop: 20, paddingTop: 17, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: BAJUJU_COLORS.line, gap: 10 },

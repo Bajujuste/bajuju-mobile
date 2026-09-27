@@ -986,6 +986,8 @@ export default function ProfileScreen() {
     const payload: LooseRow = {
       [nameField]: cleanProfileName,
       [ageField]: numericAge,
+      age: numericAge,
+      age_range: String(numericAge),
       [genderField]: gender,
       allow_direct_contacts: directContactsEnabled,
     };

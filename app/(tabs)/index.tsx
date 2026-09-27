@@ -72,7 +72,7 @@ function hasCompleteRequiredProfile(profile: ProfileRow | null) {
     city &&
     Number.isInteger(age) &&
     age >= 18 &&
-    age <= 99 &&
+    age <= 80 &&
     validGender
   );
 }

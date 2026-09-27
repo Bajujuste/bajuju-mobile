@@ -30,6 +30,9 @@ export default function CreateGroupScreen() {
   const [city, setCity] = useState('');
   const [category, setCategory] = useState('');
   const [requiresApproval, setRequiresApproval] = useState(false);
+  const [ageRestricted, setAgeRestricted] = useState(false);
+  const [minAge, setMinAge] = useState('18');
+  const [maxAge, setMaxAge] = useState('80');
   const [coverUri, setCoverUri] = useState<string | null>(null);
 
   useEffect(() => {
@@ -56,13 +59,26 @@ export default function CreateGroupScreen() {
     return () => { active = false; };
   }, []);
 
+  const parsedMinAge = Number(minAge);
+  const parsedMaxAge = Number(maxAge);
+  const ageRangeValid =
+    !ageRestricted ||
+    (
+      Number.isInteger(parsedMinAge) &&
+      Number.isInteger(parsedMaxAge) &&
+      parsedMinAge >= 18 &&
+      parsedMaxAge <= 80 &&
+      parsedMinAge <= parsedMaxAge
+    );
+
   const canSave =
     allowed &&
     !saving &&
     name.trim().length >= 3 &&
     description.trim().length >= 10 &&
     city.trim().length >= 2 &&
-    category.length > 0;
+    category.length > 0 &&
+    ageRangeValid;
 
   async function handlePickCover() {
     try {
@@ -113,6 +129,8 @@ export default function CreateGroupScreen() {
         latitude: coordinates.latitude,
         longitude: coordinates.longitude,
         requiresApproval,
+        minAge: ageRestricted ? parsedMinAge : null,
+        maxAge: ageRestricted ? parsedMaxAge : null,
       });
 
       let coverWarning = '';
@@ -276,6 +294,62 @@ export default function CreateGroupScreen() {
             </Pressable>
           </View>
 
+          <Text style={styles.label}>Età degli iscritti</Text>
+          <Text style={styles.helper}>
+            Puoi lasciare il gruppo aperto a tutte le età oppure limitarlo a una fascia precisa.
+          </Text>
+          <View style={styles.joinModeBox}>
+            <Pressable
+              style={[styles.joinModeButton, !ageRestricted && styles.joinModeButtonSelected]}
+              onPress={() => setAgeRestricted(false)}
+            >
+              <Text style={[styles.joinModeTitle, !ageRestricted && styles.joinModeTitleSelected]}>Tutte le età</Text>
+              <Text style={[styles.joinModeText, !ageRestricted && styles.joinModeTextSelected]}>
+                Possono iscriversi tutti gli utenti maggiorenni di Bajuju.
+              </Text>
+            </Pressable>
+            <Pressable
+              style={[styles.joinModeButton, ageRestricted && styles.joinModeButtonSelected]}
+              onPress={() => setAgeRestricted(true)}
+            >
+              <Text style={[styles.joinModeTitle, ageRestricted && styles.joinModeTitleSelected]}>Riservato per età</Text>
+              <Text style={[styles.joinModeText, ageRestricted && styles.joinModeTextSelected]}>
+                Decidi l’età minima e massima per le nuove iscrizioni.
+              </Text>
+            </Pressable>
+          </View>
+
+          {ageRestricted ? (
+            <View style={styles.ageInputsRow}>
+              <View style={styles.ageInputBox}>
+                <Text style={styles.ageInputLabel}>Da</Text>
+                <TextInput
+                  value={minAge}
+                  onChangeText={(value) => setMinAge(value.replace(/[^0-9]/g, '').slice(0, 2))}
+                  keyboardType="numeric"
+                  style={styles.input}
+                  placeholder="18"
+                  maxLength={2}
+                />
+              </View>
+              <View style={styles.ageInputBox}>
+                <Text style={styles.ageInputLabel}>A</Text>
+                <TextInput
+                  value={maxAge}
+                  onChangeText={(value) => setMaxAge(value.replace(/[^0-9]/g, '').slice(0, 2))}
+                  keyboardType="numeric"
+                  style={styles.input}
+                  placeholder="80"
+                  maxLength={2}
+                />
+              </View>
+            </View>
+          ) : null}
+
+          {ageRestricted && !ageRangeValid ? (
+            <Text style={styles.ageError}>Inserisci una fascia valida da 18 a 80 anni.</Text>
+          ) : null}
+
           <Pressable
             style={[styles.mainButton, !canSave && styles.disabled]}
             disabled={!canSave}
@@ -351,6 +425,10 @@ const styles = StyleSheet.create({
   joinModeTitleSelected: { color: BAJUJU_COLORS.brightPink },
   joinModeText: { marginTop: 3, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.regular, fontSize: 12, lineHeight: 17 },
   joinModeTextSelected: { color: BAJUJU_COLORS.plum },
+  ageInputsRow: { flexDirection: 'row', gap: 12, marginBottom: 8 },
+  ageInputBox: { flex: 1 },
+  ageInputLabel: { marginBottom: 6, color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.bold, fontSize: 13 },
+  ageError: { marginTop: -4, marginBottom: 14, color: '#b42318', fontFamily: BAJUJU_FONTS.semiBold, fontSize: 12 },
   mainButton: { minHeight: 54, marginTop: 8, borderRadius: 27, alignItems: 'center', justifyContent: 'center', backgroundColor: BAJUJU_COLORS.brightPink },
   mainButtonText: { color: '#fff', fontFamily: BAJUJU_FONTS.bold, fontSize: 16 },
   disabled: { opacity: 0.45 },

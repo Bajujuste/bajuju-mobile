@@ -38,6 +38,8 @@ type ActivityRow = {
   activity_time?: string | null;
   max_participants?: number | null;
   join_approval_required?: boolean | null;
+  min_age?: number | null;
+  max_age?: number | null;
   is_flash?: boolean | null;
   photo_url?: string | null;
   image_url?: string | null;
@@ -192,7 +194,7 @@ export default function ExperiencesScreen() {
 
       const activitiesResult = await supabase
         .from('activities')
-        .select('id,creator_id,title,category,city,province,activity_date,activity_time,max_participants,join_approval_required,is_flash,photo_url,deleted_at,status,latitude,longitude')
+        .select('id,creator_id,title,category,city,province,activity_date,activity_time,max_participants,join_approval_required,min_age,max_age,is_flash,photo_url,deleted_at,status,latitude,longitude')
         .neq('is_flash', true)
         .gte('activity_date', oldestUsefulDate)
         .order('activity_date', { ascending: true })
@@ -461,6 +463,10 @@ export default function ExperiencesScreen() {
                         ]}>
                           {item.join_approval_required === true ? 'Su richiesta' : 'Partecipazione libera'}
                         </Text>
+                        {item.min_age !== null && item.min_age !== undefined &&
+                         item.max_age !== null && item.max_age !== undefined ? (
+                          <Text style={styles.ageBadge}>{item.min_age}–{item.max_age} anni</Text>
+                        ) : null}
                         {organizedByMe ? <Text style={styles.organizerBadge}>Organizzi tu</Text> : null}
                       </View>
                       <Text style={styles.cardTitle} numberOfLines={2}>{item.title || 'Esperienza Bajuju'}</Text>
@@ -522,6 +528,10 @@ export default function ExperiencesScreen() {
                         ]}>
                           {item.join_approval_required === true ? 'Su richiesta' : 'Partecipazione libera'}
                         </Text>
+                        {item.min_age !== null && item.min_age !== undefined &&
+                         item.max_age !== null && item.max_age !== undefined ? (
+                          <Text style={styles.ageBadge}>{item.min_age}–{item.max_age} anni</Text>
+                        ) : null}
                             {organizedByMe ? <Text style={styles.organizerBadge}>Organizzi tu</Text> : null}
                           </View>
                           <Text style={styles.cardTitle} numberOfLines={2}>{item.title || 'Esperienza Bajuju'}</Text>
@@ -601,6 +611,7 @@ const styles = StyleSheet.create({
   categoryBadge: { color: '#9b1f61', fontWeight: '900', fontSize: 12, backgroundColor: '#fff0f7', paddingHorizontal: 9, paddingVertical: 5, borderRadius: 999 },
   participationBadge: { color: '#22633c', fontWeight: '900', fontSize: 11, backgroundColor: '#eaf8ef', paddingHorizontal: 9, paddingVertical: 5, borderRadius: 999 },
   participationRequestBadge: { color: '#8a5b00', backgroundColor: '#fff4d6' },
+  ageBadge: { color: '#6b3b8f', fontWeight: '900', fontSize: 11, backgroundColor: '#f5ecff', paddingHorizontal: 9, paddingVertical: 5, borderRadius: 999 },
   organizerBadge: { color: '#7a5a00', fontWeight: '900', fontSize: 11, backgroundColor: '#fff8d8', paddingHorizontal: 9, paddingVertical: 5, borderRadius: 999 },
   cardTitle: { color: '#4b1430', fontSize: 18, lineHeight: 22, fontWeight: '900' },
   cardMeta: { marginTop: 5, color: '#745068', fontSize: 12, fontWeight: '700' },

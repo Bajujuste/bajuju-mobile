@@ -165,6 +165,9 @@ export function BajujuHomeView({
         <View style={styles.content}>
           <View style={styles.groupsHeader}>
             <Text style={styles.groupsTitle}>Eventi vicino a te</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel="Vedi tutti gli eventi" onPress={onFind} style={({ pressed }) => pressed && styles.pressed}>
+              <Text style={styles.groupsSeeAll}>Vedi tutti ›</Text>
+            </Pressable>
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.groupsScroll} style={styles.horizontalSection}>
             {nearbyExperiences.map((event) => (

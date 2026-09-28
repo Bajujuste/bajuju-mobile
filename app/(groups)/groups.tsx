@@ -31,7 +31,6 @@ export default function GroupsScreen() {
   const [groupRequests, setGroupRequests] = useState<GroupRequestRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
-  const [canCreate, setCanCreate] = useState(false);
   const [userId, setUserId] = useState('');
   const [search, setSearch] = useState('');
 
@@ -45,7 +44,6 @@ export default function GroupsScreen() {
         setGroups([]);
         setMyGroups([]);
         setGroupRequests([]);
-        setCanCreate(false);
         setUserId('');
         return;
       }
@@ -64,7 +62,6 @@ export default function GroupsScreen() {
       ]);
 
       if (requestsResult.error) throw requestsResult.error;
-      setCanCreate(true);
       setGroups(loadedGroups);
       setMyGroups(loadedGroups.filter((group) => group.joinedByMe));
       setGroupRequests((requestsResult.data || []) as GroupRequestRow[]);
@@ -123,11 +120,6 @@ export default function GroupsScreen() {
           <Text style={styles.subtitle}>
             Cerca una community, entra nel gruppo e scopri le esperienze dedicate.
           </Text>
-          {canCreate ? (
-            <Pressable style={styles.createButton} onPress={() => router.push('/create-group' as any)}>
-              <Text style={styles.createButtonText}>+ Crea gruppo</Text>
-            </Pressable>
-          ) : null}
         </View>
 
         <View style={styles.searchBox}>

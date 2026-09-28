@@ -41,7 +41,7 @@ const ITEMS: {
   },
   {
     key: 'create',
-    label: 'Crea esperienza',
+    label: 'Crea',
     icon: 'plus',
     activeIcon: 'plus',
     route: '/create-experience',

@@ -16,6 +16,10 @@ import MapView, {
 
 import { BAJUJU_COLORS, BAJUJU_FONTS } from '../theme/bajujuTheme';
 
+// Un'immagine statica evita il ritaglio delle icone vettoriali quando Android
+// converte il contenuto di Marker in bitmap.
+const pinkPinImage = require('../../assets/markers/pink-pin.png');
+
 export type BajujuMapItem = {
   id: string;
   latitude: number;
@@ -366,7 +370,8 @@ export default function BajujuMap({
                   longitude: displayMarker.longitude,
                 }}
                 anchor={{ x: 0.5, y: fullScreen ? 1 : 0.5 }}
-                tracksViewChanges={Platform.OS === "android" && markersNeedRedraw}
+                image={fullScreen ? pinkPinImage : undefined}
+                tracksViewChanges={!fullScreen && Platform.OS === "android" && markersNeedRedraw}
                 opacity={selected ? 1 : 0.96}
                 zIndex={selected ? 20 : 1}
                 onPress={(event) => {
@@ -374,17 +379,16 @@ export default function BajujuMap({
                   setSelectedItemId(item.id);
                 }}
               >
-                <View style={fullScreen ? styles.pinkPinContainer : [styles.mapMarker, selected && styles.mapMarkerSelected]}>
-                  {fullScreen ? <Ionicons name="location-sharp" size={selected ? 53 : 47} color={BAJUJU_COLORS.brightPink} /> : <Text style={styles.mapMarkerIcon}>{item.icon}</Text>}
-
-                  {displayMarker.total > 1 ? (
-                    <View style={styles.duplicateBadge}>
-                      <Text style={styles.duplicateBadgeText}>
-                        {displayMarker.index + 1}
-                      </Text>
-                    </View>
-                  ) : null}
-                </View>
+                {!fullScreen ? (
+                  <View style={[styles.mapMarker, selected && styles.mapMarkerSelected]}>
+                    <Text style={styles.mapMarkerIcon}>{item.icon}</Text>
+                    {displayMarker.total > 1 ? (
+                      <View style={styles.duplicateBadge}>
+                        <Text style={styles.duplicateBadgeText}>{displayMarker.index + 1}</Text>
+                      </View>
+                    ) : null}
+                  </View>
+                ) : null}
               </Marker>
             );
           })}
@@ -637,7 +641,6 @@ const styles = StyleSheet.create({
   fullScreenCard: { flex: 1, padding: 0, gap: 0, borderWidth: 0, borderRadius: 0, overflow: 'hidden' },
   fullScreenMapShell: { flex: 1, height: undefined, borderWidth: 0, borderRadius: 0 },
   topOverlay: { position: 'absolute', top: 12, left: 12, right: 12 },
-  pinkPinContainer: { width: 58, height: 62, alignItems: 'center', justifyContent: 'center' },
   locationButton: { position: 'absolute', bottom: 18, right: 16, width: 50, height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF', elevation: 6, shadowColor: '#4B1430', shadowOpacity: 0.2, shadowRadius: 8 },
   externalMapActions: { position: 'absolute', right: 12, flexDirection: 'row', gap: 8 },
   externalMapButton: { height: 48, paddingHorizontal: 11, borderRadius: 24, flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#F4C4DC', elevation: 5, shadowColor: '#4B1430', shadowOpacity: 0.16, shadowRadius: 7 },

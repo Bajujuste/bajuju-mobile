@@ -110,7 +110,7 @@ export function BajujuBottomNav({ active }: BajujuBottomNavProps) {
               color={item.key === 'create' ? BAJUJU_COLORS.white : color}
             />
             <Text
-              numberOfLines={1}
+              numberOfLines={2}
               style={[
                 styles.navLabel,
                 (item.key === 'myEvents' || item.key === 'how' || item.key === 'create' || item.key === 'groups') && styles.navLabelCompact,
@@ -122,7 +122,7 @@ export function BajujuBottomNav({ active }: BajujuBottomNavProps) {
                 selected && item.key === 'myEvents' && styles.myEventsLabelActive,
               ]}
             >
-              {item.label}
+              {item.key === 'how' ? 'Come\nfunziona' : item.key === 'myEvents' ? 'I miei\neventi' : item.key === 'groups' ? 'Crea\ngruppo' : item.label}
             </Text>
             {selected ? (
               <View
@@ -177,7 +177,9 @@ const styles = StyleSheet.create({
   },
   navLabelCompact: {
     fontSize: 11.5,
+    lineHeight: 14,
     letterSpacing: -0.15,
+    textAlign: 'center',
   },
   howNavItem: {
     height: 68,

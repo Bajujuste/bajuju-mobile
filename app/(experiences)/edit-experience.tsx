@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -15,7 +15,8 @@ import {
 } from 'react-native';
 
 import { EXPERIENCE_CATEGORIES, normalizeExperienceCategory } from '@/constants/experienceCategories';
-import { resolveAddressText } from '../../src/lib/addressAutocomplete';
+import { AddressAutocompleteField } from '../../src/components/AddressAutocompleteField';
+import type { ResolvedAddress } from '../../src/lib/addressAutocomplete';
 import { supabase } from '../../src/lib/supabase';
 
 type ActivityRow = {
@@ -100,6 +101,7 @@ export default function EditExperienceScreen() {
   const [city, setCity] = useState('');
   const [province, setProvince] = useState('');
   const [meetingPlace, setMeetingPlace] = useState('');
+  const [resolvedAddress, setResolvedAddress] = useState<ResolvedAddress | null>(null);
   const [category, setCategory] = useState('');
   const [maxParticipants, setMaxParticipants] = useState('');
   const [joinApprovalRequired, setJoinApprovalRequired] = useState(false);
@@ -107,7 +109,6 @@ export default function EditExperienceScreen() {
   const [minAge, setMinAge] = useState('18');
   const [maxAge, setMaxAge] = useState('80');
   const [budgetAmount, setBudgetAmount] = useState('');
-  const originalLocationRef = useRef({ signature: '', latitude: null as number | null, longitude: null as number | null });
 
   const loadExperience = useCallback(async () => {
     setLoading(true);
@@ -184,6 +185,33 @@ export default function EditExperienceScreen() {
       setCity(String(row.city || ''));
       setProvince(String(row.province || ''));
       setMeetingPlace(String(row.meeting_place || ''));
+      const loadedLatitude =
+        row.latitude === null || row.latitude === undefined ? null : Number(row.latitude);
+      const loadedLongitude =
+        row.longitude === null || row.longitude === undefined ? null : Number(row.longitude);
+      const hasValidCoordinates =
+        loadedLatitude !== null &&
+        loadedLongitude !== null &&
+        Number.isFinite(loadedLatitude) &&
+        Number.isFinite(loadedLongitude) &&
+        !(loadedLatitude === 0 && loadedLongitude === 0);
+
+      setResolvedAddress(
+        hasValidCoordinates
+          ? {
+              placeId: 'saved',
+              formattedAddress: String(row.meeting_place || ''),
+              shortFormattedAddress: String(row.meeting_place || ''),
+              street: '',
+              streetNumber: '',
+              city: String(row.city || ''),
+              province: String(row.province || ''),
+              provinceCode: '',
+              latitude: loadedLatitude as number,
+              longitude: loadedLongitude as number,
+            }
+          : null
+      );
       setCategory(normalizeExperienceCategory(row.category));
       setMaxParticipants(row.max_participants ? String(row.max_participants) : '');
       setJoinApprovalRequired(row.join_approval_required === true);
@@ -194,11 +222,6 @@ export default function EditExperienceScreen() {
       setMinAge(hasAgeRestriction ? String(row.min_age) : '18');
       setMaxAge(hasAgeRestriction ? String(row.max_age) : '80');
       setBudgetAmount(row.budget_amount !== null && row.budget_amount !== undefined ? String(row.budget_amount) : '');
-      originalLocationRef.current = {
-        signature: [String(row.meeting_place || '').trim(), String(row.city || '').trim(), String(row.province || '').trim()].join('|').toLowerCase(),
-        latitude: row.latitude,
-        longitude: row.longitude,
-      };
     } catch (error: any) {
       setErrorText(error?.message || 'Errore durante il caricamento dell’evento.');
     } finally {
@@ -215,17 +238,25 @@ export default function EditExperienceScreen() {
 
     const cleanTitle = title.trim();
     const cleanDescription = description.trim();
-    const cleanCity = city.trim();
-    const cleanProvince = province.trim();
     const cleanMeetingPlace = meetingPlace.trim();
+    const cleanCity = resolvedAddress?.city.trim() || '';
+    const cleanProvince = resolvedAddress?.province.trim() || '';
     const normalizedTime = cleanTime(activityTime);
     const parsedMax = Number(maxParticipants);
     const parsedMinAge = Number(minAge);
     const parsedMaxAge = Number(maxAge);
     const parsedBudget = budgetAmount.trim() ? Number(String(budgetAmount).replace(',', '.')) : null;
 
-    if (!cleanTitle || !cleanDescription || !cleanCity || !cleanProvince || !cleanMeetingPlace || !category) {
-      Alert.alert('Campi mancanti', 'Completa titolo, descrizione, luogo, comune, provincia e categoria.');
+    if (!cleanTitle || !cleanDescription || !cleanMeetingPlace || !category) {
+      Alert.alert('Campi mancanti', 'Completa titolo, descrizione, luogo e categoria.');
+      return;
+    }
+
+    if (!resolvedAddress || !cleanCity || !cleanProvince) {
+      Alert.alert(
+        'Conferma l’indirizzo',
+        'Scrivi il luogo di ritrovo e seleziona uno dei suggerimenti. Quando l’indirizzo è confermato diventa verde.'
+      );
       return;
     }
 
@@ -269,29 +300,8 @@ export default function EditExperienceScreen() {
     setSaving(true);
 
     try {
-      const nextLocationSignature = [cleanMeetingPlace, cleanCity, cleanProvince].join('|').toLowerCase();
-      let latitude = originalLocationRef.current.latitude;
-      let longitude = originalLocationRef.current.longitude;
-
-      if (
-        nextLocationSignature !== originalLocationRef.current.signature ||
-        latitude === null ||
-        longitude === null
-      ) {
-        try {
-          const resolved = await resolveAddressText(
-            [cleanMeetingPlace, cleanCity, cleanProvince, 'Italia'].join(', ')
-          );
-          latitude = resolved.latitude;
-          longitude = resolved.longitude;
-        } catch {
-          Alert.alert(
-            'Luogo non trovato',
-            'Non riesco a geolocalizzare il nuovo luogo. Controlla indirizzo, comune e provincia prima di salvare.'
-          );
-          return;
-        }
-      }
+      const latitude = resolvedAddress.latitude;
+      const longitude = resolvedAddress.longitude;
 
       let updateQuery = supabase
         .from('activities')
@@ -332,12 +342,6 @@ export default function EditExperienceScreen() {
         Alert.alert('Modifica non autorizzata', 'Non hai i permessi per modificare questo evento.');
         return;
       }
-
-      originalLocationRef.current = {
-        signature: [cleanMeetingPlace, cleanCity, cleanProvince].join('|').toLowerCase(),
-        latitude,
-        longitude,
-      };
 
       Alert.alert(
         'Evento aggiornato',
@@ -424,19 +428,18 @@ export default function EditExperienceScreen() {
                 </View>
               </View>
 
-              <Text style={styles.label}>Luogo di ritrovo</Text>
-              <TextInput style={styles.input} value={meetingPlace} onChangeText={setMeetingPlace} maxLength={250} />
-
-              <View style={styles.row}>
-                <View style={styles.rowItem}>
-                  <Text style={styles.label}>Comune</Text>
-                  <TextInput style={styles.input} value={city} onChangeText={setCity} maxLength={100} />
-                </View>
-                <View style={styles.rowItem}>
-                  <Text style={styles.label}>Provincia</Text>
-                  <TextInput style={styles.input} value={province} onChangeText={setProvince} maxLength={100} />
-                </View>
-              </View>
+              <AddressAutocompleteField
+                label="Luogo di ritrovo"
+                value={meetingPlace}
+                resolvedAddress={resolvedAddress}
+                onValueChange={setMeetingPlace}
+                onResolvedAddressChange={(address) => {
+                  setResolvedAddress(address);
+                  setCity(address?.city ?? '');
+                  setProvince(address?.province ?? '');
+                }}
+                disabled={saving}
+              />
 
               <Text style={styles.label}>Categoria</Text>
               <View style={styles.categories}>

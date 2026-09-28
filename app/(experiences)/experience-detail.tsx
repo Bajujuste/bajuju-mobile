@@ -232,6 +232,7 @@ export default function ExperienceDetailScreen() {
   const requestedSection = params.section;
 
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [isCurrentUserAdmin, setIsCurrentUserAdmin] = useState(false);
   const [experience, setExperience] = useState<ActivityRow | null>(null);
   const [participants, setParticipants] = useState<ParticipantRow[]>([]);
   const [profiles, setProfiles] = useState<Record<string, ProfileRow>>({});
@@ -298,6 +299,8 @@ export default function ExperienceDetailScreen() {
   const isParticipant = activeParticipants.some(
     (item) => String(item.user_id || '') === String(currentUserId || '')
   );
+
+  const canEditExperience = isOrganizer || isCurrentUserAdmin;
 
   const participantCount = displayedParticipants.length;
   const userAlbumPhotoCount = albumPhotos.filter((photo) => albumPhotoOwnerId(photo) === String(currentUserId || '')).length;
@@ -470,6 +473,22 @@ export default function ExperienceDetailScreen() {
     const authResult = await supabase.auth.getUser();
     const userId = authResult.data.user?.id || null;
     setCurrentUserId(userId);
+
+    if (userId) {
+      const profileResult = await supabase
+        .from('profiles')
+        .select('is_admin,is_deleted')
+        .eq('id', userId)
+        .maybeSingle();
+
+      setIsCurrentUserAdmin(
+        !profileResult.error &&
+        profileResult.data?.is_admin === true &&
+        profileResult.data?.is_deleted !== true
+      );
+    } else {
+      setIsCurrentUserAdmin(false);
+    }
 
     const result = await supabase
       .from('activities')
@@ -1345,6 +1364,22 @@ export default function ExperienceDetailScreen() {
                   <Text style={styles.shareExperienceButtonText}>Condividi esperienza</Text>
                 </Pressable>
 
+                {canEditExperience ? (
+                  <Pressable
+                    style={styles.editExperienceButton}
+                    onPress={() =>
+                      router.push({
+                        pathname: '/edit-experience' as any,
+                        params: { id: experienceId || '' },
+                      })
+                    }
+                  >
+                    <Text style={styles.editExperienceButtonText}>
+                      {isOrganizer ? 'Modifica evento' : 'Modifica evento · Admin'}
+                    </Text>
+                  </Pressable>
+                ) : null}
+
                 <View style={styles.participantsBox}>
                   <Text style={styles.sectionTitle}>Persone nell’esperienza</Text>
                   <Text style={styles.participantsCount}>
@@ -1936,6 +1971,20 @@ const styles = StyleSheet.create({
   shareExperienceButtonText: {
     color: '#ffffff',
     fontSize: 13,
+    fontWeight: '900',
+  },
+  editExperienceButton: {
+    marginTop: 10,
+    minHeight: 48,
+    borderRadius: 16,
+    backgroundColor: '#e43f98',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+  },
+  editExperienceButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
     fontWeight: '900',
   },
   participantsBox: {

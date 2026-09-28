@@ -20,6 +20,7 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 const BAJUJU_CHATGPT_API_KEY = Deno.env.get('BAJUJU_CHATGPT_API_KEY');
 const BAJUJU_ADMIN_USER_ID = Deno.env.get('BAJUJU_ADMIN_USER_ID');
+const GOOGLE_PLACES_API_KEY = Deno.env.get('GOOGLE_PLACES_API_KEY');
 
 const MAX_PHOTO_BYTES = 6 * 1024 * 1024;
 const ALLOWED_PHOTO_TYPES: Record<string, string> = {
@@ -43,6 +44,123 @@ function isAdminUser(user: Record<string, unknown>) {
 
 function optionalText(value: unknown) {
   return typeof value === 'string' ? value.trim() : '';
+}
+
+function addressComponent(
+  components: Array<Record<string, unknown>>,
+  type: string,
+  field: 'longText' | 'shortText' = 'longText'
+) {
+  const component = components.find((item) => {
+    const types = Array.isArray(item.types) ? item.types : [];
+    return types.includes(type);
+  });
+
+  if (!component) return '';
+  return optionalText(component[field]);
+}
+
+async function resolveCanonicalAddress(
+  meetingPlace: string,
+  cityHint: string,
+  provinceHint: string
+) {
+  if (!GOOGLE_PLACES_API_KEY) {
+    throw new Error('GOOGLE_PLACES_NOT_CONFIGURED');
+  }
+
+  const query = [meetingPlace, cityHint, provinceHint, 'Italia']
+    .filter(Boolean)
+    .join(', ');
+
+  const searchResponse = await fetch(
+    'https://places.googleapis.com/v1/places:searchText',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': GOOGLE_PLACES_API_KEY,
+        'X-Goog-FieldMask': 'places.id,places.location,places.formattedAddress',
+      },
+      body: JSON.stringify({
+        textQuery: query,
+        languageCode: 'it',
+        regionCode: 'it',
+        maxResultCount: 1,
+      }),
+    }
+  );
+
+  if (!searchResponse.ok) {
+    console.error('Google Places text search failed:', searchResponse.status);
+    throw new Error('ADDRESS_LOOKUP_FAILED');
+  }
+
+  const searchData = await searchResponse.json();
+  const place = Array.isArray(searchData.places) ? searchData.places[0] : null;
+  const placeId = optionalText(place?.id);
+
+  if (!placeId) {
+    throw new Error('ADDRESS_NOT_FOUND');
+  }
+
+  const detailsResponse = await fetch(
+    `https://places.googleapis.com/v1/places/${encodeURIComponent(placeId)}?languageCode=it&regionCode=it`,
+    {
+      headers: {
+        'X-Goog-Api-Key': GOOGLE_PLACES_API_KEY,
+        'X-Goog-FieldMask':
+          'id,formattedAddress,shortFormattedAddress,location,addressComponents',
+      },
+    }
+  );
+
+  if (!detailsResponse.ok) {
+    console.error('Google Places details failed:', detailsResponse.status);
+    throw new Error('ADDRESS_DETAILS_FAILED');
+  }
+
+  const details = await detailsResponse.json();
+  const latitude = Number(details.location?.latitude);
+  const longitude = Number(details.location?.longitude);
+  const components = Array.isArray(details.addressComponents)
+    ? details.addressComponents
+    : [];
+
+  const countryCode = addressComponent(components, 'country', 'shortText');
+  const city =
+    addressComponent(components, 'locality') ||
+    addressComponent(components, 'postal_town') ||
+    addressComponent(components, 'administrative_area_level_3');
+  const province =
+    addressComponent(components, 'administrative_area_level_2') ||
+    addressComponent(components, 'administrative_area_level_1');
+
+  if (
+    countryCode.toUpperCase() !== 'IT' ||
+    !city ||
+    !province ||
+    !Number.isFinite(latitude) ||
+    !Number.isFinite(longitude) ||
+    latitude < -90 ||
+    latitude > 90 ||
+    longitude < -180 ||
+    longitude > 180 ||
+    (latitude === 0 && longitude === 0)
+  ) {
+    throw new Error('INVALID_RESOLVED_ADDRESS');
+  }
+
+  return {
+    meetingPlace:
+      optionalText(details.shortFormattedAddress) ||
+      optionalText(details.formattedAddress) ||
+      meetingPlace,
+    city,
+    province,
+    latitude,
+    longitude,
+  };
 }
 
 // Confronto a tempo costante: i digest hanno sempre la stessa lunghezza, quindi il tempo
@@ -258,7 +376,8 @@ Deno.serve(async (req) => {
     !SUPABASE_URL ||
     !SUPABASE_SERVICE_ROLE_KEY ||
     !BAJUJU_CHATGPT_API_KEY ||
-    !BAJUJU_ADMIN_USER_ID
+    !BAJUJU_ADMIN_USER_ID ||
+    !GOOGLE_PLACES_API_KEY
   ) {
     return jsonResponse({ ok: false, error: "SERVER_NOT_CONFIGURED" }, 500);
   }
@@ -289,8 +408,8 @@ Deno.serve(async (req) => {
   const description = typeof body.description === "string" ? body.description.trim() : "";
   const activityDate = typeof body.activity_date === "string" ? body.activity_date.trim() : "";
   const activityTime = typeof body.activity_time === "string" ? body.activity_time.trim() : "";
-  const city = typeof body.city === "string" ? body.city.trim() : "";
-  const province = typeof body.province === "string" ? body.province.trim() : "";
+  const cityHint = typeof body.city === "string" ? body.city.trim() : "";
+  const provinceHint = typeof body.province === "string" ? body.province.trim() : "";
   const meetingPlace = typeof body.meeting_place === "string" ? body.meeting_place.trim() : "";
   const category = typeof body.category === "string" ? body.category.trim() : "altro";
   const maxParticipants = Number(body.max_participants);
@@ -308,8 +427,6 @@ Deno.serve(async (req) => {
     !description ||
     !activityDate ||
     !activityTime ||
-    !city ||
-    !province ||
     !meetingPlace ||
     !Number.isInteger(maxParticipants) ||
     maxParticipants < 1 ||
@@ -323,6 +440,29 @@ Deno.serve(async (req) => {
     (!suppliedPhotoUrl.startsWith('https://') || suppliedPhotoUrl.length > 2000)
   ) {
     return jsonResponse({ ok: false, error: 'INVALID_PHOTO_URL' }, 400);
+  }
+
+  let resolvedLocation: Awaited<ReturnType<typeof resolveCanonicalAddress>>;
+
+  try {
+    resolvedLocation = await resolveCanonicalAddress(
+      meetingPlace,
+      cityHint,
+      provinceHint
+    );
+  } catch (error) {
+    console.error(
+      'Admin experience address resolution failed:',
+      error instanceof Error ? error.message : error
+    );
+    return jsonResponse(
+      {
+        ok: false,
+        error:
+          error instanceof Error ? error.message : 'ADDRESS_LOOKUP_FAILED',
+      },
+      400
+    );
   }
 
   let uploadedPhotoPath = '';
@@ -391,20 +531,20 @@ Deno.serve(async (req) => {
       description,
       activity_date: activityDate,
       activity_time: activityTime,
-      city,
-      province,
-      meeting_place: meetingPlace,
+      city: resolvedLocation.city,
+      province: resolvedLocation.province,
+      meeting_place: resolvedLocation.meetingPlace,
       category,
       min_participants: 1,
       max_participants: maxParticipants,
       budget_amount: null,
       is_flash: false,
       expires_at: null,
-      latitude: null,
-      longitude: null,
+      latitude: resolvedLocation.latitude,
+      longitude: resolvedLocation.longitude,
       photo_url: eventPhotoUrl || null,
     })
-    .select("id,title,photo_url")
+    .select("id,title,photo_url,meeting_place,city,province,latitude,longitude")
     .single();
 
   if (insertResult.error) {

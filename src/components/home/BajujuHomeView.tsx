@@ -1,5 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
 import React from 'react';
+import { BajujuBottomNav } from '../navigation/BajujuBottomNav';
+import { getExperienceCategoryIcon, normalizeExperienceCategory } from '../../constants/experienceCategories';
 import {
   Image,
   Pressable,
@@ -43,6 +45,16 @@ type NextExperience = {
   organizedByMe?: boolean;
 };
 
+export type HomeNearbyExperience = {
+  id: string;
+  title: string;
+  category: string;
+  city: string;
+  date: string;
+  photoUrl: string;
+  distanceKm: number;
+};
+
 export type HomeGroupPreview = {
   id: string;
   name: string;
@@ -58,6 +70,8 @@ type BajujuHomeViewProps = {
   unreadNotificationsCount: number;
   nextExperience?: NextExperience | null;
   groups?: HomeGroupPreview[];
+  nearbyExperiences?: HomeNearbyExperience[];
+  onOpenExperience: (id: string) => void;
   onOpenNextExperience?: () => void;
   onOpenNotifications: () => void;
   onOpenProfile: () => void;
@@ -79,6 +93,8 @@ export function BajujuHomeView({
   unreadNotificationsCount,
   nextExperience,
   groups = [],
+  nearbyExperiences = [],
+  onOpenExperience,
   onOpenNextExperience,
   onOpenNotifications,
   onOpenProfile,
@@ -147,29 +163,28 @@ export function BajujuHomeView({
         </View>
 
         <View style={styles.content}>
-          <View style={styles.questionRow}>
-            <View style={styles.questionAccent} />
-            <Text style={styles.question}>COSA VUOI FARE OGGI?</Text>
+          <View style={styles.groupsHeader}>
+            <Text style={styles.groupsTitle}>Eventi vicino a te</Text>
           </View>
-
-          <View style={styles.actionRow}>
-            <ActionCard
-              icon={<BajujuIcon name="search" size={39} color={COLORS.pink} />}
-              title="Trova"
-              description="Scopri le esperienze"
-              accessibilityLabel="Trova esperienze"
-              onPress={onFind}
-            />
-            <ActionCard
-              icon={<BajujuIcon name="plus" size={40} color={COLORS.green} />}
-              title="Crea"
-              description="Proponi un’uscita"
-              accessibilityLabel="Crea un'esperienza"
-              accentColor={COLORS.green}
-              accentBackground={COLORS.greenSoft}
-              onPress={onCreate}
-            />
-          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.groupsScroll} style={styles.horizontalSection}>
+            {nearbyExperiences.map((event) => (
+              <Pressable key={event.id} style={styles.previewCard} onPress={() => onOpenExperience(event.id)} accessibilityRole="button" accessibilityLabel={`Apri esperienza ${event.title}`}>
+                {event.photoUrl ? <Image source={{ uri: event.photoUrl }} style={styles.previewImage} resizeMode="cover" /> : <View style={styles.previewPlaceholder}><BajujuIcon name="pin" size={44} color={COLORS.pink} /></View>}
+                <View style={styles.previewBody}>
+                  <Text style={styles.previewBadge}>{getExperienceCategoryIcon(event.category)} {normalizeExperienceCategory(event.category)}</Text>
+                  <Text style={styles.previewTitle} numberOfLines={2}>{event.title}</Text>
+                  <Text style={styles.previewMeta}>{event.city} · {event.date}</Text>
+                  <Text style={styles.previewMeta}>{event.distanceKm < 1 ? `${Math.round(event.distanceKm * 1000)} m` : `${event.distanceKm.toFixed(1)} km`} da te</Text>
+                  <Text style={styles.previewOpen}>Apri →</Text>
+                </View>
+              </Pressable>
+            ))}
+            <Pressable style={[styles.previewCard, styles.seeAllCard]} onPress={onFind} accessibilityRole="button" accessibilityLabel="Visualizza tutti gli eventi">
+              <BajujuIcon name="search" size={42} color={COLORS.pink} />
+              <Text style={styles.seeAllText}>Visualizza tutti</Text>
+              <Text style={styles.previewOpen}>Trova esperienze →</Text>
+            </Pressable>
+          </ScrollView>
 
           <View style={styles.groupsSection}>
             <View style={styles.groupsHeader}>
@@ -187,19 +202,6 @@ export function BajujuHomeView({
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.groupsScroll}
             >
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Crea gruppo"
-                onPress={onCreateGroup}
-                style={({ pressed }) => [styles.groupCard, styles.createGroupCard, pressed && styles.pressed]}
-              >
-                <View style={styles.createGroupPlus}>
-                  <BajujuIcon name="plus" size={42} color={COLORS.green} />
-                </View>
-                <Text style={styles.createGroupTitle}>Crea gruppo</Text>
-                <Text style={styles.createGroupText}>Proponi la tua community</Text>
-              </Pressable>
-
               {groups.map((group) => {
                 const place = [group.city, group.province].filter(Boolean).join(' · ');
                 return (
@@ -208,21 +210,16 @@ export function BajujuHomeView({
                     accessibilityRole="button"
                     accessibilityLabel={`Apri gruppo ${group.name}`}
                     onPress={() => onOpenGroup(group.id)}
-                    style={({ pressed }) => [styles.groupCard, pressed && styles.pressed]}
+                    style={({ pressed }) => [styles.previewCard, pressed && styles.pressed]}
                   >
-                    {group.coverUrl ? (
-                      <Image source={{ uri: group.coverUrl }} resizeMode="cover" style={styles.groupCover} />
-                    ) : (
-                      <View style={styles.groupIcon}>
-                        <BajujuIcon name="group" size={28} color={COLORS.brightPink} />
-                      </View>
-                    )}
-                    <Text style={styles.groupName} numberOfLines={2}>{group.name}</Text>
-                    {place ? <Text style={styles.groupPlace} numberOfLines={1}>{place}</Text> : null}
-                    <Text style={styles.groupMembers}>
-                      {group.memberCount} {group.memberCount === 1 ? 'iscritto' : 'iscritti'}
-                    </Text>
-                    {group.joinedByMe ? <Text style={styles.groupJoined}>Sei iscritto</Text> : null}
+                    {group.coverUrl ? <Image source={{ uri: group.coverUrl }} resizeMode="cover" style={styles.previewImage} /> : <View style={styles.previewPlaceholder}><BajujuIcon name="group" size={44} color={COLORS.pink} /></View>}
+                    <View style={styles.previewBody}>
+                      <Text style={styles.previewBadge}>COMMUNITY</Text>
+                      <Text style={styles.previewTitle} numberOfLines={2}>{group.name}</Text>
+                      <Text style={styles.previewMeta} numberOfLines={1}>{place}</Text>
+                      <Text style={styles.previewMeta}>{group.memberCount} {group.memberCount === 1 ? 'iscritto' : 'iscritti'}{group.joinedByMe ? ' · Sei iscritto' : ''}</Text>
+                      <Text style={styles.previewOpen}>Apri →</Text>
+                    </View>
                   </Pressable>
                 );
               })}
@@ -251,13 +248,6 @@ export function BajujuHomeView({
             </Pressable>
           ) : null}
 
-          <View style={styles.infoCard}>
-            <Text style={styles.infoTitle}>Con Bajuju puoi</Text>
-            <InfoItem icon="group" text="Entrare in gruppi con persone che condividono i tuoi interessi." />
-            <InfoItem icon="pin" text="Trovare esperienze vicino alla tua zona." />
-            <InfoItem icon="plus" text="Creare nuove esperienze e viverle dal vivo." />
-          </View>
-
           <View style={styles.footer}>
             <Pressable
               accessibilityRole="button"
@@ -285,12 +275,7 @@ export function BajujuHomeView({
         </View>
       </ScrollView>
 
-      <View style={[styles.bottomNav, { bottom: Math.max(13, insets.bottom + 7) }]}>
-        <NavItem active icon="home" label="Home" onPress={() => undefined} />
-        <NavItem icon="info" label="Come funziona" onPress={onOpenHowItWorks} />
-        <NavItem icon="calendar" label="I miei eventi" onPress={onOpenMyEvents} />
-        <NavItem icon="person" label="Profilo" onPress={onOpenProfile} />
-      </View>
+      <BajujuBottomNav active="home" />
     </SafeAreaView>
   );
 }
@@ -424,12 +409,23 @@ const styles = StyleSheet.create({
   titleUnderline: { width: 24, height: 3, marginTop: 6, marginBottom: 8, borderRadius: 2, backgroundColor: COLORS.brightPink },
   actionDescription: { color: COLORS.plum, fontFamily: 'FredokaSemiBold', fontSize: 13.5, lineHeight: 16 },
   cardArrow: { position: 'absolute', right: 14, bottom: 10, width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.softPink, borderWidth: 1, borderColor: '#FFD5E8', shadowColor: '#A2165A', shadowOpacity: 0.18, shadowRadius: 9, shadowOffset: { width: 0, height: 6 }, elevation: 5 },
-  groupsSection: { marginTop: 18, marginHorizontal: -22 },
+  groupsSection: { marginTop: 24, marginHorizontal: -22 },
   groupsHeader: { paddingHorizontal: 22, marginBottom: 11, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
   groupsEyebrow: { color: COLORS.muted, fontFamily: 'FredokaBold', fontSize: 11, letterSpacing: 0.8 },
   groupsTitle: { marginTop: 2, color: COLORS.plum, fontFamily: 'FredokaBold', fontSize: 25, letterSpacing: -0.4 },
   groupsSeeAll: { color: COLORS.brightPink, fontFamily: 'FredokaSemiBold', fontSize: 13 },
-  groupsScroll: { paddingHorizontal: 22, paddingBottom: 4, gap: 11 },
+  groupsScroll: { paddingHorizontal: 22, paddingBottom: 12, gap: 12 },
+  horizontalSection: { marginHorizontal: -22, marginTop: 12 },
+  previewCard: { width: 286, borderRadius: 24, overflow: 'hidden', backgroundColor: COLORS.white, borderWidth: 1, borderColor: COLORS.line },
+  previewImage: { width: '100%', height: 166 },
+  previewPlaceholder: { height: 166, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.softPink },
+  previewBody: { padding: 15, minHeight: 142 },
+  previewBadge: { color: COLORS.pink, fontFamily: 'FredokaSemiBold', fontSize: 12 },
+  previewTitle: { color: COLORS.plum, fontFamily: 'FredokaBold', fontSize: 18, lineHeight: 22, marginTop: 7 },
+  previewMeta: { color: COLORS.muted, fontFamily: 'FredokaMedium', fontSize: 12, marginTop: 5 },
+  previewOpen: { color: COLORS.brightPink, fontFamily: 'FredokaBold', fontSize: 13, marginTop: 12 },
+  seeAllCard: { minHeight: 300, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.softPink },
+  seeAllText: { color: COLORS.plum, fontFamily: 'FredokaBold', fontSize: 24, marginTop: 12 },
   groupCard: { width: 154, minHeight: 205, padding: 15, borderRadius: 25, borderWidth: 1.6, borderColor: '#F2BED7', backgroundColor: COLORS.white, shadowColor: '#761046', shadowOpacity: 0.2, shadowRadius: 16, shadowOffset: { width: 0, height: 11 }, elevation: 8 },
   createGroupCard: { borderColor: '#9EDDBC', backgroundColor: '#F6FCF8', alignItems: 'center', justifyContent: 'center', shadowColor: '#167A49' },
   createGroupPlus: { width: 74, height: 74, borderRadius: 37, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.greenSoft, borderWidth: 1, borderColor: '#D8F3E4', shadowColor: '#188451', shadowOpacity: 0.17, shadowRadius: 12, shadowOffset: { width: 0, height: 7 }, elevation: 6 },

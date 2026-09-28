@@ -183,9 +183,11 @@ export default function GroupsScreen() {
             {!hasSearch && myGroups.length > 0 ? (
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>I miei gruppi</Text>
-                {myGroups.map((group) => (
-                  <GroupRow key={`mine-${group.id}`} group={group} onPress={() => openGroup(group.id)} />
-                ))}
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  {myGroups.map((group) => (
+                    <GroupRow key={`mine-${group.id}`} group={group} onPress={() => openGroup(group.id)} />
+                  ))}
+                </ScrollView>
               </View>
             ) : null}
 
@@ -206,16 +208,18 @@ export default function GroupsScreen() {
                   </Text>
                 </View>
               ) : (
-                groups.map((group) => (
-                  <GroupRow key={group.id} group={group} onPress={() => openGroup(group.id)} />
-                ))
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  {groups.map((group) => (
+                    <GroupRow key={group.id} group={group} onPress={() => openGroup(group.id)} />
+                  ))}
+                </ScrollView>
               )}
             </View>
           </>
         )}
       </ScrollView>
 
-      <BajujuBottomNav active="groups" />
+      <BajujuBottomNav active="home" />
     </SafeAreaView>
   );
 }
@@ -233,19 +237,18 @@ function GroupRow({ group, onPress }: { group: BajujuGroupCard; onPress: () => v
       {group.coverUrl ? (
         <Image source={{ uri: group.coverUrl }} style={styles.groupCover} resizeMode="cover" />
       ) : (
-        <View style={styles.groupAvatar}>
-          <Text style={styles.groupAvatarText}>👥</Text>
-        </View>
+        <View style={styles.groupAvatar}><Text style={styles.groupAvatarText}>👥</Text></View>
       )}
       <View style={styles.groupCopy}>
-        <Text style={styles.groupName} numberOfLines={1}>{group.name}</Text>
+        <Text style={styles.groupCategory}>COMMUNITY</Text>
+        <Text style={styles.groupName} numberOfLines={2}>{group.name}</Text>
         {place ? <Text style={styles.groupMeta} numberOfLines={1}>{place}</Text> : null}
         <Text style={styles.groupMembers}>
           {group.memberCount} {group.memberCount === 1 ? 'iscritto' : 'iscritti'}
           {group.joinedByMe ? ' · Sei iscritto' : ''}
         </Text>
+        <Text style={styles.groupOpen}>Apri →</Text>
       </View>
-      <Text style={styles.arrow}>›</Text>
     </Pressable>
   );
 }
@@ -347,33 +350,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#FCE5EC',
     color: '#A3345E',
   },
-  groupCard: {
-    minHeight: 88,
-    marginBottom: 11,
-    padding: 13,
-    borderRadius: 23,
-    borderWidth: 1.5,
-    borderColor: BAJUJU_COLORS.palePink,
-    backgroundColor: '#fff',
-    flexDirection: 'row',
-    alignItems: 'center',
-    ...BAJUJU_SHADOW,
-  },
-  groupAvatar: {
-    width: 58,
-    height: 58,
-    borderRadius: 19,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: BAJUJU_COLORS.palePink,
-  },
-  groupCover: { width: 58, height: 58, borderRadius: 19, backgroundColor: BAJUJU_COLORS.palePink },
-  groupAvatarText: { fontSize: 28 },
-  groupCopy: { flex: 1, minWidth: 0, marginLeft: 13 },
-  groupName: { color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.bold, fontSize: 18 },
-  groupMeta: { marginTop: 2, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.medium, fontSize: 12 },
-  groupMembers: { marginTop: 5, color: BAJUJU_COLORS.brightPink, fontFamily: BAJUJU_FONTS.semiBold, fontSize: 12 },
-  arrow: { marginLeft: 10, color: BAJUJU_COLORS.brightPink, fontFamily: BAJUJU_FONTS.bold, fontSize: 30 },
+  groupCard: { width: 286, marginRight: 12, borderRadius: 24, overflow: 'hidden', borderWidth: 1, borderColor: BAJUJU_COLORS.palePink, backgroundColor: '#fff' },
+  groupAvatar: { width: '100%', height: 166, alignItems: 'center', justifyContent: 'center', backgroundColor: BAJUJU_COLORS.palePink },
+  groupCover: { width: '100%', height: 166, backgroundColor: BAJUJU_COLORS.palePink },
+  groupAvatarText: { fontSize: 44 },
+  groupCopy: { padding: 15, minHeight: 142 },
+  groupCategory: { color: BAJUJU_COLORS.brightPink, fontFamily: BAJUJU_FONTS.semiBold, fontSize: 12 },
+  groupName: { marginTop: 7, color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.bold, fontSize: 18, lineHeight: 22 },
+  groupMeta: { marginTop: 5, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.medium, fontSize: 12 },
+  groupMembers: { marginTop: 5, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.semiBold, fontSize: 12 },
+  groupOpen: { marginTop: 12, color: BAJUJU_COLORS.brightPink, fontFamily: BAJUJU_FONTS.bold, fontSize: 13 },
+  arrow: { color: BAJUJU_COLORS.brightPink },
   emptyCard: {
     marginTop: 6,
     padding: 20,

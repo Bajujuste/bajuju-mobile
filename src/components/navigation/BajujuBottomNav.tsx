@@ -9,7 +9,7 @@ import {
   BajujuIconName,
 } from '../icons/BajujuIcon';
 
-type NavKey = 'home' | 'find' | 'how' | 'groups' | 'myEvents' | 'flash' | 'profile';
+type NavKey = 'home' | 'find' | 'how' | 'groups' | 'create' | 'myEvents' | 'flash' | 'profile';
 
 type BajujuBottomNavProps = {
   active: NavKey;
@@ -19,11 +19,11 @@ const HOW_IT_WORKS_PINK = '#F32189';
 const MY_EVENTS_PETROL = '#168C9E';
 
 const ITEMS: {
-  key: Exclude<NavKey, 'flash'>;
+  key: Exclude<NavKey, 'flash' | 'find' | 'profile'>;
   label: string;
   icon: BajujuIconName;
   activeIcon: BajujuIconName;
-  route: '/home' | '/experiences' | '/how-it-works' | '/groups' | '/my-events' | '/profile';
+  route: '/home' | '/how-it-works' | '/create-experience' | '/my-events' | '/create-group';
 }[] = [
   {
     key: 'home',
@@ -40,6 +40,13 @@ const ITEMS: {
     route: '/how-it-works',
   },
   {
+    key: 'create',
+    label: 'Crea esperienza',
+    icon: 'plus',
+    activeIcon: 'plus',
+    route: '/create-experience',
+  },
+  {
     key: 'myEvents',
     label: 'I miei eventi',
     icon: 'calendar',
@@ -47,11 +54,11 @@ const ITEMS: {
     route: '/my-events',
   },
   {
-    key: 'profile',
-    label: 'Profilo',
-    icon: 'person',
-    activeIcon: 'person',
-    route: '/profile',
+    key: 'groups',
+    label: 'Crea gruppo',
+    icon: 'group',
+    activeIcon: 'group',
+    route: '/create-group',
   },
 ];
 
@@ -91,6 +98,7 @@ export function BajujuBottomNav({ active }: BajujuBottomNavProps) {
             }}
             style={({ pressed }) => [
               styles.navItem,
+              item.key === 'create' && styles.createNavItem,
               item.key === 'how' && styles.howNavItem,
               item.key === 'how' && selected && styles.howNavItemActive,
               pressed && styles.pressed,
@@ -98,14 +106,15 @@ export function BajujuBottomNav({ active }: BajujuBottomNavProps) {
           >
             <BajujuIcon
               name={selected ? item.activeIcon : item.icon}
-              size={27}
-              color={color}
+              size={item.key === 'create' ? 38 : 27}
+              color={item.key === 'create' ? BAJUJU_COLORS.white : color}
             />
             <Text
               numberOfLines={1}
               style={[
                 styles.navLabel,
-                (item.key === 'myEvents' || item.key === 'how') && styles.navLabelCompact,
+                (item.key === 'myEvents' || item.key === 'how' || item.key === 'create' || item.key === 'groups') && styles.navLabelCompact,
+                item.key === 'create' && styles.createLabel,
                 item.key === 'how' && styles.howLabel,
                 item.key === 'myEvents' && styles.myEventsLabel,
                 selected && item.key !== 'how' && item.key !== 'myEvents' && styles.navLabelActive,
@@ -159,6 +168,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 4,
   },
+  createNavItem: { height: 86, marginTop: -18, borderRadius: 24, backgroundColor: '#2FAE66', elevation: 7 },
+  createLabel: { color: '#FFFFFF', fontFamily: BAJUJU_FONTS.bold, textAlign: 'center' },
   navLabel: {
     color: BAJUJU_COLORS.plum,
     fontFamily: BAJUJU_FONTS.medium,

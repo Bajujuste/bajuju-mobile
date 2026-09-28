@@ -373,18 +373,10 @@ export default function ExperiencesScreen() {
           <Text style={styles.backText}>← Home</Text>
         </Pressable>
 
-        <View style={styles.headerCard}>
-          <Text style={styles.title}>Trova esperienze</Text>
-          <Text style={styles.subtitle}>Vicino a te, quelle che vivi e i ricordi degli ultimi 60 giorni.</Text>
-        </View>
-
-        <Pressable style={styles.mapButton} onPress={() => router.push('/experiences-map')}>
-          <Text style={styles.mapIcon}>🗺️</Text>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.mapTitle}>Apri la mappa</Text>
-            <Text style={styles.mapSubtitle}>Guarda gli eventi intorno a te</Text>
-          </View>
-          <Text style={styles.mapArrow}>→</Text>
+        <Pressable accessibilityRole="button" accessibilityLabel="Trova eventi sulla mappa" style={styles.mapButton} onPress={() => router.push('/experiences-map')}>
+          <View style={styles.mapIconBox}><Text style={styles.mapIcon}>🗺️</Text></View>
+          <Text style={styles.mapTitle}>Trova eventi sulla mappa</Text>
+          <View style={styles.mapArrowBox}><Text style={styles.mapArrow}>→</Text></View>
         </Pressable>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabsRow}>
@@ -585,11 +577,13 @@ const styles = StyleSheet.create({
   headerCard: { borderRadius: 28, padding: 20, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#ffd1e6' },
   title: { color: '#e43f98', fontSize: 29, fontWeight: '900' },
   subtitle: { marginTop: 6, color: '#6b3652', fontSize: 14, lineHeight: 20, fontWeight: '700' },
-  mapButton: { marginTop: 12, padding: 14, borderRadius: 20, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#f6c6dc', flexDirection: 'row', alignItems: 'center', gap: 12 },
-  mapIcon: { fontSize: 25 },
-  mapTitle: { color: '#4b1430', fontWeight: '900', fontSize: 15 },
+  mapButton: { marginTop: 12, minHeight: 90, padding: 14, borderRadius: 24, backgroundColor: '#FFE8F3', borderWidth: 1.5, borderColor: '#F4A7CA', flexDirection: 'row', alignItems: 'center', gap: 12, shadowColor: '#A2165A', shadowOpacity: 0.15, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 5 },
+  mapIconBox: { width: 56, height: 56, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF' },
+  mapIcon: { fontSize: 29 },
+  mapTitle: { flex: 1, color: '#4b1430', fontWeight: '900', fontSize: 18, lineHeight: 22 },
   mapSubtitle: { marginTop: 2, color: '#a95d86', fontWeight: '700', fontSize: 12 },
-  mapArrow: { color: '#e43f98', fontSize: 22, fontWeight: '900' },
+  mapArrowBox: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: '#E43F98' },
+  mapArrow: { color: '#FFFFFF', fontSize: 22, fontWeight: '900', lineHeight: 27 },
   tabsRow: { gap: 8, paddingVertical: 16, paddingRight: 18 },
   tabButton: { paddingHorizontal: 16, paddingVertical: 11, borderRadius: 999, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#f3c6dc' },
   tabButtonActive: { backgroundColor: '#e43f98', borderColor: '#e43f98' },

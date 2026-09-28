@@ -1,9 +1,10 @@
+import * as Location from 'expo-location';
 import React, { useEffect, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 
-import { BajujuHomeView, HomeGroupPreview } from '../src/components/home/BajujuHomeView';
+import { BajujuHomeView, HomeGroupPreview, HomeNearbyExperience } from '../src/components/home/BajujuHomeView';
 import { loadBajujuGroups } from '../src/lib/bajujuGroups';
 import { supabase } from '../src/lib/supabase';
 import { trackBajujuEvent } from '../src/utils/bajujuAnalytics';
@@ -70,6 +71,7 @@ export default function HomeScreen() {
   const [profilePhotoUrl, setProfilePhotoUrl] = useState('');
   const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
   const [nextExperience, setNextExperience] = useState<NextExperience | null>(null);
+  const [nearbyExperiences, setNearbyExperiences] = useState<HomeNearbyExperience[]>([]);
   const [groups, setGroups] = useState<HomeGroupPreview[]>([]);
 
   useEffect(() => {
@@ -201,6 +203,47 @@ export default function HomeScreen() {
         }
       }
 
+      async function refreshNearbyExperiences(userId: string) {
+        const preference = await supabase.from('notification_preferences').select('latitude,longitude').eq('user_id', userId).maybeSingle();
+        let latitude = preference.data?.latitude == null ? NaN : Number(preference.data.latitude);
+        let longitude = preference.data?.longitude == null ? NaN : Number(preference.data.longitude);
+        try {
+          const permission = await Location.getForegroundPermissionsAsync();
+          if (permission.status === 'granted') {
+            const location = await Location.getLastKnownPositionAsync({ maxAge: 6 * 60 * 60 * 1000 })
+              || await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+            latitude = location.coords.latitude;
+            longitude = location.coords.longitude;
+          }
+        } catch { /* Ultima posizione salvata, se disponibile. */ }
+        if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+          if (active) setNearbyExperiences([]);
+          return;
+        }
+        const today = new Date().toISOString().slice(0, 10);
+        const result = await supabase.from('activities')
+          .select('id,title,category,city,activity_date,activity_time,photo_url,latitude,longitude,status')
+          .eq('is_flash', false).is('deleted_at', null).gte('activity_date', today)
+          .order('activity_date', { ascending: true }).limit(500);
+        if (result.error) throw result.error;
+        const radians = (value: number) => value * Math.PI / 180;
+        const events = (result.data || []).flatMap((row: any) => {
+          const lat = Number(row.latitude), lon = Number(row.longitude);
+          if (row.latitude == null || row.longitude == null || !Number.isFinite(lat) || !Number.isFinite(lon)) return [];
+          if (['deleted', 'cancelled', 'canceled', 'annullato', 'archived', 'closed'].includes(String(row.status || '').toLowerCase())) return [];
+          const time = new Date(`${row.activity_date}T${row.activity_time || '23:59'}`);
+          if (time.getTime() < Date.now()) return [];
+          const dLat = radians(lat - latitude), dLon = radians(lon - longitude);
+          const a = Math.sin(dLat / 2) ** 2 + Math.cos(radians(latitude)) * Math.cos(radians(lat)) * Math.sin(dLon / 2) ** 2;
+          const distanceKm = 6371.0088 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+          if (distanceKm > 25) return [];
+          return [{ id: String(row.id), title: String(row.title || 'Esperienza Bajuju'), category: String(row.category || ''),
+            city: String(row.city || 'Luogo da definire'), date: time.toLocaleString('it-IT', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }),
+            photoUrl: String(row.photo_url || ''), distanceKm }];
+        }).sort((a, b) => a.distanceKm - b.distanceKm).slice(0, 5);
+        if (active) setNearbyExperiences(events);
+      }
+
       async function refreshNextExperience(userId: string) {
         const today = new Date().toISOString().slice(0, 10);
 
@@ -284,6 +327,7 @@ export default function HomeScreen() {
               setUnreadNotificationsCount(0);
               setNextExperience(null);
               setGroups([]);
+              setNearbyExperiences([]);
             }
             return;
           }
@@ -303,6 +347,7 @@ export default function HomeScreen() {
             refreshUnreadCount(userId),
             refreshNextExperience(userId),
             refreshGroups(userId),
+            refreshNearbyExperiences(userId),
           ]);
           if (!active) return;
 
@@ -387,6 +432,8 @@ export default function HomeScreen() {
       unreadNotificationsCount={unreadNotificationsCount}
       nextExperience={nextExperience}
       groups={groups}
+      nearbyExperiences={nearbyExperiences}
+      onOpenExperience={(id) => router.push({ pathname: '/experience-detail' as any, params: { id } })}
       onOpenNextExperience={() => {
         if (!nextExperience?.id) return;
         void trackBajujuEvent('next_experience_open', { activityId: nextExperience.id });

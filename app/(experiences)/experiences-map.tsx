@@ -4,10 +4,9 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
-  RefreshControl,
   SafeAreaView,
-  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -15,16 +14,9 @@ import {
 
 import BajujuMap, { BajujuMapItem } from '../../src/components/BajujuMap';
 import { BajujuBottomNav } from '@/components/navigation/BajujuBottomNav';
-import { EXPERIENCE_CATEGORIES, getExperienceCategoryIcon, normalizeExperienceCategory } from '@/constants/experienceCategories';
+import { normalizeExperienceCategory } from '@/constants/experienceCategories';
 import { BAJUJU_COLORS, BAJUJU_FONTS, BAJUJU_SHADOW } from '@/theme/bajujuTheme';
-import { ITALIAN_MUNICIPALITIES_BY_PROVINCE } from '../../src/data/italianMunicipalities';
 import { supabase } from '../../src/lib/supabase';
-
-const PROVINCE_OPTIONS = [
-  'Tutte',
-  ...Object.keys(ITALIAN_MUNICIPALITIES_BY_PROVINCE).sort((a, b) => a.localeCompare(b, 'it')),
-];
-const WHEN_OPTIONS = ['Tutte', 'Oggi', 'Domani', 'Questo weekend', 'Prossimi 7 giorni'] as const;
 
 type ActivityRow = Record<string, any>;
 
@@ -295,28 +287,13 @@ function formatDate(row: ActivityRow) {
   return [dateText, timeValue].filter(Boolean).join(' · ');
 }
 
-function matchesWhenFilter(row: ActivityRow, selectedWhen: string) {
-  if (selectedWhen === "Tutte") return true;
-  const value = String(firstValue(row, ["activity_date", "event_date", "date", "data"], "")).trim();
-  const parts = value.split("-").map(Number);
-  if (parts.length !== 3 || parts.some((part) => Number.isFinite(part) === false)) return false;
-  const eventDate = new Date(parts[0], parts[1] - 1, parts[2]);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  eventDate.setHours(0, 0, 0, 0);
-  const dayMs = 86400000;
-  const diffDays = Math.round((eventDate.getTime() - today.getTime()) / dayMs);
-  if (selectedWhen === "Oggi") return diffDays === 0;
-  if (selectedWhen === "Domani") return diffDays === 1;
-  if (selectedWhen === "Prossimi 7 giorni") return diffDays >= 0 && diffDays < 7;
-  if (selectedWhen === "Questo weekend") {
-    const saturday = new Date(today);
-    saturday.setDate(today.getDate() + (today.getDay() === 0 ? -1 : 6 - today.getDay()));
-    const sunday = new Date(saturday);
-    sunday.setDate(saturday.getDate() + 1);
-    return eventDate >= saturday && eventDate <= sunday;
-  }
-  return true;
+function matchesWhenFilter(row: ActivityRow, selectedWhen: 'Oggi' | 'Domani' | null) {
+  if (!selectedWhen) return true;
+  const value = String(firstValue(row, ['activity_date', 'event_date', 'date', 'data'], '')).trim();
+  const target = new Date();
+  if (selectedWhen === 'Domani') target.setDate(target.getDate() + 1);
+  const targetDate = `${target.getFullYear()}-${String(target.getMonth() + 1).padStart(2, '0')}-${String(target.getDate()).padStart(2, '0')}`;
+  return value === targetDate;
 }
 
 function openDetail(row: ActivityRow) {
@@ -330,15 +307,10 @@ export default function ExperiencesMapScreen() {
   const [rows, setRows] = useState<ActivityRow[]>([]);
   const [viewerCoordinates, setViewerCoordinates] = useState<Coordinates | null>(null);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [mapGestureActive, setMapGestureActive] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState('Tutti');
-  const [categoryMenuOpen, setCategoryMenuOpen] = useState(false);
-  const [selectedProvince, setSelectedProvince] = useState('Tutte');
-  const [provinceMenuOpen, setProvinceMenuOpen] = useState(false);
-  const [selectedWhen, setSelectedWhen] = useState('Tutte');
-  const [whenMenuOpen, setWhenMenuOpen] = useState(false);
+  const [selectedWhen, setSelectedWhen] = useState<'Oggi' | 'Domani' | null>(null);
+  const [onlyForMe, setOnlyForMe] = useState(false);
+  const [viewerAge, setViewerAge] = useState<number | null>(null);
   // Incrementato a ogni caricamento e alla chiusura: interrompe il geocoding del caricamento precedente.
   const geocodeRunRef = useRef(0);
 
@@ -356,7 +328,14 @@ export default function ExperiencesMapScreen() {
         setViewerCoordinates({ latitude: position.coords.latitude, longitude: position.coords.longitude });
         })().catch(() => setViewerCoordinates(null));
 
-      const today = new Date().toISOString().slice(0, 10);
+      const auth = await supabase.auth.getUser();
+      if (auth.data.user?.id) {
+        const profile = await supabase.from('profiles').select('age').eq('id', auth.data.user.id).maybeSingle();
+        const exactAge = Number(profile.data?.age);
+        setViewerAge(Number.isInteger(exactAge) && exactAge >= 18 && exactAge <= 99 ? exactAge : null);
+      }
+      const todayDate = new Date();
+      const today = `${todayDate.getFullYear()}-${String(todayDate.getMonth() + 1).padStart(2, '0')}-${String(todayDate.getDate()).padStart(2, '0')}`;
       const result = await supabase
         .from('activities')
         .select('*')
@@ -433,12 +412,6 @@ export default function ExperiencesMapScreen() {
     };
   }, [loadRows]);
 
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await loadRows();
-    setRefreshing(false);
-  }, [loadRows]);
-
   const retryLoadRows = useCallback(async () => {
     setLoading(true);
     await loadRows();
@@ -452,18 +425,14 @@ export default function ExperiencesMapScreen() {
     longitudeDelta: 0.25,
   } : undefined;
 
-  const filteredRows = useMemo(() => {
-    return rows.filter((row) => {
-      const matchesCategory =
-        selectedCategory === "Tutti" ||
-        normalizeExperienceCategory(getCategory(row)).toLowerCase() === selectedCategory.toLowerCase();
-
-      const matchesProvince =
-        selectedProvince === "Tutte" || getProvince(row) === selectedProvince;
-
-      return matchesCategory && matchesProvince && matchesWhenFilter(row, selectedWhen);
-    });
-  }, [rows, selectedCategory, selectedProvince, selectedWhen]);
+  const filteredRows = useMemo(() => rows.filter((row) => {
+    if (!matchesWhenFilter(row, selectedWhen)) return false;
+    if (!onlyForMe) return true;
+    if (viewerAge === null) return false;
+    const min = row.min_age == null ? 18 : Number(row.min_age);
+    const max = row.max_age == null ? 99 : Number(row.max_age);
+    return viewerAge >= min && viewerAge <= max;
+  }), [rows, selectedWhen, onlyForMe, viewerAge]);
 
   const mapItems: BajujuMapItem[] = filteredRows.flatMap((row) => {
     const id = activityId(row);
@@ -480,6 +449,8 @@ export default function ExperiencesMapScreen() {
       title: activityTitle(row),
       locationText: [getCity(row), getProvince(row)].filter(Boolean).join(' · '),
       dateText: formatDate(row),
+      photoUrl: cleanText(row.photo_url || row.image_url || row.cover_url),
+      ageText: row.min_age != null && row.max_age != null ? `Età ${row.min_age}–${row.max_age}` : '',
     }];
   });
 
@@ -491,163 +462,73 @@ export default function ExperiencesMapScreen() {
     }
   }
 
+  const toggleForMe = () => {
+    if (!onlyForMe && viewerAge === null) {
+      Alert.alert('Età richiesta', 'Inserisci la tua età esatta nel profilo per vedere le esperienze adatte a te.', [
+        { text: 'Annulla', style: 'cancel' },
+        { text: 'Apri profilo', onPress: () => router.push('/profile') },
+      ]);
+      return;
+    }
+    setOnlyForMe((value) => !value);
+  };
+
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView
-        contentContainerStyle={styles.page}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        scrollEnabled={!mapGestureActive}
-        nestedScrollEnabled
-      >
+    <SafeAreaView style={screenStyles.safeArea}>
+      <View style={screenStyles.header}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Torna a Trova esperienze" onPress={() => router.back()} style={screenStyles.backButton}>
+          <Text style={screenStyles.backText}>‹</Text>
+        </Pressable>
+        <Text style={screenStyles.heading}>Mappa esperienze</Text>
+        <Text style={screenStyles.count}>{mapItems.length}</Text>
+      </View>
 
-          <View style={[styles.card, styles.filtersCard]}>
-          <View style={styles.filtersRow}>
-            <View style={styles.filterColumn}>
-              <Text style={styles.filterLabel}>Categoria</Text>
-              <Pressable style={styles.categorySelectButton} onPress={() => { setProvinceMenuOpen(false); setWhenMenuOpen(false); setCategoryMenuOpen((value) => !value); }}>
-                <View style={styles.categorySelectTextBox}><Text style={styles.categorySelectValue}>{selectedCategory}</Text></View>
-                <Text style={styles.categorySelectArrow}>{categoryMenuOpen ? "⌃" : "⌄"}</Text>
-              </Pressable>
-            </View>
-            <View style={styles.filterColumn}>
-              <Text style={styles.filterLabel}>Provincia</Text>
-              <Pressable style={styles.categorySelectButton} onPress={() => { setCategoryMenuOpen(false); setWhenMenuOpen(false); setProvinceMenuOpen((value) => !value); }}>
-                <View style={styles.categorySelectTextBox}><Text style={styles.categorySelectValue}>{selectedProvince}</Text></View>
-                <Text style={styles.categorySelectArrow}>{provinceMenuOpen ? "⌃" : "⌄"}</Text>
-              </Pressable>
-            </View>
-              <View style={styles.filterColumn}>
-                <Text style={styles.filterLabel}>Quando</Text>
-                <Pressable style={styles.categorySelectButton} onPress={() => { setCategoryMenuOpen(false); setProvinceMenuOpen(false); setWhenMenuOpen((value) => !value); }}>
-                  <View style={styles.categorySelectTextBox}><Text style={styles.categorySelectValue}>{selectedWhen}</Text></View>
-                  <Text style={styles.categorySelectArrow}>{whenMenuOpen ? "⌃" : "⌄"}</Text>
-                </Pressable>
-              </View>
-            </View>
-          {categoryMenuOpen ? (
-            <View style={styles.categoryDropdown}>
-              {EXPERIENCE_CATEGORIES.map((category) => (
-                <Pressable
-                  key={category}
-                  style={[styles.categoryDropdownItem, selectedCategory === category && styles.categoryDropdownItemActive]}
-                  onPress={() => { setSelectedCategory(category); setCategoryMenuOpen(false); }}
-                >
-                  <Text style={[styles.categoryDropdownText, selectedCategory === category && styles.categoryDropdownTextActive]}>{category}</Text>
-                </Pressable>
-              ))}
-            </View>
-          ) : null}
-          {provinceMenuOpen ? (
-            <View style={styles.categoryDropdown}>
-              {PROVINCE_OPTIONS.map((province) => (
-                <Pressable
-                  key={province}
-                  style={[styles.categoryDropdownItem, selectedProvince === province && styles.categoryDropdownItemActive]}
-                  onPress={() => { setSelectedProvince(province); setProvinceMenuOpen(false); }}
-                >
-                  <Text style={[styles.categoryDropdownText, selectedProvince === province && styles.categoryDropdownTextActive]}>{province}</Text>
-                </Pressable>
-              ))}
-            </View>
-          ) : null}
-
-
-          {whenMenuOpen ? (
-            <View style={styles.categoryDropdown}>
-              {WHEN_OPTIONS.map((option) => (
-                <Pressable
-                  key={option}
-                  style={[styles.categoryDropdownItem, selectedWhen === option && styles.categoryDropdownItemActive]}
-                  onPress={() => { setSelectedWhen(option); setWhenMenuOpen(false); }}
-                >
-                  <Text style={[styles.categoryDropdownText, selectedWhen === option && styles.categoryDropdownTextActive]}>{option}</Text>
-                </Pressable>
-              ))}
-            </View>
-          ) : null}
-
-        </View>
-
-        {!loading && !errorMessage ? (
-          <BajujuMap
+      <View style={screenStyles.mapArea}>
+        {loading ? <View style={screenStyles.center}><ActivityIndicator color={BAJUJU_COLORS.brightPink} /><Text>Caricamento mappa…</Text></View>
+        : errorMessage ? <View style={screenStyles.center}><Text style={screenStyles.message}>{errorMessage}</Text><Pressable onPress={retryLoadRows}><Text style={screenStyles.retry}>Riprova</Text></Pressable></View>
+        : <BajujuMap
             items={mapItems}
-              mapTitle=""
-              showUserLocation={viewerCoordinates !== null}
-              hideHeader
-            mapSubtitle="Tocca un marker per vedere l’anteprima."
-            emptyText="Nessuna esperienza disponibile sulla mappa."
-            previewActionText="Tocca questa anteprima per aprire l’esperienza"
+            mapTitle=""
+            mapSubtitle=""
+            emptyText="Nessuna esperienza per questi filtri."
+            previewActionText="Apri esperienza →"
             onOpenItem={openMapItem}
             fallbackRegion={viewerRegion}
-              preferFallbackRegion={viewerRegion !== undefined}
-              viewportKey={`${selectedCategory}|${selectedProvince}|${selectedWhen}`}
-              onInteractionChange={setMapGestureActive}
-          />
-        ) : null}
-
-      {loading ? (
-        <View style={styles.card}>
-          <ActivityIndicator />
-          <Text style={styles.mutedText}>Caricamento esperienze...</Text>
-        </View>
-      ) : errorMessage ? (
-        <View style={styles.card}>
-          <Text style={styles.errorTitle}>Errore caricamento</Text>
-          <Text style={styles.errorText}>{errorMessage}</Text>
-          <Pressable style={styles.mainButton} onPress={retryLoadRows}>
-            <Text style={styles.mainButtonText}>Riprova</Text>
-          </Pressable>
-        </View>
-        ) : rows.length === 0 ? (
-          <View style={styles.card}>
-            <Text style={styles.emptyTitle}>Nessuna esperienza disponibile</Text>
-            <Text style={styles.mutedText}>
-              {'Quando saranno presenti eventi attivi, li troverai qui.'}
-            </Text>
-          </View>
-      ) : (
-        <View style={styles.card}>
-
-          {filteredRows.map((row) => {
-            const category = getCategory(row);
-            const city = getCity(row);
-            const province = getProvince(row);
-            const address = getAddress(row);
-
-            return (
-              <View key={activityId(row) || `${activityTitle(row)}-${getCity(row)}-${formatDate(row)}`} style={styles.eventBox}>
-                <Pressable style={styles.eventHeader} onPress={() => openDetail(row)}>
-                  <View style={styles.pinCircle}>
-                    <Text style={styles.pinIcon}>{getExperienceCategoryIcon(category)}</Text>
-                  </View>
-
-                  <View style={styles.eventTextBox}>
-                    <Text style={styles.eventTitle}>{activityTitle(row)}</Text>
-                    <Text style={styles.eventMeta}>
-                      {normalizeExperienceCategory(category)} · Tocca per aprire
-                    </Text>
-                  </View>
-                </Pressable>
-
-                <Text style={styles.eventInfo}>{[city, province].filter(Boolean).join(' · ')}</Text>
-                <Text style={styles.eventInfo}>{formatDate(row)}</Text>
-                <Text style={styles.addressText}>
-                  {address || 'Indirizzo non indicato: provo ad aprire la mappa dal comune.'}
-                </Text>
-
-                <Pressable style={styles.mapButton} onPress={() => openDetail(row)}>
-                  <Text style={styles.mapButtonText}>Apri esperienza</Text>
-                </Pressable>
-              </View>
-            );
-          })}
-        </View>
-      )}
-      </ScrollView>
+            preferFallbackRegion={viewerRegion !== undefined}
+            viewportKey={`${selectedWhen || 'Tutti'}|${onlyForMe}`}
+            showUserLocation={viewerCoordinates !== null}
+            userCoordinates={viewerCoordinates}
+            hideHeader
+            fullScreen
+            topOverlay={<View style={screenStyles.filters}>
+              <Pressable style={[screenStyles.chip, selectedWhen === 'Oggi' && screenStyles.chipSelected]} onPress={() => setSelectedWhen((value) => value === 'Oggi' ? null : 'Oggi')}><Text style={[screenStyles.chipText, selectedWhen === 'Oggi' && screenStyles.chipTextSelected]}>Oggi</Text></Pressable>
+              <Pressable style={[screenStyles.chip, selectedWhen === 'Domani' && screenStyles.chipSelected]} onPress={() => setSelectedWhen((value) => value === 'Domani' ? null : 'Domani')}><Text style={[screenStyles.chipText, selectedWhen === 'Domani' && screenStyles.chipTextSelected]}>Domani</Text></Pressable>
+              <Pressable style={[screenStyles.chip, onlyForMe && screenStyles.chipSelected]} onPress={toggleForMe}><Text style={[screenStyles.chipText, onlyForMe && screenStyles.chipTextSelected]}>Per me</Text></Pressable>
+            </View>}
+          />}
+      </View>
       <BajujuBottomNav active="find" />
     </SafeAreaView>
   );
 }
+
+const screenStyles = StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: '#FFF7FB' },
+  header: { height: 62, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#FFFFFF' },
+  backButton: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#FFF0F7', alignItems: 'center', justifyContent: 'center' },
+  backText: { fontSize: 29, lineHeight: 34, color: '#E43F98' },
+  heading: { flex: 1, color: '#4B0C2D', fontFamily: BAJUJU_FONTS.bold, fontSize: 22 },
+  count: { minWidth: 30, color: '#E43F98', fontFamily: BAJUJU_FONTS.bold, fontSize: 16, textAlign: 'center' },
+  mapArea: { flex: 1, marginBottom: 112 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24 },
+  message: { textAlign: 'center', color: '#4B0C2D' },
+  retry: { color: '#E43F98', fontFamily: BAJUJU_FONTS.bold },
+  filters: { flexDirection: 'row', gap: 8, justifyContent: 'center' },
+  chip: { minHeight: 44, paddingHorizontal: 17, borderRadius: 23, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#F4C4DC', alignItems: 'center', justifyContent: 'center', elevation: 4 },
+  chipSelected: { backgroundColor: '#E43F98', borderColor: '#E43F98' },
+  chipText: { color: '#4B0C2D', fontFamily: BAJUJU_FONTS.semiBold, fontSize: 15 },
+  chipTextSelected: { color: '#FFFFFF' },
+});
 
 const legacyStyles = StyleSheet.create({
 

@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Image, Linking } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import {
   Platform,
   Pressable,
@@ -23,6 +25,8 @@ export type BajujuMapItem = {
   title: string;
   locationText?: string;
   dateText?: string;
+  photoUrl?: string;
+  ageText?: string;
 };
 
 type BajujuMapProps = {
@@ -38,6 +42,9 @@ type BajujuMapProps = {
   hideHeader?: boolean;
   viewportKey?: string;
   onInteractionChange?: (active: boolean) => void;
+  fullScreen?: boolean;
+  topOverlay?: React.ReactNode;
+  userCoordinates?: { latitude: number; longitude: number } | null;
 };
 
 const DEFAULT_REGION: Region = {
@@ -156,10 +163,14 @@ export default function BajujuMap({
   hideHeader = false,
   viewportKey,
   onInteractionChange,
+  fullScreen = false,
+  topOverlay,
+  userCoordinates,
 }: BajujuMapProps) {
   const mapRef = useRef<MapView | null>(null);
   const [mapReady, setMapReady] = useState(false);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const [previewHeight, setPreviewHeight] = useState(230);
   // Su Android i marker personalizzati vanno ridisegnati solo quando cambiano: con
   // tracksViewChanges sempre attivo la mappa li ridisegna di continuo (fino a 500 marker).
   const [markersNeedRedraw, setMarkersNeedRedraw] = useState(true);
@@ -277,8 +288,21 @@ export default function BajujuMap({
     }
   };
 
+  const centerOnUser = () => {
+    if (!userCoordinates) return;
+    mapRef.current?.animateToRegion({ ...userCoordinates, latitudeDelta: 0.18, longitudeDelta: 0.18 }, 350);
+  };
+
+  const openGoogleMaps = (item: BajujuMapItem, directions: boolean) => {
+    const destination = `${item.latitude},${item.longitude}`;
+    const url = directions
+      ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}`
+      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(destination)}`;
+    void Linking.openURL(url).catch(() => console.log('Google Maps non disponibile.'));
+  };
+
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, fullScreen && styles.fullScreenCard]}>
         {!hideHeader ? (
           <View style={styles.header}>
             <View style={styles.headerText}>
@@ -290,7 +314,7 @@ export default function BajujuMap({
           </View>
         ) : null}
 
-      <View style={styles.mapShell}>
+      <View style={[styles.mapShell, fullScreen && styles.fullScreenMapShell]}>
         <MapView
           ref={mapRef}
           provider={
@@ -314,7 +338,7 @@ export default function BajujuMap({
           scrollEnabled={true}
           minZoomLevel={4}
           maxZoomLevel={20}
-          zoomControlEnabled
+          zoomControlEnabled={!fullScreen}
           toolbarEnabled={false}
           moveOnMarkerPress={false}
           onTouchStart={() => onInteractionChange?.(true)}
@@ -341,7 +365,7 @@ export default function BajujuMap({
                   latitude: displayMarker.latitude,
                   longitude: displayMarker.longitude,
                 }}
-                anchor={{ x: 0.5, y: 0.5 }}
+                anchor={{ x: 0.5, y: fullScreen ? 1 : 0.5 }}
                 tracksViewChanges={Platform.OS === "android" && markersNeedRedraw}
                 opacity={selected ? 1 : 0.96}
                 zIndex={selected ? 20 : 1}
@@ -350,15 +374,8 @@ export default function BajujuMap({
                   setSelectedItemId(item.id);
                 }}
               >
-                <View
-                  style={[
-                    styles.mapMarker,
-                    selected && styles.mapMarkerSelected,
-                  ]}
-                >
-                  <Text style={styles.mapMarkerIcon}>
-                    {item.icon}
-                  </Text>
+                <View style={fullScreen ? styles.pinkPinContainer : [styles.mapMarker, selected && styles.mapMarkerSelected]}>
+                  {fullScreen ? <Ionicons name="location-sharp" size={selected ? 53 : 47} color={BAJUJU_COLORS.brightPink} /> : <Text style={styles.mapMarkerIcon}>{item.icon}</Text>}
 
                   {displayMarker.total > 1 ? (
                     <View style={styles.duplicateBadge}>
@@ -373,7 +390,9 @@ export default function BajujuMap({
           })}
         </MapView>
 
-        <View style={styles.zoomButtons}>
+        {topOverlay ? <View style={styles.topOverlay}>{topOverlay}</View> : null}
+
+        {!fullScreen ? <View style={styles.zoomButtons}>
           <Pressable
             style={styles.zoomButton}
             onPress={() => changeZoom(1)}
@@ -387,13 +406,34 @@ export default function BajujuMap({
           >
             <Text style={styles.zoomButtonText}>−</Text>
           </Pressable>
-        </View>
+        </View> : null}
+
+        {fullScreen && userCoordinates ? (
+          <Pressable accessibilityRole="button" accessibilityLabel="Torna alla mia posizione" style={[styles.locationButton, selectedItem && { bottom: previewHeight + 84 }]} onPress={centerOnUser}>
+            <Ionicons name="locate-outline" size={25} color={BAJUJU_COLORS.plum} />
+          </Pressable>
+        ) : null}
+
+        {fullScreen && selectedItem ? (
+          <View style={[styles.externalMapActions, { bottom: previewHeight + 24 }]}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Indicazioni per raggiungere l'evento" style={styles.externalMapButton} onPress={() => openGoogleMaps(selectedItem, true)}>
+              <Ionicons name="navigate-outline" size={21} color={BAJUJU_COLORS.brightPink} />
+              <Text style={styles.externalMapLabel}>Indicazioni</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="Apri il luogo in Google Maps" style={styles.externalMapButton} onPress={() => openGoogleMaps(selectedItem, false)}>
+              <Ionicons name="map-outline" size={21} color={BAJUJU_COLORS.brightPink} />
+              <Text style={styles.externalMapLabel}>Google Maps</Text>
+            </Pressable>
+          </View>
+        ) : null}
 
         {selectedItem ? (
           <Pressable
             style={styles.preview}
             onPress={() => onOpenItem(selectedItem)}
+            onLayout={(event) => setPreviewHeight(event.nativeEvent.layout.height)}
           >
+            {fullScreen && selectedItem.photoUrl ? <Image source={{ uri: selectedItem.photoUrl }} style={styles.previewPhoto} resizeMode="cover" /> : null}
             <View style={styles.previewHeader}>
               <View style={styles.previewIconCircle}>
                 <Text style={styles.previewIcon}>{selectedItem.icon}</Text>
@@ -422,6 +462,8 @@ export default function BajujuMap({
                 {selectedItem.dateText}
               </Text>
             ) : null}
+
+            {fullScreen && selectedItem.ageText ? <Text style={styles.previewMeta}>{selectedItem.ageText}</Text> : null}
 
             <Text style={styles.previewAction}>
               {previewActionText}
@@ -592,6 +634,15 @@ const legacyStyles = StyleSheet.create({
 void legacyStyles;
 
 const styles = StyleSheet.create({
+  fullScreenCard: { flex: 1, padding: 0, gap: 0, borderWidth: 0, borderRadius: 0, overflow: 'hidden' },
+  fullScreenMapShell: { flex: 1, height: undefined, borderWidth: 0, borderRadius: 0 },
+  topOverlay: { position: 'absolute', top: 12, left: 12, right: 12 },
+  pinkPinContainer: { width: 58, height: 62, alignItems: 'center', justifyContent: 'center' },
+  locationButton: { position: 'absolute', bottom: 18, right: 16, width: 50, height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF', elevation: 6, shadowColor: '#4B1430', shadowOpacity: 0.2, shadowRadius: 8 },
+  externalMapActions: { position: 'absolute', right: 12, flexDirection: 'row', gap: 8 },
+  externalMapButton: { height: 48, paddingHorizontal: 11, borderRadius: 24, flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#F4C4DC', elevation: 5, shadowColor: '#4B1430', shadowOpacity: 0.16, shadowRadius: 7 },
+  externalMapLabel: { color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.semiBold, fontSize: 12 },
+  previewPhoto: { width: '100%', height: 94, borderRadius: 14, marginBottom: 9 },
   card: {
     padding: 22,
     borderRadius: 29,

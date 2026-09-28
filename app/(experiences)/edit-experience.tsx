@@ -89,6 +89,7 @@ export default function EditExperienceScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [authorizedUserId, setAuthorizedUserId] = useState('');
+  const [authorizedAsAdmin, setAuthorizedAsAdmin] = useState(false);
   const [minimumParticipants, setMinimumParticipants] = useState(1);
   const [errorText, setErrorText] = useState('');
 
@@ -126,11 +127,21 @@ export default function EditExperienceScreen() {
         return;
       }
 
+      const profileResult = await supabase
+        .from('profiles')
+        .select('is_admin,is_deleted')
+        .eq('id', userId)
+        .maybeSingle();
+
+      const isAdmin =
+        !profileResult.error &&
+        profileResult.data?.is_admin === true &&
+        profileResult.data?.is_deleted !== true;
+
       const result = await supabase
         .from('activities')
         .select('id,creator_id,title,description,activity_date,activity_time,city,province,meeting_place,category,max_participants,join_approval_required,min_age,max_age,budget_amount,is_flash,latitude,longitude')
         .eq('id', experienceId)
-        .eq('creator_id', userId)
         .eq('is_flash', false)
         .maybeSingle();
 
@@ -141,6 +152,11 @@ export default function EditExperienceScreen() {
 
       const row = result.data as ActivityRow | null;
       if (!row) {
+        setErrorText('Evento non trovato.');
+        return;
+      }
+
+      if (!isAdmin && String(row.creator_id || '') !== userId) {
         setErrorText('Puoi modificare solamente gli eventi creati da te.');
         return;
       }
@@ -159,6 +175,7 @@ export default function EditExperienceScreen() {
       });
 
       setAuthorizedUserId(userId);
+      setAuthorizedAsAdmin(isAdmin);
       setMinimumParticipants(Math.max(1, activeParticipantIds.size + 1));
       setTitle(String(row.title || ''));
       setDescription(String(row.description || ''));
@@ -276,7 +293,7 @@ export default function EditExperienceScreen() {
         }
       }
 
-      const result = await supabase
+      let updateQuery = supabase
         .from('activities')
         .update({
           title: cleanTitle,
@@ -296,8 +313,13 @@ export default function EditExperienceScreen() {
           longitude,
         })
         .eq('id', experienceId)
-        .eq('creator_id', authorizedUserId)
-        .eq('is_flash', false)
+        .eq('is_flash', false);
+
+      if (!authorizedAsAdmin) {
+        updateQuery = updateQuery.eq('creator_id', authorizedUserId);
+      }
+
+      const result = await updateQuery
         .select('id')
         .maybeSingle();
 
@@ -307,7 +329,7 @@ export default function EditExperienceScreen() {
       }
 
       if (!result.data) {
-        Alert.alert('Modifica non autorizzata', 'L’evento non è stato modificato perché non risulta creato da questo account.');
+        Alert.alert('Modifica non autorizzata', 'Non hai i permessi per modificare questo evento.');
         return;
       }
 
@@ -347,7 +369,11 @@ export default function EditExperienceScreen() {
           </Pressable>
 
           <Text style={styles.pageTitle}>Modifica evento</Text>
-          <Text style={styles.subtitle}>Puoi modificare soltanto un evento creato dal tuo account.</Text>
+          <Text style={styles.subtitle}>
+            {authorizedAsAdmin
+              ? 'Modalità admin: puoi modificare anche eventi creati da altri account o dalla chat.'
+              : 'Puoi modificare soltanto un evento creato dal tuo account.'}
+          </Text>
 
           {loading ? (
             <View style={styles.statusBox}>

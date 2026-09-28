@@ -119,9 +119,32 @@ function distanceKm(from: Coordinates, to: Coordinates) {
 }
 
 function rowCoordinates(row: ActivityRow): Coordinates | null {
+  if (
+    row.latitude === null ||
+    row.latitude === undefined ||
+    row.longitude === null ||
+    row.longitude === undefined ||
+    String(row.latitude).trim() === '' ||
+    String(row.longitude).trim() === ''
+  ) {
+    return null;
+  }
+
   const latitude = Number(row.latitude);
   const longitude = Number(row.longitude);
-  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+
+  if (
+    !Number.isFinite(latitude) ||
+    !Number.isFinite(longitude) ||
+    latitude < -90 ||
+    latitude > 90 ||
+    longitude < -180 ||
+    longitude > 180 ||
+    (latitude === 0 && longitude === 0)
+  ) {
+    return null;
+  }
+
   return { latitude, longitude };
 }
 

@@ -1,10 +1,10 @@
 {
-  "run_id": "36487101779",
-  "source_sha": "7901212640bffbe0873cd2d4801c76a88925a497",
-  "checks": "success",
-  "expo_token": "success",
-  "publish": "success",
+  "run_id": "36908657793",
+  "source_sha": "7fee653ab4975cb001ea86a876373b1f3ebd01df",
+  "checks": "failure",
+  "expo_token": "skipped",
+  "publish": "skipped",
   "channel": "production",
   "platform": "android+ios",
-  "runtime": "1.0.3"
+  "runtime": ""
 }

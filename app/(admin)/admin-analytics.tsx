@@ -11,6 +11,8 @@ import {
   View,
 } from 'react-native';
 
+import AcquisitionStats from '../../src/components/admin/AcquisitionStats';
+
 import { supabase } from '../../src/lib/supabase';
 
 type AnalyticsSummary = {
@@ -61,7 +63,8 @@ function eventLabel(value: string) {
 }
 
 export default function AdminAnalyticsScreen() {
-  const [days, setDays] = useState<7 | 30>(30);
+  const [days, setDays] = useState<1 | 2 | 7 | 30>(1);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [summary, setSummary] = useState<AnalyticsSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -72,6 +75,7 @@ export default function AdminAnalyticsScreen() {
     else setLoading(true);
 
     setErrorMessage('');
+    setRefreshKey(value => value + 1);
 
     try {
       const result = await supabase.rpc('master_get_analytics_summary' as any, {
@@ -99,7 +103,7 @@ export default function AdminAnalyticsScreen() {
     }, [days, loadSummary])
   );
 
-  function changeDays(value: 7 | 30) {
+  function changeDays(value: 1 | 2 | 7 | 30) {
     if (value === days) return;
     setDays(value);
   }
@@ -123,16 +127,20 @@ export default function AdminAnalyticsScreen() {
 
         <View style={styles.headerCard}>
           <Text style={styles.kicker}>BAJUJU ANALYTICS</Text>
-          <Text style={styles.title}>Come viene usata l’app</Text>
+          <Text style={styles.title}>Statistiche Bajuju</Text>
           <Text style={styles.subtitle}>
             Utilizzo, salute tecnica e copertura territoriale. Nessun contenuto di chat o testo privato viene mostrato qui.
           </Text>
 
           <View style={styles.periodRow}>
+            <PeriodButton active={days === 1} label="Oggi" onPress={() => changeDays(1)} />
+            <PeriodButton active={days === 2} label="Da ieri" onPress={() => changeDays(2)} />
             <PeriodButton active={days === 7} label="7 giorni" onPress={() => changeDays(7)} />
             <PeriodButton active={days === 30} label="30 giorni" onPress={() => changeDays(30)} />
           </View>
         </View>
+
+        <AcquisitionStats days={days} refreshKey={refreshKey} />
 
         {loading ? (
           <View style={styles.messageCard}>
@@ -301,7 +309,7 @@ const styles = StyleSheet.create({
   kicker: { color: '#e43f98', fontSize: 12, fontWeight: '900', letterSpacing: 1 },
   title: { marginTop: 6, color: '#4b1430', fontSize: 29, lineHeight: 34, fontWeight: '900' },
   subtitle: { marginTop: 7, color: '#745068', fontSize: 14, lineHeight: 20, fontWeight: '700' },
-  periodRow: { marginTop: 16, flexDirection: 'row', gap: 8 },
+  periodRow: { marginTop: 16, flexWrap: 'wrap', flexDirection: 'row', gap: 8 },
   periodButton: {
     paddingHorizontal: 16,
     paddingVertical: 10,

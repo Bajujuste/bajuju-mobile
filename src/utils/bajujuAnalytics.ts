@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import { supabase } from '../lib/supabase';
 
 type AnalyticsProperties = Record<string, unknown>;
@@ -37,7 +38,7 @@ export async function trackBajujuEvent(
     const result = await supabase.from('app_analytics_events').insert({
       user_id: userId,
       event_name: eventName.trim().slice(0, 80),
-      properties,
+      properties: { ...properties, platform: Platform.OS },
     });
 
     return !result.error;

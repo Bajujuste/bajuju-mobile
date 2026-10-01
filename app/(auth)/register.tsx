@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -13,6 +13,8 @@ import {
   TextInput,
   View,
 } from 'react-native';
+
+import { trackAcquisition } from '../../src/utils/acquisitionAnalytics';
 
 import { supabase } from '../../src/lib/supabase';
 
@@ -90,6 +92,7 @@ function unknownErrorMessage(error: unknown) {
 }
 
 export default function RegisterScreen() {
+  useEffect(() => { trackAcquisition('register_open'); }, []);
   const [profileName, setProfileName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -101,6 +104,8 @@ export default function RegisterScreen() {
   const [messageText, setMessageText] = useState('');
 
   async function handleRegister() {
+    if (loading) return;
+    trackAcquisition('register_attempt');
     const cleanProfileName = profileName.trim();
     const cleanEmail = email.trim().toLowerCase();
 
@@ -108,24 +113,28 @@ export default function RegisterScreen() {
     setMessageText('');
 
     if (!cleanProfileName || !cleanEmail || !password) {
+      trackAcquisition('register_error');
       setMessageTitle('Dati mancanti');
       setMessageText('Inserisci nome utente, email e password.');
       return;
     }
 
     if (cleanProfileName.length < 3) {
+      trackAcquisition('register_error');
       setMessageTitle('Nome troppo corto');
       setMessageText('Il nome utente deve avere almeno 3 caratteri.');
       return;
     }
 
     if (!acceptedTerms) {
+      trackAcquisition('register_error');
       setMessageTitle('Accettazione richiesta');
       setMessageText('Per registrarti devi accettare Termini, Privacy e le regole di tolleranza zero contro abusi e contenuti offensivi.');
       return;
     }
 
     if (password.length < 6) {
+      trackAcquisition('register_error');
       setMessageTitle('Password troppo corta');
       setMessageText('Usa almeno 6 caratteri.');
       return;
@@ -169,18 +178,21 @@ export default function RegisterScreen() {
         const errorMessage = signupErrorMessage(payload, `Errore registrazione (${response.status}).`);
 
         if (isDuplicateNicknameError(errorMessage)) {
+          trackAcquisition('register_error');
           setMessageTitle('Nome utente non disponibile');
           setMessageText('Questo nome utente è già stato scelto. Scegline un altro.');
           return;
         }
 
         if (isEmailAlreadyRegisteredError(errorMessage)) {
+          trackAcquisition('register_error');
           setMessageTitle('Email già utilizzata');
           setMessageText('Questa email è già registrata. Accedi oppure usa un’altra email.');
           return;
         }
 
         // Non mostrare mai all’utente errori tecnici di database, constraint o trigger.
+        trackAcquisition('register_error');
         setMessageTitle('Registrazione non riuscita');
         setMessageText('Non siamo riusciti a completare la registrazione. Riprova tra poco.');
         return;
@@ -190,17 +202,20 @@ export default function RegisterScreen() {
       const identities = payload.user?.identities || payload.identities;
 
       if (!newUserId) {
+        trackAcquisition('register_error');
         setMessageTitle('Registrazione non riuscita');
         setMessageText('Supabase non ha restituito il nuovo account. Riprova tra poco.');
         return;
       }
 
       if (Array.isArray(identities) && identities.length === 0) {
+        trackAcquisition('register_error');
         setMessageTitle('Email già utilizzata');
         setMessageText('Questa email è già registrata. Accedi oppure usa un’altra email.');
         return;
       }
 
+      trackAcquisition('register_success');
       if (payload.access_token && payload.refresh_token) {
         const sessionResult = await supabase.auth.setSession({
           access_token: payload.access_token,
@@ -227,6 +242,7 @@ export default function RegisterScreen() {
       await new Promise((resolve) => setTimeout(resolve, 1600));
       router.replace('/login');
     } catch (error: unknown) {
+      trackAcquisition('register_error');
       const errorMessage = unknownErrorMessage(error);
 
       if (isDuplicateNicknameError(errorMessage)) {

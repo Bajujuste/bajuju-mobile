@@ -603,7 +603,12 @@ export default function GroupDetailScreen() {
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.loadingBox}>
           <Text style={styles.notFoundTitle}>Gruppo non trovato</Text>
-          <Pressable style={styles.backPill} onPress={() => router.replace('/groups' as any)}>
+          <Pressable
+            style={styles.backPill}
+            onPress={() => router.replace('/groups' as any)}
+            accessibilityRole="button"
+            accessibilityLabel="Torna ai gruppi"
+          >
             <Text style={styles.backPillText}>Torna ai gruppi</Text>
           </Pressable>
         </View>
@@ -623,13 +628,24 @@ export default function GroupDetailScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        <Pressable style={styles.backPill} onPress={() => router.back()}>
+        <Pressable
+          style={styles.backPill}
+          onPress={() => router.back()}
+          accessibilityRole="button"
+          accessibilityLabel="Torna ai gruppi"
+        >
           <Text style={styles.backPillText}>← Gruppi</Text>
         </Pressable>
 
         <View style={styles.hero}>
           {coverUrl ? (
-            <Image source={{ uri: coverUrl }} style={styles.coverImage} resizeMode="cover" />
+            <Image
+              source={{ uri: coverUrl }}
+              style={styles.coverImage}
+              resizeMode="cover"
+              accessible
+              accessibilityLabel={`Foto di copertina del gruppo ${group.name || 'Bajuju'}`}
+            />
           ) : (
             <View style={styles.heroIcon}><Text style={styles.heroIconText}>👥</Text></View>
           )}
@@ -661,13 +677,21 @@ export default function GroupDetailScreen() {
                   style={[styles.resubmitButton, manageBusy && styles.disabled]}
                   disabled={manageBusy}
                   onPress={() => { void resubmitForApproval(); }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Invia di nuovo il gruppo per l’approvazione"
+                  accessibilityState={{ disabled: manageBusy, busy: manageBusy }}
                 >
                   <Text style={styles.resubmitButtonText}>{manageBusy ? 'Invio...' : 'Invia di nuovo per approvazione'}</Text>
                 </Pressable>
               ) : null}
             </View>
           ) : (
-            <Pressable style={styles.shareButton} onPress={() => { void handleShareGroup(); }}>
+            <Pressable
+              style={styles.shareButton}
+              onPress={() => { void handleShareGroup(); }}
+              accessibilityRole="button"
+              accessibilityLabel="Condividi gruppo"
+            >
               <Text style={styles.shareButtonText}>↗ Condividi gruppo</Text>
             </Pressable>
           )}
@@ -687,6 +711,17 @@ export default function GroupDetailScreen() {
                 ]}
                 disabled={busy || hasPendingJoinRequest}
                 onPress={() => { void toggleMembership(); }}
+                accessibilityRole="button"
+                accessibilityLabel={
+                  joined
+                    ? 'Abbandona il gruppo'
+                    : hasPendingJoinRequest
+                      ? 'Richiesta di iscrizione in attesa'
+                      : requiresApproval
+                        ? (joinState === 'rejected' ? 'Richiedi di nuovo di entrare nel gruppo' : 'Richiedi di entrare nel gruppo')
+                        : 'Iscriviti al gruppo'
+                }
+                accessibilityState={{ disabled: busy || hasPendingJoinRequest, busy }}
               >
                 <Text style={[
                   styles.joinButtonText,
@@ -709,6 +744,9 @@ export default function GroupDetailScreen() {
                   style={styles.cancelRequestButton}
                   disabled={busy}
                   onPress={() => { void cancelJoinRequest(); }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Annulla la richiesta di iscrizione"
+                  accessibilityState={{ disabled: busy, busy }}
                 >
                   <Text style={styles.cancelRequestButtonText}>Annulla richiesta</Text>
                 </Pressable>
@@ -731,6 +769,9 @@ export default function GroupDetailScreen() {
                 style={[styles.approvalModeButton, !requiresApproval && styles.approvalModeButtonSelected]}
                 disabled={approvalModeBusy}
                 onPress={() => { void setApprovalRequirement(false); }}
+                accessibilityRole="button"
+                accessibilityLabel="Imposta iscrizione libera"
+                accessibilityState={{ selected: !requiresApproval, disabled: approvalModeBusy, busy: approvalModeBusy }}
               >
                 <Text style={[styles.approvalModeButtonText, !requiresApproval && styles.approvalModeButtonTextSelected]}>
                   Libera
@@ -740,6 +781,9 @@ export default function GroupDetailScreen() {
                 style={[styles.approvalModeButton, requiresApproval && styles.approvalModeButtonSelected]}
                 disabled={approvalModeBusy}
                 onPress={() => { void setApprovalRequirement(true); }}
+                accessibilityRole="button"
+                accessibilityLabel="Imposta iscrizione con approvazione"
+                accessibilityState={{ selected: requiresApproval, disabled: approvalModeBusy, busy: approvalModeBusy }}
               >
                 <Text style={[styles.approvalModeButtonText, requiresApproval && styles.approvalModeButtonTextSelected]}>
                   Con approvazione
@@ -756,6 +800,9 @@ export default function GroupDetailScreen() {
                 style={[styles.approvalModeButton, !ageRestrictedDraft && styles.approvalModeButtonSelected]}
                 disabled={ageModeBusy}
                 onPress={() => setAgeRestrictedDraft(false)}
+                accessibilityRole="button"
+                accessibilityLabel="Imposta gruppo aperto a tutte le età"
+                accessibilityState={{ selected: !ageRestrictedDraft, disabled: ageModeBusy, busy: ageModeBusy }}
               >
                 <Text style={[styles.approvalModeButtonText, !ageRestrictedDraft && styles.approvalModeButtonTextSelected]}>
                   Tutte le età
@@ -765,6 +812,9 @@ export default function GroupDetailScreen() {
                 style={[styles.approvalModeButton, ageRestrictedDraft && styles.approvalModeButtonSelected]}
                 disabled={ageModeBusy}
                 onPress={() => setAgeRestrictedDraft(true)}
+                accessibilityRole="button"
+                accessibilityLabel="Imposta fascia d’età per il gruppo"
+                accessibilityState={{ selected: ageRestrictedDraft, disabled: ageModeBusy, busy: ageModeBusy }}
               >
                 <Text style={[styles.approvalModeButtonText, ageRestrictedDraft && styles.approvalModeButtonTextSelected]}>
                   Fascia d’età
@@ -801,6 +851,9 @@ export default function GroupDetailScreen() {
               style={[styles.secondaryAction, ageModeBusy && styles.disabled]}
               disabled={ageModeBusy}
               onPress={() => { void saveAgeRestriction(); }}
+              accessibilityRole="button"
+              accessibilityLabel="Salva la fascia d’età del gruppo"
+              accessibilityState={{ disabled: ageModeBusy, busy: ageModeBusy }}
             >
               <Text style={styles.secondaryActionText}>
                 {ageModeBusy ? 'Salvataggio...' : 'Salva fascia d’età'}
@@ -812,6 +865,9 @@ export default function GroupDetailScreen() {
               style={[styles.secondaryAction, coverBusy && styles.disabled]}
               disabled={coverBusy}
               onPress={() => { void handleChangeCover(); }}
+              accessibilityRole="button"
+              accessibilityLabel={coverUrl ? 'Cambia immagine di copertina' : 'Aggiungi immagine di copertina'}
+              accessibilityState={{ disabled: coverBusy, busy: coverBusy }}
             >
               <Text style={styles.secondaryActionText}>
                 {coverBusy ? 'Caricamento...' : coverUrl ? 'Cambia immagine di copertina' : 'Aggiungi immagine di copertina'}
@@ -847,6 +903,9 @@ export default function GroupDetailScreen() {
               style={[styles.saveButton, manageBusy && styles.disabled]}
               disabled={manageBusy}
               onPress={() => { void (isAdmin ? saveGroupChanges() : saveDescription()); }}
+              accessibilityRole="button"
+              accessibilityLabel={isAdmin ? 'Salva le modifiche al gruppo' : 'Salva la descrizione del gruppo'}
+              accessibilityState={{ disabled: manageBusy, busy: manageBusy }}
             >
               <Text style={styles.saveButtonText}>
                 {manageBusy ? 'Salvataggio...' : isAdmin ? 'Salva modifiche' : 'Salva descrizione'}
@@ -860,6 +919,9 @@ export default function GroupDetailScreen() {
                     style={[styles.takeOwnershipButton, manageBusy && styles.disabled]}
                     disabled={manageBusy}
                     onPress={confirmTakeOwnership}
+                    accessibilityRole="button"
+                    accessibilityLabel="Prendi possesso del gruppo"
+                    accessibilityState={{ disabled: manageBusy, busy: manageBusy }}
                   >
                     <Text style={styles.takeOwnershipText}>Prendi possesso del gruppo</Text>
                   </Pressable>
@@ -869,6 +931,9 @@ export default function GroupDetailScreen() {
                   style={[styles.deleteButton, manageBusy && styles.disabled]}
                   disabled={manageBusy}
                   onPress={confirmDeleteGroup}
+                  accessibilityRole="button"
+                  accessibilityLabel="Elimina gruppo"
+                  accessibilityState={{ disabled: manageBusy, busy: manageBusy }}
                 >
                   <Text style={styles.deleteButtonText}>Elimina gruppo</Text>
                 </Pressable>
@@ -886,6 +951,9 @@ export default function GroupDetailScreen() {
             <Pressable
               style={styles.requestsHeader}
               onPress={() => setRequestsOpen((current) => !current)}
+              accessibilityRole="button"
+              accessibilityLabel={`Richieste in attesa, ${joinRequests.length}`}
+              accessibilityState={{ expanded: requestsOpen }}
             >
               <View>
                 <Text style={styles.requestsEyebrow}>GESTIONE ISCRIZIONI</Text>
@@ -911,9 +979,17 @@ export default function GroupDetailScreen() {
                         onPress={() => {
                           if (avatarUrl) setSelectedMemberPhotoUrl(avatarUrl);
                         }}
+                        accessibilityRole="button"
+                        accessibilityLabel={avatarUrl ? `Ingrandisci la foto di ${request.nickname || 'questo utente'}` : undefined}
                       >
                         {avatarUrl ? (
-                          <Image source={{ uri: avatarUrl }} style={styles.memberAvatarImage} resizeMode="cover" />
+                          <Image
+                            source={{ uri: avatarUrl }}
+                            style={styles.memberAvatarImage}
+                            resizeMode="cover"
+                            accessible={false}
+                            importantForAccessibility="no"
+                          />
                         ) : (
                           <Text style={styles.memberAvatarText}>
                             {String(request.nickname || '?').slice(0, 1).toUpperCase()}
@@ -928,6 +1004,8 @@ export default function GroupDetailScreen() {
                             if (!requestUserId) return;
                             router.push({ pathname: '/user-profile' as any, params: { userId: requestUserId } });
                           }}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Apri il profilo di ${request.nickname || 'questo utente'}`}
                         >
                           <Text style={styles.memberName}>{request.nickname || 'Utente Bajuju'}</Text>
                           <Text style={styles.memberMeta}>
@@ -944,6 +1022,9 @@ export default function GroupDetailScreen() {
                             style={[styles.rejectRequestButton, requestBusy && styles.disabled]}
                             disabled={requestBusy}
                             onPress={() => { void reviewJoinRequest(requestUserId, false); }}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Rifiuta richiesta di ${request.nickname || 'Utente Bajuju'}`}
+                            accessibilityState={{ disabled: requestBusy }}
                           >
                             <Text style={styles.rejectRequestText}>Rifiuta</Text>
                           </Pressable>
@@ -951,6 +1032,9 @@ export default function GroupDetailScreen() {
                             style={[styles.acceptRequestButton, requestBusy && styles.disabled]}
                             disabled={requestBusy}
                             onPress={() => { void reviewJoinRequest(requestUserId, true); }}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Accetta richiesta di ${request.nickname || 'Utente Bajuju'}`}
+                            accessibilityState={{ disabled: requestBusy, busy: requestBusy }}
                           >
                             <Text style={styles.acceptRequestText}>{requestBusy ? '...' : 'Accetta'}</Text>
                           </Pressable>
@@ -985,6 +1069,8 @@ export default function GroupDetailScreen() {
                 key={String(experience.id)}
                 style={styles.experienceCard}
                 onPress={() => router.push({ pathname: '/experience-detail' as any, params: { id: String(experience.id || '') } })}
+                accessibilityRole="button"
+                accessibilityLabel={`Apri esperienza ${experience.title || 'Bajuju'}`}
               >
                 <Text style={styles.experienceTitle}>{experience.title || 'Esperienza Bajuju'}</Text>
                 <Text style={styles.experienceMeta}>
@@ -1062,12 +1148,33 @@ export default function GroupDetailScreen() {
         animationType="fade"
         onRequestClose={() => setSelectedMemberPhotoUrl(null)}
       >
-        <Pressable style={styles.photoModalBackdrop} onPress={() => setSelectedMemberPhotoUrl(null)}>
-          <Pressable style={styles.photoModalContent} onPress={() => {}}>
+        <Pressable
+          style={styles.photoModalBackdrop}
+          onPress={() => setSelectedMemberPhotoUrl(null)}
+          accessibilityRole="button"
+          accessibilityLabel="Chiudi l’anteprima della foto"
+        >
+          <Pressable
+            style={styles.photoModalContent}
+            onPress={() => {}}
+            accessible={false}
+            importantForAccessibility="no"
+          >
             {selectedMemberPhotoUrl ? (
-              <Image source={{ uri: selectedMemberPhotoUrl }} style={styles.photoModalImage} resizeMode="contain" />
+              <Image
+                source={{ uri: selectedMemberPhotoUrl }}
+                style={styles.photoModalImage}
+                resizeMode="contain"
+                accessible
+                accessibilityLabel="Foto ingrandita del profilo"
+              />
             ) : null}
-            <Pressable style={styles.photoModalClose} onPress={() => setSelectedMemberPhotoUrl(null)}>
+            <Pressable
+              style={styles.photoModalClose}
+              onPress={() => setSelectedMemberPhotoUrl(null)}
+              accessibilityRole="button"
+              accessibilityLabel="Chiudi"
+            >
               <Text style={styles.photoModalCloseText}>Chiudi</Text>
             </Pressable>
           </Pressable>

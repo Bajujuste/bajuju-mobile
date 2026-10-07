@@ -485,7 +485,7 @@ export default function ExperiencesMapScreen() {
 
       <View style={screenStyles.mapArea}>
         {loading ? <View style={screenStyles.center}><ActivityIndicator color={BAJUJU_COLORS.brightPink} /><Text>Caricamento mappa…</Text></View>
-        : errorMessage ? <View style={screenStyles.center}><Text style={screenStyles.message}>{errorMessage}</Text><Pressable onPress={retryLoadRows}><Text style={screenStyles.retry}>Riprova</Text></Pressable></View>
+        : errorMessage ? <View style={screenStyles.center} accessible accessibilityLiveRegion="polite"><Text style={screenStyles.message}>{errorMessage}</Text><Pressable onPress={retryLoadRows} accessibilityRole="button" accessibilityLabel="Riprova a caricare la mappa"><Text style={screenStyles.retry}>Riprova</Text></Pressable></View>
         : <BajujuMap
             items={mapItems}
             mapTitle=""
@@ -501,9 +501,27 @@ export default function ExperiencesMapScreen() {
             hideHeader
             fullScreen
             topOverlay={<View style={screenStyles.filters}>
-              <Pressable style={[screenStyles.chip, selectedWhen === 'Oggi' && screenStyles.chipSelected]} onPress={() => setSelectedWhen((value) => value === 'Oggi' ? null : 'Oggi')}><Text style={[screenStyles.chipText, selectedWhen === 'Oggi' && screenStyles.chipTextSelected]}>Oggi</Text></Pressable>
-              <Pressable style={[screenStyles.chip, selectedWhen === 'Domani' && screenStyles.chipSelected]} onPress={() => setSelectedWhen((value) => value === 'Domani' ? null : 'Domani')}><Text style={[screenStyles.chipText, selectedWhen === 'Domani' && screenStyles.chipTextSelected]}>Domani</Text></Pressable>
-              <Pressable style={[screenStyles.chip, onlyForMe && screenStyles.chipSelected]} onPress={toggleForMe}><Text style={[screenStyles.chipText, onlyForMe && screenStyles.chipTextSelected]}>Per me</Text></Pressable>
+              <Pressable
+                style={[screenStyles.chip, selectedWhen === 'Oggi' && screenStyles.chipSelected]}
+                onPress={() => setSelectedWhen((value) => value === 'Oggi' ? null : 'Oggi')}
+                accessibilityRole="button"
+                accessibilityLabel="Filtra per oggi"
+                accessibilityState={{ selected: selectedWhen === 'Oggi' }}
+              ><Text style={[screenStyles.chipText, selectedWhen === 'Oggi' && screenStyles.chipTextSelected]}>Oggi</Text></Pressable>
+              <Pressable
+                style={[screenStyles.chip, selectedWhen === 'Domani' && screenStyles.chipSelected]}
+                onPress={() => setSelectedWhen((value) => value === 'Domani' ? null : 'Domani')}
+                accessibilityRole="button"
+                accessibilityLabel="Filtra per domani"
+                accessibilityState={{ selected: selectedWhen === 'Domani' }}
+              ><Text style={[screenStyles.chipText, selectedWhen === 'Domani' && screenStyles.chipTextSelected]}>Domani</Text></Pressable>
+              <Pressable
+                style={[screenStyles.chip, onlyForMe && screenStyles.chipSelected]}
+                onPress={toggleForMe}
+                accessibilityRole="button"
+                accessibilityLabel="Mostra solo le esperienze adatte alla mia età"
+                accessibilityState={{ selected: onlyForMe }}
+              ><Text style={[screenStyles.chipText, onlyForMe && screenStyles.chipTextSelected]}>Per me</Text></Pressable>
             </View>}
           />}
       </View>

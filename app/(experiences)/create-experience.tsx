@@ -394,7 +394,12 @@ export default function CreateExperienceScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <Pressable style={styles.backButton} onPress={() => router.replace('/home')}>
+        <Pressable
+          style={styles.backButton}
+          onPress={() => router.replace('/home')}
+          accessibilityRole="button"
+          accessibilityLabel="Torna alla Home"
+        >
           <Text style={styles.backText}>← Home</Text>
         </Pressable>
 
@@ -452,6 +457,8 @@ export default function CreateExperienceScreen() {
                     setShowTimePicker(false);
                     setShowDatePicker(true);
                   }}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Seleziona la data dell'esperienza, ${formattedSelectedDate}`}
                 >
                   <Text style={[styles.dateTimePickerButtonText, !isoDate && styles.selectPlaceholder]}>{formattedSelectedDate}</Text>
                   <Text style={styles.pickerIcon}>▣</Text>
@@ -466,6 +473,8 @@ export default function CreateExperienceScreen() {
                     setShowDatePicker(false);
                     setShowTimePicker(true);
                   }}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Seleziona l'orario dell'esperienza, ${formattedSelectedTime}`}
                 >
                   <Text style={[styles.dateTimePickerButtonText, !cleanTime && styles.selectPlaceholder]}>{formattedSelectedTime}</Text>
                   <Text style={styles.pickerIcon}>◷</Text>
@@ -491,7 +500,12 @@ export default function CreateExperienceScreen() {
           <View style={styles.formSection}>
             <Text style={styles.sectionTitle}>Categoria e partecipanti</Text>
             <Text style={styles.label}>Categoria</Text>
-            <Pressable style={styles.selectButton} onPress={() => setCategorySelectOpen(true)}>
+            <Pressable
+              style={styles.selectButton}
+              onPress={() => setCategorySelectOpen(true)}
+              accessibilityRole="button"
+              accessibilityLabel={`Seleziona categoria, ${category.trim() || 'nessuna selezionata'}`}
+            >
               <Text style={[styles.selectButtonText, !category.trim() && styles.selectPlaceholder]}>
                 {category.trim() || 'Seleziona categoria'}
               </Text>
@@ -536,6 +550,9 @@ export default function CreateExperienceScreen() {
                   !joinApprovalRequired && styles.approvalModeButtonSelected,
                 ]}
                 onPress={() => setJoinApprovalRequired(false)}
+                accessibilityRole="button"
+                accessibilityLabel="Aperta a tutti"
+                accessibilityState={{ selected: !joinApprovalRequired }}
               >
                 <Text
                   style={[
@@ -553,6 +570,9 @@ export default function CreateExperienceScreen() {
                   joinApprovalRequired && styles.approvalModeButtonSelected,
                 ]}
                 onPress={() => setJoinApprovalRequired(true)}
+                accessibilityRole="button"
+                accessibilityLabel="Su approvazione"
+                accessibilityState={{ selected: joinApprovalRequired }}
               >
                 <Text
                   style={[
@@ -578,6 +598,9 @@ export default function CreateExperienceScreen() {
                   !ageRestricted && styles.approvalModeButtonSelected,
                 ]}
                 onPress={() => setAgeRestricted(false)}
+                accessibilityRole="button"
+                accessibilityLabel="Tutte le età"
+                accessibilityState={{ selected: !ageRestricted }}
               >
                 <Text
                   style={[
@@ -595,6 +618,9 @@ export default function CreateExperienceScreen() {
                   ageRestricted && styles.approvalModeButtonSelected,
                 ]}
                 onPress={() => setAgeRestricted(true)}
+                accessibilityRole="button"
+                accessibilityLabel="Fascia d'età"
+                accessibilityState={{ selected: ageRestricted }}
               >
                 <Text
                   style={[
@@ -657,9 +683,20 @@ export default function CreateExperienceScreen() {
             />
 
             <Text style={styles.label}>Foto esperienza</Text>
-            <Pressable style={styles.photoPicker} onPress={handlePickPhoto}>
+            <Pressable
+              style={styles.photoPicker}
+              onPress={handlePickPhoto}
+              accessibilityRole="button"
+              accessibilityLabel={photoUri ? 'Cambia la foto dell\'esperienza' : 'Aggiungi una foto dell\'esperienza'}
+            >
               {photoUri ? (
-                <Image source={{ uri: photoUri }} style={styles.photoPreview} resizeMode="cover" />
+                <Image
+                  source={{ uri: photoUri }}
+                  style={styles.photoPreview}
+                  resizeMode="cover"
+                  accessible={false}
+                  importantForAccessibility="no"
+                />
               ) : (
                 <View style={styles.photoPlaceholder}>
                   <Text style={styles.photoPlaceholderTitle}>Aggiungi una foto</Text>
@@ -670,10 +707,20 @@ export default function CreateExperienceScreen() {
 
             {photoUri ? (
               <View style={styles.photoActions}>
-                <Pressable style={styles.photoActionButton} onPress={handlePickPhoto}>
+                <Pressable
+                  style={styles.photoActionButton}
+                  onPress={handlePickPhoto}
+                  accessibilityRole="button"
+                  accessibilityLabel="Sostituisci la foto dell'esperienza"
+                >
                   <Text style={styles.photoActionText}>Sostituisci</Text>
                 </Pressable>
-                <Pressable style={styles.photoActionButton} onPress={() => setPhotoUri(null)}>
+                <Pressable
+                  style={styles.photoActionButton}
+                  onPress={() => setPhotoUri(null)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Rimuovi la foto dell'esperienza"
+                >
                   <Text style={styles.photoRemoveText}>Rimuovi</Text>
                 </Pressable>
               </View>
@@ -691,7 +738,12 @@ export default function CreateExperienceScreen() {
                     Facoltativo. L’esperienza verrà associata ai gruppi selezionati e gli iscritti verranno informati una sola volta.
                   </Text>
                 </View>
-                <Pressable onPress={toggleAllGroups} style={styles.selectAllButton}>
+                <Pressable
+                  onPress={toggleAllGroups}
+                  style={styles.selectAllButton}
+                  accessibilityRole="button"
+                  accessibilityLabel={selectedGroupIds.length === ownedGroups.length ? 'Deseleziona tutti i gruppi' : 'Seleziona tutti i gruppi'}
+                >
                   <Text style={styles.selectAllText}>
                     {selectedGroupIds.length === ownedGroups.length ? 'Nessuno' : 'Tutti'}
                   </Text>
@@ -705,6 +757,9 @@ export default function CreateExperienceScreen() {
                     key={group.id}
                     style={[styles.groupChoice, selected && styles.groupChoiceSelected]}
                     onPress={() => toggleGroup(group.id)}
+                    accessibilityRole="checkbox"
+                    accessibilityLabel={`Informa il gruppo ${group.name}`}
+                    accessibilityState={{ checked: selected }}
                   >
                     <View style={[styles.checkbox, selected && styles.checkboxSelected]}>
                       <Text style={styles.checkboxText}>{selected ? '✓' : ''}</Text>
@@ -753,6 +808,9 @@ export default function CreateExperienceScreen() {
             style={[styles.mainButton, !canCreateExperience && styles.mainButtonDisabled]}
             onPress={handleCreateExperience}
             disabled={!canCreateExperience}
+            accessibilityRole="button"
+            accessibilityLabel={saving ? 'Creazione in corso' : canCreateExperience ? 'Crea esperienza' : 'Completa tutti i dati'}
+            accessibilityState={{ disabled: !canCreateExperience, busy: saving }}
           >
             <Text style={styles.mainButtonText}>
               {saving ? 'Creazione in corso...' : canCreateExperience ? 'Crea esperienza' : 'Completa tutti i dati'}
@@ -769,7 +827,12 @@ export default function CreateExperienceScreen() {
         animationType="fade"
         onRequestClose={() => setCategorySelectOpen(false)}
       >
-        <Pressable style={styles.modalBackdrop} onPress={() => setCategorySelectOpen(false)}>
+        <Pressable
+          style={styles.modalBackdrop}
+          onPress={() => setCategorySelectOpen(false)}
+          accessibilityRole="button"
+          accessibilityLabel="Chiudi selezione categoria"
+        >
           <Pressable style={styles.modalSheet} onPress={() => {}}>
             <View style={styles.modalHandle} />
             <Text style={styles.modalTitle}>Seleziona categoria</Text>
@@ -785,6 +848,9 @@ export default function CreateExperienceScreen() {
                       if (item !== 'Gita') setBudgetAmount('');
                       setCategorySelectOpen(false);
                     }}
+                    accessibilityRole="checkbox"
+                    accessibilityLabel={item}
+                    accessibilityState={{ checked: isSelected }}
                   >
                     <Text style={[styles.modalOptionText, isSelected && styles.modalOptionTextActive]}>{item}</Text>
                     {isSelected ? <Text style={styles.modalCheck}>✓</Text> : null}
@@ -792,7 +858,12 @@ export default function CreateExperienceScreen() {
                 );
               })}
             </ScrollView>
-            <Pressable style={styles.modalCloseButton} onPress={() => setCategorySelectOpen(false)}>
+            <Pressable
+              style={styles.modalCloseButton}
+              onPress={() => setCategorySelectOpen(false)}
+              accessibilityRole="button"
+              accessibilityLabel="Chiudi selezione categoria"
+            >
               <Text style={styles.modalCloseText}>Chiudi</Text>
             </Pressable>
           </Pressable>

@@ -383,6 +383,8 @@ export default function ExperiencesScreen() {
           event.stopPropagation();
           router.push({ pathname: '/experience-waitlist' as any, params: { id: activityId } });
         }}
+        accessibilityRole="button"
+        accessibilityLabel={`Entra in lista d'attesa per ${item.title || 'questa esperienza'}`}
       >
         <Text style={styles.waitlistButtonText}>Lista d’attesa</Text>
       </Pressable>
@@ -392,7 +394,12 @@ export default function ExperiencesScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        <Pressable style={styles.backButton} onPress={() => router.replace('/home')}>
+        <Pressable
+          style={styles.backButton}
+          onPress={() => router.replace('/home')}
+          accessibilityRole="button"
+          accessibilityLabel="Torna alla Home"
+        >
           <Text style={styles.backText}>← Home</Text>
         </Pressable>
 
@@ -441,7 +448,12 @@ export default function ExperiencesScreen() {
         ) : errorMessage ? (
           <View style={styles.emptyCard}>
             <Text style={styles.emptyText}>{errorMessage}</Text>
-            <Pressable style={styles.retryButton} onPress={() => void loadAll()}><Text style={styles.retryText}>Riprova</Text></Pressable>
+            <Pressable
+              style={styles.retryButton}
+              onPress={() => void loadAll()}
+              accessibilityRole="button"
+              accessibilityLabel="Riprova a caricare le esperienze"
+            ><Text style={styles.retryText}>Riprova</Text></Pressable>
           </View>
         ) : visibleActivities.length === 0 ? (
           <View style={styles.emptyCard}>
@@ -465,9 +477,26 @@ export default function ExperiencesScreen() {
                 const distance = 'distanceKm' in item && typeof item.distanceKm === 'number' ? item.distanceKm : null;
 
                 return (
-                  <Pressable key={activityId} style={styles.experienceCard} onPress={() => router.push({ pathname: '/experience-detail' as any, params: { id: activityId } })}>
-                    <Pressable style={styles.imageBox} onPress={(event) => { event.stopPropagation(); if (poster) setSelectedPosterUrl(poster); }}>
-                      <Image source={poster ? { uri: poster } : bajujuLogo} style={styles.image} resizeMode="cover" />
+                  <Pressable
+                    key={activityId}
+                    style={styles.experienceCard}
+                    onPress={() => router.push({ pathname: '/experience-detail' as any, params: { id: activityId } })}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Apri ${item.title || 'esperienza Bajuju'}, ${formatDate(item)}`}
+                  >
+                    <Pressable
+                      style={styles.imageBox}
+                      onPress={(event) => { event.stopPropagation(); if (poster) setSelectedPosterUrl(poster); }}
+                      accessibilityRole="button"
+                      accessibilityLabel="Apri la foto a schermo intero"
+                    >
+                      <Image
+                        source={poster ? { uri: poster } : bajujuLogo}
+                        style={styles.image}
+                        resizeMode="cover"
+                        accessible={false}
+                        importantForAccessibility="no"
+                      />
                     </Pressable>
                     <View style={styles.cardBody}>
                       <View style={styles.badgesRow}>
@@ -498,7 +527,12 @@ export default function ExperiencesScreen() {
               })}
             </ScrollView>
             {visibleCount < selectedActivities.length ? (
-              <Pressable style={styles.moreButton} onPress={() => setVisibleCount((value) => value + PAGE_SIZE)}>
+              <Pressable
+                style={styles.moreButton}
+                onPress={() => setVisibleCount((value) => value + PAGE_SIZE)}
+                accessibilityRole="button"
+                accessibilityLabel={`Mostra altri ${Math.min(PAGE_SIZE, selectedActivities.length - visibleCount)} eventi`}
+              >
                 <Text style={styles.moreButtonText}>Mostra altri {Math.min(PAGE_SIZE, selectedActivities.length - visibleCount)}</Text>
               </Pressable>
             ) : null}
@@ -530,9 +564,26 @@ export default function ExperiencesScreen() {
                     const distance = typeof item.distanceKm === 'number' ? item.distanceKm : null;
 
                     return (
-                      <Pressable key={activityId} style={styles.experienceCard} onPress={() => router.push({ pathname: '/experience-detail' as any, params: { id: activityId } })}>
-                        <Pressable style={styles.imageBox} onPress={(event) => { event.stopPropagation(); if (poster) setSelectedPosterUrl(poster); }}>
-                          <Image source={poster ? { uri: poster } : bajujuLogo} style={styles.image} resizeMode="cover" />
+                      <Pressable
+                        key={activityId}
+                        style={styles.experienceCard}
+                        onPress={() => router.push({ pathname: '/experience-detail' as any, params: { id: activityId } })}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Apri ${item.title || 'esperienza Bajuju'}, ${formatDate(item)}`}
+                      >
+                        <Pressable
+                          style={styles.imageBox}
+                          onPress={(event) => { event.stopPropagation(); if (poster) setSelectedPosterUrl(poster); }}
+                          accessibilityRole="button"
+                          accessibilityLabel="Apri la foto a schermo intero"
+                        >
+                          <Image
+                            source={poster ? { uri: poster } : bajujuLogo}
+                            style={styles.image}
+                            resizeMode="cover"
+                            accessible={false}
+                            importantForAccessibility="no"
+                          />
                         </Pressable>
                         <View style={styles.cardBody}>
                           <View style={styles.badgesRow}>
@@ -563,7 +614,12 @@ export default function ExperiencesScreen() {
                   })}
                 </ScrollView>
                 {allEventsVisibleCount < allEventsActivities.length ? (
-                  <Pressable style={styles.moreButton} onPress={() => setAllEventsVisibleCount((value) => value + PAGE_SIZE)}>
+                  <Pressable
+                    style={styles.moreButton}
+                    onPress={() => setAllEventsVisibleCount((value) => value + PAGE_SIZE)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Mostra altri ${Math.min(PAGE_SIZE, allEventsActivities.length - allEventsVisibleCount)} eventi`}
+                  >
                     <Text style={styles.moreButtonText}>Mostra altri {Math.min(PAGE_SIZE, allEventsActivities.length - allEventsVisibleCount)}</Text>
                   </Pressable>
                 ) : null}
@@ -576,8 +632,21 @@ export default function ExperiencesScreen() {
       <BajujuBottomNav active="find" />
 
       <Modal visible={Boolean(selectedPosterUrl)} transparent animationType="fade" onRequestClose={() => setSelectedPosterUrl(null)}>
-        <Pressable style={styles.modalBackdrop} onPress={() => setSelectedPosterUrl(null)}>
-          {selectedPosterUrl ? <Image source={{ uri: selectedPosterUrl }} style={styles.modalImage} resizeMode="contain" /> : null}
+        <Pressable
+          style={styles.modalBackdrop}
+          onPress={() => setSelectedPosterUrl(null)}
+          accessibilityRole="button"
+          accessibilityLabel="Chiudi la foto a schermo intero"
+        >
+          {selectedPosterUrl ? (
+            <Image
+              source={{ uri: selectedPosterUrl }}
+              style={styles.modalImage}
+              resizeMode="contain"
+              accessible
+              accessibilityLabel="Foto dell'evento a schermo intero"
+            />
+          ) : null}
         </Pressable>
       </Modal>
     </SafeAreaView>
@@ -586,7 +655,13 @@ export default function ExperiencesScreen() {
 
 function TabButton({ active, label, onPress }: { active: boolean; label: string; onPress: () => void }) {
   return (
-    <Pressable style={[styles.tabButton, active && styles.tabButtonActive]} onPress={onPress}>
+    <Pressable
+      style={[styles.tabButton, active && styles.tabButtonActive]}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ selected: active }}
+    >
       <Text style={[styles.tabText, active && styles.tabTextActive]}>{label}</Text>
     </Pressable>
   );

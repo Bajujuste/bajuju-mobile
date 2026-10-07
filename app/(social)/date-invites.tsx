@@ -254,7 +254,12 @@ export default function DateInvitesScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
-        <Pressable style={styles.backButton} onPress={() => router.back()}>
+        <Pressable
+          style={styles.backButton}
+          onPress={() => router.back()}
+          accessibilityRole="button"
+          accessibilityLabel="Torna indietro"
+        >
           <Text style={styles.backText}>‹</Text>
         </Pressable>
         <View style={styles.headerText}>
@@ -301,17 +306,36 @@ export default function DateInvitesScreen() {
 
                 {invite.direction === 'received' && isPending ? (
                   <View style={styles.actionsRow}>
-                    <Pressable style={styles.acceptButton} onPress={() => void answerInvite(invite, 'accepted')} disabled={busyId === invite.id}>
+                    <Pressable
+                      style={styles.acceptButton}
+                      onPress={() => void answerInvite(invite, 'accepted')}
+                      disabled={busyId === invite.id}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Accetta invito di ${invite.otherName}`}
+                      accessibilityState={{ disabled: busyId === invite.id, busy: busyId === invite.id }}
+                    >
                       <Text style={styles.acceptText}>{busyId === invite.id ? 'Attendi…' : 'Accetta'}</Text>
                     </Pressable>
-                    <Pressable style={styles.rejectButton} onPress={() => void answerInvite(invite, 'rejected')} disabled={busyId === invite.id}>
+                    <Pressable
+                      style={styles.rejectButton}
+                      onPress={() => void answerInvite(invite, 'rejected')}
+                      disabled={busyId === invite.id}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Rifiuta invito di ${invite.otherName}`}
+                      accessibilityState={{ disabled: busyId === invite.id, busy: busyId === invite.id }}
+                    >
                       <Text style={styles.rejectText}>Rifiuta</Text>
                     </Pressable>
                   </View>
                 ) : null}
 
                 {canReply && replyRequestId !== invite.id ? (
-                  <Pressable style={styles.replyButton} onPress={() => { setReplyRequestId(invite.id); setReplyText(''); }}>
+                  <Pressable
+                    style={styles.replyButton}
+                    onPress={() => { setReplyRequestId(invite.id); setReplyText(''); }}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Invia una risposta a ${invite.otherName}`}
+                  >
                     <Text style={styles.replyButtonText}>Invia una risposta</Text>
                   </Pressable>
                 ) : null}
@@ -329,10 +353,22 @@ export default function DateInvitesScreen() {
                     />
                     <Text style={styles.counter}>{replyText.length}/300</Text>
                     <View style={styles.actionsRow}>
-                      <Pressable style={styles.acceptButton} onPress={() => void sendOneReply(invite)} disabled={busyId === invite.id}>
+                      <Pressable
+                        style={styles.acceptButton}
+                        onPress={() => void sendOneReply(invite)}
+                        disabled={busyId === invite.id}
+                        accessibilityRole="button"
+                        accessibilityLabel="Invia risposta"
+                        accessibilityState={{ disabled: busyId === invite.id, busy: busyId === invite.id }}
+                      >
                         <Text style={styles.acceptText}>Invia risposta</Text>
                       </Pressable>
-                      <Pressable style={styles.rejectButton} onPress={() => { setReplyRequestId(null); setReplyText(''); }}>
+                      <Pressable
+                        style={styles.rejectButton}
+                        onPress={() => { setReplyRequestId(null); setReplyText(''); }}
+                        accessibilityRole="button"
+                        accessibilityLabel="Annulla risposta"
+                      >
                         <Text style={styles.rejectText}>Annulla</Text>
                       </Pressable>
                     </View>

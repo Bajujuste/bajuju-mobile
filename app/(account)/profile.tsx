@@ -1318,6 +1318,9 @@ export default function ProfileScreen() {
           if (profileComplete) router.push('/home');
         }}
         disabled={!profileComplete}
+        accessibilityRole="button"
+        accessibilityLabel={profileComplete ? 'Torna alla Home' : 'Completa prima il profilo per tornare alla Home'}
+        accessibilityState={{ disabled: !profileComplete }}
       >
         <Text style={styles.profileBackText}>
           {profileComplete ? '← Home' : 'Completa prima il profilo'}
@@ -1341,9 +1344,15 @@ export default function ProfileScreen() {
             ]}
           >
             {shouldShowProfilePhoto ? (
-              <Image source={{ uri: photoUrl }} style={styles.photo} onError={() => setPhotoLoadError(true)} />
+              <Image
+                source={{ uri: photoUrl }}
+                style={styles.photo}
+                onError={() => setPhotoLoadError(true)}
+                accessible
+                accessibilityLabel={`Foto profilo di ${name}`}
+              />
             ) : (
-              <Image source={bajujuLogo} style={styles.photo} />
+              <Image source={bajujuLogo} style={styles.photo} accessible={false} importantForAccessibility="no" />
             )}
           </View>
 
@@ -1360,7 +1369,14 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        <Pressable style={styles.photoButton} onPress={uploadProfilePhoto} disabled={uploadingPhoto}>
+        <Pressable
+          style={styles.photoButton}
+          onPress={uploadProfilePhoto}
+          disabled={uploadingPhoto}
+          accessibilityRole="button"
+          accessibilityLabel={photoUrl ? 'Cambia foto profilo' : 'Carica foto profilo obbligatoria'}
+          accessibilityState={{ disabled: uploadingPhoto, busy: uploadingPhoto }}
+        >
           <Text style={styles.photoButtonText}>
             {uploadingPhoto ? 'Caricamento foto...' : photoUrl ? 'Cambia foto profilo' : 'Carica foto obbligatoria'}
           </Text>
@@ -1370,6 +1386,8 @@ export default function ProfileScreen() {
           <Pressable
             style={styles.adminButton}
             onPress={() => router.push('/admin')}
+            accessibilityRole="button"
+            accessibilityLabel="Apri area admin"
           >
             <Text style={styles.adminButtonText}>Apri area admin</Text>
           </Pressable>
@@ -1390,7 +1408,7 @@ export default function ProfileScreen() {
 
       <View style={styles.card}>
         {preciseAgeRequired ? (
-          <View style={styles.requiredAgeNotice}>
+          <View style={styles.requiredAgeNotice} accessible accessibilityLiveRegion="polite">
             <Text style={styles.requiredAgeNoticeTitle}>Inserisci la tua età per continuare a usare Bajuju</Text>
             <Text style={styles.requiredAgeNoticeText}>
               Le vecchie fasce d’età non sono più valide. Inserisci la tua età precisa, da 18 a 80 anni.
@@ -1439,6 +1457,9 @@ export default function ProfileScreen() {
               key={option.value}
               style={[styles.genderOption, gender === option.value && styles.optionActive]}
               onPress={() => setGender(option.value)}
+              accessibilityRole="button"
+              accessibilityLabel={option.label}
+              accessibilityState={{ selected: gender === option.value }}
             >
               <Text style={[styles.optionText, gender === option.value && styles.optionTextActive]}>{option.label}</Text>
             </Pressable>
@@ -1487,6 +1508,9 @@ export default function ProfileScreen() {
         <Pressable
           style={[styles.toggleRow, directContactsEnabled && styles.toggleRowActive]}
           onPress={() => setDirectContactsEnabled((current) => !current)}
+          accessibilityRole="checkbox"
+          accessibilityLabel="Contatti diretti"
+          accessibilityState={{ checked: directContactsEnabled }}
         >
           <View>
             <Text style={styles.toggleTitle}>Contatti diretti</Text>
@@ -1495,7 +1519,14 @@ export default function ProfileScreen() {
           <Text style={styles.toggleValue}>{directContactsEnabled ? 'ON' : 'OFF'}</Text>
         </Pressable>
 
-        <Pressable style={styles.primaryButton} onPress={saveProfile} disabled={saving}>
+        <Pressable
+          style={styles.primaryButton}
+          onPress={saveProfile}
+          disabled={saving}
+          accessibilityRole="button"
+          accessibilityLabel="Salva modifiche"
+          accessibilityState={{ disabled: saving, busy: saving }}
+        >
           <Text style={styles.primaryButtonText}>{saving ? 'Salvataggio...' : 'Salva modifiche'}</Text>
         </Pressable>
       </View>
@@ -1528,16 +1559,31 @@ export default function ProfileScreen() {
 
                 {isClosed ? (
                   <View style={styles.rowButtons}>
-                    <Pressable style={styles.smallButtonGhost} onPress={() => removeItemFromList(item)}>
+                    <Pressable
+                      style={styles.smallButtonGhost}
+                      onPress={() => removeItemFromList(item)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Elimina dall’elenco: ${item.title}`}
+                    >
                       <Text style={styles.smallButtonGhostText}>Elimina dall’elenco</Text>
                     </Pressable>
                   </View>
                 ) : (
                   <View style={styles.rowButtons}>
-                    <Pressable style={styles.smallButton} onPress={() => answerItem(item, 'accepted')}>
+                    <Pressable
+                      style={styles.smallButton}
+                      onPress={() => answerItem(item, 'accepted')}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Accetta invito Flash: ${item.title}`}
+                    >
                       <Text style={styles.smallButtonText}>Accetta</Text>
                     </Pressable>
-                    <Pressable style={styles.smallButtonGhost} onPress={() => answerItem(item, 'rejected')}>
+                    <Pressable
+                      style={styles.smallButtonGhost}
+                      onPress={() => answerItem(item, 'rejected')}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Rifiuta invito Flash: ${item.title}`}
+                    >
                       <Text style={styles.smallButtonGhostText}>Rifiuta</Text>
                     </Pressable>
                   </View>
@@ -1559,7 +1605,12 @@ export default function ProfileScreen() {
           </View>
         </View>
         <Text style={styles.emptyText}>{contactRequests.length} {contactRequests.length === 1 ? 'richiesta in attesa' : 'richieste in attesa'}</Text>
-        <Pressable style={styles.linkButton} onPress={() => router.push('/direct-contacts' as any)}>
+        <Pressable
+          style={styles.linkButton}
+          onPress={() => router.push('/direct-contacts' as any)}
+          accessibilityRole="link"
+          accessibilityLabel="Apri contatti diretti"
+        >
           <Text style={styles.linkButtonText}>Apri contatti diretti</Text>
         </Pressable>
       </View>
@@ -1575,28 +1626,58 @@ export default function ProfileScreen() {
           </View>
         </View>
         <Text style={styles.emptyText}>{invites.length} {invites.length === 1 ? 'invito in attesa' : 'inviti in attesa'}</Text>
-        <Pressable style={styles.linkButton} onPress={() => router.push('/date-invites' as any)}>
+        <Pressable
+          style={styles.linkButton}
+          onPress={() => router.push('/date-invites' as any)}
+          accessibilityRole="link"
+          accessibilityLabel="Apri inviti a uscire"
+        >
           <Text style={styles.linkButtonText}>Apri inviti a uscire</Text>
         </Pressable>
       </View>
 
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>Privacy e regole</Text>
-        <Pressable style={styles.linkButton} onPress={() => router.push('/privacy')}>
+        <Pressable
+          style={styles.linkButton}
+          onPress={() => router.push('/privacy')}
+          accessibilityRole="link"
+          accessibilityLabel="Apri Privacy Policy"
+        >
           <Text style={styles.linkButtonText}>Apri Privacy Policy</Text>
         </Pressable>
-        <Pressable style={styles.linkButton} onPress={() => router.push('/rules')}>
+        <Pressable
+          style={styles.linkButton}
+          onPress={() => router.push('/rules')}
+          accessibilityRole="link"
+          accessibilityLabel="Apri Regole community"
+        >
           <Text style={styles.linkButtonText}>Apri Regole community</Text>
         </Pressable>
-        <Pressable style={styles.linkButton} onPress={() => router.push('/blocked-users' as any)}>
+        <Pressable
+          style={styles.linkButton}
+          onPress={() => router.push('/blocked-users' as any)}
+          accessibilityRole="link"
+          accessibilityLabel="Apri utenti bloccati"
+        >
           <Text style={styles.linkButtonText}>Utenti bloccati</Text>
         </Pressable>
-        <Pressable style={styles.deleteButton} onPress={requestProfileDeletion}>
+        <Pressable
+          style={styles.deleteButton}
+          onPress={requestProfileDeletion}
+          accessibilityRole="button"
+          accessibilityLabel="Elimina definitivamente account"
+        >
           <Text style={styles.deleteButtonText}>Elimina definitivamente account</Text>
         </Pressable>
       </View>
 
-      <Pressable style={styles.logoutButton} onPress={logout}>
+      <Pressable
+        style={styles.logoutButton}
+        onPress={logout}
+        accessibilityRole="button"
+        accessibilityLabel="Esci dall’account"
+      >
         <Text style={styles.logoutButtonText}>Esci</Text>
       </Pressable>
     </ScrollView>

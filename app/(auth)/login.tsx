@@ -186,12 +186,23 @@ export default function LoginScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-          <Pressable style={styles.backButton} onPress={() => router.replace('/')}>
+          <Pressable
+            style={styles.backButton}
+            onPress={() => router.replace('/')}
+            accessibilityRole="button"
+            accessibilityLabel="Torna indietro"
+          >
             <Text style={styles.backText}>← Indietro</Text>
           </Pressable>
 
           <View style={styles.logoBox}>
-            <Image source={bajujuLogo} style={styles.logoImage} resizeMode="contain" />
+            <Image
+              source={bajujuLogo}
+              style={styles.logoImage}
+              resizeMode="contain"
+              accessible={false}
+              importantForAccessibility="no"
+            />
             <Text style={styles.logoText}>Accedi</Text>
             <Text style={styles.subtitle}>Bentornato su Bajuju</Text>
           </View>
@@ -233,6 +244,9 @@ export default function LoginScreen() {
               <Pressable
                 style={styles.passwordToggle}
                 onPress={() => setShowPassword((value) => !value)}
+                accessibilityRole="button"
+                accessibilityLabel={showPassword ? 'Nascondi la password' : 'Mostra la password'}
+                accessibilityState={{ selected: showPassword }}
               >
                 <Text style={styles.passwordToggleText}>
                   {showPassword ? 'Nascondi' : 'Mostra'}
@@ -243,6 +257,9 @@ export default function LoginScreen() {
             <Pressable
               style={styles.rememberRow}
               onPress={() => setRememberEmail((value) => !value)}
+              accessibilityRole="checkbox"
+              accessibilityLabel="Ricorda la mia email su questo telefono"
+              accessibilityState={{ checked: rememberEmail }}
             >
               <View style={[styles.rememberCheck, rememberEmail && styles.rememberCheckActive]}>
                 <Text style={styles.rememberCheckText}>{rememberEmail ? '✓' : ''}</Text>
@@ -253,6 +270,9 @@ export default function LoginScreen() {
             <Pressable
               style={styles.termsRow}
               onPress={() => setAcceptedTerms((value) => !value)}
+              accessibilityRole="checkbox"
+              accessibilityLabel="Accetto i Termini e la Privacy. Bajuju applica tolleranza zero verso contenuti offensivi, molestie e utenti abusivi."
+              accessibilityState={{ checked: acceptedTerms }}
             >
               <View style={[styles.checkbox, acceptedTerms && styles.checkboxSelected]}>
                 <Text style={styles.checkboxText}>{acceptedTerms ? '✓' : ''}</Text>
@@ -263,10 +283,18 @@ export default function LoginScreen() {
             </Pressable>
 
             <View style={styles.termsLinks}>
-              <Pressable onPress={() => router.push('/rules')}>
+              <Pressable
+                onPress={() => router.push('/rules')}
+                accessibilityRole="link"
+                accessibilityLabel="Leggi Termini e Regole"
+              >
                 <Text style={styles.termsLinkText}>Leggi Termini e Regole</Text>
               </Pressable>
-              <Pressable onPress={() => router.push('/privacy')}>
+              <Pressable
+                onPress={() => router.push('/privacy')}
+                accessibilityRole="link"
+                accessibilityLabel="Leggi Privacy"
+              >
                 <Text style={styles.termsLinkText}>Leggi Privacy</Text>
               </Pressable>
             </View>
@@ -275,6 +303,9 @@ export default function LoginScreen() {
               style={[styles.button, (loading || !acceptedTerms) && styles.buttonDisabled]}
               onPress={handleLogin}
               disabled={loading || !acceptedTerms}
+              accessibilityRole="button"
+              accessibilityLabel="Accedi"
+              accessibilityState={{ disabled: loading || !acceptedTerms, busy: loading }}
             >
               {loading ? (
                 <ActivityIndicator color="#ffffff" />
@@ -283,18 +314,28 @@ export default function LoginScreen() {
               )}
             </Pressable>
 
-            <Pressable style={styles.forgotLink} onPress={() => router.push('/forgot-password')}>
+            <Pressable
+              style={styles.forgotLink}
+              onPress={() => router.push('/forgot-password')}
+              accessibilityRole="link"
+              accessibilityLabel="Password dimenticata?"
+            >
               <Text style={styles.forgotLinkText}>Password dimenticata?</Text>
             </Pressable>
 
             {!!messageTitle && (
-              <View style={styles.messageBox}>
+              <View style={styles.messageBox} accessible accessibilityLiveRegion="polite">
                 <Text style={styles.messageTitle}>{messageTitle}</Text>
                 <Text style={styles.messageText}>{messageText}</Text>
               </View>
             )}
 
-            <Pressable style={styles.switchLink} onPress={() => router.push('/register')}>
+            <Pressable
+              style={styles.switchLink}
+              onPress={() => router.push('/register')}
+              accessibilityRole="link"
+              accessibilityLabel="Non hai ancora un account? Registrati"
+            >
               <Text style={styles.switchLinkText}>Non hai ancora un account? Registrati</Text>
             </Pressable>
           </View>

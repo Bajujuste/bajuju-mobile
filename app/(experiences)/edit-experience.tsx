@@ -368,7 +368,12 @@ export default function EditExperienceScreen() {
     <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-          <Pressable style={styles.backButton} onPress={() => router.back()}>
+          <Pressable
+            style={styles.backButton}
+            onPress={() => router.back()}
+            accessibilityRole="button"
+            accessibilityLabel="Torna indietro"
+          >
             <Text style={styles.backText}>← Indietro</Text>
           </Pressable>
 
@@ -385,7 +390,7 @@ export default function EditExperienceScreen() {
               <Text style={styles.statusText}>Caricamento evento...</Text>
             </View>
           ) : errorText ? (
-            <View style={styles.statusBox}>
+            <View style={styles.statusBox} accessible accessibilityLiveRegion="polite">
               <Text style={styles.errorText}>{errorText}</Text>
             </View>
           ) : (
@@ -448,6 +453,9 @@ export default function EditExperienceScreen() {
                     key={item}
                     style={[styles.categoryButton, category === item && styles.categoryButtonActive]}
                     onPress={() => setCategory(item)}
+                    accessibilityRole="checkbox"
+                    accessibilityLabel={item}
+                    accessibilityState={{ checked: category === item }}
                   >
                     <Text style={[styles.categoryText, category === item && styles.categoryTextActive]}>{item}</Text>
                   </Pressable>
@@ -487,6 +495,9 @@ export default function EditExperienceScreen() {
                     !joinApprovalRequired && styles.approvalModeButtonActive,
                   ]}
                   onPress={() => setJoinApprovalRequired(false)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Aperta a tutti"
+                  accessibilityState={{ selected: !joinApprovalRequired }}
                 >
                   <Text
                     style={[
@@ -504,6 +515,9 @@ export default function EditExperienceScreen() {
                     joinApprovalRequired && styles.approvalModeButtonActive,
                   ]}
                   onPress={() => setJoinApprovalRequired(true)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Su approvazione"
+                  accessibilityState={{ selected: joinApprovalRequired }}
                 >
                   <Text
                     style={[
@@ -529,6 +543,9 @@ export default function EditExperienceScreen() {
                     !ageRestricted && styles.approvalModeButtonActive,
                   ]}
                   onPress={() => setAgeRestricted(false)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Tutte le età"
+                  accessibilityState={{ selected: !ageRestricted }}
                 >
                   <Text
                     style={[
@@ -546,6 +563,9 @@ export default function EditExperienceScreen() {
                     ageRestricted && styles.approvalModeButtonActive,
                   ]}
                   onPress={() => setAgeRestricted(true)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Fascia d'età"
+                  accessibilityState={{ selected: ageRestricted }}
                 >
                   <Text
                     style={[
@@ -588,7 +608,14 @@ export default function EditExperienceScreen() {
 
               <Text style={styles.notice}>La foto, il creatore, i partecipanti, la chat e la galleria non vengono modificati.</Text>
 
-              <Pressable style={[styles.saveButton, saving && styles.disabledButton]} onPress={saveExperience} disabled={saving}>
+              <Pressable
+                style={[styles.saveButton, saving && styles.disabledButton]}
+                onPress={saveExperience}
+                disabled={saving}
+                accessibilityRole="button"
+                accessibilityLabel={saving ? 'Salvataggio in corso' : 'Salva modifiche'}
+                accessibilityState={{ disabled: saving, busy: saving }}
+              >
                 <Text style={styles.saveButtonText}>{saving ? 'Salvataggio...' : 'Salva modifiche'}</Text>
               </Pressable>
             </View>

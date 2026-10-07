@@ -174,7 +174,12 @@ export default function CreateGroupScreen() {
           <Text style={styles.deniedText}>
             Tutti gli utenti Bajuju possono proporre un gruppo. Dopo l’invio verrà controllato prima della pubblicazione.
           </Text>
-          <Pressable style={styles.secondaryButton} onPress={() => router.replace('/groups' as any)}>
+          <Pressable
+            style={styles.secondaryButton}
+            onPress={() => router.replace('/groups' as any)}
+            accessibilityRole="button"
+            accessibilityLabel="Torna ai gruppi"
+          >
             <Text style={styles.secondaryButtonText}>Torna ai gruppi</Text>
           </Pressable>
         </View>
@@ -185,7 +190,12 @@ export default function CreateGroupScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <Pressable style={styles.backButton} onPress={() => router.back()}>
+        <Pressable
+          style={styles.backButton}
+          onPress={() => router.back()}
+          accessibilityRole="button"
+          accessibilityLabel="Torna ai gruppi"
+        >
           <Text style={styles.backText}>← Gruppi</Text>
         </Pressable>
 
@@ -200,14 +210,25 @@ export default function CreateGroupScreen() {
         <View style={styles.card}>
           <Text style={styles.label}>Immagine di copertina</Text>
           {coverUri ? (
-            <Image source={{ uri: coverUri }} style={styles.coverPreview} resizeMode="cover" />
+            <Image
+              source={{ uri: coverUri }}
+              style={styles.coverPreview}
+              resizeMode="cover"
+              accessible
+              accessibilityLabel="Anteprima della copertina del gruppo"
+            />
           ) : (
             <View style={styles.coverPlaceholder}>
               <Text style={styles.coverPlaceholderIcon}>👥</Text>
               <Text style={styles.coverPlaceholderText}>Aggiungi una copertina al gruppo</Text>
             </View>
           )}
-          <Pressable style={styles.coverButton} onPress={() => { void handlePickCover(); }}>
+          <Pressable
+            style={styles.coverButton}
+            onPress={() => { void handlePickCover(); }}
+            accessibilityRole="button"
+            accessibilityLabel={coverUri ? 'Cambia immagine di copertina' : 'Scegli immagine di copertina'}
+          >
             <Text style={styles.coverButtonText}>{coverUri ? 'Cambia immagine' : 'Scegli immagine'}</Text>
           </Pressable>
           <Text style={styles.helper}>La copertina potrà essere cambiata anche dopo, direttamente dal gruppo.</Text>
@@ -259,6 +280,7 @@ export default function CreateGroupScreen() {
                 <Pressable
                   key={item}
                   accessibilityRole="button"
+                  accessibilityLabel={`Categoria ${item}`}
                   accessibilityState={{ selected }}
                   style={[styles.categoryChip, selected && styles.categoryChipSelected]}
                   onPress={() => setCategory(item)}
@@ -277,6 +299,9 @@ export default function CreateGroupScreen() {
             <Pressable
               style={[styles.joinModeButton, !requiresApproval && styles.joinModeButtonSelected]}
               onPress={() => setRequiresApproval(false)}
+              accessibilityRole="button"
+              accessibilityLabel="Imposta iscrizione libera: chi si iscrive entra subito nel gruppo"
+              accessibilityState={{ selected: !requiresApproval }}
             >
               <Text style={[styles.joinModeTitle, !requiresApproval && styles.joinModeTitleSelected]}>Iscrizione libera</Text>
               <Text style={[styles.joinModeText, !requiresApproval && styles.joinModeTextSelected]}>
@@ -286,6 +311,9 @@ export default function CreateGroupScreen() {
             <Pressable
               style={[styles.joinModeButton, requiresApproval && styles.joinModeButtonSelected]}
               onPress={() => setRequiresApproval(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Imposta iscrizione con approvazione: decidi tu se accettare o rifiutare ogni richiesta"
+              accessibilityState={{ selected: requiresApproval }}
             >
               <Text style={[styles.joinModeTitle, requiresApproval && styles.joinModeTitleSelected]}>Con approvazione</Text>
               <Text style={[styles.joinModeText, requiresApproval && styles.joinModeTextSelected]}>
@@ -302,6 +330,9 @@ export default function CreateGroupScreen() {
             <Pressable
               style={[styles.joinModeButton, !ageRestricted && styles.joinModeButtonSelected]}
               onPress={() => setAgeRestricted(false)}
+              accessibilityRole="button"
+              accessibilityLabel="Imposta gruppo aperto a tutte le età"
+              accessibilityState={{ selected: !ageRestricted }}
             >
               <Text style={[styles.joinModeTitle, !ageRestricted && styles.joinModeTitleSelected]}>Tutte le età</Text>
               <Text style={[styles.joinModeText, !ageRestricted && styles.joinModeTextSelected]}>
@@ -311,6 +342,9 @@ export default function CreateGroupScreen() {
             <Pressable
               style={[styles.joinModeButton, ageRestricted && styles.joinModeButtonSelected]}
               onPress={() => setAgeRestricted(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Imposta gruppo riservato per fascia d’età"
+              accessibilityState={{ selected: ageRestricted }}
             >
               <Text style={[styles.joinModeTitle, ageRestricted && styles.joinModeTitleSelected]}>Riservato per età</Text>
               <Text style={[styles.joinModeText, ageRestricted && styles.joinModeTextSelected]}>
@@ -354,6 +388,9 @@ export default function CreateGroupScreen() {
             style={[styles.mainButton, !canSave && styles.disabled]}
             disabled={!canSave}
             onPress={() => { void handleCreate(); }}
+            accessibilityRole="button"
+            accessibilityLabel="Invia il gruppo per l’approvazione"
+            accessibilityState={{ disabled: !canSave, busy: saving }}
           >
             <Text style={styles.mainButtonText}>{saving ? 'Invio...' : 'Invia per approvazione'}</Text>
           </Pressable>

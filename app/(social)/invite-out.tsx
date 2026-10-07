@@ -183,7 +183,12 @@ export default function InviteOutScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        <Pressable style={styles.backButton} onPress={() => router.back()}>
+        <Pressable
+          style={styles.backButton}
+          onPress={() => router.back()}
+          accessibilityRole="button"
+          accessibilityLabel="Torna indietro"
+        >
           <Text style={styles.backText}>← Indietro</Text>
         </Pressable>
 
@@ -191,7 +196,7 @@ export default function InviteOutScreen() {
           <Text style={styles.title}>Invita {targetName} a uscire</Text>
 
           {disabledReason ? (
-            <View style={styles.warningBox}>
+            <View style={styles.warningBox} accessible accessibilityLiveRegion="polite">
               <Text style={styles.warningText}>{disabledReason}</Text>
             </View>
           ) : (
@@ -209,7 +214,14 @@ export default function InviteOutScreen() {
               />
               <Text style={styles.counter}>{message.length}/300</Text>
 
-              <Pressable style={[styles.sendButton, sending && styles.disabled]} onPress={() => void sendInvite()} disabled={sending}>
+              <Pressable
+                style={[styles.sendButton, sending && styles.disabled]}
+                onPress={() => void sendInvite()}
+                disabled={sending}
+                accessibilityRole="button"
+                accessibilityLabel={`Invia invito a ${targetName}`}
+                accessibilityState={{ disabled: sending, busy: sending }}
+              >
                 <Text style={styles.sendText}>{sending ? 'Invio…' : 'Invia invito'}</Text>
               </Pressable>
             </>

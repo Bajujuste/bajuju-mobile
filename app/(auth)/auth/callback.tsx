@@ -84,6 +84,8 @@ export default function AuthCallbackScreen() {
             <Pressable
               style={styles.button}
               onPress={() => router.replace('/forgot-password')}
+              accessibilityRole="button"
+              accessibilityLabel="Richiedi un nuovo link"
             >
               <Text style={styles.buttonText}>
                 Richiedi un nuovo link

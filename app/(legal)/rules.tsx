@@ -5,7 +5,12 @@ import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-nati
 export default function RulesScreen() {
   return (
     <ScrollView contentContainerStyle={styles.page}>
-      <TouchableOpacity style={styles.topBackButton} onPress={() => router.back()}>
+      <TouchableOpacity
+        style={styles.topBackButton}
+        onPress={() => router.back()}
+        accessibilityRole="button"
+        accessibilityLabel="Torna indietro"
+      >
         <Text style={styles.topBackButtonText}>← Indietro</Text>
       </TouchableOpacity>
 
@@ -38,7 +43,12 @@ export default function RulesScreen() {
 
         <Text style={styles.acceptanceNote}>Registrandoti e selezionando “Accetto”, dichiari di aver letto e accettato i presenti Termini e regole, oltre alla Privacy Policy di Bajuju.</Text>
 
-        <TouchableOpacity style={styles.button} onPress={() => router.push('/profile')}>
+        <TouchableOpacity
+          style={styles.button}
+          onPress={() => router.push('/profile')}
+          accessibilityRole="button"
+          accessibilityLabel="Torna al profilo"
+        >
           <Text style={styles.buttonText}>Torna al profilo</Text>
         </TouchableOpacity>
       </View>

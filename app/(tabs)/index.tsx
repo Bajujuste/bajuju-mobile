@@ -139,7 +139,13 @@ export default function WelcomeScreen() {
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.heroCard}>
           <View style={styles.logoCircle}>
-            <Image source={bajujuLogo} style={styles.logoImage} resizeMode="contain" />
+            <Image
+              source={bajujuLogo}
+              style={styles.logoImage}
+              resizeMode="contain"
+              accessible={false}
+              importantForAccessibility="no"
+            />
           </View>
 
           <Text style={styles.brand}>Bajuju</Text>
@@ -150,11 +156,21 @@ export default function WelcomeScreen() {
           </Text>
 
           <View style={styles.actions}>
-            <Pressable style={styles.primaryButton} onPress={() => router.push('/login')}>
+            <Pressable
+              style={styles.primaryButton}
+              onPress={() => router.push('/login')}
+              accessibilityRole="button"
+              accessibilityLabel="Accedi"
+            >
               <Text style={styles.primaryButtonText}>Accedi</Text>
             </Pressable>
 
-            <Pressable style={styles.secondaryButton} onPress={() => router.push('/register')}>
+            <Pressable
+              style={styles.secondaryButton}
+              onPress={() => router.push('/register')}
+              accessibilityRole="button"
+              accessibilityLabel="Registrati"
+            >
               <Text style={styles.secondaryButtonText}>Registrati</Text>
             </Pressable>
           </View>
@@ -164,13 +180,21 @@ export default function WelcomeScreen() {
           </Text>
 
           <View style={styles.legalLinks}>
-            <Pressable onPress={() => router.push('/privacy')}>
+            <Pressable
+              onPress={() => router.push('/privacy')}
+              accessibilityRole="link"
+              accessibilityLabel="Privacy Policy"
+            >
               <Text style={styles.legalLinkText}>Privacy Policy</Text>
             </Pressable>
 
             <Text style={styles.legalSeparator}>·</Text>
 
-            <Pressable onPress={() => router.push('/rules')}>
+            <Pressable
+              onPress={() => router.push('/rules')}
+              accessibilityRole="link"
+              accessibilityLabel="Regole Bajuju"
+            >
               <Text style={styles.legalLinkText}>Regole Bajuju</Text>
             </Pressable>
           </View>

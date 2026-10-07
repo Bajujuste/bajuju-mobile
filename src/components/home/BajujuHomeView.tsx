@@ -125,7 +125,7 @@ export function BajujuHomeView({
       >
         <View style={styles.header}>
           <View style={styles.brandGroup}>
-            <Image source={bajujuLogo} resizeMode="contain" style={styles.panda} />
+            <Image source={bajujuLogo} resizeMode="contain" style={styles.panda} accessible={false} importantForAccessibility="no" />
             <Text style={styles.brand}>Bajuju</Text>
           </View>
 
@@ -195,7 +195,12 @@ export function BajujuHomeView({
                 <Text style={styles.groupsEyebrow}>COMMUNITY</Text>
                 <Text style={styles.groupsTitle}>Gruppi Bajuju</Text>
               </View>
-              <Pressable onPress={onOpenGroups} style={({ pressed }) => pressed && styles.pressed}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Vedi tutti i gruppi"
+                onPress={onOpenGroups}
+                style={({ pressed }) => pressed && styles.pressed}
+              >
                 <Text style={styles.groupsSeeAll}>Vedi tutti ›</Text>
               </Pressable>
             </View>

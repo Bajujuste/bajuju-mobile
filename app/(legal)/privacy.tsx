@@ -112,7 +112,12 @@ const PRIVACY_SECTIONS = [
 export default function PrivacyScreen() {
   return (
     <ScrollView contentContainerStyle={styles.page}>
-      <TouchableOpacity style={styles.topBackButton} onPress={() => router.back()}>
+      <TouchableOpacity
+        style={styles.topBackButton}
+        onPress={() => router.back()}
+        accessibilityRole="button"
+        accessibilityLabel="Torna indietro"
+      >
         <Text style={styles.topBackButtonText}>← Indietro</Text>
       </TouchableOpacity>
 
@@ -129,7 +134,12 @@ export default function PrivacyScreen() {
           </View>
         ))}
 
-        <TouchableOpacity style={styles.button} onPress={() => router.push('/profile')}>
+        <TouchableOpacity
+          style={styles.button}
+          onPress={() => router.push('/profile')}
+          accessibilityRole="button"
+          accessibilityLabel="Torna alla pagina precedente"
+        >
           <Text style={styles.buttonText}>Torna alla pagina precedente</Text>
         </TouchableOpacity>
       </View>

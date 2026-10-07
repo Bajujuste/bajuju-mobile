@@ -74,12 +74,23 @@ export default function ForgotPasswordScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-          <Pressable style={styles.backButton} onPress={() => router.replace('/login')}>
+          <Pressable
+            style={styles.backButton}
+            onPress={() => router.replace('/login')}
+            accessibilityRole="button"
+            accessibilityLabel="Torna ad Accedi"
+          >
             <Text style={styles.backText}>← Accedi</Text>
           </Pressable>
 
           <View style={styles.logoBox}>
-            <Image source={bajujuLogo} style={styles.logoImage} resizeMode="contain" />
+            <Image
+              source={bajujuLogo}
+              style={styles.logoImage}
+              resizeMode="contain"
+              accessible={false}
+              importantForAccessibility="no"
+            />
             <Text style={styles.logoText}>Recupera password</Text>
             <Text style={styles.subtitle}>Ti mandiamo il link via email</Text>
           </View>
@@ -105,6 +116,9 @@ export default function ForgotPasswordScreen() {
               style={[styles.button, loading && styles.buttonDisabled]}
               onPress={handleResetPassword}
               disabled={loading}
+              accessibilityRole="button"
+              accessibilityLabel="Invia link di recupero"
+              accessibilityState={{ disabled: loading, busy: loading }}
             >
               {loading ? (
                 <ActivityIndicator color="#ffffff" />
@@ -114,14 +128,19 @@ export default function ForgotPasswordScreen() {
             </Pressable>
 
             {!!messageTitle && (
-              <View style={styles.messageBox}>
+              <View style={styles.messageBox} accessible accessibilityLiveRegion="polite">
                 <Text style={styles.messageTitle}>{messageTitle}</Text>
                 <Text style={styles.messageText}>{messageText}</Text>
               </View>
             )}
 
             {resetSent ? (
-              <Pressable style={styles.loginButton} onPress={() => router.replace('/login')}>
+              <Pressable
+                style={styles.loginButton}
+                onPress={() => router.replace('/login')}
+                accessibilityRole="button"
+                accessibilityLabel="Torna ad Accedi"
+              >
                 <Text style={styles.loginButtonText}>Torna ad Accedi</Text>
               </Pressable>
             ) : null}

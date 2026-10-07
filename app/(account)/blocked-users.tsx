@@ -74,7 +74,12 @@ export default function BlockedUsersScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.page}>
-        <Pressable style={styles.backButton} onPress={() => router.back()}>
+        <Pressable
+          style={styles.backButton}
+          onPress={() => router.back()}
+          accessibilityRole="button"
+          accessibilityLabel="Torna al profilo"
+        >
           <Text style={styles.backText}>← Profilo</Text>
         </Pressable>
 
@@ -100,7 +105,12 @@ export default function BlockedUsersScreen() {
           items.map((item) => (
             <View key={item.user_id} style={styles.card}>
               {item.avatar_url ? (
-                <Image source={{ uri: item.avatar_url }} style={styles.avatar} />
+                <Image
+                  source={{ uri: item.avatar_url }}
+                  style={styles.avatar}
+                  accessible={false}
+                  importantForAccessibility="no"
+                />
               ) : (
                 <View style={styles.avatarFallback}>
                   <Text style={styles.avatarFallbackText}>👤</Text>
@@ -125,6 +135,9 @@ export default function BlockedUsersScreen() {
                     ]
                   );
                 }}
+                accessibilityRole="button"
+                accessibilityLabel={`Sblocca ${item.nickname || 'utente'}`}
+                accessibilityState={{ disabled: Boolean(busyId), busy: busyId === item.user_id }}
               >
                 <Text style={styles.unblockText}>{busyId === item.user_id ? 'Attendi…' : 'Sblocca'}</Text>
               </Pressable>

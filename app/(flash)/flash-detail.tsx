@@ -347,7 +347,12 @@ export default function FlashDetailScreen() {
         <Text style={styles.title}>Dettaglio Flash</Text>
 
         {/* dismissTo torna alla schermata Flash già aperta invece di impilarne una nuova copia. */}
-        <Pressable style={styles.secondaryButton} onPress={() => router.dismissTo('/flash')}>
+        <Pressable
+          style={styles.secondaryButton}
+          onPress={() => router.dismissTo('/flash')}
+          accessibilityRole="button"
+          accessibilityLabel="Torna a Bajuju Flash"
+        >
           <Text style={styles.secondaryButtonText}>Torna a Bajuju Flash</Text>
         </Pressable>
       </View>
@@ -358,10 +363,15 @@ export default function FlashDetailScreen() {
           <Text style={styles.mutedText}>Caricamento Flash...</Text>
         </View>
       ) : errorMessage ? (
-        <View style={styles.card}>
+        <View style={styles.card} accessible accessibilityLiveRegion="polite">
           <Text style={styles.errorTitle}>Errore caricamento</Text>
           <Text style={styles.errorText}>{errorMessage}</Text>
-          <Pressable style={styles.button} onPress={loadFlash}>
+          <Pressable
+            style={styles.button}
+            onPress={loadFlash}
+            accessibilityRole="button"
+            accessibilityLabel="Riprova a caricare il Flash"
+          >
             <Text style={styles.buttonText}>Riprova</Text>
           </Pressable>
         </View>
@@ -461,6 +471,9 @@ export default function FlashDetailScreen() {
                 ]}
                 onPress={sendChatMessage}
                 disabled={!newMessage.trim() || sendingMessage}
+                accessibilityRole="button"
+                accessibilityLabel="Invia messaggio"
+                accessibilityState={{ disabled: !newMessage.trim() || sendingMessage, busy: sendingMessage }}
               >
                 <Text style={styles.buttonText}>{sendingMessage ? 'Invio...' : 'Invia'}</Text>
               </Pressable>

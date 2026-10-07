@@ -181,7 +181,13 @@ export default function ResetPasswordScreen() {
       >
         <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
           <View style={styles.logoBox}>
-            <Image source={bajujuLogo} style={styles.logoImage} resizeMode="contain" />
+            <Image
+              source={bajujuLogo}
+              style={styles.logoImage}
+              resizeMode="contain"
+              accessible={false}
+              importantForAccessibility="no"
+            />
             <Text style={styles.logoText}>Nuova password</Text>
             <Text style={styles.subtitle}>Imposta la nuova password Bajuju</Text>
           </View>
@@ -211,7 +217,13 @@ export default function ResetPasswordScreen() {
                 style={styles.passwordInput}
                 autoCapitalize="none"
               />
-              <Pressable style={styles.passwordToggle} onPress={() => setShowPassword((value) => !value)}>
+              <Pressable
+                style={styles.passwordToggle}
+                onPress={() => setShowPassword((value) => !value)}
+                accessibilityRole="button"
+                accessibilityLabel={showPassword ? 'Nascondi la password' : 'Mostra la password'}
+                accessibilityState={{ selected: showPassword }}
+              >
                 <Text style={styles.passwordToggleText}>{showPassword ? 'Nascondi' : 'Mostra'}</Text>
               </Pressable>
             </View>
@@ -228,7 +240,7 @@ export default function ResetPasswordScreen() {
             />
 
             {messageTitle || messageText ? (
-              <View style={[styles.messageBox, done && styles.messageBoxSuccess]}>
+              <View style={[styles.messageBox, done && styles.messageBoxSuccess]} accessible accessibilityLiveRegion="polite">
                 {messageTitle ? <Text style={styles.messageTitle}>{messageTitle}</Text> : null}
                 {messageText ? <Text style={styles.messageText}>{messageText}</Text> : null}
               </View>
@@ -242,6 +254,9 @@ export default function ResetPasswordScreen() {
               ]}
               onPress={handleUpdatePassword}
               disabled={loading || done || checkingRecovery || !recoveryReady}
+              accessibilityRole="button"
+              accessibilityLabel={done ? 'Password salvata' : 'Salva nuova password'}
+              accessibilityState={{ disabled: loading || done || checkingRecovery || !recoveryReady, busy: loading }}
             >
               {loading ? (
                 <ActivityIndicator color="#ffffff" />
@@ -254,6 +269,8 @@ export default function ResetPasswordScreen() {
               <Pressable
                 style={styles.secondaryButton}
                 onPress={() => router.replace('/forgot-password')}
+                accessibilityRole="button"
+                accessibilityLabel="Richiedi un nuovo link"
               >
                 <Text style={styles.secondaryButtonText}>
                   Richiedi un nuovo link
@@ -263,6 +280,8 @@ export default function ResetPasswordScreen() {
               <Pressable
                 style={styles.secondaryButton}
                 onPress={() => router.replace('/login')}
+                accessibilityRole="button"
+                accessibilityLabel="Torna ad Accedi"
               >
                 <Text style={styles.secondaryButtonText}>Torna ad Accedi</Text>
               </Pressable>

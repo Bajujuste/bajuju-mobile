@@ -179,7 +179,12 @@ export default function DirectContactsScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
-        <Pressable style={styles.backButton} onPress={() => router.back()}>
+        <Pressable
+          style={styles.backButton}
+          onPress={() => router.back()}
+          accessibilityRole="button"
+          accessibilityLabel="Torna indietro"
+        >
           <Text style={styles.backText}>‹</Text>
         </Pressable>
         <View style={styles.headerText}>
@@ -237,6 +242,9 @@ export default function DirectContactsScreen() {
                       style={styles.acceptButton}
                       onPress={() => void answerContact(contact, 'accepted')}
                       disabled={busyId === contact.id}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Accetta contatto di ${contact.otherName}`}
+                      accessibilityState={{ disabled: busyId === contact.id, busy: busyId === contact.id }}
                     >
                       <Text style={styles.acceptText}>{busyId === contact.id ? 'Attendi…' : 'Accetta'}</Text>
                     </Pressable>
@@ -244,6 +252,9 @@ export default function DirectContactsScreen() {
                       style={styles.rejectButton}
                       onPress={() => void answerContact(contact, 'rejected')}
                       disabled={busyId === contact.id}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Rifiuta contatto di ${contact.otherName}`}
+                      accessibilityState={{ disabled: busyId === contact.id, busy: busyId === contact.id }}
                     >
                       <Text style={styles.rejectText}>Rifiuta</Text>
                     </Pressable>

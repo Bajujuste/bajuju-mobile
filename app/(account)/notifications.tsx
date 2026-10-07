@@ -243,10 +243,15 @@ export default function NotificationsScreen() {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void loadNotifications(true)} tintColor={PINK} />}
         >
           {errorMessage ? (
-            <View style={styles.messageCard}>
+            <View style={styles.messageCard} accessible accessibilityLiveRegion="polite">
               <Text style={styles.messageTitle}>Qualcosa non ha funzionato</Text>
               <Text style={styles.messageText}>{errorMessage}</Text>
-              <Pressable style={styles.retryButton} onPress={() => void loadNotifications()}>
+              <Pressable
+                style={styles.retryButton}
+                onPress={() => void loadNotifications()}
+                accessibilityRole="button"
+                accessibilityLabel="Riprova a caricare le notifiche"
+              >
                 <Text style={styles.retryButtonText}>Riprova</Text>
               </Pressable>
             </View>

@@ -264,12 +264,23 @@ export default function RegisterScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-          <Pressable style={styles.backButton} onPress={() => router.replace('/')}>
+          <Pressable
+            style={styles.backButton}
+            onPress={() => router.replace('/')}
+            accessibilityRole="button"
+            accessibilityLabel="Torna indietro"
+          >
             <Text style={styles.backText}>← Indietro</Text>
           </Pressable>
 
           <View style={styles.logoBox}>
-            <Image source={bajujuLogo} style={styles.logoImage} resizeMode="contain" />
+            <Image
+              source={bajujuLogo}
+              style={styles.logoImage}
+              resizeMode="contain"
+              accessible={false}
+              importantForAccessibility="no"
+            />
             <Text style={styles.logoText}>Registrati</Text>
             <Text style={styles.subtitle}>Entra nella community Bajuju</Text>
           </View>
@@ -315,6 +326,9 @@ export default function RegisterScreen() {
               <Pressable
                 style={styles.passwordToggle}
                 onPress={() => setShowPassword((value) => !value)}
+                accessibilityRole="button"
+                accessibilityLabel={showPassword ? 'Nascondi la password' : 'Mostra la password'}
+                accessibilityState={{ selected: showPassword }}
               >
                 <Text style={styles.passwordToggleText}>
                   {showPassword ? 'Nascondi' : 'Mostra'}
@@ -325,6 +339,9 @@ export default function RegisterScreen() {
             <Pressable
               style={styles.termsRow}
               onPress={() => setAcceptedTerms((value) => !value)}
+              accessibilityRole="checkbox"
+              accessibilityLabel="Accetto i Termini e la Privacy. Bajuju applica tolleranza zero verso contenuti offensivi, molestie e utenti abusivi."
+              accessibilityState={{ checked: acceptedTerms }}
             >
               <View style={[styles.checkbox, acceptedTerms && styles.checkboxSelected]}>
                 <Text style={styles.checkboxText}>{acceptedTerms ? '✓' : ''}</Text>
@@ -335,10 +352,18 @@ export default function RegisterScreen() {
             </Pressable>
 
             <View style={styles.termsLinks}>
-              <Pressable onPress={() => router.push('/rules')}>
+              <Pressable
+                onPress={() => router.push('/rules')}
+                accessibilityRole="link"
+                accessibilityLabel="Leggi Termini e Regole"
+              >
                 <Text style={styles.termsLinkText}>Leggi Termini e Regole</Text>
               </Pressable>
-              <Pressable onPress={() => router.push('/privacy')}>
+              <Pressable
+                onPress={() => router.push('/privacy')}
+                accessibilityRole="link"
+                accessibilityLabel="Leggi Privacy"
+              >
                 <Text style={styles.termsLinkText}>Leggi Privacy</Text>
               </Pressable>
             </View>
@@ -347,6 +372,9 @@ export default function RegisterScreen() {
               style={[styles.button, (loading || !acceptedTerms) && styles.buttonDisabled]}
               onPress={handleRegister}
               disabled={loading || !acceptedTerms}
+              accessibilityRole="button"
+              accessibilityLabel="Registrati"
+              accessibilityState={{ disabled: loading || !acceptedTerms, busy: loading }}
             >
               {loading ? (
                 <ActivityIndicator color="#ffffff" />
@@ -356,13 +384,18 @@ export default function RegisterScreen() {
             </Pressable>
 
             {!!messageTitle && (
-              <View style={styles.messageBox}>
+              <View style={styles.messageBox} accessible accessibilityLiveRegion="polite">
                 <Text style={styles.messageTitle}>{messageTitle}</Text>
                 <Text style={styles.messageText}>{messageText}</Text>
               </View>
             )}
 
-            <Pressable style={styles.switchLink} onPress={() => router.push('/login')}>
+            <Pressable
+              style={styles.switchLink}
+              onPress={() => router.push('/login')}
+              accessibilityRole="link"
+              accessibilityLabel="Hai già un account? Accedi"
+            >
               <Text style={styles.switchLinkText}>Hai già un account? Accedi</Text>
             </Pressable>
           </View>

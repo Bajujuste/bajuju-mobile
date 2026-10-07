@@ -1237,7 +1237,12 @@ export default function ExperienceDetailScreen() {
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
         >
-          <Pressable style={styles.backButton} onPress={() => router.replace('/experiences')}>
+          <Pressable
+            style={styles.backButton}
+            onPress={() => router.replace('/experiences')}
+            accessibilityRole="button"
+            accessibilityLabel="Torna a Trova esperienza"
+          >
             <Text style={styles.backText}>← Trova esperienza</Text>
           </Pressable>
 
@@ -1254,6 +1259,8 @@ export default function ExperienceDetailScreen() {
                       source={experiencePhotoUrl(experience) ? { uri: experiencePhotoUrl(experience) } : bajujuLogo}
                       style={styles.eventPhoto}
                       resizeMode="cover"
+                      accessible
+                      accessibilityLabel={`Foto copertina di ${experience.title || 'questa esperienza'}`}
                     />
 
                     {isOrganizer ? (
@@ -1261,6 +1268,9 @@ export default function ExperienceDetailScreen() {
                         style={styles.coverPhotoButton}
                         onPress={updateCoverPhoto}
                         disabled={updatingCoverPhoto}
+                        accessibilityRole="button"
+                        accessibilityLabel="Cambia foto copertina dell'evento"
+                        accessibilityState={{ disabled: updatingCoverPhoto, busy: updatingCoverPhoto }}
                       >
                         <Text style={styles.coverPhotoButtonText}>
                           {updatingCoverPhoto ? "Caricamento..." : "Cambia foto"}
@@ -1348,6 +1358,8 @@ export default function ExperienceDetailScreen() {
 
                 <Pressable
                   style={styles.shareExperienceButton}
+                  accessibilityRole="button"
+                  accessibilityLabel="Condividi esperienza"
                   onPress={() =>
                     shareBajujuExperience({
                       id: experienceId,
@@ -1367,6 +1379,8 @@ export default function ExperienceDetailScreen() {
                 {canEditExperience ? (
                   <Pressable
                     style={styles.editExperienceButton}
+                    accessibilityRole="button"
+                    accessibilityLabel={isOrganizer ? 'Modifica evento' : 'Modifica evento come amministratore'}
                     onPress={() =>
                       router.push({
                         pathname: '/edit-experience' as any,
@@ -1405,6 +1419,8 @@ export default function ExperienceDetailScreen() {
                           <Pressable
                             key={`${userId}-${index}`}
                             style={styles.participantRow}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Apri profilo di ${name}, ${isCreator ? 'organizzatore' : 'partecipante'}`}
                             onPress={() => router.push({
                               pathname: '/user-profile' as any,
                               params: {
@@ -1418,6 +1434,8 @@ export default function ExperienceDetailScreen() {
                               source={photo ? { uri: photo } : bajujuLogo}
                               style={styles.participantPhoto}
                               resizeMode="cover"
+                              accessible={false}
+                              importantForAccessibility="no"
                             />
 
                             <View style={styles.participantInfo}>
@@ -1435,6 +1453,8 @@ export default function ExperienceDetailScreen() {
                             {canShowInviteOut && userId !== String(currentUserId || '') ? (
                               <Pressable
                                 style={styles.inviteOutButton}
+                                accessibilityRole="button"
+                                accessibilityLabel={`Interagisci con ${name} dopo l'esperienza`}
                                 onPress={(event) => {
                                   event.stopPropagation();
                                   router.push({
@@ -1463,6 +1483,9 @@ export default function ExperienceDetailScreen() {
                   <View style={styles.requestsCard}>
                     <Pressable
                       style={styles.requestsHeader}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Richieste in attesa, ${joinRequests.length}`}
+                      accessibilityState={{ expanded: requestsOpen }}
                       onPress={() => setRequestsOpen((current) => !current)}
                     >
                       <View style={styles.requestsHeaderCopy}>
@@ -1484,6 +1507,8 @@ export default function ExperienceDetailScreen() {
                               style={[styles.requestRow, index > 0 && styles.requestBorder]}
                             >
                               <Pressable
+                                accessibilityRole="button"
+                                accessibilityLabel={`Apri profilo di ${request.nickname || 'Utente Bajuju'}`}
                                 onPress={() => {
                                   if (!requestUserId) return;
                                   router.push({ pathname: '/user-profile' as any, params: { userId: requestUserId } });
@@ -1493,12 +1518,16 @@ export default function ExperienceDetailScreen() {
                                   source={avatarUrl ? { uri: avatarUrl } : bajujuLogo}
                                   style={styles.requestAvatar}
                                   resizeMode="cover"
+                                  accessible={false}
+                                  importantForAccessibility="no"
                                 />
                               </Pressable>
 
                               <View style={styles.requestMain}>
                                 <Pressable
                                   disabled={!requestUserId}
+                                  accessibilityRole="button"
+                                  accessibilityLabel={`Apri profilo di ${request.nickname || 'Utente Bajuju'}`}
                                   onPress={() => {
                                     if (!requestUserId) return;
                                     router.push({ pathname: '/user-profile' as any, params: { userId: requestUserId } });
@@ -1518,6 +1547,9 @@ export default function ExperienceDetailScreen() {
                                   <Pressable
                                     style={[styles.rejectRequestButton, requestBusy && styles.mainButtonDisabled]}
                                     disabled={requestBusy}
+                                    accessibilityRole="button"
+                                    accessibilityLabel={`Rifiuta richiesta di ${request.nickname || 'Utente Bajuju'}`}
+                                    accessibilityState={{ disabled: requestBusy }}
                                     onPress={() => { void reviewJoinRequest(requestUserId, false); }}
                                   >
                                     <Text style={styles.rejectRequestText}>Rifiuta</Text>
@@ -1525,6 +1557,9 @@ export default function ExperienceDetailScreen() {
                                   <Pressable
                                     style={[styles.acceptRequestButton, requestBusy && styles.mainButtonDisabled]}
                                     disabled={requestBusy}
+                                    accessibilityRole="button"
+                                    accessibilityLabel={`Accetta richiesta di ${request.nickname || 'Utente Bajuju'}`}
+                                    accessibilityState={{ disabled: requestBusy, busy: requestBusy }}
                                     onPress={() => { void reviewJoinRequest(requestUserId, true); }}
                                   >
                                     <Text style={styles.acceptRequestText}>{requestBusy ? '...' : 'Accetta'}</Text>
@@ -1556,6 +1591,12 @@ export default function ExperienceDetailScreen() {
                         ]}
                         onPress={uploadAlbumPhoto}
                         disabled={uploadingAlbumPhoto || albumIsFull || userAlbumLimitReached}
+                        accessibilityRole="button"
+                        accessibilityLabel="Aggiungi foto alla galleria dell'evento"
+                        accessibilityState={{
+                          disabled: uploadingAlbumPhoto || albumIsFull || userAlbumLimitReached,
+                          busy: uploadingAlbumPhoto,
+                        }}
                       >
                         <Text style={styles.albumUploadButtonText}>
                           {uploadingAlbumPhoto ? 'Carico...' : 'Aggiungi foto'}
@@ -1593,8 +1634,16 @@ export default function ExperienceDetailScreen() {
                             key={String(photo.id || `${url}-${index}`)}
                             style={styles.albumPhotoCard}
                             onPress={() => openAlbumPhoto(index)}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Foto ${index + 1} della galleria`}
                           >
-                            <Image source={{ uri: url }} style={styles.albumPhoto} resizeMode="cover" />
+                            <Image
+                              source={{ uri: url }}
+                              style={styles.albumPhoto}
+                              resizeMode="cover"
+                              accessible={false}
+                              importantForAccessibility="no"
+                            />
                           </Pressable>
                         );
                       })}
@@ -1604,17 +1653,33 @@ export default function ExperienceDetailScreen() {
 
                 <Modal visible={!!selectedAlbumPhotoUrl} transparent animationType="fade" onRequestClose={closeAlbumPhoto}>
                   <View style={styles.photoModalBackdrop}>
-                    <Pressable style={styles.photoModalClose} onPress={closeAlbumPhoto}>
+                    <Pressable
+                      style={styles.photoModalClose}
+                      onPress={closeAlbumPhoto}
+                      accessibilityRole="button"
+                      accessibilityLabel="Chiudi la foto"
+                    >
                       <Text style={styles.photoModalCloseText}>Chiudi</Text>
                     </Pressable>
 
                     {selectedAlbumPhotoUrl ? (
-                      <Image source={{ uri: selectedAlbumPhotoUrl }} style={styles.photoModalImage} resizeMode="contain" />
+                      <Image
+                        source={{ uri: selectedAlbumPhotoUrl }}
+                        style={styles.photoModalImage}
+                        resizeMode="contain"
+                        accessible
+                        accessibilityLabel="Foto della galleria a schermo intero"
+                      />
                     ) : null}
 
                     {visibleAlbumPhotos.length > 1 ? (
                       <View style={styles.photoModalControls}>
-                        <Pressable style={styles.photoModalArrow} onPress={showPreviousAlbumPhoto}>
+                        <Pressable
+                          style={styles.photoModalArrow}
+                          onPress={showPreviousAlbumPhoto}
+                          accessibilityRole="button"
+                          accessibilityLabel="Foto precedente"
+                        >
                           <Text style={styles.photoModalArrowText}>‹</Text>
                         </Pressable>
 
@@ -1622,7 +1687,12 @@ export default function ExperienceDetailScreen() {
                           {(selectedAlbumPhotoIndex ?? 0) + 1}/{visibleAlbumPhotos.length}
                         </Text>
 
-                        <Pressable style={styles.photoModalArrow} onPress={showNextAlbumPhoto}>
+                        <Pressable
+                          style={styles.photoModalArrow}
+                          onPress={showNextAlbumPhoto}
+                          accessibilityRole="button"
+                          accessibilityLabel="Foto successiva"
+                        >
                           <Text style={styles.photoModalArrowText}>›</Text>
                         </Pressable>
                       </View>
@@ -1667,7 +1737,12 @@ export default function ExperienceDetailScreen() {
                                 </Text>
 
                                 {!isMine ? (
-                                  <Pressable style={styles.reportMessageButton} onPress={() => reportMessage(item)}>
+                                  <Pressable
+                                    style={styles.reportMessageButton}
+                                    onPress={() => reportMessage(item)}
+                                    accessibilityRole="button"
+                                    accessibilityLabel={`Segnala il messaggio di ${name}`}
+                                  >
                                     <Text style={styles.reportMessageText}>Segnala</Text>
                                   </Pressable>
                                 ) : null}
@@ -1699,6 +1774,9 @@ export default function ExperienceDetailScreen() {
                           ]}
                           onPress={sendChatMessage}
                           disabled={!newMessage.trim() || sendingMessage}
+                          accessibilityRole="button"
+                          accessibilityLabel="Invia messaggio"
+                          accessibilityState={{ disabled: !newMessage.trim() || sendingMessage, busy: sendingMessage }}
                         >
                           <Text style={styles.sendButtonText}>
                             {sendingMessage ? '...' : 'Invia'}
@@ -1716,7 +1794,12 @@ export default function ExperienceDetailScreen() {
                         <Text style={styles.smallStatusButtonText}>Creata da te</Text>
                       </View>
 
-                      <Pressable style={styles.smallCancelButton} onPress={cancelExperience}>
+                      <Pressable
+                        style={styles.smallCancelButton}
+                        onPress={cancelExperience}
+                        accessibilityRole="button"
+                        accessibilityLabel="Annulla l'esperienza"
+                      >
                         <Text style={styles.smallCancelButtonText}>Annulla</Text>
                       </Pressable>
                     </>
@@ -1733,6 +1816,9 @@ export default function ExperienceDetailScreen() {
                         ]}
                         onPress={leaveExperience}
                         disabled={leaving}
+                        accessibilityRole="button"
+                        accessibilityLabel="Non partecipo più a questa esperienza"
+                        accessibilityState={{ disabled: leaving, busy: leaving }}
                       >
                         <Text style={styles.smallLeaveButtonText}>
                           {leaving ? 'Abbandono...' : 'Non partecipo più'}
@@ -1748,6 +1834,9 @@ export default function ExperienceDetailScreen() {
                         style={[styles.smallLeaveButton, joining && styles.mainButtonDisabled]}
                         onPress={cancelJoinRequest}
                         disabled={joining}
+                        accessibilityRole="button"
+                        accessibilityLabel="Annulla la richiesta di partecipazione"
+                        accessibilityState={{ disabled: joining, busy: joining }}
                       >
                         <Text style={styles.smallLeaveButtonText}>
                           {joining ? 'Annullamento...' : 'Annulla richiesta'}
@@ -1763,6 +1852,8 @@ export default function ExperienceDetailScreen() {
                           params: { id: experienceId || '' },
                         })
                       }
+                      accessibilityRole="button"
+                      accessibilityLabel="Entra in lista d'attesa"
                     >
                       <Text style={styles.smallJoinButtonText}>Lista d’attesa</Text>
                     </Pressable>
@@ -1774,6 +1865,13 @@ export default function ExperienceDetailScreen() {
                       ]}
                       onPress={joinExperience}
                       disabled={joining}
+                      accessibilityRole="button"
+                      accessibilityLabel={
+                        approvalRequired
+                          ? (joinState === 'rejected' ? 'Richiedi di nuovo di partecipare' : 'Richiedi di partecipare')
+                          : 'Partecipa ora'
+                      }
+                      accessibilityState={{ disabled: joining, busy: joining }}
                     >
                       <Text style={styles.smallJoinButtonText}>
                         {joining

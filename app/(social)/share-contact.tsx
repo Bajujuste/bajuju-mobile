@@ -306,7 +306,12 @@ export default function ShareContactScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        <Pressable style={styles.backButton} onPress={() => router.back()}>
+        <Pressable
+          style={styles.backButton}
+          onPress={() => router.back()}
+          accessibilityRole="button"
+          accessibilityLabel="Torna indietro"
+        >
           <Text style={styles.backText}>← Indietro</Text>
         </Pressable>
 
@@ -320,7 +325,7 @@ export default function ShareContactScreen() {
               <Text style={styles.helper}>Controllo esperienza e permessi…</Text>
             </View>
           ) : !allowed ? (
-            <View style={styles.warningBox}>
+            <View style={styles.warningBox} accessible accessibilityLiveRegion="polite">
               <Text style={styles.warningText}>{disabledReason || 'Contatto non disponibile.'}</Text>
             </View>
           ) : (
@@ -329,12 +334,18 @@ export default function ShareContactScreen() {
                 <Pressable
                   style={[styles.typeButton, contactType === 'telefono' && styles.typeButtonActive]}
                   onPress={() => setContactType('telefono')}
+                  accessibilityRole="checkbox"
+                  accessibilityLabel="Telefono o WhatsApp"
+                  accessibilityState={{ checked: contactType === 'telefono' }}
                 >
                   <Text style={[styles.typeText, contactType === 'telefono' && styles.typeTextActive]}>Telefono / WhatsApp</Text>
                 </Pressable>
                 <Pressable
                   style={[styles.typeButton, contactType === 'telegram' && styles.typeButtonActive]}
                   onPress={() => setContactType('telegram')}
+                  accessibilityRole="checkbox"
+                  accessibilityLabel="Telegram"
+                  accessibilityState={{ checked: contactType === 'telegram' }}
                 >
                   <Text style={[styles.typeText, contactType === 'telegram' && styles.typeTextActive]}>Telegram</Text>
                 </Pressable>
@@ -358,6 +369,9 @@ export default function ShareContactScreen() {
                 style={[styles.sendButton, sending && styles.disabled]}
                 onPress={() => void sendContactRequest()}
                 disabled={sending}
+                accessibilityRole="button"
+                accessibilityLabel={`Invia richiesta di contatto a ${targetName}`}
+                accessibilityState={{ disabled: sending, busy: sending }}
               >
                 <Text style={styles.sendText}>{sending ? 'Invio…' : 'Invia richiesta'}</Text>
               </Pressable>

@@ -134,7 +134,12 @@ export default function GroupsScreen() {
             returnKeyType="search"
           />
           {search.length > 0 ? (
-            <Pressable style={styles.clearSearch} onPress={() => setSearch('')} accessibilityLabel="Cancella ricerca">
+            <Pressable
+              style={styles.clearSearch}
+              onPress={() => setSearch('')}
+              accessibilityRole="button"
+              accessibilityLabel="Cancella ricerca"
+            >
               <Text style={styles.clearSearchText}>×</Text>
             </Pressable>
           ) : null}
@@ -156,6 +161,8 @@ export default function GroupsScreen() {
                     key={`request-${group.id}`}
                     style={({ pressed }) => [styles.requestCard, pressed && styles.pressed]}
                     onPress={() => openGroup(group.id)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Apri la tua richiesta per il gruppo ${group.name || 'Bajuju'}`}
                   >
                     <View style={styles.requestCopy}>
                       <Text style={styles.groupName} numberOfLines={1}>{group.name || 'Gruppo Bajuju'}</Text>
@@ -225,9 +232,20 @@ function GroupRow({ group, onPress }: { group: BajujuGroupCard; onPress: () => v
   const place = [group.city, distance].filter(Boolean).join(' · ');
 
   return (
-    <Pressable style={({ pressed }) => [styles.groupCard, pressed && styles.pressed]} onPress={onPress}>
+    <Pressable
+      style={({ pressed }) => [styles.groupCard, pressed && styles.pressed]}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`Apri gruppo ${group.name}`}
+    >
       {group.coverUrl ? (
-        <Image source={{ uri: group.coverUrl }} style={styles.groupCover} resizeMode="cover" />
+        <Image
+          source={{ uri: group.coverUrl }}
+          style={styles.groupCover}
+          resizeMode="cover"
+          accessible={false}
+          importantForAccessibility="no"
+        />
       ) : (
         <View style={styles.groupAvatar}><Text style={styles.groupAvatarText}>👥</Text></View>
       )}

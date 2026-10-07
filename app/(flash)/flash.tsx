@@ -1681,7 +1681,12 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
         <View style={[styles.flashHeroBlob, styles.flashHeroBlobBottom]} />
         <Text style={[styles.flashHeroDoodle, styles.flashHeroDoodleLeft]}>‹‹</Text>
         <Text style={[styles.flashHeroDoodle, styles.flashHeroDoodleRight]}>✦</Text>
-        <Pressable style={styles.flashBackButton} onPress={() => router.push(forcedSection ? '/flash' : '/home')}>
+        <Pressable
+          style={styles.flashBackButton}
+          onPress={() => router.push(forcedSection ? '/flash' : '/home')}
+          accessibilityRole="button"
+          accessibilityLabel={forcedSection ? 'Torna a Bajuju Flash' : 'Torna alla Home'}
+        >
           <Text style={styles.flashBackText}>{forcedSection ? '← Bajuju Flash' : '← Home'}</Text>
         </Pressable>
 
@@ -1700,6 +1705,8 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
         <Pressable
           style={[styles.flashChoiceButton, styles.flashCreateChoiceButton, styles.flashMainChoiceButton, styles.flashWideMainButton]}
           onPress={() => router.push('/flash-create')}
+          accessibilityRole="button"
+          accessibilityLabel="Crea un nuovo Flash"
         >
           <Text style={[styles.flashChoiceIcon, styles.flashMainChoiceIcon]}>FLASH</Text>
           <Text style={[styles.flashChoiceText, styles.flashMainChoiceText]}>Crea un nuovo Flash</Text>
@@ -1711,6 +1718,8 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
           <Pressable
             style={[styles.flashChoiceButton, styles.flashFindChoiceButton]}
             onPress={() => router.push('/flash-find')}
+            accessibilityRole="button"
+            accessibilityLabel="Trova Flash"
           >
             <Text style={[styles.flashChoiceIcon, styles.flashSecondaryChoiceIcon]}>CERCA</Text>
             <Text style={[styles.flashChoiceText, styles.flashSecondaryChoiceText]}>Trova Flash</Text>
@@ -1718,6 +1727,8 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
           <Pressable
             style={[styles.flashChoiceButton, styles.flashFindChoiceButton]}
             onPress={() => router.push('/flash-availability')}
+            accessibilityRole="button"
+            accessibilityLabel="Renditi disponibile"
           >
             <Text style={[styles.flashChoiceIcon, styles.flashSecondaryChoiceIcon]}>ORA</Text>
             <Text style={[styles.flashChoiceText, styles.flashSecondaryChoiceText]}>Renditi disponibile</Text>
@@ -1728,6 +1739,8 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
         <Pressable
           style={[styles.flashChoiceButton, styles.flashFindChoiceButton, styles.flashLiveWideButton]}
           onPress={() => router.push('/flash-available')}
+          accessibilityRole="button"
+          accessibilityLabel="Guarda chi è disponibile"
         >
           <Text style={[styles.flashChoiceIcon, styles.flashSecondaryChoiceIcon]}>LIVE</Text>
           <Text style={[styles.flashChoiceText, styles.flashSecondaryChoiceText]}>Guarda chi è disponibile</Text>
@@ -1743,7 +1756,12 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
           <Text style={[styles.flashHeroDoodle, styles.flashHeroDoodleLeft]}>‹‹</Text>
           <Text style={[styles.flashHeroDoodle, styles.flashHeroDoodleRight]}>✦</Text>
           {/* dismissTo torna alla schermata Flash già aperta invece di impilarne una nuova copia. */}
-          <Pressable style={styles.flashBackButton} onPress={() => router.dismissTo('/flash')}>
+          <Pressable
+            style={styles.flashBackButton}
+            onPress={() => router.dismissTo('/flash')}
+            accessibilityRole="button"
+            accessibilityLabel="Torna a Bajuju Flash"
+          >
             <Text style={styles.flashBackText}>← Bajuju Flash</Text>
           </Pressable>
 
@@ -1787,6 +1805,9 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
                   availabilityDurationHours === duration.value && styles.durationChipActive,
                 ]}
                 onPress={() => setAvailabilityDurationHours(duration.value)}
+                accessibilityRole="button"
+                accessibilityLabel={duration.label}
+                accessibilityState={{ selected: availabilityDurationHours === duration.value }}
               >
                 <Text
                   style={[
@@ -1801,7 +1822,7 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
           </View>
 
           {myActiveAvailability ? (
-            <View style={styles.activeAvailabilityBox}>
+            <View style={styles.activeAvailabilityBox} accessible accessibilityLiveRegion="polite">
               <Text style={styles.activeAvailabilityTitle}>Sei già disponibile</Text>
               <Text style={styles.activeAvailabilityText}>
                 La tua disponibilità è attiva. Se vuoi cambiarla, annullala e creane una nuova.
@@ -1816,6 +1837,9 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
             ]}
             onPress={saveAvailability}
             disabled={savingAvailability || !!myActiveAvailability}
+            accessibilityRole="button"
+            accessibilityLabel="Mi rendo disponibile"
+            accessibilityState={{ disabled: savingAvailability || !!myActiveAvailability, busy: savingAvailability }}
           >
             <Text style={styles.availabilityMainButtonText}>
               {savingAvailability ? 'Ti sto rendendo visibile...' : myActiveAvailability ? 'Disponibilità già attiva' : 'Mi rendo disponibile'}
@@ -1827,6 +1851,9 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
               style={[styles.cancelAvailabilityButton, cancellingAvailability && styles.buttonDisabled]}
               onPress={cancelAvailability}
               disabled={cancellingAvailability}
+              accessibilityRole="button"
+              accessibilityLabel="Annulla disponibilità"
+              accessibilityState={{ disabled: cancellingAvailability, busy: cancellingAvailability }}
             >
               <Text style={styles.cancelAvailabilityButtonText}>
                 {cancellingAvailability ? 'Annullamento...' : 'Annulla disponibilità'}
@@ -1856,7 +1883,12 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
               <Text style={styles.availableEmptyIcon}>☻</Text>
               <Text style={styles.availableEmptyTitle}>Ancora nessuno disponibile</Text>
               <Text style={styles.availablePeopleEmpty}>Prova a cambiare provincia o filtri.</Text>
-              <Pressable style={styles.availableRefreshButton} onPress={loadAvailableUsers}>
+              <Pressable
+                style={styles.availableRefreshButton}
+                onPress={loadAvailableUsers}
+                accessibilityRole="button"
+                accessibilityLabel="Aggiorna la ricerca"
+              >
                 <Text style={styles.availableRefreshButtonText}>Aggiorna la ricerca</Text>
               </Pressable>
             </View>
@@ -1871,9 +1903,21 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
                     <View key={`available-user-${firstText(row, ['id'], String(index))}`} style={styles.availablePersonCard}>
                       <View style={styles.availablePhotoBox}>
                         {photo ? (
-                          <Image source={{ uri: photo }} style={styles.availablePhoto} resizeMode="cover" />
+                          <Image
+                            source={{ uri: photo }}
+                            style={styles.availablePhoto}
+                            resizeMode="cover"
+                            accessible={false}
+                            importantForAccessibility="no"
+                          />
                         ) : (
-                          <Image source={bajujuLogo} style={styles.availablePhotoFallback} resizeMode="contain" />
+                          <Image
+                            source={bajujuLogo}
+                            style={styles.availablePhotoFallback}
+                            resizeMode="contain"
+                            accessible={false}
+                            importantForAccessibility="no"
+                          />
                         )}
                       </View>
 
@@ -1893,6 +1937,12 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
                         ]}
                         onPress={() => sendAvailabilityInvite(availableUserId(row))}
                         disabled={sendingAvailabilityInviteTo === availableUserId(row)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Invita ${availableProfileName(profile)} al tuo Flash`}
+                        accessibilityState={{
+                          disabled: sendingAvailabilityInviteTo === availableUserId(row),
+                          busy: sendingAvailabilityInviteTo === availableUserId(row),
+                        }}
                       >
                         <Text style={styles.availableInviteButtonText}>
                           {sendingAvailabilityInviteTo === availableUserId(row) ? 'Invio...' : 'Invita al mio Flash'}
@@ -1914,6 +1964,9 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
                 key={province}
                 style={[styles.chip, selectedProvince === province && styles.chipActive]}
                 onPress={() => setSelectedProvince(province)}
+                accessibilityRole="button"
+                accessibilityLabel={province}
+                accessibilityState={{ selected: selectedProvince === province }}
               >
                 <Text style={[styles.chipText, selectedProvince === province && styles.chipTextActive]}>
                   {province}
@@ -1928,6 +1981,9 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
             <Pressable
               style={[styles.tabButton, selectedTab === 'all' && styles.tabButtonActive]}
               onPress={() => setSelectedTab('all')}
+              accessibilityRole="button"
+              accessibilityLabel="Tutti"
+              accessibilityState={{ selected: selectedTab === 'all' }}
             >
               <Text style={[styles.tabText, selectedTab === 'all' && styles.tabTextActive]}>Tutti</Text>
             </Pressable>
@@ -1935,6 +1991,9 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
             <Pressable
               style={[styles.tabButton, selectedTab === 'mine' && styles.tabButtonActive]}
               onPress={() => setSelectedTab('mine')}
+              accessibilityRole="button"
+              accessibilityLabel="I miei"
+              accessibilityState={{ selected: selectedTab === 'mine' }}
             >
               <Text style={[styles.tabText, selectedTab === 'mine' && styles.tabTextActive]}>I miei</Text>
             </Pressable>
@@ -1942,6 +2001,9 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
             <Pressable
               style={[styles.tabButton, selectedTab === 'joined' && styles.tabButtonActive]}
               onPress={() => setSelectedTab('joined')}
+              accessibilityRole="button"
+              accessibilityLabel="A cui partecipo"
+              accessibilityState={{ selected: selectedTab === 'joined' }}
             >
               <Text style={[styles.tabText, selectedTab === 'joined' && styles.tabTextActive]}>A cui partecipo</Text>
             </Pressable>
@@ -1953,7 +2015,13 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
         <Text style={styles.sectionTitle}>Crea un Flash</Text>
 
         {!isCreatePage ? (
-          <Pressable style={styles.secondaryButton} onPress={() => setShowCreateForm((value) => !value)}>
+          <Pressable
+            style={styles.secondaryButton}
+            onPress={() => setShowCreateForm((value) => !value)}
+            accessibilityRole="button"
+            accessibilityLabel={showCreateForm ? 'Nascondi modulo' : 'Apri modulo crea Flash'}
+            accessibilityState={{ expanded: showCreateForm }}
+          >
             <Text style={styles.secondaryButtonText}>
               {showCreateForm ? 'Nascondi modulo' : 'Apri modulo crea Flash'}
             </Text>
@@ -2011,6 +2079,9 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
                   key={hours}
                   style={[styles.durationButton, newDurationHours === hours && styles.durationButtonActive]}
                   onPress={() => setNewDurationHours(hours as FlashDuration)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${hours} ${hours === 1 ? 'ora' : 'ore'}`}
+                  accessibilityState={{ selected: newDurationHours === hours }}
                 >
                   <Text style={[styles.durationText, newDurationHours === hours && styles.durationTextActive]}>
                     {hours} {hours === 1 ? 'ora' : 'ore'}
@@ -2027,6 +2098,9 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
               style={[styles.button, savingFlash && styles.buttonDisabled]}
               onPress={createFlash}
               disabled={savingFlash}
+              accessibilityRole="button"
+              accessibilityLabel="Crea un Flash"
+              accessibilityState={{ disabled: savingFlash, busy: savingFlash }}
             >
               <Text style={styles.buttonText}>{savingFlash ? 'Creazione in corso...' : 'Crea un Flash'}</Text>
             </Pressable>
@@ -2034,6 +2108,9 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
             <Pressable
               style={[styles.secondaryButton, savingFlash && styles.buttonDisabled]}
               disabled={savingFlash}
+              accessibilityRole="button"
+              accessibilityLabel="Annulla creazione"
+              accessibilityState={{ disabled: savingFlash }}
               onPress={() => {
                 setNewTitle('');
                 setNewDescription('');
@@ -2077,10 +2154,15 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
             <Text style={styles.mutedText}>Caricamento Flash...</Text>
           </View>
         ) : errorMessage ? (
-          <View style={styles.emptyBox}>
+          <View style={styles.emptyBox} accessible accessibilityLiveRegion="polite">
             <Text style={styles.errorTitle}>Errore caricamento</Text>
             <Text style={styles.errorText}>{errorMessage}</Text>
-            <Pressable style={styles.smallButton} onPress={retryLoadFlashRows}>
+            <Pressable
+              style={styles.smallButton}
+              onPress={retryLoadFlashRows}
+              accessibilityRole="button"
+              accessibilityLabel="Riprova a caricare i Flash"
+            >
               <Text style={styles.smallButtonText}>Riprova</Text>
             </Pressable>
           </View>
@@ -2162,6 +2244,8 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
                     pathname: '/flash-detail',
                     params: { id: String(firstValue(row, ['id', 'activity_id'], '')) },
                   })}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Vedi dettaglio del Flash ${flashTitle(row)}`}
                 >
                   <Text style={styles.smallButtonText}>Vedi dettaglio</Text>
                 </Pressable>
@@ -2177,6 +2261,8 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
                       time: String(firstValue(row, ['activity_time', 'time', 'ora'], '') || ''),
                     })
                   }
+                  accessibilityRole="button"
+                  accessibilityLabel={`Condividi il Flash ${flashTitle(row)}`}
                 >
                   <Text style={styles.shareFlashButtonText}>Condividi</Text>
                 </Pressable>
@@ -2193,6 +2279,12 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
                     ]}
                     onPress={() => cancelFlash(row)}
                     disabled={cancellingActivityId === String(firstValue(row, ['id', 'activity_id'], ''))}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Annulla il Flash ${flashTitle(row)}`}
+                    accessibilityState={{
+                      disabled: cancellingActivityId === String(firstValue(row, ['id', 'activity_id'], '')),
+                      busy: cancellingActivityId === String(firstValue(row, ['id', 'activity_id'], '')),
+                    }}
                   >
                     <Text style={styles.cancelButtonText}>
                       {cancellingActivityId === String(firstValue(row, ['id', 'activity_id'], ''))
@@ -2212,6 +2304,12 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
                     ]}
                     onPress={() => leaveFlash(row)}
                     disabled={leavingActivityId === String(firstValue(row, ['id', 'activity_id'], ''))}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Abbandona il Flash ${flashTitle(row)}`}
+                    accessibilityState={{
+                      disabled: leavingActivityId === String(firstValue(row, ['id', 'activity_id'], '')),
+                      busy: leavingActivityId === String(firstValue(row, ['id', 'activity_id'], '')),
+                    }}
                   >
                     <Text style={styles.leaveButtonText}>
                       {leavingActivityId === String(firstValue(row, ['id', 'activity_id'], ''))
@@ -2225,6 +2323,12 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
                   style={styles.joinButton}
                   onPress={() => joinFlash(row)}
                   disabled={joiningActivityId === String(firstValue(row, ['id', 'activity_id'], ''))}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Partecipa al Flash ${flashTitle(row)}`}
+                  accessibilityState={{
+                    disabled: joiningActivityId === String(firstValue(row, ['id', 'activity_id'], '')),
+                    busy: joiningActivityId === String(firstValue(row, ['id', 'activity_id'], '')),
+                  }}
                 >
                   <Text style={styles.joinButtonText}>
                     {joiningActivityId === String(firstValue(row, ['id', 'activity_id'], ''))

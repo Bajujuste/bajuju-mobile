@@ -404,7 +404,12 @@ export default function UserProfileScreen() {
 
   return (
     <ScrollView style={styles.page} contentContainerStyle={styles.content}>
-      <Pressable style={styles.backButton} onPress={() => router.back()}>
+      <Pressable
+        style={styles.backButton}
+        onPress={() => router.back()}
+        accessibilityRole="button"
+        accessibilityLabel="Torna indietro"
+      >
         <Text style={styles.backText}>← Indietro</Text>
       </Pressable>
 
@@ -414,7 +419,7 @@ export default function UserProfileScreen() {
           <Text style={styles.loadingText}>Carico il profilo...</Text>
         </View>
       ) : errorText ? (
-        <View style={styles.card}>
+        <View style={styles.card} accessible accessibilityLiveRegion="polite">
           <Text style={styles.errorTitle}>Profilo</Text>
           <Text style={styles.errorText}>{errorText}</Text>
         </View>
@@ -426,6 +431,9 @@ export default function UserProfileScreen() {
                 source={photo ? { uri: photo } : bajujuLogo}
                 style={styles.photo}
                 resizeMode="cover"
+                accessible={Boolean(photo)}
+                accessibilityLabel={photo ? `Foto profilo di ${name}` : undefined}
+                importantForAccessibility={photo ? 'auto' : 'no'}
               />
             </View>
 
@@ -464,6 +472,8 @@ export default function UserProfileScreen() {
                         pathname: '/invite-out' as any,
                         params: { targetUserId: userId, activityId },
                       })}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Invita ${name} a uscire`}
                     >
                       <Text style={{ color: '#ffffff', fontWeight: '900' }}>Invita a uscire</Text>
                     </Pressable>
@@ -483,6 +493,8 @@ export default function UserProfileScreen() {
                         pathname: '/share-contact' as any,
                         params: { targetUserId: userId, activityId },
                       })}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Invia contatto WhatsApp o Telegram a ${name}`}
                     >
                       <Text style={{ color: BAJUJU_PINK, fontWeight: '900' }}>Invia WhatsApp o Telegram</Text>
                     </Pressable>
@@ -493,6 +505,9 @@ export default function UserProfileScreen() {
                   style={styles.reportUserButton}
                   onPress={reportUser}
                   disabled={reportingUser}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Segnala ${name}`}
+                  accessibilityState={{ disabled: reportingUser, busy: reportingUser }}
                 >
                   <Text style={styles.reportUserText}>
                     {reportingUser ? 'Invio segnalazione...' : 'Segnala utente'}
@@ -504,6 +519,9 @@ export default function UserProfileScreen() {
                     style={styles.blockUserButton}
                     onPress={blockUser}
                     disabled={blockingUser}
+                    accessibilityRole="button"
+                    accessibilityLabel={isBlockedByMe ? `Sblocca ${name}` : `Blocca ${name}`}
+                    accessibilityState={{ disabled: blockingUser, busy: blockingUser }}
                   >
                     <Text style={styles.blockUserText}>
                       {blockingUser ? 'Aggiorno...' : isBlockedByMe ? 'Sblocca utente' : 'Blocca utente'}

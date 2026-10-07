@@ -256,6 +256,8 @@ export default function MyEventsScreen() {
           source={item.photo_url ? { uri: item.photo_url } : bajujuLogo}
           resizeMode="cover"
           style={styles.eventImage}
+          accessible={false}
+          importantForAccessibility="no"
         />
 
         <View style={styles.eventBody}>
@@ -339,10 +341,15 @@ export default function MyEventsScreen() {
             <Text style={styles.stateText}>Carico i tuoi eventi…</Text>
           </View>
         ) : errorMessage ? (
-          <View style={styles.stateCard}>
+          <View style={styles.stateCard} accessible accessibilityLiveRegion="polite">
             <Text style={styles.stateTitle}>Non riesco a caricarli</Text>
             <Text style={styles.stateText}>{errorMessage}</Text>
-            <Pressable style={styles.retryButton} onPress={() => void loadMyEvents('initial')}>
+            <Pressable
+              style={styles.retryButton}
+              onPress={() => void loadMyEvents('initial')}
+              accessibilityRole="button"
+              accessibilityLabel="Riprova a caricare i tuoi eventi"
+            >
               <Text style={styles.retryText}>Riprova</Text>
             </Pressable>
           </View>

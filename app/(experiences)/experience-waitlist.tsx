@@ -261,7 +261,12 @@ export default function ExperienceWaitlistScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        <Pressable style={styles.backButton} onPress={() => router.back()}>
+        <Pressable
+          style={styles.backButton}
+          onPress={() => router.back()}
+          accessibilityRole="button"
+          accessibilityLabel="Torna indietro"
+        >
           <Text style={styles.backText}>← Indietro</Text>
         </Pressable>
 
@@ -280,9 +285,14 @@ export default function ExperienceWaitlistScreen() {
               <Text style={styles.infoText}>Caricamento…</Text>
             </View>
           ) : errorMessage ? (
-            <View style={styles.noticeBox}>
+            <View style={styles.noticeBox} accessible accessibilityLiveRegion="polite">
               <Text style={styles.infoText}>{errorMessage}</Text>
-              <Pressable style={styles.secondaryButton} onPress={() => void loadAll()}>
+              <Pressable
+                style={styles.secondaryButton}
+                onPress={() => void loadAll()}
+                accessibilityRole="button"
+                accessibilityLabel="Riprova a caricare la lista d'attesa"
+              >
                 <Text style={styles.secondaryButtonText}>Riprova</Text>
               </Pressable>
             </View>
@@ -292,29 +302,52 @@ export default function ExperienceWaitlistScreen() {
               <Pressable
                 style={styles.mainButton}
                 onPress={() => router.replace({ pathname: '/experience-detail' as any, params: { id: activityId } })}
+                accessibilityRole="button"
+                accessibilityLabel="Apri esperienza"
               >
                 <Text style={styles.mainButtonText}>Apri esperienza</Text>
               </Pressable>
             </View>
           ) : waitlist?.status === 'notified' ? (
-            <View style={styles.priorityBox}>
+            <View style={styles.priorityBox} accessible accessibilityLiveRegion="polite">
               <Text style={styles.noticeTitle}>🎉 Si è liberato un posto</Text>
               <Text style={styles.infoText}>
                 Il posto è riservato a te{reservationLabel ? ` fino alle ${reservationLabel}` : ' per 30 minuti'}.
               </Text>
-              <Pressable style={styles.mainButton} onPress={joinExperience} disabled={working}>
+              <Pressable
+                style={styles.mainButton}
+                onPress={joinExperience}
+                disabled={working}
+                accessibilityRole="button"
+                accessibilityLabel={working ? 'Registrazione in corso' : 'Partecipa ora'}
+                accessibilityState={{ disabled: working, busy: working }}
+              >
                 <Text style={styles.mainButtonText}>{working ? 'Registrazione…' : 'Partecipa ora'}</Text>
               </Pressable>
-              <Pressable style={styles.secondaryButton} onPress={leaveWaitlist} disabled={working}>
+              <Pressable
+                style={styles.secondaryButton}
+                onPress={leaveWaitlist}
+                disabled={working}
+                accessibilityRole="button"
+                accessibilityLabel="Rinuncia alla priorità"
+                accessibilityState={{ disabled: working, busy: working }}
+              >
                 <Text style={styles.secondaryButtonText}>Rinuncia alla priorità</Text>
               </Pressable>
             </View>
           ) : waitlist?.status === 'waiting' ? (
-            <View style={styles.noticeBox}>
+            <View style={styles.noticeBox} accessible accessibilityLiveRegion="polite">
               <Text style={styles.noticeTitle}>Sei in lista</Text>
               <Text style={styles.positionText}>Posizione {Number(waitlist.position || 1)}</Text>
               <Text style={styles.infoText}>Ti avviseremo automaticamente quando si libera un posto.</Text>
-              <Pressable style={styles.secondaryButton} onPress={leaveWaitlist} disabled={working}>
+              <Pressable
+                style={styles.secondaryButton}
+                onPress={leaveWaitlist}
+                disabled={working}
+                accessibilityRole="button"
+                accessibilityLabel={working ? 'Aggiornamento in corso' : 'Esci dalla lista'}
+                accessibilityState={{ disabled: working, busy: working }}
+              >
                 <Text style={styles.secondaryButtonText}>{working ? 'Aggiornamento…' : 'Esci dalla lista'}</Text>
               </Pressable>
             </View>
@@ -322,7 +355,14 @@ export default function ExperienceWaitlistScreen() {
             <View style={styles.noticeBox}>
               <Text style={styles.noticeTitle}>Esperienza al completo</Text>
               <Text style={styles.infoText}>{participantCount}/{maxParticipants} partecipanti. Entra in lista e ti avvisiamo appena si libera un posto.</Text>
-              <Pressable style={styles.mainButton} onPress={joinWaitlist} disabled={working}>
+              <Pressable
+                style={styles.mainButton}
+                onPress={joinWaitlist}
+                disabled={working}
+                accessibilityRole="button"
+                accessibilityLabel={working ? 'Inserimento in corso' : "Entra in lista d'attesa"}
+                accessibilityState={{ disabled: working, busy: working }}
+              >
                 <Text style={styles.mainButtonText}>{working ? 'Inserimento…' : 'Entra in lista d’attesa'}</Text>
               </Pressable>
             </View>
@@ -330,7 +370,14 @@ export default function ExperienceWaitlistScreen() {
             <View style={styles.noticeBox}>
               <Text style={styles.noticeTitle}>C’è un posto disponibile</Text>
               <Text style={styles.infoText}>{participantCount}{maxParticipants > 0 ? `/${maxParticipants}` : ''} partecipanti.</Text>
-              <Pressable style={styles.mainButton} onPress={joinExperience} disabled={working}>
+              <Pressable
+                style={styles.mainButton}
+                onPress={joinExperience}
+                disabled={working}
+                accessibilityRole="button"
+                accessibilityLabel={working ? 'Registrazione in corso' : 'Partecipa ora'}
+                accessibilityState={{ disabled: working, busy: working }}
+              >
                 <Text style={styles.mainButtonText}>{working ? 'Registrazione…' : 'Partecipa ora'}</Text>
               </Pressable>
             </View>

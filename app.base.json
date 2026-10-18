@@ -88,6 +88,16 @@
         {
           "locationWhenInUsePermission": "Bajuju usa la tua posizione per mostrarti persone ed eventi vicini."
         }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableMinifyInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true,
+            "extraProguardRules": "# react-native-reanimated / worklets\n-keep class com.swmansion.reanimated.** { *; }\n-keep class com.swmansion.worklets.** { *; }\n-keep class com.facebook.react.turbomodule.** { *; }\n# react-native-maps / Google Maps\n-keep class com.rnmaps.** { *; }\n-keep class com.google.android.gms.maps.** { *; }\n# expo-notifications / Firebase Messaging\n-keep class expo.modules.notifications.** { *; }\n-keep class com.google.firebase.messaging.** { *; }\n# Hermes e JNI\n-keep class com.facebook.hermes.unicode.** { *; }\n-keep class com.facebook.jni.** { *; }"
+          }
+        }
       ]
     ],
     "experiments": {

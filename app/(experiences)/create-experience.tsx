@@ -483,6 +483,8 @@ export default function CreateExperienceScreen() {
                 display="spinner"
                 minuteInterval={30}
                 is24Hour
+                positiveButton={{ label: 'OK', textColor: BAJUJU_COLORS.plum }}
+                negativeButton={{ label: 'Annulla', textColor: BAJUJU_COLORS.plum }}
                 onChange={handleTimeChange}
               />
             ) : null}

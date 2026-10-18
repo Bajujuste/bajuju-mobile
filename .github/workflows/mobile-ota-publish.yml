@@ -4,6 +4,15 @@ name: Bajuju OTA Production
 # Le pull request NON pubblicano mai: il codice deve essere prima approvato e unito.
 on:
   workflow_dispatch:
+    inputs:
+      runtimes:
+        description: "Versioni app a cui mandare l'OTA, separate da spazio (es. 1.0.3 1.0.4). Vuoto = versione in app.base.json"
+        required: false
+        default: ""
+      message:
+        description: "Messaggio dell'aggiornamento (vuoto = .ota-release-trigger o ultimo commit)"
+        required: false
+        default: ""
   push:
     branches:
       - main
@@ -41,18 +50,28 @@ jobs:
 
       - name: Resolve release info
         id: release
+        env:
+          INPUT_RUNTIMES: ${{ inputs.runtimes }}
+          INPUT_MESSAGE: ${{ inputs.message }}
         run: |
           # runtimeVersion usa la policy appVersion: coincide con expo.version.
           RUNTIME=$(node -p "require('./app.base.json').expo.version")
+          # Avvio manuale: si possono indicare più versioni installate sui telefoni (es. "1.0.3 1.0.4").
+          if [ -n "$INPUT_RUNTIMES" ]; then
+            RUNTIME="$INPUT_RUNTIMES"
+          fi
           # Messaggio: seconda riga di .ota-release-trigger, altrimenti il titolo dell'ultimo commit.
-          MESSAGE=$(sed -n '2p' .ota-release-trigger | tr -d '\r')
+          MESSAGE="$INPUT_MESSAGE"
+          if [ -z "$MESSAGE" ]; then
+            MESSAGE=$(sed -n '2p' .ota-release-trigger | tr -d '\r')
+          fi
           if [ -z "$MESSAGE" ]; then
             MESSAGE=$(git log -1 --format=%s)
           fi
           echo "runtime=$RUNTIME" >> "$GITHUB_OUTPUT"
           {
             echo "message<<BAJUJU_EOF"
-            echo "Bajuju $RUNTIME: $MESSAGE"
+            echo "Bajuju: $MESSAGE"
             echo "BAJUJU_EOF"
           } >> "$GITHUB_OUTPUT"
 
@@ -72,9 +91,17 @@ jobs:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           CI: "1"
           OTA_MESSAGE: ${{ steps.release.outputs.message }}
+          OTA_RUNTIMES: ${{ steps.release.outputs.runtime }}
         run: |
-          npx eas-cli@latest update --channel production --platform android --environment production --message "$OTA_MESSAGE"
-          npx eas-cli@latest update --channel production --platform ios --environment production --message "$OTA_MESSAGE"
+          # runtimeVersion segue expo.version: per ogni versione la impostiamo solo per questo invio.
+          APP_VERSION=$(node -p "require('./app.base.json').expo.version")
+          for TARGET in $OTA_RUNTIMES; do
+            node -e "const fs=require('fs');const f='app.base.json';const [from,to]=process.argv.slice(1);fs.writeFileSync(f,fs.readFileSync(f,'utf8').replace('\"version\": \"'+from+'\"','\"version\": \"'+to+'\"'))" "$APP_VERSION" "$TARGET"
+            echo "Pubblico OTA per runtime $(node -p "require('./app.base.json').expo.version")"
+            npx eas-cli@latest update --channel production --platform android --environment production --message "$OTA_MESSAGE"
+            npx eas-cli@latest update --channel production --platform ios --environment production --message "$OTA_MESSAGE"
+            git checkout app.base.json
+          done
 
       - name: Record OTA result
         if: always() && github.event_name == 'push'

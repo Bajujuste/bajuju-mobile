@@ -823,7 +823,7 @@ export default function AdminUserDetailScreen() {
                 })
               }
             >
-              <Text style={styles.privateChatButtonText}>💬 Chatta con questo utente</Text>
+              <Text style={styles.privateChatButtonText}>💬 Scrivi come Bajuju Admin</Text>
             </Pressable>
 
             <View style={styles.detailRow}>

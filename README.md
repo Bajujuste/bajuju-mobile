@@ -71,6 +71,18 @@ Script aggiuntivi in `scripts/`:
 
 `mobile-release-check.yml` esegue solo i controlli (`npm run check:release`) su pull request e push su `main`. La pubblicazione OTA in produzione avviene solo con `mobile-ota-publish.yml`, quando su `main` arriva una modifica a `.ota-release-trigger` (o con avvio manuale): le pull request non pubblicano mai. In `.ota-release-trigger` la prima riga è la data, la seconda il messaggio dell'aggiornamento; il runtime viene letto da `app.base.json`. Non spostare o rinominare `.ota-release-trigger` / `.ota-release-result.json`: i workflow li referenziano per nome.
 
+### Avviso "Aggiorna"
+
+All'avvio e al ritorno in primo piano l'app legge da `app_settings` la versione minima consigliata (`min_app_version_android`, `min_app_version_ios`). Se la build installata è più vecchia mostra un avviso con "Aggiorna" (apre lo store giusto) e "Più tardi" (lo rimanda di 24 ore); l'app resta utilizzabile. Senza queste righe l'avviso non compare. Va attivato solo quando la nuova build è già pubblicata sugli store, per esempio:
+
+```sql
+insert into public.app_settings (setting_key, setting_value, updated_at)
+values ('min_app_version_android', '1.0.4', now()), ('min_app_version_ios', '1.0.4', now())
+on conflict (setting_key) do update set setting_value = excluded.setting_value, updated_at = now();
+```
+
+Il codice dell'avviso arriva agli utenti solo con un OTA sul runtime della loro build (es. `1.0.3`).
+
 ## Approfondimenti
 
 - [Documentazione Expo](https://docs.expo.dev/)

@@ -33,7 +33,7 @@
       "intentFilters": [
         {
           "action": "VIEW",
-          "autoVerify": false,
+          "autoVerify": true,
           "data": [
             {
               "scheme": "https",

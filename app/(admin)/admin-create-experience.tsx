@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
+import { useBajujuPhotoPicker } from '../../src/components/useBajujuPhotoPicker';
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
@@ -31,6 +32,7 @@ type ExperienceDraft = {
 };
 
 export default function AdminCreateExperienceScreen() {
+  const { pickPhoto, photoPickerModal } = useBajujuPhotoPicker();
   const [dictationText, setDictationText] = useState('');
   const [analyzing, setAnalyzing] = useState(false);
   const [experienceDraft, setExperienceDraft] = useState<ExperienceDraft | null>(null);
@@ -140,17 +142,11 @@ export default function AdminCreateExperienceScreen() {
         return;
       }
 
-      const picked = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        allowsEditing: true,
-        aspect: [16, 9],
-        quality: 0.9,
-      });
-
-      if (picked.canceled || !picked.assets?.[0]?.uri) return;
+      const picked = await pickPhoto({ aspect: [16, 9], quality: 0.9 });
+      if (!picked) return;
 
       const resized = await ImageManipulator.manipulateAsync(
-        picked.assets[0].uri,
+        picked.uri,
         [{ resize: { width: 1280 } }],
         {
           compress: 0.72,
@@ -329,6 +325,7 @@ export default function AdminCreateExperienceScreen() {
 
   return (
     <SafeAreaView style={styles.page}>
+      {photoPickerModal}
       <ScrollView contentContainerStyle={styles.card} keyboardShouldPersistTaps='handled'>
         <Text style={styles.title}>Crea evento con dettatura</Text>
         <Text style={styles.text}>

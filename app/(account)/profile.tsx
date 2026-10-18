@@ -2,6 +2,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
+import { useBajujuPhotoPicker } from '../../src/components/useBajujuPhotoPicker';
 import {
     ActivityIndicator,
     Alert,
@@ -404,6 +405,7 @@ async function safeUpdateStatus(table: string, id: string, status: string) {
 }
 
 export default function ProfileScreen() {
+  const { pickPhoto, photoPickerModal } = useBajujuPhotoPicker();
   const router = useRouter();
   const params = useLocalSearchParams<{ section?: string }>();
   const scrollRef = useRef<any>(null);
@@ -838,18 +840,12 @@ export default function ProfileScreen() {
         return;
       }
 
-      const picked = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.78,
-      });
-
-      if (picked.canceled || !picked.assets?.[0]?.uri) return;
+      const picked = await pickPhoto({ aspect: [1, 1], quality: 0.78 });
+      if (!picked) return;
 
       setUploadingPhoto(true);
 
-      const asset = picked.assets[0];
+      const asset = picked;
       const response = await fetch(asset.uri);
       const arrayBuffer = await response.arrayBuffer();
 
@@ -924,7 +920,7 @@ export default function ProfileScreen() {
     } finally {
       setUploadingPhoto(false);
     }
-  }, [loadAll, profile, profileIdField, profileIdValue, user]);
+  }, [loadAll, pickPhoto, profile, profileIdField, profileIdValue, user]);
 
   const saveProfile = useCallback(async () => {
     if (!user) return;
@@ -1312,6 +1308,7 @@ export default function ProfileScreen() {
       contentContainerStyle={styles.content}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
+      {photoPickerModal}
       <Pressable
         style={[styles.profileBackButton, !profileComplete && styles.profileBackButtonDisabled]}
         onPress={() => {

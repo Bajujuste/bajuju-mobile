@@ -2,6 +2,7 @@ import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/dat
 import { router } from 'expo-router';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
+import { useBajujuPhotoPicker } from '../../src/components/useBajujuPhotoPicker';
 import React, { useEffect, useState } from 'react';
 import {
   Alert,
@@ -77,6 +78,7 @@ function buildTime(hour: string, minute: string) {
 }
 
 export default function CreateExperienceScreen() {
+  const { pickPhoto, photoPickerModal } = useBajujuPhotoPicker();
   const [title, setTitle] = useState('');
   const [province, setProvince] = useState('');
   const [city, setCity] = useState('');
@@ -212,17 +214,11 @@ export default function CreateExperienceScreen() {
         return;
       }
 
-      const picked = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        allowsEditing: true,
-        aspect: [16, 9],
-        quality: 0.9,
-      });
-
-      if (picked.canceled || !picked.assets?.[0]?.uri) return;
+      const picked = await pickPhoto({ aspect: [16, 9], quality: 0.9 });
+      if (!picked) return;
 
       const resized = await ImageManipulator.manipulateAsync(
-        picked.assets[0].uri,
+        picked.uri,
         [{ resize: { width: 1280 } }],
         { compress: 0.72, format: ImageManipulator.SaveFormat.JPEG }
       );
@@ -393,6 +389,7 @@ export default function CreateExperienceScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      {photoPickerModal}
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <Pressable style={styles.backButton} onPress={() => router.replace('/home')}>
           <Text style={styles.backText}>← Home</Text>

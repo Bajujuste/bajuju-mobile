@@ -26,6 +26,7 @@ jobs:
       - run: npm ci
       - run: npm run typecheck && npm run check:prebuild
       - name: Build production binary
+        if: matrix.platform != 'android' || !contains(github.event.head_commit.message, '[ios-only]')
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           CI: "1"

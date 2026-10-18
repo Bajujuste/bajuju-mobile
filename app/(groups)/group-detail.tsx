@@ -1,6 +1,7 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
+import { useBajujuPhotoPicker } from '../../src/components/useBajujuPhotoPicker';
 import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
@@ -50,6 +51,7 @@ type ExperienceRow = {
 };
 
 export default function GroupDetailScreen() {
+  const { pickPhoto, photoPickerModal } = useBajujuPhotoPicker();
   const params = useLocalSearchParams<{ id?: string }>();
   const groupId = String(params.id || '').trim();
 
@@ -418,18 +420,12 @@ export default function GroupDetailScreen() {
         return;
       }
 
-      const picked = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        allowsEditing: true,
-        aspect: [16, 9],
-        quality: 0.9,
-      });
-
-      if (picked.canceled || !picked.assets?.[0]?.uri) return;
+      const picked = await pickPhoto({ aspect: [16, 9], quality: 0.9 });
+      if (!picked) return;
 
       setCoverBusy(true);
       const resized = await ImageManipulator.manipulateAsync(
-        picked.assets[0].uri,
+        picked.uri,
         [{ resize: { width: 1280 } }],
         { compress: 0.72, format: ImageManipulator.SaveFormat.JPEG }
       );
@@ -622,6 +618,7 @@ export default function GroupDetailScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      {photoPickerModal}
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <Pressable style={styles.backPill} onPress={() => router.back()}>
           <Text style={styles.backPillText}>← Gruppi</Text>

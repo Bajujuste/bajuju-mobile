@@ -643,7 +643,17 @@ export default function GroupDetailScreen() {
               : 'Età: aperto a tutti'}
           </Text>
           <Text style={styles.description}>{group.description}</Text>
-          <Text style={styles.owner}>Gestito da {ownerName}</Text>
+          <Pressable
+            disabled={!group.owner_id}
+            onPress={() => router.push({
+              pathname: '/user-profile' as any,
+              params: { userId: String(group.owner_id || '') },
+            })}
+            accessibilityRole="button"
+            accessibilityLabel={`Apri i dettagli di ${ownerName}`}
+          >
+            <Text style={styles.owner}>Gestito da {ownerName}  ›</Text>
+          </Pressable>
           {isPublicGroup ? <Text style={styles.count}>{memberCount} {memberCount === 1 ? 'iscritto' : 'iscritti'}</Text> : null}
 
           {!isPublicGroup ? (
@@ -672,9 +682,11 @@ export default function GroupDetailScreen() {
             </Pressable>
           )}
 
-          {isOwner ? (
+          {isOwner || isAdmin ? (
             <View style={styles.ownerBadge}>
-              <Text style={styles.ownerBadgeText}>Sei il proprietario del gruppo</Text>
+              <Text style={styles.ownerBadgeText}>
+                {isOwner ? 'Sei il proprietario del gruppo' : 'Accesso Admin · Nessuna iscrizione richiesta'}
+              </Text>
             </View>
           ) : isPublicGroup ? (
             <>
@@ -969,7 +981,7 @@ export default function GroupDetailScreen() {
         <BajujuGroupChat
           groupId={groupId}
           currentUserId={currentUserId}
-          canUseChat={joined || isOwner}
+          canUseChat={joined || isOwner || isAdmin}
           members={members}
         />
 

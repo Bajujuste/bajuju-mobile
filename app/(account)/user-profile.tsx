@@ -121,6 +121,7 @@ export default function UserProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<LooseRow | null>(null);
   const [currentUserId, setCurrentUserId] = useState('');
+  const [viewerIsOfficialAdmin, setViewerIsOfficialAdmin] = useState(false);
   const [reportingUser, setReportingUser] = useState(false);
   const [blockingUser, setBlockingUser] = useState(false);
   const [isBlockedByMe, setIsBlockedByMe] = useState(false);
@@ -141,6 +142,13 @@ export default function UserProfileScreen() {
 
       const authUserId = authResult.data.user?.id || '';
       setCurrentUserId(authUserId);
+      // Solo l'Admin principale può firmare messaggi con il nome ufficiale Bajuju.
+      const mainAdminResult = authUserId
+        ? await supabase.rpc('bajuju_main_admin_id' as any)
+        : { data: null, error: null };
+      setViewerIsOfficialAdmin(
+        Boolean(authUserId && !mainAdminResult.error && mainAdminResult.data === authUserId)
+      );
 
       if (authUserId && userId && authUserId !== userId) {
         const blockResult = await supabase
@@ -449,6 +457,20 @@ export default function UserProfileScreen() {
 
             {currentUserId && currentUserId !== userId ? (
               <>
+                {viewerIsOfficialAdmin ? (
+                  <Pressable
+                    style={styles.adminMessageButton}
+                    onPress={() => router.push({
+                      pathname: '/admin-private-chat' as any,
+                      params: { userId },
+                    })}
+                    accessibilityRole="button"
+                    accessibilityLabel="Scrivi un messaggio privato come Bajuju Admin"
+                  >
+                    <Text style={styles.adminMessageButtonText}>💬 Scrivi come Bajuju Admin</Text>
+                  </Pressable>
+                ) : null}
+
                 {canUsePostExperienceActions && activityId ? (
                   <View style={{ width: '100%', gap: 8, marginTop: 12 }}>
                     <Pressable
@@ -596,6 +618,16 @@ const styles = StyleSheet.create({
   photoFrameGreen: { borderWidth: 3, borderColor: '#2fb36d' },
   photoFrameExpert: { borderWidth: 3, borderColor: '#e44848' },
   photoFrameAdmin: { borderWidth: 3, borderColor: BAJUJU_PINK },
+  adminMessageButton: {
+    width: '100%',
+    minHeight: 52,
+    marginTop: 14,
+    borderRadius: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: BAJUJU_PINK,
+  },
+  adminMessageButtonText: { color: '#fff', fontSize: 15, fontWeight: '900' },
   photoFrameGold: { borderWidth: 3, borderColor: '#d9a441' },
   photo: {
     width: '100%',

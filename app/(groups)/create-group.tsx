@@ -25,6 +25,7 @@ export default function CreateGroupScreen() {
   const [allowed, setAllowed] = useState(false);
   const [checking, setChecking] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [showMissingFields, setShowMissingFields] = useState(false);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [city, setCity] = useState('');
@@ -71,14 +72,15 @@ export default function CreateGroupScreen() {
       parsedMinAge <= parsedMaxAge
     );
 
-  const canSave =
-    allowed &&
-    !saving &&
-    name.trim().length >= 3 &&
-    description.trim().length >= 10 &&
-    city.trim().length >= 2 &&
-    category.length > 0 &&
-    ageRangeValid;
+  const missingFields = [
+    ...(!coverUri ? ['Immagine di copertina'] : []),
+    ...(name.trim().length < 3 ? ['Nome gruppo (almeno 3 caratteri)'] : []),
+    ...(description.trim().length < 10 ? ['Descrizione (almeno 10 caratteri)'] : []),
+    ...(city.trim().length < 2 ? ['Comune'] : []),
+    ...(!category ? ['Categoria'] : []),
+    ...(!ageRangeValid ? ['Fascia d’età valida (18–80 anni)'] : []),
+  ];
+  const canSave = allowed && !saving;
 
   async function handlePickCover() {
     try {
@@ -114,6 +116,12 @@ export default function CreateGroupScreen() {
 
   async function handleCreate() {
     if (!canSave || !userId) return;
+    if (missingFields.length > 0) {
+      setShowMissingFields(true);
+      Alert.alert('Completa il gruppo', `Mancano questi campi obbligatori:\n\n• ${missingFields.join('\n• ')}`);
+      return;
+    }
+    setShowMissingFields(false);
     setSaving(true);
 
     try {
@@ -133,26 +141,25 @@ export default function CreateGroupScreen() {
         maxAge: ageRestricted ? parsedMaxAge : null,
       });
 
-      let coverWarning = '';
-      if (coverUri && groupId) {
-        try {
-          await uploadBajujuGroupCover({
-            groupId,
-            userId,
-            localUri: coverUri,
-          });
-        } catch (error: unknown) {
-          coverWarning = error instanceof Error
-            ? error.message
-            : 'La copertina non è stata caricata correttamente.';
-        }
+      if (!groupId || !coverUri) throw new Error('Immagine di copertina obbligatoria.');
+      try {
+        await uploadBajujuGroupCover({ groupId, userId, localUri: coverUri });
+      } catch (uploadError: unknown) {
+        // Non lasciare gruppi appena creati senza la copertina obbligatoria.
+        const cleanup = await supabase.rpc('cancel_incomplete_group_creation' as any, {
+          p_group_id: groupId,
+        });
+        const details = uploadError instanceof Error ? uploadError.message : 'Caricamento non riuscito.';
+        throw new Error(
+          cleanup.error
+            ? `Copertina non caricata: ${details}. Il gruppo è ancora in approvazione: contatta Bajuju per rimuoverlo.`
+            : `Copertina non caricata: ${details}. La creazione è stata annullata. Riprova.`
+        );
       }
 
       Alert.alert(
         'Richiesta inviata',
-        coverWarning
-          ? `Il gruppo è stato inviato a Bajuju per l’approvazione. La copertina non è stata caricata: ${coverWarning}`
-          : 'Il gruppo è stato inviato a Bajuju per l’approvazione. Finché non viene approvato lo vedi solo tu e gli Admin.'
+        'Il gruppo con copertina è stato inviato a Bajuju per l’approvazione. Finché non viene approvato lo vedi solo tu e gli Admin.'
       );
       router.replace({ pathname: '/group-detail' as any, params: { id: groupId } });
     } catch (error: any) {
@@ -198,7 +205,7 @@ export default function CreateGroupScreen() {
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.label}>Immagine di copertina</Text>
+          <Text style={styles.label}>Immagine di copertina * (obbligatoria)</Text>
           {coverUri ? (
             <Image source={{ uri: coverUri }} style={styles.coverPreview} resizeMode="cover" />
           ) : (
@@ -210,7 +217,7 @@ export default function CreateGroupScreen() {
           <Pressable style={styles.coverButton} onPress={() => { void handlePickCover(); }}>
             <Text style={styles.coverButtonText}>{coverUri ? 'Cambia immagine' : 'Scegli immagine'}</Text>
           </Pressable>
-          <Text style={styles.helper}>La copertina potrà essere cambiata anche dopo, direttamente dal gruppo.</Text>
+          <Text style={styles.helper}>Devi caricare una copertina per creare il gruppo. Potrai cambiarla in seguito.</Text>
 
           <Text style={styles.label}>Nome gruppo</Text>
           <TextInput
@@ -348,6 +355,10 @@ export default function CreateGroupScreen() {
 
           {ageRestricted && !ageRangeValid ? (
             <Text style={styles.ageError}>Inserisci una fascia valida da 18 a 80 anni.</Text>
+          ) : null}
+
+          {showMissingFields && missingFields.length > 0 ? (
+            <Text style={styles.ageError}>Da completare: {missingFields.join(' · ')}</Text>
           ) : null}
 
           <Pressable

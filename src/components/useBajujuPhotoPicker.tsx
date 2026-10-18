@@ -97,8 +97,8 @@ function PhotoReview({
       if (!ratio) {
         await onConfirm(pending);
       } else {
-        const cropWidth = Math.min(sourceWidth, Math.floor(frameWidth / displayScale));
-        const cropHeight = Math.min(sourceHeight, Math.floor(frameHeight / displayScale));
+        const cropWidth = Math.max(1, Math.min(sourceWidth, Math.floor(frameWidth / displayScale)));
+        const cropHeight = Math.max(1, Math.min(sourceHeight, Math.floor(frameHeight / displayScale)));
         const originX = clamp(
           Math.round((displayWidth - frameWidth) / (2 * displayScale) - positionRef.current.x / displayScale),
           0,

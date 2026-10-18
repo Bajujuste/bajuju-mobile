@@ -229,9 +229,14 @@ export async function uploadBajujuGroupCover(input: {
   const updateResult = await supabase
     .from('groups')
     .update({ cover_url: publicUrl })
-    .eq('id', groupId);
+    .eq('id', groupId)
+    .select('cover_url')
+    .single();
 
   if (updateResult.error) throw updateResult.error;
+  if (updateResult.data?.cover_url !== publicUrl) {
+    throw new Error('La copertina non è stata salvata nel gruppo.');
+  }
   return publicUrl;
 }
 

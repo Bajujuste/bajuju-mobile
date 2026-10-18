@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBajujuPhotoPicker } from '../../src/components/useBajujuPhotoPicker';
 import {
   Alert,
@@ -230,6 +231,10 @@ function canInviteOutAfterExperience(experience: ActivityRow | null) {
 
 export default function ExperienceDetailScreen() {
   const { pickPhoto, photoPickerModal } = useBajujuPhotoPicker();
+  // SafeAreaView di react-native copre solo iOS: su Android la barra di navigazione
+  // di sistema si sovrappone alla barra fissa in basso, quindi aggiungiamo l'inset a mano.
+  const safeAreaInsets = useSafeAreaInsets();
+  const androidBottomInset = Platform.OS === 'android' ? safeAreaInsets.bottom : 0;
   const pageScrollRef = useRef<any>(null);
   const chatAutoScrollDoneRef = useRef(false);
   const params = useLocalSearchParams<{ id?: string; section?: string }>();
@@ -1363,7 +1368,10 @@ export default function ExperienceDetailScreen() {
       >
         <ScrollView
           ref={pageScrollRef}
-          contentContainerStyle={[styles.container, showBottomBar && styles.containerWithBar]}
+          contentContainerStyle={[
+            styles.container,
+            showBottomBar && { paddingBottom: 110 + androidBottomInset },
+          ]}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
         >
@@ -1740,7 +1748,7 @@ export default function ExperienceDetailScreen() {
         </ScrollView>
 
         {showBottomBar ? (
-          <View style={styles.bottomBar}>
+          <View style={[styles.bottomBar, androidBottomInset > 0 && { paddingBottom: 14 + androidBottomInset }]}>
             {isOrganizer ? (
               <>
                 <View style={styles.statusPill}>
@@ -1922,9 +1930,6 @@ const styles = StyleSheet.create({
   container: {
     paddingBottom: 24,
     backgroundColor: C.background,
-  },
-  containerWithBar: {
-    paddingBottom: 110,
   },
   stateBox: {
     padding: 18,

@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { router } from 'expo-router';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -7,7 +8,6 @@ import React, { useEffect, useState } from 'react';
 import {
   Alert,
   Image,
-  Modal,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -86,7 +86,6 @@ export default function CreateExperienceScreen() {
   const [resolvedAddress, setResolvedAddress] = useState<ResolvedAddress | null>(null);
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
-  const [categorySelectOpen, setCategorySelectOpen] = useState(false);
   const [day, setDay] = useState('');
   const [month, setMonth] = useState('');
   const [year, setYear] = useState('');
@@ -134,8 +133,8 @@ export default function CreateExperienceScreen() {
   const timePickerValue = new Date();
   timePickerValue.setHours(cleanTime ? Number(hour) : 12, cleanTime ? Number(minute) : 0, 0, 0);
 
-  const formattedSelectedDate = isoDate ? `${day}/${month}/${year}` : 'Seleziona la data';
-  const formattedSelectedTime = cleanTime ? `${hour}:${minute}` : 'Seleziona l’orario';
+  const formattedSelectedDate = isoDate ? `${day}/${month}/${year}` : 'Scegli';
+  const formattedSelectedTime = cleanTime ? `${hour}:${minute}` : 'Scegli';
   const needsBudget = category === 'Gita';
   const cleanMaxParticipants = Number(maxParticipants || '0');
   const cleanBudgetAmount = budgetAmount ? Number(budgetAmount) : null;
@@ -171,7 +170,21 @@ export default function CreateExperienceScreen() {
     maxParticipantsIsValid &&
     ageRangeIsValid &&
     budgetIsValid &&
+    photoUri !== null &&
     !saving;
+
+  const missingFields = [
+    !photoUri ? 'foto' : '',
+    !title.trim() ? 'titolo' : '',
+    !category.trim() ? 'categoria' : '',
+    !description.trim() ? 'descrizione' : '',
+    !resolvedAddress || !province.trim() || !city.trim() || !meetingPlace.trim() ? 'indirizzo' : '',
+    !isoDate ? 'data' : '',
+    !cleanTime ? 'ora' : '',
+    !maxParticipantsIsValid ? 'posti' : '',
+    !budgetIsValid ? 'budget' : '',
+    !ageRangeIsValid ? 'età' : '',
+  ].filter(Boolean);
 
   function handleDateChange(event: DateTimePickerEvent, selectedDate?: Date) {
     setShowDatePicker(false);
@@ -233,6 +246,10 @@ export default function CreateExperienceScreen() {
 
   async function handleCreateExperience() {
     if (!canCreateExperience || saving) return;
+    if (!photoUri) {
+      Alert.alert('Foto esperienza', 'Aggiungi una foto per pubblicare l’esperienza.');
+      return;
+    }
     if (!resolvedAddress) {
       Alert.alert('Indirizzo', 'Seleziona un indirizzo completo dai suggerimenti.');
       return;
@@ -387,610 +404,470 @@ export default function CreateExperienceScreen() {
     }
   }
 
+  function changeParticipants(delta: number) {
+    const current = Number(maxParticipants || '0');
+    const next = Math.min(99, Math.max(1, (Number.isInteger(current) ? current : 10) + delta));
+    setMaxParticipants(String(next));
+  }
+
   return (
     <SafeAreaView style={styles.safeArea}>
       {photoPickerModal}
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <Pressable style={styles.backButton} onPress={() => router.replace('/home')}>
-          <Text style={styles.backText}>← Home</Text>
+        <View style={styles.topBar}>
+          <Pressable
+            style={styles.backButton}
+            onPress={() => (router.canGoBack() ? router.back() : router.replace('/home'))}
+            accessibilityRole="button"
+            accessibilityLabel="Torna indietro"
+          >
+            <Ionicons name="arrow-back" size={22} color={BAJUJU_COLORS.plum} />
+          </Pressable>
+          <Text style={styles.title}>Nuova esperienza</Text>
+        </View>
+
+        <Pressable
+          style={[styles.coverBox, photoUri && styles.coverBoxFilled]}
+          onPress={() => { void handlePickPhoto(); }}
+          accessibilityRole="button"
+          accessibilityLabel={photoUri ? 'Cambia foto' : 'Aggiungi una foto'}
+        >
+          {photoUri ? (
+            <>
+              <Image source={{ uri: photoUri }} style={styles.coverPreview} resizeMode="cover" />
+              <View style={styles.coverChangePill}>
+                <Ionicons name="camera-outline" size={16} color="#fff" />
+                <Text style={styles.coverChangeText}>Cambia</Text>
+              </View>
+            </>
+          ) : (
+            <>
+              <View style={styles.coverIconCircle}>
+                <Ionicons name="image-outline" size={28} color={BAJUJU_COLORS.pink} />
+              </View>
+              <Text style={styles.coverTitle}>Aggiungi una foto</Text>
+              <Text style={styles.coverHint}>Obbligatoria · formato panoramico 16:9</Text>
+            </>
+          )}
         </Pressable>
 
-        <View style={styles.header}>
-          <View style={[styles.headerBlob, styles.headerBlobTop]} />
-          <View style={[styles.headerBlob, styles.headerBlobBottom]} />
-          <Text style={[styles.headerDoodle, styles.headerDoodleLeft]}>‹‹</Text>
-          <Text style={[styles.headerDoodle, styles.headerDoodleRight]}>✦</Text>
-          <Text style={styles.pageTitle}>
-            <Text style={styles.headerTitlePlum}>Crea </Text>
-            <Text style={styles.headerTitlePink}>esperienza</Text>
-          </Text>
-          <Text style={styles.subtitle}>Compila i dettagli essenziali e pubblica la tua esperienza.</Text>
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>L’esperienza</Text>
+
+          <Text style={styles.label}>Titolo</Text>
+          <TextInput
+            value={title}
+            onChangeText={setTitle}
+            placeholder="Es. Aperitivo sul lago"
+            placeholderTextColor={BAJUJU_COLORS.muted}
+            style={styles.input}
+          />
+
+          <Text style={styles.label}>Categoria</Text>
+          <View style={styles.categoryGrid}>
+            {EXPERIENCE_CREATION_CATEGORIES.map((item) => {
+              const selected = category === item;
+              return (
+                <Pressable
+                  key={item}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected }}
+                  style={[styles.categoryChip, selected && styles.categoryChipSelected]}
+                  onPress={() => {
+                    setCategory(item);
+                    if (item !== 'Gita') setBudgetAmount('');
+                  }}
+                >
+                  <Text style={[styles.categoryChipText, selected && styles.categoryChipTextSelected]}>{item}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          <Text style={styles.label}>Descrizione</Text>
+          <TextInput
+            value={description}
+            onChangeText={setDescription}
+            placeholder="Cosa farete, dove vi trovate, cosa portare..."
+            placeholderTextColor={BAJUJU_COLORS.muted}
+            style={[styles.input, styles.textArea, styles.inputLast]}
+            multiline
+            maxLength={500}
+          />
         </View>
 
         <View style={styles.card}>
-          <View style={styles.formSection}>
-            <Text style={styles.sectionTitle}>Informazioni principali</Text>
-            <Text style={styles.label}>Titolo esperienza</Text>
-            <TextInput
-              value={title}
-              onChangeText={setTitle}
-              placeholder="Titolo"
-              placeholderTextColor="#9c7b8b"
-              style={styles.input}
-            />
+          <Text style={styles.cardTitle}>Dove e quando</Text>
+
+          <Text style={styles.label}>Indirizzo</Text>
+          <AddressAutocompleteField
+            value={meetingPlace}
+            resolvedAddress={resolvedAddress}
+            onValueChange={setMeetingPlace}
+            onResolvedAddressChange={(address) => {
+              setResolvedAddress(address);
+              setProvince(address?.province ?? '');
+              setCity(address?.city ?? '');
+            }}
+            disabled={saving}
+          />
+          <Text style={styles.helper}>Scrivi l’indirizzo e scegli quello giusto dai suggerimenti.</Text>
+
+          <View style={styles.dateTimeRow}>
+            <View style={styles.dateTimeColumn}>
+              <Text style={styles.label}>Data</Text>
+              <Pressable
+                style={styles.pickerButton}
+                onPress={() => {
+                  setShowTimePicker(false);
+                  setShowDatePicker(true);
+                }}
+              >
+                <Text style={[styles.pickerButtonText, !isoDate && styles.placeholder]}>{formattedSelectedDate}</Text>
+                <Ionicons name="calendar-outline" size={18} color={BAJUJU_COLORS.pink} />
+              </Pressable>
+            </View>
+
+            <View style={styles.dateTimeColumn}>
+              <Text style={styles.label}>Ora</Text>
+              <Pressable
+                style={styles.pickerButton}
+                onPress={() => {
+                  setShowDatePicker(false);
+                  setShowTimePicker(true);
+                }}
+              >
+                <Text style={[styles.pickerButtonText, !cleanTime && styles.placeholder]}>{formattedSelectedTime}</Text>
+                <Ionicons name="time-outline" size={18} color={BAJUJU_COLORS.pink} />
+              </Pressable>
+            </View>
           </View>
 
-          <View style={styles.formSection}>
-            <Text style={styles.sectionTitle}>Dove si svolge</Text>
-            <AddressAutocompleteField
-              value={meetingPlace}
-              resolvedAddress={resolvedAddress}
-              onValueChange={setMeetingPlace}
-              onResolvedAddressChange={(address) => {
-                setResolvedAddress(address);
-                setProvince(address?.province ?? '');
-                setCity(address?.city ?? '');
-              }}
-              disabled={saving}
+          {showDatePicker ? (
+            <DateTimePicker value={datePickerValue} mode="date" display="calendar" onChange={handleDateChange} />
+          ) : null}
+          {showTimePicker ? (
+            <DateTimePicker
+              value={timePickerValue}
+              mode="time"
+              display="spinner"
+              minuteInterval={30}
+              is24Hour
+              positiveButton={{ label: 'OK', textColor: BAJUJU_COLORS.plum }}
+              negativeButton={{ label: 'Annulla', textColor: BAJUJU_COLORS.plum }}
+              onChange={handleTimeChange}
             />
-            <Text style={styles.helperText}>
-              Inizia a scrivere l’indirizzo e seleziona quello corretto dai suggerimenti. Vale per tutta Italia.
-            </Text>
-          </View>
+          ) : null}
+        </View>
 
-          <View style={styles.formSection}>
-            <Text style={styles.sectionTitle}>Quando e dettagli</Text>
-            <View style={styles.dateTimeRow}>
-              <View style={styles.dateColumn}>
-                <Text style={styles.label}>Data</Text>
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Chi partecipa</Text>
+
+          <View style={styles.dateTimeRow}>
+            <View style={styles.dateTimeColumn}>
+              <Text style={styles.label}>Posti</Text>
+              <View style={styles.stepper}>
                 <Pressable
-                  style={styles.dateTimePickerButton}
-                  onPress={() => {
-                    setShowTimePicker(false);
-                    setShowDatePicker(true);
-                  }}
+                  style={styles.stepperButton}
+                  onPress={() => changeParticipants(-1)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Un posto in meno"
                 >
-                  <Text style={[styles.dateTimePickerButtonText, !isoDate && styles.selectPlaceholder]}>{formattedSelectedDate}</Text>
-                  <Text style={styles.pickerIcon}>▣</Text>
+                  <Ionicons name="remove" size={20} color={BAJUJU_COLORS.brightPink} />
                 </Pressable>
-              </View>
-
-              <View style={styles.timeColumn}>
-                <Text style={styles.label}>Ora</Text>
+                <TextInput
+                  value={maxParticipants}
+                  onChangeText={(value) => setMaxParticipants(onlyDigits(value, 2))}
+                  style={styles.stepperValue}
+                  keyboardType="number-pad"
+                  maxLength={2}
+                  textAlign="center"
+                />
                 <Pressable
-                  style={styles.dateTimePickerButton}
-                  onPress={() => {
-                    setShowDatePicker(false);
-                    setShowTimePicker(true);
-                  }}
+                  style={styles.stepperButton}
+                  onPress={() => changeParticipants(1)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Un posto in più"
                 >
-                  <Text style={[styles.dateTimePickerButtonText, !cleanTime && styles.selectPlaceholder]}>{formattedSelectedTime}</Text>
-                  <Text style={styles.pickerIcon}>◷</Text>
+                  <Ionicons name="add" size={20} color={BAJUJU_COLORS.brightPink} />
                 </Pressable>
               </View>
             </View>
 
-            {showDatePicker ? (
-              <DateTimePicker value={datePickerValue} mode="date" display="calendar" onChange={handleDateChange} />
-            ) : null}
-            {showTimePicker ? (
-              <DateTimePicker
-                value={timePickerValue}
-                mode="time"
-                display="spinner"
-                minuteInterval={30}
-                is24Hour
-                positiveButton={{ label: 'OK', textColor: BAJUJU_COLORS.plum }}
-                negativeButton={{ label: 'Annulla', textColor: BAJUJU_COLORS.plum }}
-                onChange={handleTimeChange}
-              />
+            {needsBudget ? (
+              <View style={styles.dateTimeColumn}>
+                <Text style={styles.label}>Budget €</Text>
+                <TextInput
+                  value={budgetAmount}
+                  onChangeText={(value) => setBudgetAmount(onlyDigits(value, 4))}
+                  placeholder="50"
+                  placeholderTextColor={BAJUJU_COLORS.muted}
+                  style={styles.input}
+                  keyboardType="number-pad"
+                  maxLength={4}
+                />
+              </View>
             ) : null}
           </View>
 
-          <View style={styles.formSection}>
-            <Text style={styles.sectionTitle}>Categoria e partecipanti</Text>
-            <Text style={styles.label}>Categoria</Text>
-            <Pressable style={styles.selectButton} onPress={() => setCategorySelectOpen(true)}>
-              <Text style={[styles.selectButtonText, !category.trim() && styles.selectPlaceholder]}>
-                {category.trim() || 'Seleziona categoria'}
-              </Text>
-              <Text style={styles.selectChevron}>⌄</Text>
-            </Pressable>
+          <Text style={styles.label}>Accesso</Text>
+          <View style={styles.segment}>
+            {[
+              { value: false, label: 'Aperta a tutti' },
+              { value: true, label: 'Su approvazione' },
+            ].map((option) => {
+              const selected = joinApprovalRequired === option.value;
+              return (
+                <Pressable
+                  key={option.label}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected }}
+                  style={[styles.segmentButton, selected && styles.segmentButtonSelected]}
+                  onPress={() => setJoinApprovalRequired(option.value)}
+                >
+                  <Text style={[styles.segmentText, selected && styles.segmentTextSelected]}>{option.label}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
 
-            <View style={styles.compactDetailsRow}>
-              <View style={styles.participantsColumn}>
-                <Text style={styles.label}>Partecipanti</Text>
+          <Text style={styles.label}>Età</Text>
+          <View style={[styles.segment, styles.segmentTight]}>
+            {[
+              { value: false, label: 'Tutte le età' },
+              { value: true, label: 'Fascia d’età' },
+            ].map((option) => {
+              const selected = ageRestricted === option.value;
+              return (
+                <Pressable
+                  key={option.label}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected }}
+                  style={[styles.segmentButton, selected && styles.segmentButtonSelected]}
+                  onPress={() => setAgeRestricted(option.value)}
+                >
+                  <Text style={[styles.segmentText, selected && styles.segmentTextSelected]}>{option.label}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          {ageRestricted ? (
+            <View style={styles.dateTimeRow}>
+              <View style={styles.dateTimeColumn}>
+                <Text style={styles.label}>Da</Text>
                 <TextInput
-                  value={maxParticipants}
-                  onChangeText={(value) => setMaxParticipants(onlyDigits(value, 2))}
-                  placeholder="10"
-                  placeholderTextColor="#9c7b8b"
+                  value={minAge}
+                  onChangeText={(value) => setMinAge(onlyDigits(value, 2))}
+                  placeholder="18"
+                  placeholderTextColor={BAJUJU_COLORS.muted}
                   style={styles.input}
                   keyboardType="number-pad"
                   maxLength={2}
                 />
               </View>
-
-              {needsBudget ? (
-                <View style={styles.budgetColumn}>
-                  <Text style={styles.label}>Budget €</Text>
-                  <TextInput
-                    value={budgetAmount}
-                    onChangeText={(value) => setBudgetAmount(onlyDigits(value, 4))}
-                    placeholder="50"
-                    placeholderTextColor="#9c7b8b"
-                    style={styles.input}
-                    keyboardType="number-pad"
-                    maxLength={4}
-                  />
-                </View>
-              ) : null}
-            </View>
-
-            <Text style={styles.label}>Partecipazione</Text>
-            <View style={styles.approvalModeRow}>
-              <Pressable
-                style={[
-                  styles.approvalModeButton,
-                  !joinApprovalRequired && styles.approvalModeButtonSelected,
-                ]}
-                onPress={() => setJoinApprovalRequired(false)}
-              >
-                <Text
-                  style={[
-                    styles.approvalModeButtonText,
-                    !joinApprovalRequired && styles.approvalModeButtonTextSelected,
-                  ]}
-                >
-                  Aperta a tutti
-                </Text>
-              </Pressable>
-
-              <Pressable
-                style={[
-                  styles.approvalModeButton,
-                  joinApprovalRequired && styles.approvalModeButtonSelected,
-                ]}
-                onPress={() => setJoinApprovalRequired(true)}
-              >
-                <Text
-                  style={[
-                    styles.approvalModeButtonText,
-                    joinApprovalRequired && styles.approvalModeButtonTextSelected,
-                  ]}
-                >
-                  Su approvazione
-                </Text>
-              </Pressable>
-            </View>
-            <Text style={styles.approvalModeHelper}>
-              {joinApprovalRequired
-                ? 'Chi vuole partecipare invia una richiesta. Decidi tu chi accettare direttamente dentro l’esperienza.'
-                : 'Chi tocca Partecipa entra subito, finché ci sono posti disponibili.'}
-            </Text>
-
-            <Text style={styles.label}>Età dei partecipanti</Text>
-            <View style={styles.approvalModeRow}>
-              <Pressable
-                style={[
-                  styles.approvalModeButton,
-                  !ageRestricted && styles.approvalModeButtonSelected,
-                ]}
-                onPress={() => setAgeRestricted(false)}
-              >
-                <Text
-                  style={[
-                    styles.approvalModeButtonText,
-                    !ageRestricted && styles.approvalModeButtonTextSelected,
-                  ]}
-                >
-                  Tutte le età
-                </Text>
-              </Pressable>
-
-              <Pressable
-                style={[
-                  styles.approvalModeButton,
-                  ageRestricted && styles.approvalModeButtonSelected,
-                ]}
-                onPress={() => setAgeRestricted(true)}
-              >
-                <Text
-                  style={[
-                    styles.approvalModeButtonText,
-                    ageRestricted && styles.approvalModeButtonTextSelected,
-                  ]}
-                >
-                  Fascia d’età
-                </Text>
-              </Pressable>
-            </View>
-            <Text style={styles.approvalModeHelper}>
-              {ageRestricted
-                ? 'Solo gli utenti nella fascia scelta potranno partecipare o inviare una nuova richiesta.'
-                : 'L’esperienza è aperta a tutti gli utenti maggiorenni di Bajuju.'}
-            </Text>
-
-            {ageRestricted ? (
-              <View style={styles.ageInputsRow}>
-                <View style={styles.ageInputColumn}>
-                  <Text style={styles.label}>Da</Text>
-                  <TextInput
-                    value={minAge}
-                    onChangeText={(value) => setMinAge(onlyDigits(value, 2))}
-                    placeholder="18"
-                    placeholderTextColor="#9c7b8b"
-                    style={styles.input}
-                    keyboardType="number-pad"
-                    maxLength={2}
-                  />
-                </View>
-                <View style={styles.ageInputColumn}>
-                  <Text style={styles.label}>A</Text>
-                  <TextInput
-                    value={maxAge}
-                    onChangeText={(value) => setMaxAge(onlyDigits(value, 2))}
-                    placeholder="80"
-                    placeholderTextColor="#9c7b8b"
-                    style={styles.input}
-                    keyboardType="number-pad"
-                    maxLength={2}
-                  />
-                </View>
+              <View style={styles.dateTimeColumn}>
+                <Text style={styles.label}>A</Text>
+                <TextInput
+                  value={maxAge}
+                  onChangeText={(value) => setMaxAge(onlyDigits(value, 2))}
+                  placeholder="80"
+                  placeholderTextColor={BAJUJU_COLORS.muted}
+                  style={styles.input}
+                  keyboardType="number-pad"
+                  maxLength={2}
+                />
               </View>
-            ) : null}
-
-            {ageRestricted && !ageRangeIsValid ? (
-              <Text style={styles.ageError}>Inserisci una fascia valida da 18 a 80 anni.</Text>
-            ) : null}
-
-            <Text style={styles.label}>Descrizione</Text>
-            <TextInput
-              value={description}
-              onChangeText={setDescription}
-              placeholder="Descrivi la tua esperienza..."
-              placeholderTextColor="#9c7b8b"
-              style={[styles.input, styles.textArea]}
-              multiline
-              maxLength={500}
-            />
-
-            <Text style={styles.label}>Foto esperienza</Text>
-            <Pressable style={styles.photoPicker} onPress={handlePickPhoto}>
-              {photoUri ? (
-                <Image source={{ uri: photoUri }} style={styles.photoPreview} resizeMode="cover" />
-              ) : (
-                <View style={styles.photoPlaceholder}>
-                  <Text style={styles.photoPlaceholderTitle}>Aggiungi una foto</Text>
-                  <Text style={styles.photoPlaceholderText}>Formato panoramico 16:9</Text>
-                </View>
-              )}
-            </Pressable>
-
-            {photoUri ? (
-              <View style={styles.photoActions}>
-                <Pressable style={styles.photoActionButton} onPress={handlePickPhoto}>
-                  <Text style={styles.photoActionText}>Sostituisci</Text>
-                </Pressable>
-                <Pressable style={styles.photoActionButton} onPress={() => setPhotoUri(null)}>
-                  <Text style={styles.photoRemoveText}>Rimuovi</Text>
-                </Pressable>
-              </View>
-            ) : (
-              <Text style={styles.photoHelper}>Facoltativa. La foto viene adattata automaticamente.</Text>
-            )}
-          </View>
-
-          {ownedGroups.length > 0 ? (
-            <View style={[styles.formSection, styles.groupsFormSection]}>
-              <View style={styles.groupsHeaderRow}>
-                <View style={styles.groupsHeaderCopy}>
-                  <Text style={styles.sectionTitle}>Informa i tuoi gruppi</Text>
-                  <Text style={styles.groupsHelper}>
-                    Facoltativo. L’esperienza verrà associata ai gruppi selezionati e gli iscritti verranno informati una sola volta.
-                  </Text>
-                </View>
-                <Pressable onPress={toggleAllGroups} style={styles.selectAllButton}>
-                  <Text style={styles.selectAllText}>
-                    {selectedGroupIds.length === ownedGroups.length ? 'Nessuno' : 'Tutti'}
-                  </Text>
-                </Pressable>
-              </View>
-
-              {ownedGroups.map((group) => {
-                const selected = selectedGroupIds.includes(group.id);
-                return (
-                  <Pressable
-                    key={group.id}
-                    style={[styles.groupChoice, selected && styles.groupChoiceSelected]}
-                    onPress={() => toggleGroup(group.id)}
-                  >
-                    <View style={[styles.checkbox, selected && styles.checkboxSelected]}>
-                      <Text style={styles.checkboxText}>{selected ? '✓' : ''}</Text>
-                    </View>
-                    <View style={styles.groupChoiceCopy}>
-                      <Text style={styles.groupChoiceName}>{group.name}</Text>
-                      <Text style={styles.groupChoiceMeta}>
-                        {group.memberCount} {group.memberCount === 1 ? 'iscritto' : 'iscritti'}
-                        {group.city ? ` · ${group.city}` : ''}
-                      </Text>
-                    </View>
-                  </Pressable>
-                );
-              })}
             </View>
           ) : null}
 
-          <View style={styles.previewBox}>
-            <Text style={styles.previewTitle}>Come apparirà la tua esperienza</Text>
-            <Text style={styles.previewText}>{title.trim() || 'Titolo esperienza'}</Text>
-            <Text style={styles.previewSmall}>
-              {category || 'Categoria'} · {city.trim() || 'Comune'} ({province.trim() || 'Provincia'})
-            </Text>
-            <Text style={styles.previewSmall}>Ritrovo: {meetingPlace.trim() || 'Indirizzo'}</Text>
-            <Text style={styles.previewSmall}>
-              {day || 'GG'}/{month || 'MM'}/{year || 'AAAA'} · {hour || 'HH'}:{minute || 'MM'}
-            </Text>
-            <Text style={styles.previewSmall}>
-              Max {maxParticipants || '0'} partecipanti
-              {needsBudget ? ` · Budget ${budgetAmount || '0'} €` : ''}
-            </Text>
-            <Text style={styles.previewSmall}>
-              {joinApprovalRequired ? 'Partecipazione su approvazione' : 'Partecipazione aperta a tutti'}
-            </Text>
-            <Text style={styles.previewSmall}>
-              {ageRestricted ? `Età: ${minAge || '18'}–${maxAge || '80'} anni` : 'Età: aperto a tutti'}
-            </Text>
-            {selectedGroupIds.length > 0 ? (
-              <Text style={styles.previewGroups}>
-                Informa {selectedGroupIds.length} {selectedGroupIds.length === 1 ? 'gruppo' : 'gruppi'}
-              </Text>
-            ) : null}
-          </View>
+          {ageRestricted && !ageRangeIsValid ? (
+            <Text style={styles.ageError}>Inserisci una fascia valida da 18 a 80 anni.</Text>
+          ) : null}
 
-          <Pressable
-            style={[styles.mainButton, !canCreateExperience && styles.mainButtonDisabled]}
-            onPress={handleCreateExperience}
-            disabled={!canCreateExperience}
-          >
-            <Text style={styles.mainButtonText}>
-              {saving ? 'Creazione in corso...' : canCreateExperience ? 'Crea esperienza' : 'Completa tutti i dati'}
-            </Text>
-          </Pressable>
-
-          <Text style={styles.note}>Completa tutti i dati richiesti: poi potrai pubblicare la tua esperienza.</Text>
+          <Text style={styles.helperLast}>
+            {joinApprovalRequired
+              ? 'Chi vuole partecipare invia una richiesta e decidi tu chi accettare.'
+              : 'Chi tocca Partecipa entra subito, finché ci sono posti.'}
+            {ageRestricted ? ' Solo chi è nella fascia d’età scelta può partecipare.' : ''}
+          </Text>
         </View>
+
+        {ownedGroups.length > 0 ? (
+          <View style={styles.card}>
+            <View style={styles.groupsHeaderRow}>
+              <View style={styles.groupsHeaderCopy}>
+                <Text style={styles.cardTitle}>Informa i tuoi gruppi</Text>
+                <Text style={styles.groupsHelper}>
+                  Facoltativo. Gli iscritti dei gruppi scelti ricevono un solo avviso.
+                </Text>
+              </View>
+              <Pressable onPress={toggleAllGroups} style={styles.selectAllButton}>
+                <Text style={styles.selectAllText}>
+                  {selectedGroupIds.length === ownedGroups.length ? 'Nessuno' : 'Tutti'}
+                </Text>
+              </Pressable>
+            </View>
+
+            {ownedGroups.map((group) => {
+              const selected = selectedGroupIds.includes(group.id);
+              return (
+                <Pressable
+                  key={group.id}
+                  style={[styles.groupChoice, selected && styles.groupChoiceSelected]}
+                  onPress={() => toggleGroup(group.id)}
+                >
+                  <View style={[styles.checkbox, selected && styles.checkboxSelected]}>
+                    <Text style={styles.checkboxText}>{selected ? '✓' : ''}</Text>
+                  </View>
+                  <View style={styles.groupChoiceCopy}>
+                    <Text style={styles.groupChoiceName}>{group.name}</Text>
+                    <Text style={styles.groupChoiceMeta}>
+                      {group.memberCount} {group.memberCount === 1 ? 'iscritto' : 'iscritti'}
+                      {group.city ? ` · ${group.city}` : ''}
+                    </Text>
+                  </View>
+                </Pressable>
+              );
+            })}
+          </View>
+        ) : null}
+
+        <Pressable
+          style={[styles.mainButton, !canCreateExperience && styles.disabled]}
+          onPress={handleCreateExperience}
+          disabled={!canCreateExperience}
+        >
+          <Text style={styles.mainButtonText}>{saving ? 'Pubblicazione...' : 'Pubblica esperienza'}</Text>
+        </Pressable>
+
+        {!saving && missingFields.length > 0 ? (
+          <Text style={styles.missingText}>Mancano: {missingFields.join(', ')}</Text>
+        ) : null}
       </ScrollView>
 
-      <Modal
-        visible={categorySelectOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setCategorySelectOpen(false)}
-      >
-        <Pressable style={styles.modalBackdrop} onPress={() => setCategorySelectOpen(false)}>
-          <Pressable style={styles.modalSheet} onPress={() => {}}>
-            <View style={styles.modalHandle} />
-            <Text style={styles.modalTitle}>Seleziona categoria</Text>
-            <ScrollView style={styles.modalOptions} contentContainerStyle={styles.modalOptionsContent}>
-              {EXPERIENCE_CREATION_CATEGORIES.map((item) => {
-                const isSelected = category === item;
-                return (
-                  <Pressable
-                    key={item}
-                    style={[styles.modalOption, isSelected && styles.modalOptionActive]}
-                    onPress={() => {
-                      setCategory(item);
-                      if (item !== 'Gita') setBudgetAmount('');
-                      setCategorySelectOpen(false);
-                    }}
-                  >
-                    <Text style={[styles.modalOptionText, isSelected && styles.modalOptionTextActive]}>{item}</Text>
-                    {isSelected ? <Text style={styles.modalCheck}>✓</Text> : null}
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-            <Pressable style={styles.modalCloseButton} onPress={() => setCategorySelectOpen(false)}>
-              <Text style={styles.modalCloseText}>Chiudi</Text>
-            </Pressable>
-          </Pressable>
-        </Pressable>
-      </Modal>
-
-      <BajujuBottomNav active="home" />
+      <BajujuBottomNav active="create" />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: BAJUJU_COLORS.background },
-  container: {
-    flexGrow: 1,
-    paddingHorizontal: 22,
-    paddingTop: 20,
-    paddingBottom: 190,
-    backgroundColor: BAJUJU_COLORS.background,
-  },
+  container: { paddingHorizontal: 16, paddingTop: 18, paddingBottom: 190, gap: 16 },
+  topBar: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   backButton: {
-    alignSelf: 'flex-start',
-    minHeight: 44,
-    marginBottom: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 17,
-    borderRadius: 999,
-    borderWidth: 2,
-    borderColor: BAJUJU_COLORS.palePink,
-    backgroundColor: '#FFFFFFE8',
-    ...BAJUJU_SHADOW,
-  },
-  backText: { color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.semiBold, fontSize: 15 },
-  header: {
-    marginBottom: 18,
-    minHeight: 186,
-    paddingVertical: 28,
-    paddingHorizontal: 21,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'hidden',
-    borderRadius: 30,
-    backgroundColor: '#FFFFFFDC',
+    backgroundColor: '#fff',
     borderWidth: 1.5,
     borderColor: BAJUJU_COLORS.line,
-    ...BAJUJU_SHADOW,
   },
-  headerBlob: { position: 'absolute', width: 104, height: 76, borderRadius: 52, backgroundColor: BAJUJU_COLORS.palePink, opacity: 0.76 },
-  headerBlobTop: { left: -27, top: -25, transform: [{ rotate: '-18deg' }] },
-  headerBlobBottom: { right: -34, bottom: -28, transform: [{ rotate: '18deg' }] },
-  headerDoodle: { position: 'absolute', zIndex: 2, color: BAJUJU_COLORS.brightPink, fontFamily: BAJUJU_FONTS.bold },
-  headerDoodleLeft: { left: 28, top: 84, fontSize: 24, transform: [{ rotate: '-8deg' }] },
-  headerDoodleRight: { right: 27, top: 24, fontSize: 23, transform: [{ rotate: '8deg' }] },
-  pageTitle: { zIndex: 1, fontFamily: BAJUJU_FONTS.bold, fontSize: 34, lineHeight: 39, letterSpacing: -0.9, textAlign: 'center' },
-  headerTitlePlum: { color: BAJUJU_COLORS.plum },
-  headerTitlePink: { color: BAJUJU_COLORS.brightPink },
-  subtitle: { zIndex: 1, marginTop: 7, color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.medium, fontSize: 15, lineHeight: 20, textAlign: 'center' },
-  card: { width: '100%', padding: 0, backgroundColor: 'transparent' },
-  formSection: {
-    padding: 19,
-    marginBottom: 18,
-    borderRadius: 27,
-    borderWidth: 2,
-    borderColor: BAJUJU_COLORS.palePink,
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#9B1A5B',
-    shadowOpacity: 0.16,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 9 },
-    elevation: 5,
-  },
-  sectionTitle: { marginBottom: 13, color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.bold, fontSize: 20, letterSpacing: -0.3 },
-  label: { marginBottom: 7, color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.semiBold, fontSize: 13 },
-  input: {
-    minHeight: 56,
-    marginBottom: 13,
-    paddingHorizontal: 16,
-    borderRadius: 18,
-    borderWidth: 2,
-    borderColor: BAJUJU_COLORS.palePink,
-    backgroundColor: BAJUJU_COLORS.white,
-    color: BAJUJU_COLORS.plum,
-    fontFamily: BAJUJU_FONTS.medium,
-    fontSize: 15,
-  },
-  helperText: { marginBottom: 3, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.regular, fontSize: 12, lineHeight: 17 },
-  dateTimeRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-  dateColumn: { flex: 1, minWidth: 0 },
-  timeColumn: { flex: 1, minWidth: 0 },
-  dateTimePickerButton: {
-    minHeight: 56,
-    paddingHorizontal: 15,
-    borderRadius: 18,
-    borderWidth: 2,
-    borderColor: BAJUJU_COLORS.palePink,
-    backgroundColor: BAJUJU_COLORS.white,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 7,
-  },
-  dateTimePickerButtonText: { flex: 1, color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.medium, fontSize: 14 },
-  pickerIcon: { color: BAJUJU_COLORS.brightPink, fontFamily: BAJUJU_FONTS.bold, fontSize: 17 },
-  selectButton: {
-    minHeight: 56,
-    marginBottom: 13,
-    paddingHorizontal: 15,
-    borderRadius: 18,
-    borderWidth: 2,
-    borderColor: BAJUJU_COLORS.palePink,
-    backgroundColor: BAJUJU_COLORS.white,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
-  },
-  selectButtonText: { flex: 1, color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.medium, fontSize: 15 },
-  selectPlaceholder: { color: BAJUJU_COLORS.muted },
-  selectChevron: { marginLeft: 8, color: BAJUJU_COLORS.brightPink, fontFamily: BAJUJU_FONTS.bold, fontSize: 18 },
-  ageInputsRow: { flexDirection: 'row', gap: 12, marginTop: 4 },
-  ageInputColumn: { flex: 1 },
-  ageError: { marginTop: -6, marginBottom: 10, color: '#b42318', fontFamily: BAJUJU_FONTS.semiBold, fontSize: 12 },
-  compactDetailsRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-  participantsColumn: { width: 132 },
-  budgetColumn: { width: 132 },
-  approvalModeRow: { flexDirection: 'row', gap: 10, marginBottom: 8 },
-  approvalModeButton: {
-    flex: 1,
-    minHeight: 46,
-    borderRadius: 23,
-    borderWidth: 1.5,
-    borderColor: BAJUJU_COLORS.line,
-    backgroundColor: BAJUJU_COLORS.white,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 10,
-  },
-  approvalModeButtonSelected: {
-    borderColor: BAJUJU_COLORS.brightPink,
-    backgroundColor: BAJUJU_COLORS.softPink,
-  },
-  approvalModeButtonText: {
-    color: BAJUJU_COLORS.muted,
-    fontFamily: BAJUJU_FONTS.semiBold,
-    fontSize: 13,
-    textAlign: 'center',
-  },
-  approvalModeButtonTextSelected: {
-    color: BAJUJU_COLORS.brightPink,
-    fontFamily: BAJUJU_FONTS.bold,
-  },
-  approvalModeHelper: {
-    marginBottom: 14,
-    color: BAJUJU_COLORS.muted,
-    fontFamily: BAJUJU_FONTS.regular,
-    fontSize: 12,
-    lineHeight: 17,
-  },
-  textArea: { minHeight: 92, paddingTop: 14, textAlignVertical: 'top' },
-  photoPicker: {
+  title: { flex: 1, color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.bold, fontSize: 28 },
+  coverBox: {
     width: '100%',
-    height: 176,
-    marginTop: 2,
-    marginBottom: 10,
-    overflow: 'hidden',
-    borderRadius: 23,
+    aspectRatio: 16 / 9,
+    borderRadius: 22,
     borderWidth: 2,
-    borderColor: '#F7A7CD',
-    backgroundColor: BAJUJU_COLORS.palePink,
-  },
-  photoPreview: { width: '100%', height: '100%' },
-  photoPlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
-  photoPlaceholderTitle: { color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.bold, fontSize: 16 },
-  photoPlaceholderText: { marginTop: 4, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.medium, fontSize: 12 },
-  photoActions: { flexDirection: 'row', gap: 10, marginBottom: 12 },
-  photoActionButton: {
-    flex: 1,
-    minHeight: 42,
-    borderRadius: 21,
-    borderWidth: 1.5,
-    borderColor: BAJUJU_COLORS.line,
-    backgroundColor: BAJUJU_COLORS.white,
+    borderStyle: 'dashed',
+    borderColor: '#EFA3C8',
+    backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
-  photoActionText: { color: BAJUJU_COLORS.brightPink, fontFamily: BAJUJU_FONTS.semiBold, fontSize: 13 },
-  photoRemoveText: { color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.semiBold, fontSize: 13 },
-  photoHelper: { marginBottom: 12, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.regular, fontSize: 12, lineHeight: 17 },
-  groupsFormSection: { borderColor: '#F3C6DC', backgroundColor: '#FFF9FC' },
+  coverBoxFilled: { borderWidth: 0 },
+  coverPreview: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
+  coverIconCircle: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', backgroundColor: BAJUJU_COLORS.softPink },
+  coverTitle: { marginTop: 8, color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.bold, fontSize: 17 },
+  coverHint: { marginTop: 2, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.medium, fontSize: 13 },
+  coverChangePill: {
+    position: 'absolute',
+    right: 10,
+    bottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: 'rgba(75, 12, 45, 0.82)',
+  },
+  coverChangeText: { color: '#fff', fontFamily: BAJUJU_FONTS.semiBold, fontSize: 13 },
+  card: { padding: 16, borderRadius: 22, borderWidth: 1, borderColor: BAJUJU_COLORS.line, backgroundColor: '#fff' },
+  cardTitle: { marginBottom: 10, color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.bold, fontSize: 19 },
+  label: { marginBottom: 6, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.semiBold, fontSize: 14 },
+  input: {
+    minHeight: 50,
+    marginBottom: 12,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: BAJUJU_COLORS.line,
+    color: BAJUJU_COLORS.plum,
+    backgroundColor: BAJUJU_COLORS.background,
+    fontFamily: BAJUJU_FONTS.medium,
+    fontSize: 16,
+  },
+  inputLast: { marginBottom: 0 },
+  textArea: { minHeight: 92, paddingTop: 12, textAlignVertical: 'top' },
+  helper: { marginTop: 2, marginBottom: 12, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.regular, fontSize: 12, lineHeight: 17 },
+  helperLast: { color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.regular, fontSize: 12, lineHeight: 17 },
+  categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 },
+  categoryChip: { minHeight: 36, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 18, borderWidth: 1.5, borderColor: BAJUJU_COLORS.line, backgroundColor: '#fff', justifyContent: 'center' },
+  categoryChipSelected: { borderColor: BAJUJU_COLORS.pink, backgroundColor: BAJUJU_COLORS.pink },
+  categoryChipText: { color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.medium, fontSize: 14 },
+  categoryChipTextSelected: { color: '#fff', fontFamily: BAJUJU_FONTS.semiBold },
+  dateTimeRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  dateTimeColumn: { flex: 1, minWidth: 0 },
+  pickerButton: {
+    minHeight: 50,
+    marginBottom: 2,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: BAJUJU_COLORS.line,
+    backgroundColor: BAJUJU_COLORS.background,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 6,
+  },
+  pickerButtonText: { flex: 1, color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.medium, fontSize: 15 },
+  placeholder: { color: BAJUJU_COLORS.muted },
+  stepper: {
+    minHeight: 50,
+    marginBottom: 12,
+    paddingHorizontal: 6,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: BAJUJU_COLORS.line,
+    backgroundColor: BAJUJU_COLORS.background,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  stepperButton: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: BAJUJU_COLORS.softPink },
+  stepperValue: { flex: 1, minHeight: 44, color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.bold, fontSize: 17 },
+  segment: { flexDirection: 'row', gap: 4, padding: 4, marginBottom: 14, borderRadius: 999, backgroundColor: BAJUJU_COLORS.softPink },
+  segmentTight: { marginBottom: 12 },
+  segmentButton: { flex: 1, minHeight: 40, borderRadius: 999, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
+  segmentButtonSelected: { backgroundColor: '#fff', ...BAJUJU_SHADOW, shadowOpacity: 0.12, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
+  segmentText: { color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.medium, fontSize: 14 },
+  segmentTextSelected: { color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.semiBold },
+  ageError: { marginTop: -4, marginBottom: 10, color: '#b42318', fontFamily: BAJUJU_FONTS.semiBold, fontSize: 12 },
   groupsHeaderRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 },
   groupsHeaderCopy: { flex: 1 },
-  groupsHelper: { marginTop: -7, marginBottom: 13, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.regular, fontSize: 12, lineHeight: 17 },
+  groupsHelper: { marginTop: -4, marginBottom: 4, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.regular, fontSize: 12, lineHeight: 17 },
   selectAllButton: { minHeight: 37, paddingHorizontal: 13, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: BAJUJU_COLORS.palePink },
   selectAllText: { color: BAJUJU_COLORS.brightPink, fontFamily: BAJUJU_FONTS.bold, fontSize: 12 },
   groupChoice: {
-    minHeight: 68,
+    minHeight: 64,
     marginTop: 9,
     paddingHorizontal: 13,
-    borderRadius: 19,
+    borderRadius: 18,
     borderWidth: 1.5,
     borderColor: BAJUJU_COLORS.line,
     backgroundColor: BAJUJU_COLORS.white,
@@ -1004,48 +881,8 @@ const styles = StyleSheet.create({
   groupChoiceCopy: { flex: 1, minWidth: 0, marginLeft: 11 },
   groupChoiceName: { color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.bold, fontSize: 15 },
   groupChoiceMeta: { marginTop: 3, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.medium, fontSize: 11 },
-  previewBox: { marginTop: 2, padding: 16, borderRadius: 22, borderWidth: 2, borderColor: '#F7A7CD', backgroundColor: BAJUJU_COLORS.palePink },
-  previewTitle: { marginBottom: 7, color: BAJUJU_COLORS.brightPink, fontFamily: BAJUJU_FONTS.bold, fontSize: 15 },
-  previewText: { marginBottom: 4, color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.bold, fontSize: 18 },
-  previewSmall: { marginTop: 2, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.medium, fontSize: 13 },
-  previewGroups: { marginTop: 8, color: BAJUJU_COLORS.brightPink, fontFamily: BAJUJU_FONTS.bold, fontSize: 12 },
-  mainButton: {
-    minHeight: 54,
-    marginTop: 16,
-    borderRadius: 27,
-    backgroundColor: BAJUJU_COLORS.brightPink,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: BAJUJU_COLORS.brightPink,
-    shadowOpacity: 0.3,
-    shadowRadius: 15,
-    shadowOffset: { width: 0, height: 9 },
-    elevation: 7,
-  },
-  mainButtonDisabled: { opacity: 0.45 },
-  mainButtonText: { color: BAJUJU_COLORS.white, fontFamily: BAJUJU_FONTS.bold, fontSize: 17 },
-  note: { marginTop: 13, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.regular, fontSize: 12, lineHeight: 18, textAlign: 'center' },
-  modalBackdrop: { flex: 1, padding: 16, justifyContent: 'flex-end', backgroundColor: 'rgba(75, 12, 45, 0.34)' },
-  modalSheet: { maxHeight: '72%', padding: 16, borderRadius: 29, borderWidth: 1.5, borderColor: BAJUJU_COLORS.line, backgroundColor: BAJUJU_COLORS.background },
-  modalHandle: { alignSelf: 'center', width: 44, height: 5, marginBottom: 14, borderRadius: 999, backgroundColor: BAJUJU_COLORS.line },
-  modalTitle: { marginBottom: 11, color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.bold, fontSize: 22 },
-  modalOptions: { maxHeight: 360 },
-  modalOptionsContent: { paddingBottom: 8, gap: 8 },
-  modalOption: {
-    minHeight: 50,
-    paddingHorizontal: 16,
-    borderRadius: 17,
-    borderWidth: 1.5,
-    borderColor: BAJUJU_COLORS.line,
-    backgroundColor: BAJUJU_COLORS.white,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  modalOptionActive: { borderColor: BAJUJU_COLORS.brightPink, backgroundColor: BAJUJU_COLORS.brightPink },
-  modalOptionText: { color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.medium, fontSize: 15 },
-  modalOptionTextActive: { color: BAJUJU_COLORS.white },
-  modalCheck: { color: BAJUJU_COLORS.white, fontFamily: BAJUJU_FONTS.bold, fontSize: 18 },
-  modalCloseButton: { minHeight: 46, marginTop: 12, borderRadius: 23, borderWidth: 1.5, borderColor: BAJUJU_COLORS.line, backgroundColor: BAJUJU_COLORS.white, alignItems: 'center', justifyContent: 'center' },
-  modalCloseText: { color: BAJUJU_COLORS.brightPink, fontFamily: BAJUJU_FONTS.bold, fontSize: 15 },
+  mainButton: { minHeight: 54, borderRadius: 27, alignItems: 'center', justifyContent: 'center', backgroundColor: BAJUJU_COLORS.pink },
+  mainButtonText: { color: '#fff', fontFamily: BAJUJU_FONTS.bold, fontSize: 17 },
+  disabled: { opacity: 0.45 },
+  missingText: { marginTop: -6, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.semiBold, fontSize: 13, lineHeight: 18, textAlign: 'center' },
 });

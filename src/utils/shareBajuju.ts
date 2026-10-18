@@ -1,6 +1,7 @@
 import { Share } from 'react-native';
 
-const BAJUJU_EVENT_LINK = 'https://bajuju.netlify.app';
+const BAJUJU_EVENT_LINK = 'https://bajuju.it';
+const BAJUJU_GROUP_LINK = 'https://bajuju.netlify.app';
 const BAJUJU_LINK = 'https://bajuju.it';
 
 type ShareExperienceParams = {
@@ -62,7 +63,7 @@ export async function shareBajujuGroup(params: ShareGroupParams) {
   const place = [params.city, params.province].filter(Boolean).join(', ');
   const id = String(params.id || '').trim();
   const groupLink = id
-    ? `${BAJUJU_EVENT_LINK}/group-detail?id=${encodeURIComponent(id)}`
+    ? `${BAJUJU_GROUP_LINK}/group-detail?id=${encodeURIComponent(id)}`
     : BAJUJU_LINK;
 
   const lines = [

@@ -10,6 +10,7 @@ import 'react-native-reanimated';
 
 import { AdminPrivateChatEntry } from '../src/components/admin/AdminPrivateChatEntry';
 import { supabase } from '../src/lib/supabase';
+import { useAppUpdatePrompt } from '../src/utils/appUpdatePrompt';
 import { hasCompleteRequiredProfile } from '../src/utils/profileCompletion';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -77,6 +78,8 @@ export default function RootLayout() {
     FredokaSemiBold: require('../assets/fonts/Fredoka-600.ttf'),
     FredokaBold: require('../assets/fonts/Fredoka-700.ttf'),
   });
+
+  useAppUpdatePrompt();
 
   useEffect(() => {
     const allowedPaths = new Set([

@@ -15,6 +15,38 @@ type ShareExperienceParams = {
   activityId?: string | null;
 };
 
+const MONTHS_IT = [
+  'gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno',
+  'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre',
+];
+
+// Le date arrivano dal database come "2026-12-05": nel messaggio diventano "5 dicembre 2026".
+function formatShareDate(value?: string | null) {
+  const raw = String(value || '').trim();
+  const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) return raw;
+
+  const [, year, month, day] = match;
+  const monthName = MONTHS_IT[Number(month) - 1];
+  return monthName ? `${Number(day)} ${monthName} ${year}` : raw;
+}
+
+// Gli orari arrivano come "20:00:00": nel messaggio diventano "20:00".
+function formatShareTime(value?: string | null) {
+  const raw = String(value || '').trim();
+  const match = raw.match(/^(\d{1,2}):(\d{2})/);
+  return match ? `${match[1].padStart(2, '0')}:${match[2]}` : raw;
+}
+
+function formatShareWhen(date?: string | null, time?: string | null) {
+  return [formatShareDate(date), formatShareTime(time)].filter(Boolean).join(' alle ');
+}
+
+function capitalize(value?: string | null) {
+  const text = String(value || '').trim();
+  return text ? text.charAt(0).toUpperCase() + text.slice(1) : '';
+}
+
 type ShareGroupParams = {
   id?: string | null;
   name?: string | null;
@@ -32,24 +64,25 @@ export async function shareBajujuHome() {
 
 export async function shareBajujuExperience(params: ShareExperienceParams) {
   const title = params.title?.trim() || 'Esperienza Bajuju';
-  const category = params.category?.trim();
+  const category = capitalize(params.category);
   const place = [params.city, params.province].filter(Boolean).join(', ');
-  const when = [params.date, params.time].filter(Boolean).join(' alle ');
+  const when = formatShareWhen(params.date, params.time);
   const id = String(params.id || params.activityId || '').trim();
   const eventLink = id
     ? `${BAJUJU_EVENT_LINK}/experience-detail?id=${encodeURIComponent(id)}`
     : BAJUJU_LINK;
 
+  // Le righe mancanti sono null; la riga vuota resta e stacca il motto e il link dal resto.
   const lines = [
     `Guarda questa esperienza su Bajuju:`,
     title,
-    category ? `Categoria: ${category}` : '',
-    place ? `Dove: ${place}` : '',
-    when ? `Quando: ${when}` : '',
+    category ? `Categoria: ${category}` : null,
+    place ? `Dove: ${place}` : null,
+    when ? `Quando: ${when}` : null,
     '',
     'Dal Vivo è Meglio',
     eventLink,
-  ].filter(Boolean);
+  ].filter((line) => line !== null);
 
   await Share.share({
     title,
@@ -59,7 +92,7 @@ export async function shareBajujuExperience(params: ShareExperienceParams) {
 
 export async function shareBajujuGroup(params: ShareGroupParams) {
   const name = params.name?.trim() || 'Gruppo Bajuju';
-  const category = params.category?.trim();
+  const category = capitalize(params.category);
   const place = [params.city, params.province].filter(Boolean).join(', ');
   const id = String(params.id || '').trim();
   const groupLink = id
@@ -69,12 +102,12 @@ export async function shareBajujuGroup(params: ShareGroupParams) {
   const lines = [
     'Guarda questo gruppo su Bajuju:',
     name,
-    category ? `Categoria: ${category}` : '',
-    place ? `Dove: ${place}` : '',
+    category ? `Categoria: ${category}` : null,
+    place ? `Dove: ${place}` : null,
     '',
     'Dal Vivo è Meglio',
     groupLink,
-  ].filter(Boolean);
+  ].filter((line) => line !== null);
 
   await Share.share({
     title: name,
@@ -85,17 +118,17 @@ export async function shareBajujuGroup(params: ShareGroupParams) {
 export async function shareBajujuFlash(params: ShareExperienceParams) {
   const title = params.title?.trim() || 'Flash Bajuju';
   const place = [params.city, params.province].filter(Boolean).join(', ');
-  const when = [params.date, params.time].filter(Boolean).join(' alle ');
+  const when = formatShareWhen(params.date, params.time);
 
   const lines = [
     `Flash Bajuju:`,
     title,
-    place ? `Dove: ${place}` : '',
-    when ? `Quando: ${when}` : '',
+    place ? `Dove: ${place}` : null,
+    when ? `Quando: ${when}` : null,
     '',
     'Tutto può iniziare in pochi minuti.',
     BAJUJU_LINK,
-  ].filter(Boolean);
+  ].filter((line) => line !== null);
 
   await Share.share({
     title,

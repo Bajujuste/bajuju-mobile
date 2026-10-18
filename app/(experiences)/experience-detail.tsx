@@ -1,6 +1,8 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as ImagePicker from 'expo-image-picker';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { useBajujuPhotoPicker } from '../../src/components/useBajujuPhotoPicker';
 import {
   Alert,
@@ -21,6 +23,7 @@ import { supabase } from '../../src/lib/supabase';
 import { shareBajujuExperience } from '../../src/utils/shareBajuju';
 import { getExperienceCategoryIcon, normalizeExperienceCategory } from '@/constants/experienceCategories';
 import { sendBajujuPushNotification } from '../../src/utils/bajujuNotifications';
+import { BAJUJU_COLORS, BAJUJU_FONTS, BAJUJU_SHADOW } from '../../src/theme/bajujuTheme';
 
 const bajujuLogo = require('../../assets/brand/bajuju-logo.png');
 
@@ -254,6 +257,11 @@ export default function ExperienceDetailScreen() {
   const [requestsOpen, setRequestsOpen] = useState(false);
   const [reviewBusyUserId, setReviewBusyUserId] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'chat' | 'gallery'>('chat');
+  const [descriptionExpanded, setDescriptionExpanded] = useState(false);
+  const [participantsOpen, setParticipantsOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [chatFocused, setChatFocused] = useState(false);
 
   const activeParticipants = useMemo(() => {
     const seen = new Set<string>();
@@ -1217,6 +1225,135 @@ export default function ExperienceDetailScreen() {
     }
   }, [currentUserId, experienceId, isOrganizer, pickPhoto, updatingCoverPhoto]);
 
+  const shareExperience = () => {
+    if (!experience) return;
+    shareBajujuExperience({
+      id: experienceId,
+      title: experience.title,
+      category: experience.category,
+      city: experience.city,
+      province: experience.province,
+      date: experience.activity_date,
+      time: experience.activity_time,
+    });
+  };
+
+  const openEditExperience = () => {
+    setMenuOpen(false);
+    router.push({
+      pathname: '/edit-experience' as any,
+      params: { id: experienceId || '' },
+    });
+  };
+
+  const openParticipantProfile = (userId: string) => {
+    setParticipantsOpen(false);
+    router.push({
+      pathname: '/user-profile' as any,
+      params: {
+        userId,
+        activityId: experienceId || '',
+        postEvent: canShowInviteOut ? '1' : '0',
+      },
+    });
+  };
+
+  const creatorId = getExperienceCreatorId(experience);
+  const creatorIndex = displayedParticipants.findIndex(
+    (participant) => String(participant.user_id || '') === creatorId
+  );
+  const organizerName = creatorIndex >= 0 ? profileName(profiles[creatorId], creatorIndex) : '';
+  const freeSpots = maxParticipants > 0 ? Math.max(maxParticipants - participantCount, 0) : null;
+  const description = experience?.description || 'Descrizione non ancora disponibile.';
+  const showBottomBar = !!experience && !loading && !errorMessage && !chatFocused;
+
+  const infoTiles = experience
+    ? [
+        {
+          label: 'Quando',
+          value: formatDateItalian(experience.activity_date),
+          detail: experience.activity_time ? String(experience.activity_time).slice(0, 5) : 'Ora da definire',
+        },
+        {
+          label: 'Ritrovo',
+          value: experience.meeting_place || experience.city || 'Non indicato',
+          detail: `${experience.city || 'Comune'} · ${experience.province || 'Provincia'}`,
+        },
+        {
+          label: 'Ingresso',
+          value: approvalRequired ? 'Su richiesta' : 'Libero',
+          valueStyle: approvalRequired ? styles.infoValueRequest : styles.infoValueFree,
+          detail:
+            experience.min_age !== null && experience.min_age !== undefined &&
+            experience.max_age !== null && experience.max_age !== undefined
+              ? `${experience.min_age}–${experience.max_age} anni`
+              : 'Aperto a tutti',
+        },
+        {
+          label: 'Budget',
+          value:
+            experience.budget_amount !== null && experience.budget_amount !== undefined
+              ? `Max ${experience.budget_amount} €`
+              : 'Non indicato',
+          detail: 'indicativo',
+        },
+      ]
+    : [];
+
+  const renderParticipantRow = (participant: ParticipantRow, index: number) => {
+    const userId = String(participant.user_id || '');
+    const isCreator = userId === creatorId;
+    const profile = profiles[userId];
+    const name = profileName(profile, index);
+    const photo = profilePhotoUrl(profile);
+
+    return (
+      <Pressable
+        key={`${userId}-${index}`}
+        style={styles.participantRow}
+        onPress={() => openParticipantProfile(userId)}
+      >
+        <Image
+          source={photo ? { uri: photo } : bajujuLogo}
+          style={[styles.participantPhoto, isCreator && styles.participantPhotoOrganizer]}
+          resizeMode="cover"
+        />
+
+        <View style={styles.participantInfo}>
+          <Text style={styles.participantName} numberOfLines={1}>{name}</Text>
+          <Text
+            style={[
+              styles.participantRoleBadge,
+              isCreator ? styles.organizerRoleBadge : styles.normalRoleBadge,
+            ]}
+          >
+            {isCreator ? 'Organizzatore' : 'Partecipante'}
+          </Text>
+        </View>
+
+        {canShowInviteOut && userId !== String(currentUserId || '') ? (
+          <Pressable
+            style={styles.inviteOutButton}
+            onPress={(event) => {
+              event.stopPropagation();
+              setParticipantsOpen(false);
+              router.push({
+                pathname: '/user-profile' as any,
+                params: {
+                  userId,
+                  activityId: experienceId || '',
+                  postEvent: '1',
+                },
+              });
+            }}
+          >
+            <Text style={styles.inviteOutButtonText}>Interagisci</Text>
+          </Pressable>
+        ) : null}
+      </Pressable>
+    );
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       {photoPickerModal}
@@ -1226,231 +1363,135 @@ export default function ExperienceDetailScreen() {
       >
         <ScrollView
           ref={pageScrollRef}
-          contentContainerStyle={styles.container}
+          contentContainerStyle={[styles.container, showBottomBar && styles.containerWithBar]}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
         >
-          <Pressable style={styles.backButton} onPress={() => router.replace('/experiences')}>
-            <Text style={styles.backText}>← Trova esperienza</Text>
-          </Pressable>
+          {loading || errorMessage || !experience ? (
+            <View style={styles.stateBox}>
+              <Pressable style={styles.stateBackButton} onPress={() => router.replace('/experiences')}>
+                <Text style={styles.stateBackText}>← Trova esperienza</Text>
+              </Pressable>
+              <Text style={styles.messageText}>
+                {loading ? 'Caricamento esperienza...' : errorMessage || 'Esperienza non trovata.'}
+              </Text>
+            </View>
+          ) : (
+            <>
+              <View style={styles.hero}>
+                <Image
+                  source={experiencePhotoUrl(experience) ? { uri: experiencePhotoUrl(experience) } : bajujuLogo}
+                  style={styles.heroImage}
+                  resizeMode="cover"
+                />
+                <LinearGradient
+                  colors={['rgba(75,12,45,0)', 'rgba(75,12,45,0.78)']}
+                  locations={[0.35, 1]}
+                  style={StyleSheet.absoluteFill}
+                  pointerEvents="none"
+                />
 
-          <View style={styles.card}>
-            {loading ? (
-              <Text style={styles.messageText}>Caricamento esperienza...</Text>
-            ) : errorMessage ? (
-              <Text style={styles.messageText}>{errorMessage}</Text>
-            ) : experience ? (
-              <>
-                <View style={styles.eventTopRow}>
-                  <View>
-                    <Image
-                      source={experiencePhotoUrl(experience) ? { uri: experiencePhotoUrl(experience) } : bajujuLogo}
-                      style={styles.eventPhoto}
-                      resizeMode="cover"
-                    />
+                <View style={styles.heroTopBar}>
+                  <Pressable
+                    style={styles.heroIconButton}
+                    onPress={() => router.replace('/experiences')}
+                    accessibilityLabel="Torna a Trova esperienza"
+                  >
+                    <Ionicons name="chevron-back" size={20} color={BAJUJU_COLORS.plum} />
+                  </Pressable>
 
-                    {isOrganizer ? (
+                  <View style={styles.heroTopActions}>
+                    <Pressable
+                      style={styles.heroIconButton}
+                      onPress={shareExperience}
+                      accessibilityLabel="Condividi esperienza"
+                    >
+                      <Ionicons name="share-outline" size={19} color={BAJUJU_COLORS.plum} />
+                    </Pressable>
+
+                    {canEditExperience ? (
                       <Pressable
-                        style={styles.coverPhotoButton}
-                        onPress={updateCoverPhoto}
-                        disabled={updatingCoverPhoto}
+                        style={styles.heroIconButton}
+                        onPress={() => setMenuOpen(true)}
+                        accessibilityLabel="Gestisci esperienza"
                       >
-                        <Text style={styles.coverPhotoButtonText}>
-                          {updatingCoverPhoto ? "Caricamento..." : "Cambia foto"}
-                        </Text>
+                        <Ionicons name="ellipsis-horizontal" size={19} color={BAJUJU_COLORS.plum} />
                       </Pressable>
                     ) : null}
                   </View>
-
-                  <View style={styles.eventTopText}>
-                    <Text style={styles.category}>{getExperienceCategoryIcon(experience.category)} {normalizeExperienceCategory(experience.category)}</Text>
-
-                    <Text style={styles.title}>
-                      {experience.title || 'Esperienza senza titolo'}
-                    </Text>
-                  </View>
                 </View>
 
-                <View style={styles.compactInfoBox}>
-                  <View style={styles.compactInfoRow}>
-                    <Text style={styles.compactInfoLabel}>Dove</Text>
-                    <Text style={styles.compactInfoValue}>
-                      {experience.city || 'Comune'} · {experience.province || 'Provincia'}
-                    </Text>
-                  </View>
-
-                  <View style={styles.compactInfoDivider} />
-
-                  <View style={styles.compactInfoRow}>
-                    <Text style={styles.compactInfoLabel}>Quando</Text>
-                    <Text style={styles.compactInfoValue}>
-                      {formatDateItalian(experience.activity_date)} · {experience.activity_time ? String(experience.activity_time).slice(0, 5) : 'Ora da definire'}
-                    </Text>
-                  </View>
-
-                  <View style={styles.compactInfoDivider} />
-
-                  <View style={styles.compactInfoRow}>
-                    <Text style={styles.compactInfoLabel}>Ritrovo</Text>
-                    <Text style={styles.compactInfoValue}>
-                      {experience.meeting_place || experience.city || 'Non indicato'}
-                    </Text>
-                  </View>
-
-                  <View style={styles.compactInfoDivider} />
-
-                  <View style={styles.compactInfoRow}>
-                    <Text style={styles.compactInfoLabel}>Ingresso</Text>
-                    <Text
-                      style={[
-                        styles.compactInfoValue,
-                        styles.participationModeValue,
-                        approvalRequired && styles.participationModeRequestValue,
-                      ]}
-                    >
-                      {approvalRequired ? 'Partecipazione su richiesta' : 'Partecipazione libera'}
-                    </Text>
-                  </View>
-
-                  <View style={styles.compactInfoDivider} />
-
-                  <View style={styles.compactInfoRow}>
-                    <Text style={styles.compactInfoLabel}>Età</Text>
-                    <Text style={styles.compactInfoValue}>
-                      {experience.min_age !== null && experience.min_age !== undefined &&
-                       experience.max_age !== null && experience.max_age !== undefined
-                        ? `${experience.min_age}–${experience.max_age} anni`
-                        : 'Aperto a tutti'}
-                    </Text>
-                  </View>
-                </View>
-
-                {experience.budget_amount !== null && experience.budget_amount !== undefined ? (
-                  <View style={styles.descriptionBox}>
-                    <Text style={styles.label}>Budget indicativo</Text>
-                    <Text style={styles.description}>Massimo {experience.budget_amount} €</Text>
-                  </View>
-                ) : null}
-
-                <View style={styles.descriptionBox}>
-                  <Text style={styles.label}>Descrizione</Text>
-                  <Text style={styles.description}>
-                    {experience.description || 'Descrizione non ancora disponibile.'}
+                <View style={styles.heroText}>
+                  <Text style={styles.category}>
+                    {getExperienceCategoryIcon(experience.category)} {normalizeExperienceCategory(experience.category)}
+                  </Text>
+                  <Text style={styles.title} numberOfLines={3}>
+                    {experience.title || 'Esperienza senza titolo'}
                   </Text>
                 </View>
+              </View>
 
-                <Pressable
-                  style={styles.shareExperienceButton}
-                  onPress={() =>
-                    shareBajujuExperience({
-                      id: experienceId,
-                      title: experience.title,
-                      category: experience.category,
-                      city: experience.city,
-                      province: experience.province,
-                      date: experience.activity_date,
-                      time: experience.activity_time,
-                    })
-                  }
-                >
-                  <Text style={styles.shareExperienceButtonIcon}>📲</Text>
-                  <Text style={styles.shareExperienceButtonText}>Condividi esperienza</Text>
+              <View style={styles.content}>
+                <View style={styles.infoGrid}>
+                  {infoTiles.map((tile) => (
+                    <View key={tile.label} style={styles.infoTile}>
+                      <Text style={styles.infoLabel}>{tile.label}</Text>
+                      <Text style={[styles.infoValue, tile.valueStyle]} numberOfLines={1}>{tile.value}</Text>
+                      <Text style={styles.infoDetail} numberOfLines={1}>{tile.detail}</Text>
+                    </View>
+                  ))}
+                </View>
+
+                <Pressable onPress={() => setDescriptionExpanded((current) => !current)}>
+                  <Text style={styles.description} numberOfLines={descriptionExpanded ? undefined : 3}>
+                    {description}
+                  </Text>
+                  {description.length > 140 ? (
+                    <Text style={styles.readMore}>{descriptionExpanded ? 'Mostra meno' : 'Leggi tutto'}</Text>
+                  ) : null}
                 </Pressable>
 
-                {canEditExperience ? (
-                  <Pressable
-                    style={styles.editExperienceButton}
-                    onPress={() =>
-                      router.push({
-                        pathname: '/edit-experience' as any,
-                        params: { id: experienceId || '' },
-                      })
-                    }
-                  >
-                    <Text style={styles.editExperienceButtonText}>
-                      {isOrganizer ? 'Modifica evento' : 'Modifica evento · Admin'}
-                    </Text>
-                  </Pressable>
-                ) : null}
-
-                <View style={styles.participantsBox}>
-                  <Text style={styles.sectionTitle}>Persone nell’esperienza</Text>
-                  <Text style={styles.participantsCount}>
-                    {participantCount}{maxParticipants > 0 ? ` / ${maxParticipants}` : ''} partecipanti
-                  </Text>
-
-                  {displayedParticipants.length === 0 ? (
-                    <Text style={styles.emptySmallText}>
-                      {isOrganizer
-                        ? 'Ancora nessun partecipante. Quando qualcuno si unirà, lo vedrai qui.'
-                        : 'Ancora nessun partecipante. Puoi essere tu il primo.'}
-                    </Text>
-                  ) : (
-                    <View style={styles.participantsList}>
-                      {displayedParticipants.map((participant, index) => {
+                <Pressable style={styles.peopleRow} onPress={() => setParticipantsOpen(true)}>
+                  {displayedParticipants.length > 0 ? (
+                    <View style={styles.avatarStack}>
+                      {displayedParticipants.slice(0, 5).map((participant, index) => {
                         const userId = String(participant.user_id || '');
-                        const isCreator = userId === getExperienceCreatorId(experience);
-                        const profile = profiles[userId];
-                        const name = profileName(profile, index);
-                        const photo = profilePhotoUrl(profile);
-
+                        const photo = profilePhotoUrl(profiles[userId]);
                         return (
-                          <Pressable
+                          <Image
                             key={`${userId}-${index}`}
-                            style={styles.participantRow}
-                            onPress={() => router.push({
-                              pathname: '/user-profile' as any,
-                              params: {
-                                userId,
-                                activityId: experienceId || '',
-                                postEvent: canShowInviteOut ? '1' : '0',
-                              },
-                            })}
-                          >
-                            <Image
-                              source={photo ? { uri: photo } : bajujuLogo}
-                              style={styles.participantPhoto}
-                              resizeMode="cover"
-                            />
-
-                            <View style={styles.participantInfo}>
-                              <Text style={styles.participantName}>{name}</Text>
-                              <Text
-                                style={[
-                                  styles.participantRoleBadge,
-                                  isCreator ? styles.organizerRoleBadge : styles.normalRoleBadge,
-                                ]}
-                              >
-                                {isCreator ? 'Organizzatore' : 'Partecipante'}
-                              </Text>
-                            </View>
-
-                            {canShowInviteOut && userId !== String(currentUserId || '') ? (
-                              <Pressable
-                                style={styles.inviteOutButton}
-                                onPress={(event) => {
-                                  event.stopPropagation();
-                                  router.push({
-                                    pathname: '/user-profile' as any,
-                                    params: {
-                                      userId,
-                                      activityId: experienceId || '',
-                                      postEvent: '1',
-                                    },
-                                  });
-                                }}
-                              >
-                                <Text style={styles.inviteOutButtonText}>
-                                  Interagisci
-                                </Text>
-                              </Pressable>
-                            ) : null}
-                          </Pressable>
+                            source={photo ? { uri: photo } : bajujuLogo}
+                            style={[
+                              styles.stackAvatar,
+                              index > 0 && styles.stackAvatarOverlap,
+                              userId === creatorId && styles.stackAvatarOrganizer,
+                            ]}
+                            resizeMode="cover"
+                          />
                         );
                       })}
                     </View>
-                  )}
-                </View>
+                  ) : null}
+
+                  <View style={styles.peopleCopy}>
+                    <Text style={styles.peopleCount}>
+                      {participantCount}{maxParticipants > 0 ? ` / ${maxParticipants}` : ''} partecipanti
+                    </Text>
+                    <Text style={styles.peopleMeta} numberOfLines={1}>
+                      {displayedParticipants.length === 0
+                        ? isOrganizer
+                          ? 'Ancora nessuno, li vedrai qui'
+                          : 'Puoi essere tu il primo'
+                        : organizerName
+                          ? `Organizza ${organizerName}`
+                          : 'Guarda chi partecipa'}
+                    </Text>
+                  </View>
+
+                  {displayedParticipants.length > 0 ? (
+                    <Text style={styles.peopleLink}>Vedi tutti ›</Text>
+                  ) : null}
+                </Pressable>
 
                 {isOrganizer && joinRequests.length > 0 ? (
                   <View style={styles.requestsCard}>
@@ -1458,11 +1499,14 @@ export default function ExperienceDetailScreen() {
                       style={styles.requestsHeader}
                       onPress={() => setRequestsOpen((current) => !current)}
                     >
-                      <View style={styles.requestsHeaderCopy}>
-                        <Text style={styles.requestsEyebrow}>GESTIONE PARTECIPAZIONI</Text>
-                        <Text style={styles.requestsTitle}>Richieste in attesa · {joinRequests.length}</Text>
-                      </View>
-                      <Text style={styles.requestsChevron}>{requestsOpen ? '−' : '+'}</Text>
+                      <Text style={styles.requestsTitle}>
+                        {joinRequests.length === 1 ? '1 richiesta in attesa' : `${joinRequests.length} richieste in attesa`}
+                      </Text>
+                      <Ionicons
+                        name={requestsOpen ? 'chevron-up' : 'chevron-down'}
+                        size={18}
+                        color={BAJUJU_COLORS.plum}
+                      />
                     </Pressable>
 
                     {requestsOpen ? (
@@ -1509,14 +1553,14 @@ export default function ExperienceDetailScreen() {
 
                                 <View style={styles.requestActions}>
                                   <Pressable
-                                    style={[styles.rejectRequestButton, requestBusy && styles.mainButtonDisabled]}
+                                    style={[styles.rejectRequestButton, requestBusy && styles.buttonDisabled]}
                                     disabled={requestBusy}
                                     onPress={() => { void reviewJoinRequest(requestUserId, false); }}
                                   >
                                     <Text style={styles.rejectRequestText}>Rifiuta</Text>
                                   </Pressable>
                                   <Pressable
-                                    style={[styles.acceptRequestButton, requestBusy && styles.mainButtonDisabled]}
+                                    style={[styles.acceptRequestButton, requestBusy && styles.buttonDisabled]}
                                     disabled={requestBusy}
                                     onPress={() => { void reviewJoinRequest(requestUserId, true); }}
                                   >
@@ -1532,110 +1576,34 @@ export default function ExperienceDetailScreen() {
                   </View>
                 ) : null}
 
-                <View style={styles.albumBox}>
-                  <View style={styles.albumHeaderRow}>
-                    <View>
-                      <Text style={styles.albumTitle}>Galleria evento</Text>
-                      <Text style={styles.albumSubtitle}>
-                        {albumPhotos.length}/15 foto · massimo 3 foto per partecipante
-                      </Text>
-                    </View>
-
-                    {canUseAlbum ? (
-                      <Pressable
-                        style={[
-                          styles.albumUploadButton,
-                          (uploadingAlbumPhoto || albumIsFull || userAlbumLimitReached) && styles.albumUploadButtonDisabled,
-                        ]}
-                        onPress={uploadAlbumPhoto}
-                        disabled={uploadingAlbumPhoto || albumIsFull || userAlbumLimitReached}
-                      >
-                        <Text style={styles.albumUploadButtonText}>
-                          {uploadingAlbumPhoto ? 'Carico...' : 'Aggiungi foto'}
-                        </Text>
-                      </Pressable>
-                    ) : null}
-                  </View>
-
-                  {!canUseAlbum ? (
-                    <Text style={styles.albumHint}>
-                      La galleria si sblocca per organizzatore e partecipanti.
+                <View style={styles.tabs}>
+                  <Pressable
+                    style={[styles.tab, activeTab === 'chat' && styles.tabActive]}
+                    onPress={() => setActiveTab('chat')}
+                  >
+                    <Text style={[styles.tabText, activeTab === 'chat' && styles.tabTextActive]}>
+                      Chat{canUseChat && messages.length > 0 ? ` · ${messages.length}` : ''}
                     </Text>
-                  ) : userAlbumLimitReached ? (
-                    <Text style={styles.albumHint}>
-                      Hai raggiunto il limite di 3 foto per questo evento.
+                  </Pressable>
+                  <Pressable
+                    style={[styles.tab, activeTab === 'gallery' && styles.tabActive]}
+                    onPress={() => setActiveTab('gallery')}
+                  >
+                    <Text style={[styles.tabText, activeTab === 'gallery' && styles.tabTextActive]}>
+                      Galleria{albumPhotos.length > 0 ? ` · ${albumPhotos.length}` : ''}
                     </Text>
-                  ) : albumIsFull ? (
-                    <Text style={styles.albumHint}>
-                      La galleria ha raggiunto il limite di 15 foto.
-                    </Text>
-                  ) : null}
-
-                  {albumPhotos.length === 0 ? (
-                    <View style={styles.albumEmptyBox}>
-                      <Text style={styles.albumEmptyTitle}>Nessuna foto ancora</Text>
-                      <Text style={styles.albumHint}>Le foto dei partecipanti appariranno qui.</Text>
-                    </View>
-                  ) : (
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.albumPhotosRow}>
-                      {visibleAlbumPhotos.map((photo, index) => {
-                        const url = albumPhotoUrl(photo);
-
-                        return (
-                          <Pressable
-                            key={String(photo.id || `${url}-${index}`)}
-                            style={styles.albumPhotoCard}
-                            onPress={() => openAlbumPhoto(index)}
-                          >
-                            <Image source={{ uri: url }} style={styles.albumPhoto} resizeMode="cover" />
-                          </Pressable>
-                        );
-                      })}
-                    </ScrollView>
-                  )}
+                  </Pressable>
                 </View>
 
-                <Modal visible={!!selectedAlbumPhotoUrl} transparent animationType="fade" onRequestClose={closeAlbumPhoto}>
-                  <View style={styles.photoModalBackdrop}>
-                    <Pressable style={styles.photoModalClose} onPress={closeAlbumPhoto}>
-                      <Text style={styles.photoModalCloseText}>Chiudi</Text>
-                    </Pressable>
-
-                    {selectedAlbumPhotoUrl ? (
-                      <Image source={{ uri: selectedAlbumPhotoUrl }} style={styles.photoModalImage} resizeMode="contain" />
-                    ) : null}
-
-                    {visibleAlbumPhotos.length > 1 ? (
-                      <View style={styles.photoModalControls}>
-                        <Pressable style={styles.photoModalArrow} onPress={showPreviousAlbumPhoto}>
-                          <Text style={styles.photoModalArrowText}>‹</Text>
-                        </Pressable>
-
-                        <Text style={styles.photoModalCounter}>
-                          {(selectedAlbumPhotoIndex ?? 0) + 1}/{visibleAlbumPhotos.length}
-                        </Text>
-
-                        <Pressable style={styles.photoModalArrow} onPress={showNextAlbumPhoto}>
-                          <Text style={styles.photoModalArrowText}>›</Text>
-                        </Pressable>
-                      </View>
-                    ) : null}
-                  </View>
-                </Modal>
-
-                <View style={styles.chatBox}>
-                  <Text style={styles.sectionTitle}>Chat dell’esperienza</Text>
-
-                  {!canUseChat ? (
+                {activeTab === 'chat' ? (
+                  !canUseChat ? (
                     <Text style={styles.emptySmallText}>
                       La chat si sblocca quando partecipi all’esperienza. L’organizzatore può sempre scrivere.
                     </Text>
                   ) : (
-                    <>
+                    <View>
                       {messages.length === 0 ? (
-                        <Text style={styles.emptySmallText}>
-                          Ancora nessun messaggio.
-                        </Text>
+                        <Text style={styles.emptySmallText}>Ancora nessun messaggio.</Text>
                       ) : (
                         <View style={styles.messagesList}>
                           {messages.map((item, index) => {
@@ -1655,15 +1623,16 @@ export default function ExperienceDetailScreen() {
                               >
                                 <Text style={[styles.messageAuthor, isMine && styles.messageAuthorMine]}>{name}</Text>
                                 <Text style={[styles.messageBody, isMine && styles.messageBodyMine]}>{messageText(item)}</Text>
-                                <Text style={[styles.messageTime, isMine && styles.messageTimeMine]}>
-                                  {formatMessageTime(item.created_at)}
-                                </Text>
-
-                                {!isMine ? (
-                                  <Pressable style={styles.reportMessageButton} onPress={() => reportMessage(item)}>
-                                    <Text style={styles.reportMessageText}>Segnala</Text>
-                                  </Pressable>
-                                ) : null}
+                                <View style={styles.messageFooter}>
+                                  <Text style={[styles.messageTime, isMine && styles.messageTimeMine]}>
+                                    {formatMessageTime(item.created_at)}
+                                  </Text>
+                                  {!isMine ? (
+                                    <Pressable onPress={() => reportMessage(item)} hitSlop={8}>
+                                      <Text style={styles.reportMessageText}>Segnala</Text>
+                                    </Pressable>
+                                  ) : null}
+                                </View>
                               </View>
                             );
                           })}
@@ -1675,674 +1644,926 @@ export default function ExperienceDetailScreen() {
                           value={newMessage}
                           onChangeText={setNewMessage}
                           placeholder="Scrivi un messaggio..."
-                          placeholderTextColor="#b36a91"
+                          placeholderTextColor={BAJUJU_COLORS.muted}
                           style={styles.chatInput}
                           multiline
                           onFocus={() => {
+                            setChatFocused(true);
                             setTimeout(() => {
                               pageScrollRef.current?.scrollToEnd({ animated: true });
                             }, 250);
                           }}
+                          onBlur={() => setChatFocused(false)}
                         />
 
                         <Pressable
                           style={[
                             styles.sendButton,
-                            (!newMessage.trim() || sendingMessage) && styles.sendButtonDisabled,
+                            (!newMessage.trim() || sendingMessage) && styles.buttonDisabled,
                           ]}
                           onPress={sendChatMessage}
                           disabled={!newMessage.trim() || sendingMessage}
+                          accessibilityLabel="Invia messaggio"
                         >
-                          <Text style={styles.sendButtonText}>
-                            {sendingMessage ? '...' : 'Invia'}
-                          </Text>
+                          {sendingMessage ? (
+                            <Text style={styles.sendButtonText}>...</Text>
+                          ) : (
+                            <Ionicons name="send" size={17} color={BAJUJU_COLORS.white} />
+                          )}
                         </Pressable>
                       </View>
-                    </>
-                  )}
-                </View>
-
-                <View style={styles.bottomActionsBox}>
-                  {isOrganizer ? (
-                    <>
-                      <View style={styles.smallStatusButton}>
-                        <Text style={styles.smallStatusButtonText}>Creata da te</Text>
-                      </View>
-
-                      <Pressable style={styles.smallCancelButton} onPress={cancelExperience}>
-                        <Text style={styles.smallCancelButtonText}>Annulla</Text>
-                      </Pressable>
-                    </>
-                  ) : isParticipant ? (
-                    <>
-                      <View style={styles.smallStatusButton}>
-                        <Text style={styles.smallStatusButtonText}>Ci sei anche tu</Text>
-                      </View>
-
-                      <Pressable
-                        style={[
-                          styles.smallLeaveButton,
-                          leaving && styles.mainButtonDisabled,
-                        ]}
-                        onPress={leaveExperience}
-                        disabled={leaving}
-                      >
-                        <Text style={styles.smallLeaveButtonText}>
-                          {leaving ? 'Abbandono...' : 'Non partecipo più'}
-                        </Text>
-                      </Pressable>
-                    </>
-                  ) : joinState === 'pending' ? (
-                    <>
-                      <View style={styles.smallStatusButton}>
-                        <Text style={styles.smallStatusButtonText}>Richiesta inviata</Text>
-                      </View>
-                      <Pressable
-                        style={[styles.smallLeaveButton, joining && styles.mainButtonDisabled]}
-                        onPress={cancelJoinRequest}
-                        disabled={joining}
-                      >
-                        <Text style={styles.smallLeaveButtonText}>
-                          {joining ? 'Annullamento...' : 'Annulla richiesta'}
-                        </Text>
-                      </Pressable>
-                    </>
-                  ) : isFull && !approvalRequired ? (
-                    <Pressable
-                      style={styles.smallJoinButton}
-                      onPress={() =>
-                        router.push({
-                          pathname: '/experience-waitlist' as any,
-                          params: { id: experienceId || '' },
-                        })
-                      }
-                    >
-                      <Text style={styles.smallJoinButtonText}>Lista d’attesa</Text>
-                    </Pressable>
-                  ) : (
-                    <Pressable
-                      style={[
-                        styles.smallJoinButton,
-                        joining && styles.mainButtonDisabled,
-                      ]}
-                      onPress={joinExperience}
-                      disabled={joining}
-                    >
-                      <Text style={styles.smallJoinButtonText}>
-                        {joining
-                          ? approvalRequired ? 'Invio richiesta...' : 'Registrazione...'
-                          : approvalRequired ? (joinState === 'rejected' ? 'Richiedi di nuovo' : 'Richiedi di partecipare') : 'Partecipa ora'}
+                    </View>
+                  )
+                ) : (
+                  <View>
+                    <View style={styles.albumHeaderRow}>
+                      <Text style={styles.albumSubtitle}>
+                        {albumPhotos.length}/15 foto · massimo 3 a testa
                       </Text>
-                    </Pressable>
-                  )}
+
+                      {canUseAlbum ? (
+                        <Pressable
+                          style={[
+                            styles.albumUploadButton,
+                            (uploadingAlbumPhoto || albumIsFull || userAlbumLimitReached) && styles.buttonDisabled,
+                          ]}
+                          onPress={uploadAlbumPhoto}
+                          disabled={uploadingAlbumPhoto || albumIsFull || userAlbumLimitReached}
+                        >
+                          <Text style={styles.albumUploadButtonText}>
+                            {uploadingAlbumPhoto ? 'Carico...' : '+ Aggiungi foto'}
+                          </Text>
+                        </Pressable>
+                      ) : null}
+                    </View>
+
+                    {!canUseAlbum ? (
+                      <Text style={styles.albumHint}>
+                        La galleria si sblocca per organizzatore e partecipanti.
+                      </Text>
+                    ) : userAlbumLimitReached ? (
+                      <Text style={styles.albumHint}>
+                        Hai raggiunto il limite di 3 foto per questo evento.
+                      </Text>
+                    ) : albumIsFull ? (
+                      <Text style={styles.albumHint}>
+                        La galleria ha raggiunto il limite di 15 foto.
+                      </Text>
+                    ) : null}
+
+                    {albumPhotos.length === 0 ? (
+                      <Text style={styles.emptySmallText}>
+                        Nessuna foto ancora. Le foto dei partecipanti appariranno qui.
+                      </Text>
+                    ) : (
+                      <View style={styles.albumGrid}>
+                        {visibleAlbumPhotos.map((photo, index) => {
+                          const url = albumPhotoUrl(photo);
+
+                          return (
+                            <Pressable
+                              key={String(photo.id || `${url}-${index}`)}
+                              style={styles.albumPhotoCard}
+                              onPress={() => openAlbumPhoto(index)}
+                            >
+                              <Image source={{ uri: url }} style={styles.albumPhoto} resizeMode="cover" />
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                    )}
+                  </View>
+                )}
+              </View>
+            </>
+          )}
+        </ScrollView>
+
+        {showBottomBar ? (
+          <View style={styles.bottomBar}>
+            {isOrganizer ? (
+              <>
+                <View style={styles.statusPill}>
+                  <Text style={styles.statusPillText}>Organizzi tu</Text>
                 </View>
+                <Pressable style={styles.primaryButton} onPress={openEditExperience}>
+                  <Text style={styles.primaryButtonText}>Modifica evento</Text>
+                </Pressable>
+              </>
+            ) : isParticipant ? (
+              <>
+                <View style={styles.statusPill}>
+                  <Text style={styles.statusPillText}>Ci sei anche tu</Text>
+                </View>
+                <Pressable
+                  style={[styles.secondaryButton, leaving && styles.buttonDisabled]}
+                  onPress={leaveExperience}
+                  disabled={leaving}
+                >
+                  <Text style={styles.secondaryButtonText}>
+                    {leaving ? 'Abbandono...' : 'Non partecipo più'}
+                  </Text>
+                </Pressable>
+              </>
+            ) : joinState === 'pending' ? (
+              <>
+                <View style={styles.statusPill}>
+                  <Text style={styles.statusPillText}>Richiesta inviata</Text>
+                </View>
+                <Pressable
+                  style={[styles.secondaryButton, joining && styles.buttonDisabled]}
+                  onPress={cancelJoinRequest}
+                  disabled={joining}
+                >
+                  <Text style={styles.secondaryButtonText}>
+                    {joining ? 'Annullamento...' : 'Annulla richiesta'}
+                  </Text>
+                </Pressable>
               </>
             ) : (
-              <Text style={styles.messageText}>Esperienza non trovata.</Text>
+              <>
+                <View style={styles.spotsBox}>
+                  <Text style={styles.spotsValue}>
+                    {freeSpots === null ? participantCount : freeSpots}
+                  </Text>
+                  <Text style={styles.spotsLabel}>
+                    {freeSpots === null ? 'iscritti' : freeSpots === 1 ? 'posto libero' : 'posti liberi'}
+                  </Text>
+                </View>
+
+                {isFull && !approvalRequired ? (
+                  <Pressable
+                    style={styles.primaryButton}
+                    onPress={() =>
+                      router.push({
+                        pathname: '/experience-waitlist' as any,
+                        params: { id: experienceId || '' },
+                      })
+                    }
+                  >
+                    <Text style={styles.primaryButtonText}>Lista d’attesa</Text>
+                  </Pressable>
+                ) : (
+                  <Pressable
+                    style={[styles.primaryButton, joining && styles.buttonDisabled]}
+                    onPress={joinExperience}
+                    disabled={joining}
+                  >
+                    <Text style={styles.primaryButtonText}>
+                      {joining
+                        ? approvalRequired ? 'Invio richiesta...' : 'Registrazione...'
+                        : approvalRequired ? (joinState === 'rejected' ? 'Richiedi di nuovo' : 'Richiedi di partecipare') : 'Partecipa ora'}
+                    </Text>
+                  </Pressable>
+                )}
+              </>
             )}
           </View>
-        </ScrollView>
+        ) : null}
       </KeyboardAvoidingView>
+
+      <Modal visible={participantsOpen} transparent animationType="slide" onRequestClose={() => setParticipantsOpen(false)}>
+        <Pressable style={styles.sheetBackdrop} onPress={() => setParticipantsOpen(false)} />
+        <View style={styles.sheet}>
+          <View style={styles.sheetHandle} />
+          <Text style={styles.sheetTitle}>Persone nell’esperienza</Text>
+          <Text style={styles.sheetSubtitle}>
+            {participantCount}{maxParticipants > 0 ? ` / ${maxParticipants}` : ''} partecipanti
+          </Text>
+          <ScrollView style={styles.sheetScroll} contentContainerStyle={styles.participantsList}>
+            {displayedParticipants.map(renderParticipantRow)}
+          </ScrollView>
+        </View>
+      </Modal>
+
+      <Modal visible={menuOpen} transparent animationType="slide" onRequestClose={() => setMenuOpen(false)}>
+        <Pressable style={styles.sheetBackdrop} onPress={() => setMenuOpen(false)} />
+        <View style={styles.sheet}>
+          <View style={styles.sheetHandle} />
+          <Text style={styles.sheetTitle}>Gestisci esperienza</Text>
+
+          <Pressable style={styles.menuItem} onPress={openEditExperience}>
+            <Ionicons name="create-outline" size={20} color={BAJUJU_COLORS.pink} />
+            <Text style={styles.menuItemText}>
+              {isOrganizer ? 'Modifica evento' : 'Modifica evento · Admin'}
+            </Text>
+          </Pressable>
+
+          {isOrganizer ? (
+            <Pressable
+              style={[styles.menuItem, updatingCoverPhoto && styles.buttonDisabled]}
+              disabled={updatingCoverPhoto}
+              onPress={() => {
+                setMenuOpen(false);
+                void updateCoverPhoto();
+              }}
+            >
+              <Ionicons name="image-outline" size={20} color={BAJUJU_COLORS.pink} />
+              <Text style={styles.menuItemText}>
+                {updatingCoverPhoto ? 'Caricamento...' : 'Cambia foto copertina'}
+              </Text>
+            </Pressable>
+          ) : null}
+
+          {isOrganizer ? (
+            <Pressable
+              style={styles.menuItem}
+              onPress={() => {
+                setMenuOpen(false);
+                cancelExperience();
+              }}
+            >
+              <Ionicons name="close-circle-outline" size={20} color={BAJUJU_COLORS.plum} />
+              <Text style={[styles.menuItemText, styles.menuItemDanger]}>Annulla esperienza</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      </Modal>
+
+      <Modal visible={!!selectedAlbumPhotoUrl} transparent animationType="fade" onRequestClose={closeAlbumPhoto}>
+        <View style={styles.photoModalBackdrop}>
+          <Pressable style={styles.photoModalClose} onPress={closeAlbumPhoto}>
+            <Text style={styles.photoModalCloseText}>Chiudi</Text>
+          </Pressable>
+
+          {selectedAlbumPhotoUrl ? (
+            <Image source={{ uri: selectedAlbumPhotoUrl }} style={styles.photoModalImage} resizeMode="contain" />
+          ) : null}
+
+          {visibleAlbumPhotos.length > 1 ? (
+            <View style={styles.photoModalControls}>
+              <Pressable style={styles.photoModalArrow} onPress={showPreviousAlbumPhoto}>
+                <Ionicons name="chevron-back" size={28} color={BAJUJU_COLORS.plum} />
+              </Pressable>
+
+              <Text style={styles.photoModalCounter}>
+                {(selectedAlbumPhotoIndex ?? 0) + 1}/{visibleAlbumPhotos.length}
+              </Text>
+
+              <Pressable style={styles.photoModalArrow} onPress={showNextAlbumPhoto}>
+                <Ionicons name="chevron-forward" size={28} color={BAJUJU_COLORS.plum} />
+              </Pressable>
+            </View>
+          ) : null}
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
 
+const C = BAJUJU_COLORS;
+const F = BAJUJU_FONTS;
+
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FFF9FC',
+    backgroundColor: C.background,
   },
   container: {
-    flexGrow: 1,
-    padding: 20,
-    paddingTop: 64,
-    paddingBottom: 32,
-    backgroundColor: '#FFF9FC',
+    paddingBottom: 24,
+    backgroundColor: C.background,
   },
-  backButton: {
+  containerWithBar: {
+    paddingBottom: 110,
+  },
+  stateBox: {
+    padding: 18,
+    gap: 18,
+  },
+  stateBackButton: {
     alignSelf: 'flex-start',
-    marginBottom: 18,
     paddingVertical: 9,
-    paddingHorizontal: 13,
+    paddingHorizontal: 14,
     borderRadius: 999,
-    backgroundColor: '#ffffff',
+    backgroundColor: C.white,
     borderWidth: 1,
-    borderColor: '#ffd3e7',
+    borderColor: C.line,
   },
-  backText: {
+  stateBackText: {
+    fontFamily: F.semiBold,
     fontSize: 14,
-    fontWeight: '800',
-    color: '#9b1f61',
+    color: C.plum,
   },
-  card: {
+  messageText: {
+    fontFamily: F.medium,
+    color: C.muted,
+    fontSize: 15,
+    textAlign: 'center',
+  },
+
+  hero: {
+    height: 270,
+    backgroundColor: C.softPink,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
+    overflow: 'hidden',
+  },
+  heroImage: {
+    ...StyleSheet.absoluteFillObject,
     width: '100%',
-    borderRadius: 28,
-    padding: 16,
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#ffd3e7',
-    shadowColor: '#e43f98',
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 3,
+    height: '100%',
+  },
+  heroTopBar: {
+    position: 'absolute',
+    top: 12,
+    left: 14,
+    right: 14,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  heroTopActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  heroIconButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(255,255,255,0.94)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroText: {
+    position: 'absolute',
+    left: 18,
+    right: 18,
+    bottom: 18,
+    gap: 8,
   },
   category: {
     alignSelf: 'flex-start',
-    backgroundColor: '#fff0f7',
+    overflow: 'hidden',
+    backgroundColor: C.white,
     borderRadius: 999,
-    borderWidth: 1,
-    borderColor: '#ffd1e6',
-    color: '#e43f98',
-    fontSize: 13,
-    fontWeight: '900',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    marginBottom: 10,
-  },
-  eventTopRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-    marginBottom: 14,
-  },
-  eventPhoto: {
-    width: 76,
-    height: 76,
-    borderRadius: 18,
-    backgroundColor: '#fff0f7',
-    borderWidth: 1,
-    borderColor: '#ffd3e7',
-  },
-  eventTopText: {
-    flex: 1,
+    color: C.pink,
+    fontFamily: F.semiBold,
+    fontSize: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
   },
   title: {
-    fontSize: 24,
-    fontWeight: '900',
-    color: '#331426',
-    marginBottom: 0,
-    letterSpacing: -0.5,
+    fontFamily: F.bold,
+    fontSize: 26,
+    lineHeight: 30,
+    color: C.white,
   },
-  compactInfoBox: {
-    borderRadius: 20,
-    paddingVertical: 10,
-    paddingHorizontal: 13,
-    backgroundColor: '#FFF9FC',
-    borderWidth: 1,
-    borderColor: '#ffd3e7',
-    marginBottom: 14,
+
+  content: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    gap: 14,
   },
-  compactInfoRow: {
+  infoGrid: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-    paddingVertical: 6,
+    flexWrap: 'wrap',
+    gap: 8,
   },
-  compactInfoLabel: {
-    width: 66,
-    color: '#9b1f61',
+  infoTile: {
+    flexBasis: '48%',
+    flexGrow: 1,
+    minWidth: 0,
+    backgroundColor: C.white,
+    borderWidth: 1,
+    borderColor: C.line,
+    borderRadius: 18,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  infoLabel: {
+    fontFamily: F.semiBold,
     fontSize: 11,
-    fontWeight: '900',
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-  },
-  compactInfoValue: {
-    flex: 1,
-    color: '#6b3652',
-    fontSize: 14,
-    fontWeight: '800',
-    lineHeight: 19,
-  },
-  participationModeValue: {
-    color: '#22633c',
-    fontWeight: '900',
-  },
-  participationModeRequestValue: {
-    color: '#8a5b00',
-  },
-  compactInfoDivider: {
-    height: 1,
-    backgroundColor: '#ffe2ef',
-  },
-  infoBox: {
-    borderRadius: 20,
-    padding: 14,
-    backgroundColor: '#FFF9FC',
-    borderWidth: 1,
-    borderColor: '#ffd3e7',
-    marginBottom: 12,
-  },
-  descriptionBox: {
-    borderRadius: 20,
-    padding: 14,
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#ffd3e7',
-    marginBottom: 16,
-  },
-  label: {
-    color: '#9b1f61',
-    fontSize: 12,
-    fontWeight: '900',
-    textTransform: 'uppercase',
     letterSpacing: 0.6,
-    marginBottom: 5,
+    textTransform: 'uppercase',
+    color: C.pink,
   },
-  value: {
-    color: '#6b3652',
+  infoValue: {
+    marginTop: 2,
+    fontFamily: F.semiBold,
     fontSize: 15,
-    fontWeight: '800',
-    lineHeight: 21,
+    color: C.plum,
+  },
+  infoValueFree: {
+    color: '#1F7A52',
+  },
+  infoValueRequest: {
+    color: '#8A5B00',
+  },
+  infoDetail: {
+    fontFamily: F.regular,
+    fontSize: 12,
+    color: C.muted,
   },
   description: {
-    color: '#6b3652',
-    fontSize: 14,
-    fontWeight: '600',
-    lineHeight: 21,
-  },
-  shareExperienceButton: {
-    borderRadius: 999,
-    backgroundColor: '#e43f98',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    alignSelf: 'center',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    gap: 7,
-    marginBottom: 14,
-    shadowColor: '#e43f98',
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
-  },
-  shareExperienceButtonIcon: {
+    fontFamily: F.regular,
     fontSize: 15,
+    lineHeight: 22,
+    color: C.plum,
   },
-  shareExperienceButtonText: {
-    color: '#ffffff',
-    fontSize: 13,
-    fontWeight: '900',
-  },
-  editExperienceButton: {
-    marginTop: 10,
-    minHeight: 48,
-    borderRadius: 16,
-    backgroundColor: '#e43f98',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 16,
-  },
-  editExperienceButtonText: {
-    color: '#ffffff',
+  readMore: {
+    marginTop: 4,
+    fontFamily: F.semiBold,
     fontSize: 14,
-    fontWeight: '900',
+    color: C.pink,
   },
-  participantsBox: {
-    backgroundColor: '#ffffff',
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: '#ffd6e8',
-    padding: 16,
-    marginTop: 16,
-    shadowColor: '#e43f98',
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 2,
-  },
-  sectionTitle: {
-    color: '#331426',
-    fontSize: 18,
-    fontWeight: '900',
-    marginBottom: 6,
-  },
-  participantsCount: {
-    color: '#8d315f',
-    fontSize: 13,
-    fontWeight: '800',
-    marginTop: 4,
-    marginBottom: 12,
-  },
-  participantsList: {
-    gap: 10,
-    marginTop: 4,
-  },
-  participantRow: {
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: '#FFDDEB',
+
+  peopleRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: 12,
-    padding: 12,
-  },
-  participantPhoto: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#fff0f7',
-    borderWidth: 2,
-    borderColor: '#f0328b',
-  },
-  participantInfo: {
-    flex: 1,
-  },
-  participantName: {
-    color: '#48172f',
-    fontSize: 15,
-    fontWeight: '900',
-  },
-  participantRoleBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#f0328b',
-    borderRadius: 999,
-    color: '#ffffff',
-    fontSize: 11,
-    fontWeight: '900',
-    marginTop: 4,
-    overflow: 'hidden',
-    paddingHorizontal: 9,
-    paddingVertical: 3,
-  },
-  organizerRoleBadge: {
-    backgroundColor: '#fff6ce',
-    color: '#8a6700',
-  },
-  normalRoleBadge: {
-    backgroundColor: '#fff0f7',
-    color: '#9b1f61',
-  },
-  inviteOutButton: {
-    borderRadius: 999,
-    backgroundColor: '#e43f98',
-    paddingVertical: 7,
-    paddingHorizontal: 11,
-    alignSelf: 'center',
-  },
-  inviteOutButtonText: {
-    color: '#ffffff',
-    fontSize: 11,
-    fontWeight: '900',
-  },
-  mainButton: {
-    height: 52,
-    borderRadius: 18,
-    backgroundColor: '#e43f98',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 14,
-  },
-  mainButtonDisabled: {
-    opacity: 0.55,
-  },
-  mainButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '900',
-  },
-  participantActionBox: {
-    gap: 10,
-  },
-  leaveButton: {
-    borderRadius: 999,
+    backgroundColor: C.white,
     borderWidth: 1,
-    borderColor: '#e43f98',
-    backgroundColor: '#ffffff',
-    paddingVertical: 13,
-    alignItems: 'center',
-    marginBottom: 14,
+    borderColor: C.line,
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
   },
-  leaveButtonText: {
-    color: '#e43f98',
-    fontSize: 14,
-    fontWeight: '900',
-  },
-  cancelButton: {
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: '#d92b2b',
-    backgroundColor: '#ffffff',
-    paddingVertical: 13,
-    alignItems: 'center',
-    marginTop: 12,
-    marginBottom: 14,
-  },
-  cancelButtonText: {
-    color: '#d92b2b',
-    fontSize: 14,
-    fontWeight: '900',
-  },
-  bottomActionsBox: {
-    marginTop: 14,
+  avatarStack: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 8,
-    flexWrap: 'wrap',
   },
-  smallStatusButton: {
-    borderRadius: 999,
-    backgroundColor: '#fff0f7',
-    borderWidth: 1,
-    borderColor: '#ffd3e7',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+  stackAvatar: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    borderWidth: 2,
+    borderColor: C.white,
+    backgroundColor: C.softPink,
   },
-  smallStatusButtonText: {
-    color: '#9b1f61',
+  stackAvatarOverlap: {
+    marginLeft: -10,
+  },
+  stackAvatarOrganizer: {
+    borderColor: C.pink,
+  },
+  peopleCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  peopleCount: {
+    fontFamily: F.semiBold,
+    fontSize: 15,
+    color: C.plum,
+  },
+  peopleMeta: {
+    fontFamily: F.regular,
     fontSize: 12,
-    fontWeight: '900',
+    color: C.muted,
   },
-  smallLeaveButton: {
-    borderRadius: 999,
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#e43f98',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-  },
-  smallLeaveButtonText: {
-    color: '#e43f98',
-    fontSize: 12,
-    fontWeight: '900',
-  },
-  smallJoinButton: {
-    borderRadius: 999,
-    backgroundColor: '#e43f98',
-    paddingVertical: 9,
-    paddingHorizontal: 18,
-  },
-  smallJoinButtonText: {
-    color: '#ffffff',
+  peopleLink: {
+    fontFamily: F.semiBold,
     fontSize: 13,
-    fontWeight: '900',
+    color: C.pink,
   },
-  smallCancelButton: {
-    borderRadius: 999,
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#9b1f61',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-  },
-  smallCancelButtonText: {
-    color: '#9b1f61',
-    fontSize: 12,
-    fontWeight: '900',
-  },
+
   requestsCard: {
-    marginTop: 16,
-    padding: 15,
-    borderRadius: 22,
-    backgroundColor: '#FFF9FC',
-    borderWidth: 1.5,
-    borderColor: '#f7a7cd',
+    backgroundColor: C.softPink,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: C.line,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
   },
   requestsHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 12,
-  },
-  requestsHeaderCopy: { flex: 1 },
-  requestsEyebrow: {
-    color: '#e43f98',
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 0.7,
   },
   requestsTitle: {
-    marginTop: 3,
-    color: '#331426',
-    fontSize: 17,
-    fontWeight: '900',
+    fontFamily: F.semiBold,
+    fontSize: 14,
+    color: C.plum,
   },
-  requestsChevron: {
-    color: '#e43f98',
-    fontSize: 24,
-    fontWeight: '900',
-  },
-  requestsList: { marginTop: 12 },
+  requestsList: { marginTop: 8 },
   requestRow: {
     flexDirection: 'row',
     gap: 11,
-    paddingVertical: 11,
+    paddingVertical: 10,
   },
   requestBorder: {
     borderTopWidth: 1,
-    borderTopColor: '#ffddea',
+    borderTopColor: C.palePink,
   },
   requestAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     borderWidth: 2,
-    borderColor: '#f0328b',
-    backgroundColor: '#fff0f7',
+    borderColor: C.brightPink,
+    backgroundColor: C.white,
   },
   requestMain: { flex: 1, minWidth: 0 },
   requestName: {
-    color: '#48172f',
+    fontFamily: F.semiBold,
+    color: C.plum,
     fontSize: 15,
-    fontWeight: '900',
   },
   requestMeta: {
-    marginTop: 3,
-    color: '#8d315f',
+    marginTop: 2,
+    fontFamily: F.regular,
+    color: C.muted,
     fontSize: 12,
-    fontWeight: '700',
     lineHeight: 17,
   },
   requestActions: {
     flexDirection: 'row',
     gap: 8,
-    marginTop: 9,
+    marginTop: 8,
   },
   rejectRequestButton: {
     flex: 1,
-    minHeight: 38,
-    borderRadius: 19,
+    minHeight: 36,
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#e43f98',
-    backgroundColor: '#ffffff',
+    borderColor: C.pink,
+    backgroundColor: C.white,
     alignItems: 'center',
     justifyContent: 'center',
   },
   rejectRequestText: {
-    color: '#9b1f61',
-    fontSize: 12,
-    fontWeight: '900',
+    fontFamily: F.semiBold,
+    color: C.pink,
+    fontSize: 13,
   },
   acceptRequestButton: {
     flex: 1,
-    minHeight: 38,
-    borderRadius: 19,
-    backgroundColor: '#e43f98',
+    minHeight: 36,
+    borderRadius: 18,
+    backgroundColor: C.pink,
     alignItems: 'center',
     justifyContent: 'center',
   },
   acceptRequestText: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: '900',
+    fontFamily: F.semiBold,
+    color: C.white,
+    fontSize: 13,
   },
-  albumBox: {
-    marginTop: 18,
-    padding: 16,
-    borderRadius: 24,
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#ffd3e7',
-  },
-  albumHeaderRow: {
-    gap: 10,
-    alignItems: 'flex-start',
-    marginBottom: 12,
-  },
-  albumTitle: {
-    color: '#4a1230',
-    fontSize: 18,
-    fontWeight: '900',
-  },
-  albumSubtitle: {
-    marginTop: 3,
-    color: '#9b1f61',
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  albumUploadButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 13,
+
+  tabs: {
+    flexDirection: 'row',
+    backgroundColor: C.softPink,
     borderRadius: 999,
-    backgroundColor: '#e43f98',
+    padding: 4,
+    gap: 4,
   },
-  albumUploadButtonDisabled: {
-    opacity: 0.6,
+  tab: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 9,
+    borderRadius: 999,
   },
-  albumUploadButtonText: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: '900',
+  tabActive: {
+    backgroundColor: C.white,
+    ...BAJUJU_SHADOW,
   },
-  albumHint: {
-    color: '#9b1f61',
-    fontSize: 12,
-    fontWeight: '800',
-    marginTop: 6,
-  },
-  albumEmptyBox: {
-    marginTop: 10,
-    padding: 14,
-    borderRadius: 18,
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#ffe0ef',
-  },
-  albumEmptyTitle: {
-    color: '#4a1230',
+  tabText: {
+    fontFamily: F.semiBold,
     fontSize: 14,
-    fontWeight: '900',
+    color: C.muted,
   },
-  albumPhotosRow: {
-    gap: 10,
+  tabTextActive: {
+    color: C.pink,
+  },
+
+  emptySmallText: {
+    backgroundColor: C.white,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: C.palePink,
+    color: C.muted,
+    fontFamily: F.regular,
+    fontSize: 14,
+    lineHeight: 20,
+    padding: 14,
+    textAlign: 'center',
+  },
+  messagesList: {
+    gap: 8,
+  },
+  messageBubble: {
+    alignSelf: 'flex-start',
+    backgroundColor: C.white,
+    borderRadius: 18,
+    borderBottomLeftRadius: 6,
+    borderWidth: 1,
+    borderColor: C.palePink,
+    maxWidth: '85%',
+    paddingHorizontal: 12,
     paddingVertical: 8,
   },
-  albumPhotoCard: {
-    width: 116,
-    height: 116,
-    borderRadius: 18,
-    overflow: 'hidden',
-    backgroundColor: '#ffffff',
+  messageBubbleMine: {
+    alignSelf: 'flex-end',
+    backgroundColor: C.pink,
+    borderColor: C.pink,
+    borderBottomLeftRadius: 18,
+    borderBottomRightRadius: 6,
+  },
+  messageAuthor: {
+    fontFamily: F.semiBold,
+    color: C.pink,
+    fontSize: 12,
+    marginBottom: 2,
+  },
+  messageAuthorMine: {
+    color: C.palePink,
+  },
+  messageBody: {
+    fontFamily: F.regular,
+    color: C.plum,
+    fontSize: 15,
+    lineHeight: 20,
+  },
+  messageBodyMine: {
+    color: C.white,
+  },
+  messageFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 4,
+  },
+  messageTime: {
+    fontFamily: F.regular,
+    color: C.muted,
+    fontSize: 11,
+  },
+  messageTimeMine: {
+    color: C.white,
+    opacity: 0.85,
+  },
+  reportMessageText: {
+    fontFamily: F.medium,
+    color: C.muted,
+    fontSize: 11,
+    textDecorationLine: 'underline',
+  },
+  chatInputRow: {
+    alignItems: 'flex-end',
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 12,
+  },
+  chatInput: {
+    backgroundColor: C.white,
+    borderColor: C.line,
+    borderRadius: 22,
     borderWidth: 1,
-    borderColor: '#ffd3e7',
+    color: C.plum,
+    flex: 1,
+    fontFamily: F.regular,
+    fontSize: 15,
+    minHeight: 44,
+    paddingHorizontal: 16,
+    paddingVertical: 11,
+  },
+  sendButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: C.pink,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sendButtonText: {
+    fontFamily: F.bold,
+    color: C.white,
+    fontSize: 14,
+  },
+
+  albumHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    marginBottom: 10,
+  },
+  albumSubtitle: {
+    flex: 1,
+    fontFamily: F.medium,
+    color: C.muted,
+    fontSize: 13,
+  },
+  albumUploadButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    backgroundColor: C.pink,
+  },
+  albumUploadButtonText: {
+    fontFamily: F.semiBold,
+    color: C.white,
+    fontSize: 13,
+  },
+  albumHint: {
+    fontFamily: F.regular,
+    color: C.muted,
+    fontSize: 13,
+    marginBottom: 10,
+  },
+  albumGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  albumPhotoCard: {
+    width: '32%',
+    aspectRatio: 1,
+    borderRadius: 14,
+    overflow: 'hidden',
+    backgroundColor: C.softPink,
   },
   albumPhoto: {
     width: '100%',
     height: '100%',
   },
+
+  bottomBar: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: Platform.OS === 'ios' ? 8 : 14,
+    backgroundColor: C.white,
+    borderTopWidth: 1,
+    borderTopColor: C.line,
+  },
+  spotsBox: {
+    minWidth: 64,
+  },
+  spotsValue: {
+    fontFamily: F.bold,
+    fontSize: 20,
+    lineHeight: 22,
+    color: C.plum,
+  },
+  spotsLabel: {
+    fontFamily: F.regular,
+    fontSize: 11,
+    color: C.muted,
+  },
+  statusPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: C.success,
+  },
+  statusPillText: {
+    fontFamily: F.semiBold,
+    fontSize: 13,
+    color: C.plum,
+  },
+  primaryButton: {
+    flex: 1,
+    minHeight: 48,
+    borderRadius: 999,
+    backgroundColor: C.pink,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...BAJUJU_SHADOW,
+  },
+  primaryButtonText: {
+    fontFamily: F.bold,
+    fontSize: 16,
+    color: C.white,
+  },
+  secondaryButton: {
+    flex: 1,
+    minHeight: 48,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: C.pink,
+    backgroundColor: C.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  secondaryButtonText: {
+    fontFamily: F.semiBold,
+    fontSize: 15,
+    color: C.pink,
+  },
+  buttonDisabled: {
+    opacity: 0.55,
+  },
+
+  sheetBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(75,12,45,0.35)',
+  },
+  sheet: {
+    maxHeight: '75%',
+    backgroundColor: C.background,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 34,
+  },
+  sheetHandle: {
+    alignSelf: 'center',
+    width: 42,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: C.line,
+    marginBottom: 14,
+  },
+  sheetTitle: {
+    fontFamily: F.bold,
+    fontSize: 20,
+    color: C.plum,
+  },
+  sheetSubtitle: {
+    marginTop: 2,
+    marginBottom: 12,
+    fontFamily: F.regular,
+    fontSize: 13,
+    color: C.muted,
+  },
+  sheetScroll: {
+    flexGrow: 0,
+  },
+  participantsList: {
+    gap: 8,
+    paddingBottom: 6,
+  },
+  participantRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: C.white,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: C.palePink,
+    padding: 10,
+  },
+  participantPhoto: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: C.softPink,
+    borderWidth: 2,
+    borderColor: C.palePink,
+  },
+  participantPhotoOrganizer: {
+    borderColor: C.pink,
+  },
+  participantInfo: {
+    flex: 1,
+    minWidth: 0,
+    gap: 4,
+  },
+  participantName: {
+    fontFamily: F.semiBold,
+    fontSize: 15,
+    color: C.plum,
+  },
+  participantRoleBadge: {
+    alignSelf: 'flex-start',
+    overflow: 'hidden',
+    borderRadius: 999,
+    fontFamily: F.medium,
+    fontSize: 11,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  organizerRoleBadge: {
+    backgroundColor: C.pink,
+    color: C.white,
+  },
+  normalRoleBadge: {
+    backgroundColor: C.softPink,
+    color: C.muted,
+  },
+  inviteOutButton: {
+    borderRadius: 999,
+    backgroundColor: C.pink,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  inviteOutButtonText: {
+    fontFamily: F.semiBold,
+    color: C.white,
+    fontSize: 12,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: C.palePink,
+  },
+  menuItemText: {
+    fontFamily: F.semiBold,
+    fontSize: 16,
+    color: C.plum,
+  },
+  menuItemDanger: {
+    color: C.hotPink,
+  },
+
   photoModalBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(40, 10, 28, 0.94)',
@@ -2358,12 +2579,12 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingHorizontal: 15,
     paddingVertical: 9,
-    backgroundColor: '#ffffff',
+    backgroundColor: C.white,
   },
   photoModalCloseText: {
-    color: '#9b1f61',
-    fontSize: 13,
-    fontWeight: '900',
+    fontFamily: F.semiBold,
+    color: C.plum,
+    fontSize: 14,
   },
   photoModalImage: {
     width: '100%',
@@ -2383,149 +2604,13 @@ const styles = StyleSheet.create({
     width: 54,
     height: 54,
     borderRadius: 27,
-    backgroundColor: '#ffffff',
+    backgroundColor: C.white,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  photoModalArrowText: {
-    color: '#9b1f61',
-    fontSize: 38,
-    fontWeight: '900',
-    lineHeight: 42,
   },
   photoModalCounter: {
-    color: '#ffffff',
+    fontFamily: F.semiBold,
+    color: C.white,
     fontSize: 15,
-    fontWeight: '900',
-  },
-  chatBox: {
-    backgroundColor: '#FFF9FC',
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: '#ffd6e8',
-    padding: 16,
-    marginTop: 16,
-    shadowColor: '#e43f98',
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 2,
-  },
-  emptySmallText: {
-    backgroundColor: '#ffffff',
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: '#FFDDEB',
-    color: '#8d315f',
-    fontSize: 14,
-    fontWeight: '700',
-    lineHeight: 20,
-    padding: 14,
-    textAlign: 'center',
-  },
-  messagesList: {
-    gap: 10,
-    marginTop: 10,
-  },
-  messageBubble: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#ffffff',
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: '#FFDDEB',
-    maxWidth: '88%',
-    paddingHorizontal: 13,
-    paddingVertical: 10,
-  },
-  messageBubbleMine: {
-    alignSelf: 'flex-end',
-    backgroundColor: '#f0328b',
-    borderColor: '#f0328b',
-  },
-  messageAuthor: {
-    color: '#e43f98',
-    fontSize: 12,
-    fontWeight: '900',
-    marginBottom: 3,
-  },
-  messageAuthorMine: {
-    color: '#ffffff',
-  },
-  messageBody: {
-    color: '#48172f',
-    fontSize: 14,
-    fontWeight: '700',
-    lineHeight: 20,
-  },
-  messageBodyMine: {
-    color: '#ffffff',
-  },
-  messageTime: {
-    color: '#a95d86',
-    fontSize: 11,
-    fontWeight: '700',
-    marginTop: 5,
-  },
-  messageTimeMine: {
-    color: '#ffffff',
-    opacity: 0.85,
-  },
-  reportMessageButton: {
-    alignSelf: 'flex-start',
-    marginTop: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 999,
-    backgroundColor: '#fff0f7',
-    borderWidth: 1,
-    borderColor: '#ffd3e6',
-  },
-  reportMessageText: {
-    color: '#9b1f61',
-    fontSize: 11,
-    fontWeight: '900',
-  },
-  chatInputRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 14,
-  },
-  chatInput: {
-    backgroundColor: '#ffffff',
-    borderColor: '#ffd1e6',
-    borderRadius: 18,
-    borderWidth: 1,
-    color: '#48172f',
-    flex: 1,
-    fontSize: 14,
-    fontWeight: '700',
-    minHeight: 46,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  sendButton: {
-    minHeight: 46,
-    borderRadius: 18,
-    backgroundColor: '#e43f98',
-    paddingHorizontal: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sendButtonDisabled: {
-    opacity: 0.5,
-  },
-  sendButtonText: {
-    color: '#ffffff',
-    fontSize: 13,
-    fontWeight: '900',
-  },
-  coverPhotoButton: { marginTop: 8, backgroundColor: "#fff0f7", borderRadius: 12, borderWidth: 1, borderColor: "#ffd3e6", paddingVertical: 8, paddingHorizontal: 10, alignItems: "center" },
-  coverPhotoButtonText: { color: "#9b1f61", fontSize: 12, fontWeight: "900" },
-  messageText: {
-    color: '#9b1f61',
-    fontSize: 14,
-    fontWeight: '800',
-    textAlign: 'center',
   },
 });

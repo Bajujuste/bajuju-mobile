@@ -1,3 +1,5 @@
+import * as Location from 'expo-location';
+import { Platform } from 'react-native';
 import { supabase } from './supabase';
 
 export type AddressSuggestion = {
@@ -202,5 +204,77 @@ export async function resolveAddressText(query: string): Promise<ResolvedCoordin
     latitude,
     longitude,
     formattedAddress: String(response.formatted_address || '').trim(),
+  };
+}
+
+/**
+ * Alternativa esplicita quando l'API di suggerimenti non è disponibile.
+ * Non salva indirizzi approssimativi: chiede numero civico, comune e provincia,
+ * e richiede comunque la conferma dell'utente nell'interfaccia.
+ */
+export async function resolveAddressOnDevice(query: string): Promise<ResolvedAddress> {
+  const cleanQuery = query.trim();
+  if (cleanQuery.length < 8 || !/\b\d+[A-Za-z]?\b/.test(cleanQuery)) {
+    throw new Error('ENTER_COMPLETE_ADDRESS');
+  }
+
+  if (Platform.OS === 'android') {
+    const existingPermission = await Location.getForegroundPermissionsAsync();
+    const permission = existingPermission.granted
+      ? existingPermission
+      : await Location.requestForegroundPermissionsAsync();
+    if (!permission.granted) throw new Error('GEOCODE_PERMISSION_REQUIRED');
+  }
+
+  const coordinates = await Location.geocodeAsync(cleanQuery);
+  const first = coordinates.find((p) =>
+    Number.isFinite(p.latitude) && Number.isFinite(p.longitude) &&
+    p.latitude >= 35 && p.latitude <= 48 && p.longitude >= 6 && p.longitude <= 19
+  );
+  if (!first) throw new Error('ADDRESS_NOT_FOUND');
+
+  const addresses = await Location.reverseGeocodeAsync({
+    latitude: first.latitude,
+    longitude: first.longitude,
+  });
+
+  const address = addresses.find((candidate) => {
+    return String(candidate.isoCountryCode || '').toUpperCase() === 'IT' &&
+      Boolean(candidate.street?.trim()) &&
+      Boolean(candidate.streetNumber?.trim()) &&
+      Boolean(candidate.city?.trim()) &&
+      Boolean(candidate.subregion?.trim());
+  });
+  if (!address) throw new Error('INCOMPLETE_STREET_ADDRESS');
+
+  const street = String(address.street).trim();
+  const streetNumber = String(address.streetNumber).trim();
+  const city = String(address.city).trim();
+  const province = normalizeProvince(String(address.subregion).trim(), '');
+  if (!street || !streetNumber || !city || !province) {
+    throw new Error('INCOMPLETE_STREET_ADDRESS');
+  }
+
+  // Un civico trovato dalla piattaforma ma diverso da quello digitato non è affidabile.
+  const escapedNumber = streetNumber.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  if (!new RegExp('(^|[^0-9A-Za-z])' + escapedNumber + '(?=$|[^0-9A-Za-z])', 'i').test(cleanQuery)) {
+    throw new Error('STREET_NUMBER_MISMATCH');
+  }
+
+  const provinceCode = Object.entries(PROVINCE_BY_CODE)
+    .find(([, name]) => name.toLowerCase() === province.toLowerCase())?.[0] || '';
+  const formattedAddress = `${street} ${streetNumber}, ${city} (${province})`;
+
+  return {
+    placeId: `device_${first.latitude.toFixed(6)}_${first.longitude.toFixed(6)}`,
+    formattedAddress,
+    shortFormattedAddress: formattedAddress,
+    street,
+    streetNumber,
+    city,
+    province,
+    provinceCode,
+    latitude: first.latitude,
+    longitude: first.longitude,
   };
 }

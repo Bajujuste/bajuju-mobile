@@ -2,7 +2,7 @@ import { DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import { router, Stack, usePathname, useRootNavigationState } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { Platform, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -121,6 +121,22 @@ export default function RootLayout() {
     };
   }, [pathname]);
 
+  // La navigazione da notifica parte solo quando il navigatore radice è montato. Il valore sta in un ref
+  // perché il listener delle notifiche viene registrato una volta sola e deve leggere lo stato aggiornato.
+  const rootNavigationReadyRef = useRef(false);
+
+  const flushPendingPushNotification = useCallback(() => {
+    if (!rootNavigationReadyRef.current) return;
+
+    const pendingData = pendingPushNotificationRef.current;
+    if (!pendingData) return;
+
+    pendingPushNotificationRef.current = null;
+    setTimeout(() => {
+      openPushNotification(pendingData);
+    }, 0);
+  }, []);
+
   useEffect(() => {
     if (Platform.OS === 'web') return;
 
@@ -141,16 +157,17 @@ export default function RootLayout() {
 
           if (responseId) handledPushResponseIdsRef.current.add(responseId);
 
-          if (rootNavigationReady) {
-            setTimeout(() => {
-              openPushNotification(data as Record<string, unknown>);
-            }, 0);
-          } else {
-            pendingPushNotificationRef.current = data as Record<string, unknown>;
-          }
+          // Sempre in coda: se il navigatore è già pronto si apre subito, altrimenti ci pensa
+          // l'effetto su rootNavigationReady appena diventa true.
+          pendingPushNotificationRef.current = data as Record<string, unknown>;
+          flushPendingPushNotification();
 
           void Notifications.clearLastNotificationResponseAsync().catch(() => {});
         };
+
+        // Il listener va registrato prima del recupero della risposta di avvio, così un tap che arriva
+        // durante i tentativi non va perso (i duplicati sono scartati tramite l'identifier).
+        subscription = Notifications.addNotificationResponseReceivedListener(handleResponse);
 
         // Subito dopo un avvio a freddo dell'app tramite tap su una notifica, su alcuni
         // dispositivi Android il modulo nativo non ha ancora reso disponibile la risposta
@@ -164,9 +181,7 @@ export default function RootLayout() {
           if (!active) break;
           lastResponse = await Notifications.getLastNotificationResponseAsync();
         }
-        if (lastResponse) handleResponse(lastResponse);
-
-        subscription = Notifications.addNotificationResponseReceivedListener(handleResponse);
+        if (active && lastResponse) handleResponse(lastResponse);
       } catch {
         console.log('Gestione apertura notifiche non disponibile.');
       }
@@ -176,22 +191,15 @@ export default function RootLayout() {
       active = false;
       subscription?.remove();
     };
-  }, [rootNavigationReady]);
+    // Registrato una sola volta: prima dipendeva da rootNavigationReady e, al cambio, la risposta di
+    // avvio a freddo poteva finire in coda dopo che la coda era già stata svuotata, lasciando la home.
+  }, [flushPendingPushNotification]);
 
   useEffect(() => {
-    if (Platform.OS === 'web' || !rootNavigationReady) return;
-
-    const pendingData = pendingPushNotificationRef.current;
-    if (!pendingData) return;
-
-    pendingPushNotificationRef.current = null;
-
-    const timer = setTimeout(() => {
-      openPushNotification(pendingData);
-    }, 0);
-
-    return () => clearTimeout(timer);
-  }, [rootNavigationReady]);
+    rootNavigationReadyRef.current = rootNavigationReady;
+    if (Platform.OS === 'web') return;
+    flushPendingPushNotification();
+  }, [flushPendingPushNotification, rootNavigationReady]);
 
   useEffect(() => {
     if (fontsLoaded || fontError) {

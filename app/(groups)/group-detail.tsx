@@ -634,6 +634,25 @@ export default function GroupDetailScreen() {
             <View style={styles.heroIcon}><Text style={styles.heroIconText}>👥</Text></View>
           )}
 
+          {!coverUrl && (isOwner || isAdmin) ? (
+            <View style={styles.statusCard}>
+              <Text style={styles.statusTitle}>Copertina obbligatoria mancante</Text>
+              <Text style={styles.statusText}>
+                Questo gruppo è stato creato prima dell'obbligo di copertina.
+                {isOwner ? ' Carica un’immagine per completarlo.' : ' L’Admin può aggiungerla senza iscriversi.'}
+              </Text>
+              <Pressable
+                style={[styles.resubmitButton, coverBusy && styles.disabled]}
+                disabled={coverBusy}
+                onPress={() => { void handleChangeCover(); }}
+              >
+                <Text style={styles.resubmitButtonText}>
+                  {coverBusy ? 'Caricamento...' : 'Aggiungi copertina ora'}
+                </Text>
+              </Pressable>
+            </View>
+          ) : null}
+
           <Text style={styles.title}>{group.name}</Text>
           {place ? <Text style={styles.place}>{place}</Text> : null}
           {group.category ? <Text style={styles.category}>{group.category}</Text> : null}

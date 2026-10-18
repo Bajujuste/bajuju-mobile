@@ -145,16 +145,21 @@ export default function CreateGroupScreen() {
       try {
         await uploadBajujuGroupCover({ groupId, userId, localUri: coverUri });
       } catch (uploadError: unknown) {
-        // Non lasciare gruppi appena creati senza la copertina obbligatoria.
-        const cleanup = await supabase.rpc('cancel_incomplete_group_creation' as any, {
-          p_group_id: groupId,
-        });
+        // Mantieni il gruppo non pubblicato: l'approvazione è vietata senza copertina.
+        // Il proprietario può riprovare a caricarla direttamente nei dettagli.
         const details = uploadError instanceof Error ? uploadError.message : 'Caricamento non riuscito.';
-        throw new Error(
-          cleanup.error
-            ? `Copertina non caricata: ${details}. Il gruppo è ancora in approvazione: contatta Bajuju per rimuoverlo.`
-            : `Copertina non caricata: ${details}. La creazione è stata annullata. Riprova.`
+        Alert.alert(
+          'Copertina non caricata',
+          `Il gruppo non sarà pubblicato finché non aggiungi la copertina. ${details}`,
+          [{
+            text: 'Apri gruppo e riprova',
+            onPress: () => router.replace({
+              pathname: '/group-detail' as any,
+              params: { id: groupId },
+            }),
+          }]
         );
+        return;
       }
 
       Alert.alert(

@@ -15,7 +15,7 @@
         "applinks:bajuju.it",
         "applinks:bajuju.netlify.app"
       ],
-      "buildNumber": "8",
+      "buildNumber": "9",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -52,7 +52,7 @@
           ]
         }
       ],
-      "versionCode": 15
+      "versionCode": 16
     },
     "web": {
       "output": "static",

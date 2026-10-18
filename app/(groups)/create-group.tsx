@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
@@ -6,6 +7,7 @@ import React, { useEffect, useState } from 'react';
 import {
   Alert,
   Image,
+  Platform,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -18,11 +20,15 @@ import {
 import { createBajujuGroup, uploadBajujuGroupCover } from '../../src/lib/bajujuGroups';
 import { BAJUJU_GROUP_CATEGORIES } from '../../src/constants/groupCategories';
 import { resolveAddressText } from '../../src/lib/addressAutocomplete';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import { supabase } from '../../src/lib/supabase';
 import { BAJUJU_COLORS, BAJUJU_FONTS, BAJUJU_SHADOW } from '../../src/theme/bajujuTheme';
 
 export default function CreateGroupScreen() {
   const { pickPhoto, photoPickerModal } = useBajujuPhotoPicker();
+  const safeAreaInsets = useSafeAreaInsets();
+  const androidBottomInset = Platform.OS === 'android' ? safeAreaInsets.bottom : 0;
   const [userId, setUserId] = useState('');
   const [allowed, setAllowed] = useState(false);
   const [checking, setChecking] = useState(true);
@@ -194,34 +200,52 @@ export default function CreateGroupScreen() {
     <SafeAreaView style={styles.safeArea}>
       {photoPickerModal}
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <Pressable style={styles.backButton} onPress={() => router.back()}>
-          <Text style={styles.backText}>← Gruppi</Text>
-        </Pressable>
-
-        <View style={styles.header}>
-          <Text style={styles.eyebrow}>COMMUNITY BAJUJU</Text>
-          <Text style={styles.title}>Crea gruppo</Text>
-          <Text style={styles.subtitle}>
-            Crea la tua community. Prima di diventare pubblica, Bajuju controllerà la richiesta.
-          </Text>
+        <View style={styles.topBar}>
+          <Pressable
+            style={styles.backButton}
+            onPress={() => router.back()}
+            accessibilityRole="button"
+            accessibilityLabel="Torna ai gruppi"
+          >
+            <Ionicons name="arrow-back" size={22} color={BAJUJU_COLORS.plum} />
+          </Pressable>
+          <Text style={styles.title}>Nuovo gruppo</Text>
         </View>
 
-        <View style={styles.card}>
-          <Text style={styles.label}>Immagine di copertina * (obbligatoria)</Text>
-          {coverUri ? (
-            <Image source={{ uri: coverUri }} style={styles.coverPreview} resizeMode="cover" />
-          ) : (
-            <View style={styles.coverPlaceholder}>
-              <Text style={styles.coverPlaceholderIcon}>👥</Text>
-              <Text style={styles.coverPlaceholderText}>Aggiungi una copertina al gruppo</Text>
-            </View>
-          )}
-          <Pressable style={styles.coverButton} onPress={() => { void handlePickCover(); }}>
-            <Text style={styles.coverButtonText}>{coverUri ? 'Cambia immagine' : 'Scegli immagine'}</Text>
-          </Pressable>
-          <Text style={styles.helper}>Devi caricare una copertina per creare il gruppo. Potrai cambiarla in seguito.</Text>
+        <View style={styles.infoBox}>
+          <Ionicons name="shield-checkmark-outline" size={20} color={BAJUJU_COLORS.pink} />
+          <Text style={styles.infoText}>Bajuju lo controlla prima di renderlo pubblico.</Text>
+        </View>
 
-          <Text style={styles.label}>Nome gruppo</Text>
+        <Pressable
+          style={[styles.coverBox, coverUri && styles.coverBoxFilled]}
+          onPress={() => { void handlePickCover(); }}
+          accessibilityRole="button"
+          accessibilityLabel={coverUri ? 'Cambia copertina' : 'Aggiungi la copertina'}
+        >
+          {coverUri ? (
+            <>
+              <Image source={{ uri: coverUri }} style={styles.coverPreview} resizeMode="cover" />
+              <View style={styles.coverChangePill}>
+                <Ionicons name="camera-outline" size={16} color="#fff" />
+                <Text style={styles.coverChangeText}>Cambia</Text>
+              </View>
+            </>
+          ) : (
+            <>
+              <View style={styles.coverIconCircle}>
+                <Ionicons name="image-outline" size={28} color={BAJUJU_COLORS.pink} />
+              </View>
+              <Text style={styles.coverTitle}>Aggiungi la copertina</Text>
+              <Text style={styles.coverHint}>Obbligatoria · potrai cambiarla dopo</Text>
+            </>
+          )}
+        </Pressable>
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Il gruppo</Text>
+
+          <Text style={styles.label}>Nome</Text>
           <TextInput
             value={name}
             onChangeText={setName}
@@ -230,9 +254,7 @@ export default function CreateGroupScreen() {
             style={styles.input}
             maxLength={60}
           />
-          <Text style={styles.helper}>
-            Il nome deve essere unico su Bajuju. Nomi uguali o troppo simili vengono bloccati.
-          </Text>
+          <Text style={styles.helper}>Unico su Bajuju: nomi uguali o simili vengono bloccati.</Text>
 
           <Text style={styles.label}>Descrizione</Text>
           <TextInput
@@ -245,22 +267,7 @@ export default function CreateGroupScreen() {
             maxLength={500}
           />
 
-          <Text style={styles.label}>Comune</Text>
-          <TextInput
-            value={city}
-            onChangeText={setCity}
-            placeholder="Es. Bergamo"
-            placeholderTextColor={BAJUJU_COLORS.muted}
-            style={styles.input}
-            maxLength={80}
-            autoCapitalize="words"
-          />
-          <Text style={styles.helper}>
-            Inserisci solo il Comune. Bajuju ricava automaticamente la posizione per mostrare il gruppo alle persone più vicine.
-          </Text>
-
           <Text style={styles.label}>Categoria</Text>
-          <Text style={styles.helper}>Scegli una categoria: serve per rendere i gruppi facili da trovare.</Text>
           <View style={styles.categoryGrid}>
             {BAJUJU_GROUP_CATEGORIES.map((item) => {
               const selected = category === item;
@@ -277,54 +284,42 @@ export default function CreateGroupScreen() {
               );
             })}
           </View>
+        </View>
 
-          <Text style={styles.label}>Iscrizione degli utenti</Text>
-          <Text style={styles.helper}>
-            Scegli se gli utenti possono entrare subito oppure devono essere approvati da te.
-          </Text>
-          <View style={styles.joinModeBox}>
-            <Pressable
-              style={[styles.joinModeButton, !requiresApproval && styles.joinModeButtonSelected]}
-              onPress={() => setRequiresApproval(false)}
-            >
-              <Text style={[styles.joinModeTitle, !requiresApproval && styles.joinModeTitleSelected]}>Iscrizione libera</Text>
-              <Text style={[styles.joinModeText, !requiresApproval && styles.joinModeTextSelected]}>
-                Chi si iscrive entra subito nel gruppo.
-              </Text>
-            </Pressable>
-            <Pressable
-              style={[styles.joinModeButton, requiresApproval && styles.joinModeButtonSelected]}
-              onPress={() => setRequiresApproval(true)}
-            >
-              <Text style={[styles.joinModeTitle, requiresApproval && styles.joinModeTitleSelected]}>Con approvazione</Text>
-              <Text style={[styles.joinModeText, requiresApproval && styles.joinModeTextSelected]}>
-                Decidi tu se accettare o rifiutare ogni richiesta.
-              </Text>
-            </Pressable>
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Dove e chi</Text>
+
+          <Text style={styles.label}>Comune</Text>
+          <View style={styles.inputWithIcon}>
+            <Ionicons name="location-outline" size={18} color={BAJUJU_COLORS.pink} />
+            <TextInput
+              value={city}
+              onChangeText={setCity}
+              placeholder="Es. Bergamo"
+              placeholderTextColor={BAJUJU_COLORS.muted}
+              style={styles.inputInner}
+              maxLength={80}
+              autoCapitalize="words"
+            />
           </View>
 
           <Text style={styles.label}>Età degli iscritti</Text>
-          <Text style={styles.helper}>
-            Puoi lasciare il gruppo aperto a tutte le età oppure limitarlo a una fascia precisa.
-          </Text>
-          <View style={styles.joinModeBox}>
+          <View style={styles.segment}>
             <Pressable
-              style={[styles.joinModeButton, !ageRestricted && styles.joinModeButtonSelected]}
+              style={[styles.segmentButton, !ageRestricted && styles.segmentButtonSelected]}
               onPress={() => setAgeRestricted(false)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: !ageRestricted }}
             >
-              <Text style={[styles.joinModeTitle, !ageRestricted && styles.joinModeTitleSelected]}>Tutte le età</Text>
-              <Text style={[styles.joinModeText, !ageRestricted && styles.joinModeTextSelected]}>
-                Possono iscriversi tutti gli utenti maggiorenni di Bajuju.
-              </Text>
+              <Text style={[styles.segmentText, !ageRestricted && styles.segmentTextSelected]}>Tutte le età</Text>
             </Pressable>
             <Pressable
-              style={[styles.joinModeButton, ageRestricted && styles.joinModeButtonSelected]}
+              style={[styles.segmentButton, ageRestricted && styles.segmentButtonSelected]}
               onPress={() => setAgeRestricted(true)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: ageRestricted }}
             >
-              <Text style={[styles.joinModeTitle, ageRestricted && styles.joinModeTitleSelected]}>Riservato per età</Text>
-              <Text style={[styles.joinModeText, ageRestricted && styles.joinModeTextSelected]}>
-                Decidi l’età minima e massima per le nuove iscrizioni.
-              </Text>
+              <Text style={[styles.segmentText, ageRestricted && styles.segmentTextSelected]}>Solo una fascia</Text>
             </Pressable>
           </View>
 
@@ -359,91 +354,153 @@ export default function CreateGroupScreen() {
             <Text style={styles.ageError}>Inserisci una fascia valida da 18 a 80 anni.</Text>
           ) : null}
 
-          {showMissingFields && missingFields.length > 0 ? (
-            <Text style={styles.ageError}>Da completare: {missingFields.join(' · ')}</Text>
-          ) : null}
-
-          <Pressable
-            style={[styles.mainButton, !canSave && styles.disabled]}
-            disabled={!canSave}
-            onPress={() => { void handleCreate(); }}
-          >
-            <Text style={styles.mainButtonText}>{saving ? 'Invio...' : 'Invia per approvazione'}</Text>
-          </Pressable>
+          <Text style={styles.label}>Iscrizione</Text>
+          <View style={[styles.segment, styles.segmentLast]}>
+            <Pressable
+              style={[styles.segmentButton, !requiresApproval && styles.segmentButtonSelected]}
+              onPress={() => setRequiresApproval(false)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: !requiresApproval }}
+            >
+              <Text style={[styles.segmentText, !requiresApproval && styles.segmentTextSelected]}>Libera</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.segmentButton, requiresApproval && styles.segmentButtonSelected]}
+              onPress={() => setRequiresApproval(true)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: requiresApproval }}
+            >
+              <Text style={[styles.segmentText, requiresApproval && styles.segmentTextSelected]}>Con approvazione</Text>
+            </Pressable>
+          </View>
+          <Text style={styles.helperLast}>
+            {requiresApproval
+              ? 'Decidi tu se accettare o rifiutare ogni richiesta.'
+              : 'Chi si iscrive entra subito nel gruppo.'}
+          </Text>
         </View>
+
+        {showMissingFields && missingFields.length > 0 ? (
+          <Text style={styles.missingText}>Da completare: {missingFields.join(' · ')}</Text>
+        ) : null}
       </ScrollView>
+
+      <View style={[styles.bottomBar, { paddingBottom: 12 + androidBottomInset }]}>
+        <Pressable
+          style={[styles.mainButton, !canSave && styles.disabled]}
+          disabled={!canSave}
+          onPress={() => { void handleCreate(); }}
+        >
+          <Text style={styles.mainButtonText}>{saving ? 'Invio...' : 'Invia per approvazione'}</Text>
+        </Pressable>
+      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: BAJUJU_COLORS.background },
-  container: { paddingHorizontal: 22, paddingTop: 18, paddingBottom: 80 },
+  container: { paddingHorizontal: 16, paddingTop: 18, paddingBottom: 32, gap: 16 },
+  topBar: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   backButton: {
-    alignSelf: 'flex-start',
-    minHeight: 44,
-    paddingHorizontal: 16,
+    width: 44,
+    height: 44,
     borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#fff',
     borderWidth: 1.5,
-    borderColor: BAJUJU_COLORS.palePink,
+    borderColor: BAJUJU_COLORS.line,
   },
-  backText: { color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.semiBold, fontSize: 14 },
-  header: {
-    marginTop: 15,
-    marginBottom: 18,
-    padding: 22,
-    borderRadius: 29,
+  title: { flex: 1, color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.bold, fontSize: 28 },
+  infoBox: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 16, backgroundColor: BAJUJU_COLORS.softPink },
+  infoText: { flex: 1, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.medium, fontSize: 14, lineHeight: 19 },
+  coverBox: {
+    width: '100%',
+    aspectRatio: 16 / 9,
+    borderRadius: 22,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderColor: '#EFA3C8',
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  coverBoxFilled: { borderWidth: 0 },
+  coverPreview: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
+  coverIconCircle: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', backgroundColor: BAJUJU_COLORS.softPink },
+  coverTitle: { marginTop: 8, color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.bold, fontSize: 17 },
+  coverHint: { marginTop: 2, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.medium, fontSize: 13 },
+  coverChangePill: {
+    position: 'absolute',
+    right: 10,
+    bottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: 'rgba(75, 12, 45, 0.82)',
+  },
+  coverChangeText: { color: '#fff', fontFamily: BAJUJU_FONTS.semiBold, fontSize: 13 },
+  card: { padding: 16, borderRadius: 22, borderWidth: 1, borderColor: BAJUJU_COLORS.line, backgroundColor: '#fff' },
+  cardTitle: { marginBottom: 10, color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.bold, fontSize: 19 },
+  label: { marginBottom: 6, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.semiBold, fontSize: 14 },
+  input: {
+    minHeight: 50,
+    marginBottom: 12,
+    paddingHorizontal: 14,
+    borderRadius: 14,
     borderWidth: 1.5,
     borderColor: BAJUJU_COLORS.line,
-    backgroundColor: '#FFFFFFE8',
-    ...BAJUJU_SHADOW,
-  },
-  eyebrow: { color: BAJUJU_COLORS.brightPink, fontFamily: BAJUJU_FONTS.bold, fontSize: 12, letterSpacing: 1.1 },
-  title: { marginTop: 2, color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.bold, fontSize: 34 },
-  subtitle: { marginTop: 6, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.medium, fontSize: 14, lineHeight: 20 },
-  card: { padding: 19, borderRadius: 27, borderWidth: 1.5, borderColor: BAJUJU_COLORS.palePink, backgroundColor: '#fff', ...BAJUJU_SHADOW },
-  label: { marginTop: 4, marginBottom: 7, color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.semiBold, fontSize: 13 },
-  input: {
-    minHeight: 54,
-    marginBottom: 12,
-    paddingHorizontal: 15,
-    borderRadius: 18,
-    borderWidth: 1.5,
-    borderColor: BAJUJU_COLORS.palePink,
     color: BAJUJU_COLORS.plum,
-    backgroundColor: BAJUJU_COLORS.white,
+    backgroundColor: BAJUJU_COLORS.background,
     fontFamily: BAJUJU_FONTS.medium,
-    fontSize: 15,
+    fontSize: 16,
   },
-  textArea: { minHeight: 118, paddingTop: 14, textAlignVertical: 'top' },
-  coverPreview: { width: '100%', aspectRatio: 16 / 9, borderRadius: 20, backgroundColor: BAJUJU_COLORS.palePink },
-  coverPlaceholder: { width: '100%', aspectRatio: 16 / 9, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: BAJUJU_COLORS.palePink },
-  coverPlaceholderIcon: { fontSize: 38 },
-  coverPlaceholderText: { marginTop: 8, color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.semiBold, fontSize: 13 },
-  coverButton: { minHeight: 48, marginTop: 10, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: BAJUJU_COLORS.palePink },
-  coverButtonText: { color: BAJUJU_COLORS.brightPink, fontFamily: BAJUJU_FONTS.bold, fontSize: 14 },
-  helper: { marginTop: -4, marginBottom: 13, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.regular, fontSize: 12, lineHeight: 17 },
-  categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 18 },
-  categoryChip: { minHeight: 40, paddingHorizontal: 13, paddingVertical: 9, borderRadius: 20, borderWidth: 1.5, borderColor: BAJUJU_COLORS.palePink, backgroundColor: '#fff', justifyContent: 'center' },
-  categoryChipSelected: { borderColor: BAJUJU_COLORS.brightPink, backgroundColor: BAJUJU_COLORS.brightPink },
-  categoryChipText: { color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.semiBold, fontSize: 12 },
-  categoryChipTextSelected: { color: '#fff' },
-  joinModeBox: { gap: 10, marginBottom: 18 },
-  joinModeButton: { padding: 14, borderRadius: 18, borderWidth: 1.5, borderColor: BAJUJU_COLORS.palePink, backgroundColor: '#fff' },
-  joinModeButtonSelected: { borderColor: BAJUJU_COLORS.brightPink, backgroundColor: BAJUJU_COLORS.palePink },
-  joinModeTitle: { color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.bold, fontSize: 14 },
-  joinModeTitleSelected: { color: BAJUJU_COLORS.brightPink },
-  joinModeText: { marginTop: 3, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.regular, fontSize: 12, lineHeight: 17 },
-  joinModeTextSelected: { color: BAJUJU_COLORS.plum },
-  ageInputsRow: { flexDirection: 'row', gap: 12, marginBottom: 8 },
+  inputWithIcon: {
+    minHeight: 50,
+    marginBottom: 14,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: BAJUJU_COLORS.line,
+    backgroundColor: BAJUJU_COLORS.background,
+  },
+  inputInner: { flex: 1, minHeight: 48, color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.medium, fontSize: 16 },
+  textArea: { minHeight: 92, paddingTop: 12, textAlignVertical: 'top' },
+  helper: { marginTop: -6, marginBottom: 12, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.regular, fontSize: 12, lineHeight: 17 },
+  helperLast: { marginTop: 8, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.regular, fontSize: 12, lineHeight: 17 },
+  categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  categoryChip: { minHeight: 36, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 18, borderWidth: 1.5, borderColor: BAJUJU_COLORS.line, backgroundColor: '#fff', justifyContent: 'center' },
+  categoryChipSelected: { borderColor: BAJUJU_COLORS.pink, backgroundColor: BAJUJU_COLORS.pink },
+  categoryChipText: { color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.medium, fontSize: 14 },
+  categoryChipTextSelected: { color: '#fff', fontFamily: BAJUJU_FONTS.semiBold },
+  segment: { flexDirection: 'row', gap: 4, padding: 4, marginBottom: 14, borderRadius: 999, backgroundColor: BAJUJU_COLORS.softPink },
+  segmentLast: { marginBottom: 0 },
+  segmentButton: { flex: 1, minHeight: 40, borderRadius: 999, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
+  segmentButtonSelected: { backgroundColor: '#fff', ...BAJUJU_SHADOW, shadowOpacity: 0.12, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
+  segmentText: { color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.medium, fontSize: 14 },
+  segmentTextSelected: { color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.semiBold },
+  ageInputsRow: { flexDirection: 'row', gap: 12 },
   ageInputBox: { flex: 1 },
-  ageInputLabel: { marginBottom: 6, color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.bold, fontSize: 13 },
+  ageInputLabel: { marginBottom: 6, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.semiBold, fontSize: 13 },
   ageError: { marginTop: -4, marginBottom: 14, color: '#b42318', fontFamily: BAJUJU_FONTS.semiBold, fontSize: 12 },
-  mainButton: { minHeight: 54, marginTop: 8, borderRadius: 27, alignItems: 'center', justifyContent: 'center', backgroundColor: BAJUJU_COLORS.brightPink },
-  mainButtonText: { color: '#fff', fontFamily: BAJUJU_FONTS.bold, fontSize: 16 },
+  missingText: { color: '#b42318', fontFamily: BAJUJU_FONTS.semiBold, fontSize: 13, lineHeight: 18 },
+  bottomBar: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: BAJUJU_COLORS.line,
+  },
+  mainButton: { minHeight: 54, borderRadius: 27, alignItems: 'center', justifyContent: 'center', backgroundColor: BAJUJU_COLORS.pink },
+  mainButtonText: { color: '#fff', fontFamily: BAJUJU_FONTS.bold, fontSize: 17 },
   disabled: { opacity: 0.45 },
   denied: { flex: 1, padding: 28, alignItems: 'center', justifyContent: 'center' },
   deniedTitle: { color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.bold, fontSize: 25, textAlign: 'center' },

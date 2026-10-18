@@ -10,15 +10,18 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native';
 
+import { BajujuIcon } from '@/components/icons/BajujuIcon';
 import { BajujuBottomNav } from '@/components/navigation/BajujuBottomNav';
 import { getExperienceCategoryIcon, normalizeExperienceCategory } from '@/constants/experienceCategories';
 import { supabase } from '../../src/lib/supabase';
 import { saveBajujuNotificationCoordinatesIfEnabled } from '../../src/utils/bajujuNotificationLocation';
 import { refreshBajujuPushRegistrationIfAuthorized } from '../../src/utils/bajujuNotifications';
 import { trackBajujuEvent } from '../../src/utils/bajujuAnalytics';
+import { experienceDateLabel } from '../../src/utils/experienceDateLabel';
 
 const bajujuLogo = require('../../assets/brand/bajuju-logo.png');
 const PAGE_SIZE = 20;
@@ -77,32 +80,34 @@ function activityMoment(row: ActivityRow) {
 }
 
 function formatDate(row: ActivityRow) {
-  const moment = activityMoment(row);
-  if (!moment) return 'Data da definire';
-  return moment.toLocaleString('it-IT', {
-    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
-  });
+  return experienceDateLabel(activityMoment(row), Boolean(row.activity_time));
+}
+
+function formatDistance(distance: number) {
+  return distance < 1 ? `${Math.round(distance * 1000)} m` : `${distance.toFixed(1).replace('.', ',')} km`;
 }
 
 function imageUrl(row: ActivityRow) {
   return String(row.photo_url || row.image_url || row.cover_url || '').trim();
 }
 
-function participantSummary(
+type ParticipantInfo = { label: string; ratio: number | null };
+
+function participantInfo(
   activityId: string,
   item: ActivityRow,
   participantCounts: Record<string, number>
-) {
+): ParticipantInfo {
   const current = Number(participantCounts[activityId] || 0);
   const max = Number(item.max_participants || 0);
-  const base = `Partecipanti ${current}/${max > 0 ? max : '∞'}`;
 
-  if (max <= 0) return base;
+  if (max <= 0) return { label: `${current} ${current === 1 ? 'partecipante' : 'partecipanti'}`, ratio: null };
 
   const remaining = Math.max(0, max - current);
-  if (remaining < 1 || remaining > 3) return base;
+  const ratio = Math.min(1, current / max);
+  if (remaining < 1 || remaining > 3) return { label: `${current} / ${max} partecipanti`, ratio };
 
-  return `${base} · ${remaining} ${remaining === 1 ? 'posto rimasto' : 'posti rimasti'}`;
+  return { label: `${current}/${max} · ${remaining} ${remaining === 1 ? 'posto rimasto' : 'posti rimasti'}`, ratio };
 }
 
 function toRadians(value: number) {
@@ -149,6 +154,8 @@ function rowCoordinates(row: ActivityRow): Coordinates | null {
 }
 
 export default function ExperiencesScreen() {
+  const { width: screenWidth } = useWindowDimensions();
+  const cardWidth = Math.min(320, Math.max(260, screenWidth - 76));
   const [mode, setMode] = useState<Mode>('nearby');
   const [activities, setActivities] = useState<ActivityRow[]>([]);
   const [myActivityIds, setMyActivityIds] = useState<Set<string>>(new Set());
@@ -374,7 +381,13 @@ export default function ExperiencesScreen() {
     const full = max > 0 && Number(participantCounts[activityId] || 0) >= max;
     const canWait = full && item.join_approval_required !== true && !organizedByMe && !myActivityIds.has(activityId) && mode !== 'past';
 
-    if (!canWait) return <Text style={styles.openText}>Apri →</Text>;
+    if (!canWait) {
+      return (
+        <View style={styles.openButton}>
+          <BajujuIcon name="arrow" size={20} color="#E43F98" />
+        </View>
+      );
+    }
 
     return (
       <Pressable
@@ -392,38 +405,32 @@ export default function ExperiencesScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        <Pressable style={styles.backButton} onPress={() => router.replace('/home')}>
-          <Text style={styles.backText}>← Home</Text>
-        </Pressable>
-
-        <Pressable accessibilityRole="button" accessibilityLabel="Trova eventi sulla mappa" style={styles.mapButton} onPress={() => router.push('/experiences-map')}>
-          <View style={styles.mapIconBox}><Text style={styles.mapIcon}>🗺️</Text></View>
-          <Text style={styles.mapTitle}>Trova eventi sulla mappa</Text>
-          <View style={styles.mapArrowBox}><Text style={styles.mapArrow}>→</Text></View>
-        </Pressable>
-
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabsRow}>
-          <TabButton active={mode === 'nearby'} label="Vicino a te" onPress={() => selectMode('nearby')} />
-          <TabButton active={mode === 'joined'} label="A cui partecipi" onPress={() => selectMode('joined')} />
-          <TabButton active={mode === 'organized'} label="I tuoi eventi" onPress={() => selectMode('organized')} />
-          <TabButton active={mode === 'past'} label="Eventi passati" onPress={() => selectMode('past')} />
-        </ScrollView>
-
-        <View style={styles.sectionHeader}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.sectionTitle}>
-              {mode === 'nearby' ? 'Entro 25 km da te' : mode === 'joined' ? 'A cui partecipi' : mode === 'organized' ? 'I tuoi eventi' : 'I tuoi eventi passati'}
-            </Text>
-            <Text style={styles.sectionSubtitle}>
-              {mode === 'nearby'
-                ? coordinates ? 'Dal più vicino al più lontano.' : 'Attiva la posizione per vedere gli eventi entro 25 km.'
-                : mode === 'joined' ? 'Qui trovi le esperienze a cui partecipi.'
-                : mode === 'organized' ? 'Qui trovi le esperienze che organizzi tu.'
-                : 'Foto, chat e dettagli restano disponibili per 30 giorni.'}
-            </Text>
-          </View>
-          <View style={styles.counterPill}><Text style={styles.counterText}>{selectedActivities.length}</Text></View>
+        <View style={styles.screenHeader}>
+          <Text style={styles.screenTitle}>Esperienze</Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Trova eventi sulla mappa"
+            style={({ pressed }) => [styles.mapButton, pressed && styles.pressed]}
+            onPress={() => router.push('/experiences-map')}
+          >
+            <BajujuIcon name="pin" size={20} color="#E43F98" />
+            <Text style={styles.mapLabel}>Mappa</Text>
+          </Pressable>
         </View>
+
+        <View style={styles.tabsRow}>
+          <TabButton active={mode === 'nearby'} label="Vicino" accessibilityLabel="Vicino a te" onPress={() => selectMode('nearby')} />
+          <TabButton active={mode === 'joined'} label="Partecipi" accessibilityLabel="A cui partecipi" onPress={() => selectMode('joined')} />
+          <TabButton active={mode === 'organized'} label="Organizzi" accessibilityLabel="I tuoi eventi" onPress={() => selectMode('organized')} />
+          <TabButton active={mode === 'past'} label="Passati" accessibilityLabel="Eventi passati" onPress={() => selectMode('past')} />
+        </View>
+
+        <SectionHeader
+          title={mode === 'nearby' ? `Entro ${NEARBY_RADIUS_KM} km` : mode === 'joined' ? 'A cui partecipi' : mode === 'organized' ? 'I tuoi eventi' : 'I tuoi eventi passati'}
+          count={selectedActivities.length}
+          detail={mode === 'nearby' && coordinates ? 'dal più vicino' : ''}
+          hint={mode === 'nearby' && !coordinates ? `Attiva la posizione per vedere gli eventi entro ${NEARBY_RADIUS_KM} km.` : ''}
+        />
 
         {mode === 'past' ? (
           <View style={styles.retentionNote}>
@@ -460,40 +467,20 @@ export default function ExperiencesScreen() {
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.cardsRow}>
               {visibleActivities.map((item) => {
                 const activityId = String(item.id || '');
-                const poster = imageUrl(item);
                 const organizedByMe = Boolean(currentUserId && String(item.creator_id || '') === currentUserId);
-                const distance = 'distanceKm' in item && typeof item.distanceKm === 'number' ? item.distanceKm : null;
 
                 return (
-                  <Pressable key={activityId} style={styles.experienceCard} onPress={() => router.push({ pathname: '/experience-detail' as any, params: { id: activityId } })}>
-                    <Pressable style={styles.imageBox} onPress={(event) => { event.stopPropagation(); if (poster) setSelectedPosterUrl(poster); }}>
-                      <Image source={poster ? { uri: poster } : bajujuLogo} style={styles.image} resizeMode="cover" />
-                    </Pressable>
-                    <View style={styles.cardBody}>
-                      <View style={styles.badgesRow}>
-                        <Text style={styles.categoryBadge}>{getExperienceCategoryIcon(item.category)} {normalizeExperienceCategory(item.category)}</Text>
-                        <Text style={[
-                          styles.participationBadge,
-                          item.join_approval_required === true && styles.participationRequestBadge,
-                        ]}>
-                          {item.join_approval_required === true ? 'Su richiesta' : 'Partecipazione libera'}
-                        </Text>
-                        {item.min_age !== null && item.min_age !== undefined &&
-                         item.max_age !== null && item.max_age !== undefined ? (
-                          <Text style={styles.ageBadge}>{item.min_age}–{item.max_age} anni</Text>
-                        ) : null}
-                        {organizedByMe ? <Text style={styles.organizerBadge}>Organizzi tu</Text> : null}
-                      </View>
-                      <Text style={styles.cardTitle} numberOfLines={2}>{item.title || 'Esperienza Bajuju'}</Text>
-                      <Text style={styles.cardMeta}>{item.city || item.province || 'Luogo da definire'}</Text>
-                      <Text style={styles.cardMeta}>{formatDate(item)}</Text>
-                      {distance !== null ? <Text style={styles.distanceText}>{distance < 1 ? `${Math.round(distance * 1000)} m` : `${distance.toFixed(1)} km`} da te</Text> : null}
-                      <View style={styles.cardFooter}>
-                        <Text style={styles.participantsText}>{participantSummary(activityId, item, participantCounts)}</Text>
-                        {waitlistButton(activityId, item, organizedByMe)}
-                      </View>
-                    </View>
-                  </Pressable>
+                  <ExperienceCard
+                    key={activityId}
+                    item={item}
+                    width={cardWidth}
+                    distance={'distanceKm' in item && typeof item.distanceKm === 'number' ? item.distanceKm : null}
+                    organizedByMe={organizedByMe}
+                    participants={participantInfo(activityId, item, participantCounts)}
+                    action={waitlistButton(activityId, item, organizedByMe)}
+                    onOpen={() => router.push({ pathname: '/experience-detail' as any, params: { id: activityId } })}
+                    onOpenPoster={setSelectedPosterUrl}
+                  />
                 );
               })}
             </ScrollView>
@@ -507,13 +494,12 @@ export default function ExperiencesScreen() {
 
         {mode === 'nearby' && !loading && !errorMessage ? (
           <View style={{ marginTop: 26 }}>
-            <View style={styles.sectionHeader}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.sectionTitle}>Tutti gli eventi</Text>
-                <Text style={styles.sectionSubtitle}>{coordinates ? 'Continua oltre i 25 km, dal più vicino al più lontano.' : 'Tutti gli eventi disponibili. Attiva la posizione per ordinarli per distanza.'}</Text>
-              </View>
-              <View style={styles.counterPill}><Text style={styles.counterText}>{allEventsActivities.length}</Text></View>
-            </View>
+            <SectionHeader
+              title="Tutti gli eventi"
+              count={allEventsActivities.length}
+              detail={coordinates ? `oltre i ${NEARBY_RADIUS_KM} km` : ''}
+              hint={coordinates ? '' : 'Attiva la posizione per ordinarli per distanza.'}
+            />
 
             {visibleAllEvents.length === 0 ? (
               <View style={styles.emptyCard}>
@@ -525,40 +511,20 @@ export default function ExperiencesScreen() {
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.cardsRow}>
                   {visibleAllEvents.map((item) => {
                     const activityId = String(item.id || '');
-                    const poster = imageUrl(item);
                     const organizedByMe = Boolean(currentUserId && String(item.creator_id || '') === currentUserId);
-                    const distance = typeof item.distanceKm === 'number' ? item.distanceKm : null;
 
                     return (
-                      <Pressable key={activityId} style={styles.experienceCard} onPress={() => router.push({ pathname: '/experience-detail' as any, params: { id: activityId } })}>
-                        <Pressable style={styles.imageBox} onPress={(event) => { event.stopPropagation(); if (poster) setSelectedPosterUrl(poster); }}>
-                          <Image source={poster ? { uri: poster } : bajujuLogo} style={styles.image} resizeMode="cover" />
-                        </Pressable>
-                        <View style={styles.cardBody}>
-                          <View style={styles.badgesRow}>
-                            <Text style={styles.categoryBadge}>{getExperienceCategoryIcon(item.category)} {normalizeExperienceCategory(item.category)}</Text>
-                        <Text style={[
-                          styles.participationBadge,
-                          item.join_approval_required === true && styles.participationRequestBadge,
-                        ]}>
-                          {item.join_approval_required === true ? 'Su richiesta' : 'Partecipazione libera'}
-                        </Text>
-                        {item.min_age !== null && item.min_age !== undefined &&
-                         item.max_age !== null && item.max_age !== undefined ? (
-                          <Text style={styles.ageBadge}>{item.min_age}–{item.max_age} anni</Text>
-                        ) : null}
-                            {organizedByMe ? <Text style={styles.organizerBadge}>Organizzi tu</Text> : null}
-                          </View>
-                          <Text style={styles.cardTitle} numberOfLines={2}>{item.title || 'Esperienza Bajuju'}</Text>
-                          <Text style={styles.cardMeta}>{item.city || item.province || 'Luogo da definire'}</Text>
-                          <Text style={styles.cardMeta}>{formatDate(item)}</Text>
-                          {distance !== null ? <Text style={styles.distanceText}>{distance < 1 ? Math.round(distance * 1000) + ' m' : distance.toFixed(1) + ' km'} da te</Text> : null}
-                          <View style={styles.cardFooter}>
-                            <Text style={styles.participantsText}>{participantSummary(activityId, item, participantCounts)}</Text>
-                            {waitlistButton(activityId, item, organizedByMe)}
-                          </View>
-                        </View>
-                      </Pressable>
+                      <ExperienceCard
+                        key={activityId}
+                        item={item}
+                        width={cardWidth}
+                        distance={typeof item.distanceKm === 'number' ? item.distanceKm : null}
+                        organizedByMe={organizedByMe}
+                        participants={participantInfo(activityId, item, participantCounts)}
+                        action={waitlistButton(activityId, item, organizedByMe)}
+                        onOpen={() => router.push({ pathname: '/experience-detail' as any, params: { id: activityId } })}
+                        onOpenPoster={setSelectedPosterUrl}
+                      />
                     );
                   })}
                 </ScrollView>
@@ -584,67 +550,152 @@ export default function ExperiencesScreen() {
   );
 }
 
-function TabButton({ active, label, onPress }: { active: boolean; label: string; onPress: () => void }) {
+function TabButton({ active, label, accessibilityLabel, onPress }: { active: boolean; label: string; accessibilityLabel: string; onPress: () => void }) {
   return (
-    <Pressable style={[styles.tabButton, active && styles.tabButtonActive]} onPress={onPress}>
-      <Text style={[styles.tabText, active && styles.tabTextActive]}>{label}</Text>
+    <Pressable
+      accessibilityRole="tab"
+      accessibilityLabel={accessibilityLabel}
+      accessibilityState={{ selected: active }}
+      style={[styles.tabButton, active && styles.tabButtonActive]}
+      onPress={onPress}
+    >
+      <Text numberOfLines={1} style={[styles.tabText, active && styles.tabTextActive]}>{label}</Text>
     </Pressable>
   );
 }
 
+function SectionHeader({ title, count, detail, hint }: { title: string; count: number; detail: string; hint: string }) {
+  return (
+    <View style={styles.sectionHeader}>
+      <View style={styles.sectionTitleRow}>
+        <Text style={styles.sectionTitle}>{title}</Text>
+        <Text style={styles.sectionCount}>
+          {count} {count === 1 ? 'evento' : 'eventi'}{detail ? ` · ${detail}` : ''}
+        </Text>
+      </View>
+      {hint ? <Text style={styles.sectionSubtitle}>{hint}</Text> : null}
+    </View>
+  );
+}
+
+type ExperienceCardProps = {
+  item: ActivityRow;
+  width: number;
+  distance: number | null;
+  organizedByMe: boolean;
+  participants: ParticipantInfo;
+  action: React.ReactNode;
+  onOpen: () => void;
+  onOpenPoster: (url: string) => void;
+};
+
+function ExperienceCard({ item, width, distance, organizedByMe, participants, action, onOpen, onOpenPoster }: ExperienceCardProps) {
+  const poster = imageUrl(item);
+  const title = item.title || 'Esperienza Bajuju';
+  const hasAgeRange = item.min_age !== null && item.min_age !== undefined && item.max_age !== null && item.max_age !== undefined;
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`Apri esperienza ${title}`}
+      style={({ pressed }) => [styles.experienceCard, { width }, pressed && styles.pressed]}
+      onPress={onOpen}
+    >
+      <Pressable style={styles.imageBox} onPress={(event) => { event.stopPropagation(); if (poster) onOpenPoster(poster); }}>
+        <Image source={poster ? { uri: poster } : bajujuLogo} style={styles.image} resizeMode="cover" />
+        <Text style={[styles.imageChip, styles.categoryChip]} numberOfLines={1}>
+          {getExperienceCategoryIcon(item.category)} {normalizeExperienceCategory(item.category)}
+        </Text>
+        {distance !== null ? <Text style={[styles.imageChip, styles.distanceChip]}>{formatDistance(distance)}</Text> : null}
+        {organizedByMe ? <Text style={[styles.imageChip, styles.organizerChip]}>Organizzi tu</Text> : null}
+      </Pressable>
+      <View style={styles.cardBody}>
+        <Text style={styles.cardTitle} numberOfLines={2}>{title}</Text>
+        <View style={styles.metaRow}>
+          <BajujuIcon name="calendar" size={16} color="#C2287A" />
+          <Text style={styles.cardMeta} numberOfLines={1}>{formatDate(item)}</Text>
+        </View>
+        <View style={styles.metaRow}>
+          <BajujuIcon name="pin" size={16} color="#C2287A" />
+          <Text style={styles.cardMeta} numberOfLines={1}>{item.city || item.province || 'Luogo da definire'}</Text>
+        </View>
+        <Text style={styles.tagsLine} numberOfLines={1}>
+          <Text style={item.join_approval_required === true ? styles.tagRequest : styles.tagFree}>
+            {item.join_approval_required === true ? 'Su richiesta' : 'Partecipazione libera'}
+          </Text>
+          {hasAgeRange ? <Text style={styles.tagAge}>{'  ·  '}{item.min_age}–{item.max_age} anni</Text> : null}
+        </Text>
+        <View style={styles.cardFooter}>
+          <View style={styles.participantsBox}>
+            <Text style={styles.participantsText} numberOfLines={1}>{participants.label}</Text>
+            {participants.ratio !== null ? (
+              <View style={styles.progressTrack}>
+                <View style={[styles.progressFill, { width: `${Math.round(participants.ratio * 100)}%` }]} />
+              </View>
+            ) : null}
+          </View>
+          {action}
+        </View>
+      </View>
+    </Pressable>
+  );
+}
+
+const PLUM = '#4B0C2D';
+const PINK = '#E43F98';
+const LINE = '#F3C6DC';
+
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#FFF9FC' },
-  container: { padding: 18, paddingBottom: 140 },
-  backButton: { alignSelf: 'flex-start', backgroundColor: '#fff0f7', borderRadius: 999, borderWidth: 1, borderColor: '#ffd1e6', paddingHorizontal: 14, paddingVertical: 9, marginBottom: 12 },
-  backText: { color: '#e43f98', fontWeight: '900' },
-  headerCard: { borderRadius: 28, padding: 20, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#ffd1e6' },
-  title: { color: '#e43f98', fontSize: 29, fontWeight: '900' },
-  subtitle: { marginTop: 6, color: '#6b3652', fontSize: 14, lineHeight: 20, fontWeight: '700' },
-  mapButton: { marginTop: 12, minHeight: 90, padding: 14, borderRadius: 24, backgroundColor: '#FFE8F3', borderWidth: 1.5, borderColor: '#F4A7CA', flexDirection: 'row', alignItems: 'center', gap: 12, shadowColor: '#A2165A', shadowOpacity: 0.15, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 5 },
-  mapIconBox: { width: 56, height: 56, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF' },
-  mapIcon: { fontSize: 29 },
-  mapTitle: { flex: 1, color: '#4b1430', fontWeight: '900', fontSize: 18, lineHeight: 22 },
-  mapSubtitle: { marginTop: 2, color: '#a95d86', fontWeight: '700', fontSize: 12 },
-  mapArrowBox: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: '#E43F98' },
-  mapArrow: { color: '#FFFFFF', fontSize: 22, fontWeight: '900', lineHeight: 27 },
-  tabsRow: { gap: 8, paddingVertical: 16, paddingRight: 18 },
-  tabButton: { paddingHorizontal: 16, paddingVertical: 11, borderRadius: 999, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#f3c6dc' },
-  tabButtonActive: { backgroundColor: '#e43f98', borderColor: '#e43f98' },
-  tabText: { color: '#6b3652', fontWeight: '900' },
-  tabTextActive: { color: '#ffffff' },
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
-  sectionTitle: { color: '#4b1430', fontSize: 20, fontWeight: '900' },
-  sectionSubtitle: { color: '#8f5573', fontSize: 13, lineHeight: 18, fontWeight: '700', marginTop: 3 },
-  counterPill: { minWidth: 38, height: 38, borderRadius: 19, backgroundColor: '#fff0f7', alignItems: 'center', justifyContent: 'center' },
-  counterText: { color: '#e43f98', fontWeight: '900' },
+  container: { padding: 16, paddingTop: 20, paddingBottom: 140 },
+  pressed: { opacity: 0.85 },
+  screenHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  screenTitle: { color: PLUM, fontFamily: 'FredokaBold', fontSize: 28, letterSpacing: -0.5 },
+  mapButton: { height: 44, paddingLeft: 12, paddingRight: 16, borderRadius: 999, borderWidth: 1.5, borderColor: LINE, backgroundColor: '#FFFFFF', flexDirection: 'row', alignItems: 'center', gap: 6 },
+  mapLabel: { color: '#C2287A', fontFamily: 'FredokaSemiBold', fontSize: 15 },
+  tabsRow: { marginTop: 16, marginBottom: 20, flexDirection: 'row', gap: 4, padding: 4, borderRadius: 999, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: LINE },
+  tabButton: { flex: 1, height: 40, borderRadius: 999, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 2 },
+  tabButtonActive: { backgroundColor: PINK },
+  tabText: { color: '#7A3C5E', fontFamily: 'FredokaMedium', fontSize: 14 },
+  tabTextActive: { color: '#FFFFFF', fontFamily: 'FredokaSemiBold' },
+  sectionHeader: { marginBottom: 12 },
+  sectionTitleRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', columnGap: 8 },
+  sectionTitle: { color: PLUM, fontFamily: 'FredokaBold', fontSize: 21 },
+  sectionCount: { color: '#8D5E77', fontFamily: 'FredokaMedium', fontSize: 14 },
+  sectionSubtitle: { color: '#8F5573', fontFamily: 'FredokaMedium', fontSize: 13, lineHeight: 18, marginTop: 3 },
   retentionNote: { marginBottom: 14, padding: 12, borderRadius: 16, backgroundColor: '#fff3f8', borderWidth: 1, borderColor: '#ffd1e6' },
-  retentionText: { color: '#7a3c5e', fontSize: 12, lineHeight: 17, fontWeight: '700' },
-  cardsRow: { gap: 14, paddingRight: 18, paddingBottom: 8 },
-  experienceCard: { width: 286, borderRadius: 24, overflow: 'hidden', backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#f3c6dc' },
-  imageBox: { height: 166, backgroundColor: '#fff0f7' },
+  retentionText: { color: '#7a3c5e', fontFamily: 'FredokaMedium', fontSize: 12, lineHeight: 17 },
+  cardsRow: { gap: 12, paddingRight: 16, paddingBottom: 8 },
+  experienceCard: { borderRadius: 22, overflow: 'hidden', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: LINE },
+  imageBox: { height: 160, backgroundColor: '#FFF0F7' },
   image: { width: '100%', height: '100%' },
-  cardBody: { padding: 15 },
-  badgesRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 },
-  categoryBadge: { color: '#9b1f61', fontWeight: '900', fontSize: 12, backgroundColor: '#fff0f7', paddingHorizontal: 9, paddingVertical: 5, borderRadius: 999 },
-  participationBadge: { color: '#22633c', fontWeight: '900', fontSize: 11, backgroundColor: '#eaf8ef', paddingHorizontal: 9, paddingVertical: 5, borderRadius: 999 },
-  participationRequestBadge: { color: '#8a5b00', backgroundColor: '#fff4d6' },
-  ageBadge: { color: '#6b3b8f', fontWeight: '900', fontSize: 11, backgroundColor: '#f5ecff', paddingHorizontal: 9, paddingVertical: 5, borderRadius: 999 },
-  organizerBadge: { color: '#7a5a00', fontWeight: '900', fontSize: 11, backgroundColor: '#fff8d8', paddingHorizontal: 9, paddingVertical: 5, borderRadius: 999 },
-  cardTitle: { color: '#4b1430', fontSize: 18, lineHeight: 22, fontWeight: '900' },
-  cardMeta: { marginTop: 5, color: '#745068', fontSize: 12, fontWeight: '700' },
-  distanceText: { marginTop: 8, color: '#e43f98', fontWeight: '900', fontSize: 13 },
-  cardFooter: { marginTop: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  participantsText: { flex: 1, color: '#7b4965', fontWeight: '800', fontSize: 12 },
-  openText: { color: '#e43f98', fontWeight: '900' },
-  waitlistButton: { borderRadius: 999, backgroundColor: '#fff0f7', borderWidth: 1, borderColor: '#e43f98', paddingHorizontal: 10, paddingVertical: 6 },
-  waitlistButtonText: { color: '#e43f98', fontWeight: '900', fontSize: 11 },
-  moreButton: { marginTop: 14, alignSelf: 'center', paddingHorizontal: 20, paddingVertical: 12, borderRadius: 999, backgroundColor: '#e43f98' },
-  moreButtonText: { color: '#ffffff', fontWeight: '900' },
-  emptyCard: { minHeight: 170, borderRadius: 24, padding: 24, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#f3c6dc', alignItems: 'center', justifyContent: 'center' },
-  emptyTitle: { color: '#e43f98', fontWeight: '900', fontSize: 18, textAlign: 'center' },
-  emptyText: { marginTop: 8, color: '#6b3652', fontWeight: '700', lineHeight: 20, textAlign: 'center' },
-  retryButton: { marginTop: 14, paddingHorizontal: 18, paddingVertical: 10, borderRadius: 999, backgroundColor: '#e43f98' },
-  retryText: { color: '#ffffff', fontWeight: '900' },
+  imageChip: { position: 'absolute', overflow: 'hidden', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, fontFamily: 'FredokaSemiBold', fontSize: 13 },
+  categoryChip: { top: 10, left: 10, maxWidth: '60%', backgroundColor: '#FFFFFF', color: '#9B1F61' },
+  distanceChip: { top: 10, right: 10, backgroundColor: 'rgba(75, 12, 45, 0.82)', color: '#FFFFFF' },
+  organizerChip: { bottom: 10, left: 10, backgroundColor: PINK, color: '#FFFFFF', fontSize: 12 },
+  cardBody: { paddingHorizontal: 14, paddingTop: 12, paddingBottom: 14, gap: 6 },
+  cardTitle: { color: PLUM, fontFamily: 'FredokaBold', fontSize: 18, lineHeight: 22, marginBottom: 2 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  cardMeta: { flex: 1, color: '#6B3652', fontFamily: 'FredokaMedium', fontSize: 14 },
+  tagsLine: { fontFamily: 'FredokaMedium', fontSize: 13 },
+  tagFree: { color: '#22633C' },
+  tagRequest: { color: '#8A5B00' },
+  tagAge: { color: '#6B3B8F' },
+  cardFooter: { marginTop: 4, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  participantsBox: { flex: 1, gap: 5 },
+  participantsText: { color: '#7B4965', fontFamily: 'FredokaSemiBold', fontSize: 13 },
+  progressTrack: { height: 6, borderRadius: 999, backgroundColor: '#FFE3F0', overflow: 'hidden' },
+  progressFill: { height: 6, borderRadius: 999, backgroundColor: PINK },
+  openButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#FFF0F7', alignItems: 'center', justifyContent: 'center' },
+  waitlistButton: { borderRadius: 999, backgroundColor: '#fff0f7', borderWidth: 1, borderColor: PINK, paddingHorizontal: 10, paddingVertical: 8 },
+  waitlistButtonText: { color: PINK, fontFamily: 'FredokaSemiBold', fontSize: 12 },
+  moreButton: { marginTop: 14, alignSelf: 'center', paddingHorizontal: 20, paddingVertical: 12, borderRadius: 999, backgroundColor: PINK },
+  moreButtonText: { color: '#ffffff', fontFamily: 'FredokaSemiBold', fontSize: 15 },
+  emptyCard: { minHeight: 170, borderRadius: 22, padding: 24, backgroundColor: '#ffffff', borderWidth: 1, borderColor: LINE, alignItems: 'center', justifyContent: 'center' },
+  emptyTitle: { color: PINK, fontFamily: 'FredokaBold', fontSize: 18, textAlign: 'center' },
+  emptyText: { marginTop: 8, color: '#6b3652', fontFamily: 'FredokaMedium', fontSize: 14, lineHeight: 20, textAlign: 'center' },
+  retryButton: { marginTop: 14, paddingHorizontal: 18, paddingVertical: 10, borderRadius: 999, backgroundColor: PINK },
+  retryText: { color: '#ffffff', fontFamily: 'FredokaSemiBold', fontSize: 15 },
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.88)', alignItems: 'center', justifyContent: 'center', padding: 18 },
   modalImage: { width: '100%', height: '82%' },
 });

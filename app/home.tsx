@@ -9,6 +9,7 @@ import { loadBajujuGroups } from '../src/lib/bajujuGroups';
 import { supabase } from '../src/lib/supabase';
 import { trackBajujuEvent } from '../src/utils/bajujuAnalytics';
 import { refreshBajujuNotificationLocation } from '../src/utils/bajujuNotificationLocation';
+import { experienceDateLabel } from '../src/utils/experienceDateLabel';
 import { shareBajujuHome } from '../src/utils/shareBajuju';
 import {
   refreshBajujuPushRegistrationIfAuthorized,
@@ -49,18 +50,8 @@ function activityMoment(row: HomeActivityRow) {
 }
 
 function nextExperienceMeta(row: HomeActivityRow) {
-  const date = activityMoment(row);
-  const dateLabel = date
-    ? date.toLocaleString('it-IT', {
-        weekday: 'short',
-        day: '2-digit',
-        month: 'short',
-        hour: '2-digit',
-        minute: '2-digit',
-      })
-    : 'Data da definire';
-
-  return [row.city || row.province || '', dateLabel].filter(Boolean).join(' · ');
+  const dateLabel = experienceDateLabel(activityMoment(row), Boolean(row.activity_time));
+  return [dateLabel, row.city || row.province || ''].filter(Boolean).join(' · ');
 }
 
 export default function HomeScreen() {
@@ -238,7 +229,7 @@ export default function HomeScreen() {
           const distanceKm = 6371.0088 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
           if (distanceKm > 25) return [];
           return [{ id: String(row.id), title: String(row.title || 'Esperienza Bajuju'), category: String(row.category || ''),
-            city: String(row.city || 'Luogo da definire'), date: time.toLocaleString('it-IT', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }),
+            city: String(row.city || 'Luogo da definire'), date: experienceDateLabel(time, Boolean(row.activity_time)),
             photoUrl: String(row.photo_url || ''), distanceKm }];
         }).sort((a, b) => a.distanceKm - b.distanceKm).slice(0, 5);
         if (active) setNearbyExperiences(events);

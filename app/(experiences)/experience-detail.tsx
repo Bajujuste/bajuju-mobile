@@ -1,6 +1,7 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as ImagePicker from 'expo-image-picker';
+import { useBajujuPhotoPicker } from '../../src/components/useBajujuPhotoPicker';
 import {
   Alert,
   Image,
@@ -225,6 +226,7 @@ function canInviteOutAfterExperience(experience: ActivityRow | null) {
 }
 
 export default function ExperienceDetailScreen() {
+  const { pickPhoto, photoPickerModal } = useBajujuPhotoPicker();
   const pageScrollRef = useRef<any>(null);
   const chatAutoScrollDoneRef = useRef(false);
   const params = useLocalSearchParams<{ id?: string; section?: string }>();
@@ -1090,15 +1092,10 @@ export default function ExperienceDetailScreen() {
         return;
       }
 
-      const picked = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        allowsEditing: true,
-        quality: 0.78,
-      });
+      const picked = await pickPhoto({ quality: 0.78 });
+      if (!picked) return;
 
-      if (picked.canceled || !picked.assets?.[0]?.uri) return;
-
-      const asset = picked.assets[0];
+      const asset = picked;
       const response = await fetch(asset.uri);
       const arrayBuffer = await response.arrayBuffer();
 
@@ -1167,18 +1164,12 @@ export default function ExperienceDetailScreen() {
         return;
       }
 
-      const picked = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        allowsEditing: true,
-        aspect: [16, 9],
-        quality: 0.8,
-      });
-
-      if (picked.canceled || !picked.assets?.[0]?.uri) return;
+      const picked = await pickPhoto({ aspect: [16, 9], quality: 0.8 });
+      if (!picked) return;
 
       setUpdatingCoverPhoto(true);
 
-      const asset = picked.assets[0];
+      const asset = picked;
       const response = await fetch(asset.uri);
       const arrayBuffer = await response.arrayBuffer();
       const filePath = `${experienceId}/${currentUserId}-cover-${Date.now()}.jpg`;
@@ -1223,10 +1214,11 @@ export default function ExperienceDetailScreen() {
     } finally {
       setUpdatingCoverPhoto(false);
     }
-  }, [currentUserId, experienceId, isOrganizer, updatingCoverPhoto]);
+  }, [currentUserId, experienceId, isOrganizer, pickPhoto, updatingCoverPhoto]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      {photoPickerModal}
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}

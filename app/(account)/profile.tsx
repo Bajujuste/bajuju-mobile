@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -17,7 +18,9 @@ import {
     TextInput,
     View,
 } from 'react-native';
+import { ProfileAdminChatRow } from '../../src/components/admin/AdminPrivateChatEntry';
 import { supabase } from '../../src/lib/supabase';
+import { BAJUJU_COLORS, BAJUJU_FONTS } from '../../src/theme/bajujuTheme';
 import { refreshBajujuNotificationLocation } from '../../src/utils/bajujuNotificationLocation';
 import { getProfileCompletion, hasCompleteRequiredProfile } from '../../src/utils/profileCompletion';
 import {
@@ -72,6 +75,7 @@ const GENDER_OPTIONS = [
 ];
 
 const PROFILE_TABLE = 'profiles';
+const CHEVRON_COLOR = '#B98AA3';
 const MOBILE_PROFILE_PAST_ACTIVITY_VISIBILITY_MS = 30 * 24 * 60 * 60 * 1000;
 
 function firstText(row: LooseRow | null | undefined, keys: string[], fallback = '') {
@@ -1309,46 +1313,72 @@ export default function ProfileScreen() {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
       {photoPickerModal}
-      <Pressable
-        style={[styles.profileBackButton, !profileComplete && styles.profileBackButtonDisabled]}
-        onPress={() => {
-          if (profileComplete) router.push('/home');
-        }}
-        disabled={!profileComplete}
-      >
-        <Text style={styles.profileBackText}>
-          {profileComplete ? '← Home' : 'Completa prima il profilo'}
-        </Text>
-      </Pressable>
+      <View style={styles.topBar}>
+        <Pressable
+          style={[styles.topBackButton, !profileComplete && styles.profileBackButtonDisabled]}
+          onPress={() => {
+            if (profileComplete) router.push('/home');
+          }}
+          disabled={!profileComplete}
+          accessibilityRole="button"
+          accessibilityLabel="Torna alla home"
+        >
+          <Ionicons name="arrow-back" size={22} color={BAJUJU_COLORS.plum} />
+        </Pressable>
+        <Text style={styles.topTitle}>Profilo</Text>
+      </View>
+      {!profileComplete ? (
+        <Text style={styles.completeFirstText}>Completa prima il profilo per tornare alla home.</Text>
+      ) : null}
 
       <View style={styles.profileHeroCard}>
         <View style={styles.profileHeroTop}>
-          <View
-            style={[
-              styles.photoBox,
-              isAdminOrCreator
-                ? styles.photoBoxAdmin
-                : organizedActivities.length > 20
-                  ? styles.photoBoxGold
-                  : organizedActivities.length > 10
-                    ? styles.photoBoxStrong
-                    : organizedActivities.length > 5
-                      ? styles.photoBoxGreen
-                      : styles.photoBoxBase,
-            ]}
-          >
-            {shouldShowProfilePhoto ? (
-              <Image source={{ uri: photoUrl }} style={styles.photo} onError={() => setPhotoLoadError(true)} />
-            ) : (
-              <Image source={bajujuLogo} style={styles.photo} />
-            )}
+          <View>
+            <View
+              style={[
+                styles.photoBox,
+                isAdminOrCreator
+                  ? styles.photoBoxAdmin
+                  : organizedActivities.length > 20
+                    ? styles.photoBoxGold
+                    : organizedActivities.length > 10
+                      ? styles.photoBoxStrong
+                      : organizedActivities.length > 5
+                        ? styles.photoBoxGreen
+                        : styles.photoBoxBase,
+              ]}
+            >
+              {shouldShowProfilePhoto ? (
+                <Image source={{ uri: photoUrl }} style={styles.photo} onError={() => setPhotoLoadError(true)} />
+              ) : (
+                <Image source={bajujuLogo} style={styles.photo} />
+              )}
+            </View>
+            <Pressable
+              style={[styles.photoCameraButton, uploadingPhoto && styles.profileBackButtonDisabled]}
+              onPress={uploadProfilePhoto}
+              disabled={uploadingPhoto}
+              accessibilityRole="button"
+              accessibilityLabel={photoUrl ? 'Cambia foto profilo' : 'Carica foto profilo'}
+            >
+              {uploadingPhoto ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Ionicons name="camera-outline" size={17} color="#fff" />
+              )}
+            </Pressable>
           </View>
 
           <View style={styles.profileIdentityBox}>
             <Text style={styles.profileNameText} numberOfLines={2}>
               {name}
             </Text>
-            <Text style={styles.email} numberOfLines={2}>
+            {homeCity.trim() || ageRange ? (
+              <Text style={styles.profileMetaText} numberOfLines={1}>
+                {[homeCity.trim(), ageRange ? `${ageRange} anni` : ''].filter(Boolean).join(' · ')}
+              </Text>
+            ) : null}
+            <Text style={styles.email} numberOfLines={1}>
               {user?.email}
             </Text>
             {isAdminOrCreator ? (
@@ -1357,18 +1387,11 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        <Pressable style={styles.photoButton} onPress={uploadProfilePhoto} disabled={uploadingPhoto}>
-          <Text style={styles.photoButtonText}>
-            {uploadingPhoto ? 'Caricamento foto...' : photoUrl ? 'Cambia foto profilo' : 'Carica foto obbligatoria'}
-          </Text>
-        </Pressable>
-
-        {isAdminOrCreator ? (
-          <Pressable
-            style={styles.adminButton}
-            onPress={() => router.push('/admin')}
-          >
-            <Text style={styles.adminButtonText}>Apri area admin</Text>
+        {!photoUrl ? (
+          <Pressable style={styles.photoButton} onPress={uploadProfilePhoto} disabled={uploadingPhoto}>
+            <Text style={styles.photoButtonText}>
+              {uploadingPhoto ? 'Caricamento foto...' : 'Carica foto obbligatoria'}
+            </Text>
           </Pressable>
         ) : null}
 
@@ -1385,6 +1408,18 @@ export default function ProfileScreen() {
         ) : null}
       </View>
 
+      {isAdminOrCreator ? (
+        <Pressable
+          style={({ pressed }) => [styles.adminRow, pressed && styles.rowPressed]}
+          onPress={() => router.push('/admin')}
+          accessibilityRole="button"
+        >
+          <Ionicons name="shield-outline" size={22} color="#FFB8DA" />
+          <Text style={styles.adminRowText}>Area admin</Text>
+          <Ionicons name="chevron-forward" size={20} color="#FFB8DA" />
+        </Pressable>
+      ) : null}
+
       <View style={styles.card}>
         {preciseAgeRequired ? (
           <View style={styles.requiredAgeNotice}>
@@ -1395,212 +1430,472 @@ export default function ProfileScreen() {
           </View>
         ) : null}
 
-        <Text style={styles.sectionTitle}>Dati profilo</Text>
+        <Text style={styles.cardTitle}>I tuoi dati</Text>
 
-        <Text style={styles.label}>Nome utente</Text>
+        <Text style={styles.fieldLabel}>Nome utente</Text>
         <TextInput
           value={profileName}
           onChangeText={profileNameLocked ? undefined : setProfileName}
           editable={!profileNameLocked}
           placeholder={profileNameLocked ? 'Nome scelto in registrazione' : 'Scegli il tuo nome utente'}
+          placeholderTextColor={BAJUJU_COLORS.muted}
           maxLength={30}
-          style={[styles.input, profileNameLocked && styles.inputDisabled]}
+          style={[styles.fieldInput, profileNameLocked && styles.inputDisabled]}
           autoCapitalize="words"
         />
 
-        <Text style={styles.label}>Di dove sei</Text>
-        <TextInput
-          value={homeCity}
-          onChangeText={(value) => setHomeCity(value.slice(0, 25))}
-          placeholder="Es. Bergamo"
-          placeholderTextColor="#b26a91"
-          style={styles.input}
-          maxLength={25}
-          autoCapitalize="words"
-          autoCorrect={false}
-        />
-
-        <Text style={styles.label}>Età</Text>
-        <TextInput
-          value={ageRange}
-          onChangeText={(value) => setAgeRange(value.replace(/[^0-9]/g, '').slice(0, 2))}
-          placeholder="Scrivi la tua età"
-          style={styles.input}
-          keyboardType="numeric"
-        />
-
-        <Text style={styles.label}>Genere</Text>
-        <View style={styles.genderGrid}>
-          {GENDER_OPTIONS.map((option) => (
-            <Pressable
-              key={option.value}
-              style={[styles.genderOption, gender === option.value && styles.optionActive]}
-              onPress={() => setGender(option.value)}
-            >
-              <Text style={[styles.optionText, gender === option.value && styles.optionTextActive]}>{option.label}</Text>
-            </Pressable>
-          ))}
+        <View style={styles.fieldRow}>
+          <View style={styles.fieldRowWide}>
+            <Text style={styles.fieldLabel}>Di dove sei</Text>
+            <TextInput
+              value={homeCity}
+              onChangeText={(value) => setHomeCity(value.slice(0, 25))}
+              placeholder="Es. Bergamo"
+              placeholderTextColor={BAJUJU_COLORS.muted}
+              style={styles.fieldInput}
+              maxLength={25}
+              autoCapitalize="words"
+              autoCorrect={false}
+            />
+          </View>
+          <View style={styles.fieldRowNarrow}>
+            <Text style={styles.fieldLabel}>Età</Text>
+            <TextInput
+              value={ageRange}
+              onChangeText={(value) => setAgeRange(value.replace(/[^0-9]/g, '').slice(0, 2))}
+              placeholder="Età"
+              placeholderTextColor={BAJUJU_COLORS.muted}
+              style={styles.fieldInput}
+              keyboardType="numeric"
+            />
+          </View>
         </View>
 
-        <View style={[styles.toggleRow, notificationsEnabled && styles.toggleRowActive]}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.toggleTitle}>Ricevere notifiche</Text>
-            <Text style={styles.toggleSubtitle}>
-              {notificationsEnabled ? 'Attive' : 'Disattivate'}
-            </Text>
-          </View>
+        <Text style={styles.fieldLabel}>Genere</Text>
+        <View style={styles.segment}>
+          {GENDER_OPTIONS.map((option) => {
+            const selected = gender === option.value;
+            return (
+              <Pressable
+                key={option.value}
+                style={[styles.segmentButton, selected && styles.segmentButtonSelected]}
+                onPress={() => setGender(option.value)}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+              >
+                <Text style={[styles.segmentText, selected && styles.segmentTextSelected]}>{option.label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
 
+      <View style={styles.listCard}>
+        <Text style={styles.listCardTitle}>Notifiche</Text>
+        <View style={styles.switchRow}>
+          <View style={styles.switchTextBox}>
+            <Text style={styles.listRowText}>Ricevere notifiche</Text>
+          </View>
           <Switch
             value={notificationsEnabled}
             onValueChange={setNotificationsEnabled}
-            trackColor={{ false: '#d1d5db', true: '#f4a8ce' }}
-            thumbColor={notificationsEnabled ? BAJUJU_PINK : '#f4f4f5'}
+            trackColor={{ false: '#F3D3E3', true: BAJUJU_PINK }}
+            thumbColor="#ffffff"
           />
         </View>
 
         {Platform.OS !== 'web' ? (
-          <View style={[styles.toggleRow, notificationsEnabled && chatNotificationsEnabled && styles.toggleRowActive]}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.toggleTitle}>Notifiche chat</Text>
-              <Text style={styles.toggleSubtitle}>
-                {!notificationsEnabled
-                  ? 'Attiva prima le notifiche'
-                  : chatNotificationsEnabled
-                    ? 'Attive'
-                    : 'Disattivate'}
-              </Text>
+          <View style={styles.switchRow}>
+            <View style={styles.switchTextBox}>
+              <Text style={styles.listRowText}>Notifiche chat</Text>
+              {!notificationsEnabled ? (
+                <Text style={styles.listRowHint}>Attiva prima le notifiche</Text>
+              ) : null}
             </View>
-
             <Switch
               value={notificationsEnabled && chatNotificationsEnabled}
               onValueChange={setChatNotificationsEnabled}
               disabled={!notificationsEnabled}
-              trackColor={{ false: '#d1d5db', true: '#f4a8ce' }}
-              thumbColor={notificationsEnabled && chatNotificationsEnabled ? BAJUJU_PINK : '#f4f4f5'}
+              trackColor={{ false: '#F3D3E3', true: BAJUJU_PINK }}
+              thumbColor="#ffffff"
             />
           </View>
         ) : null}
 
+        <View style={[styles.switchRow, styles.listRowLast]}>
+          <View style={styles.switchTextBox}>
+            <Text style={styles.listRowText}>Contatti diretti</Text>
+          </View>
+          <Switch
+            value={directContactsEnabled}
+            onValueChange={setDirectContactsEnabled}
+            trackColor={{ false: '#F3D3E3', true: BAJUJU_PINK }}
+            thumbColor="#ffffff"
+          />
+        </View>
+      </View>
+
+      <Pressable style={[styles.saveButton, saving && styles.profileBackButtonDisabled]} onPress={saveProfile} disabled={saving}>
+        <Text style={styles.saveButtonText}>{saving ? 'Salvataggio...' : 'Salva modifiche'}</Text>
+      </Pressable>
+
+      <View
+        style={styles.listCard}
+        onLayout={(event) => {
+          setFlashInvitesOffsetY(event.nativeEvent.layout.y);
+          setDateInvitesOffsetY(event.nativeEvent.layout.y);
+        }}
+      >
+        <Text style={styles.listCardTitle}>Inviti e contatti</Text>
+
+        <View style={[styles.listRow, flashInvites.length === 0 && styles.listRowDivider]}>
+          <Ionicons name="flash-outline" size={22} color={BAJUJU_PINK} />
+          <Text style={styles.listRowText}>Inviti Flash ricevuti</Text>
+          {flashInvites.length > 0 ? (
+            <View style={styles.countBadge}>
+              <Text style={styles.countBadgeText}>{flashInvites.length}</Text>
+            </View>
+          ) : (
+            <Text style={styles.listRowHint}>Nessuno</Text>
+          )}
+        </View>
+
+        {flashInvites.length > 0 ? (
+          <View style={styles.flashInviteList}>
+            {flashInvites.map((item) => {
+              const status = item.status.toLowerCase();
+              const isClosed = ['accepted', 'rejected', 'declined', 'archived'].includes(status);
+
+              return (
+                <View key={`${item.table}-${item.id}`} style={styles.itemBox}>
+                  <Text style={styles.itemTitle}>{item.title}</Text>
+                  <Text style={styles.itemSubtitle}>{item.subtitle}</Text>
+                  <Text style={styles.flashInviteStatus}>
+                    Stato: {status === 'accepted' ? 'Accettato' : status === 'rejected' || status === 'declined' ? 'Rifiutato' : status === 'archived' ? 'Eliminato dall’elenco' : 'In attesa'}
+                  </Text>
+
+                  {isClosed ? (
+                    <View style={styles.rowButtons}>
+                      <Pressable style={styles.smallButtonGhost} onPress={() => removeItemFromList(item)}>
+                        <Text style={styles.smallButtonGhostText}>Elimina dall’elenco</Text>
+                      </Pressable>
+                    </View>
+                  ) : (
+                    <View style={styles.rowButtons}>
+                      <Pressable style={styles.smallButton} onPress={() => answerItem(item, 'accepted')}>
+                        <Text style={styles.smallButtonText}>Accetta</Text>
+                      </Pressable>
+                      <Pressable style={styles.smallButtonGhost} onPress={() => answerItem(item, 'rejected')}>
+                        <Text style={styles.smallButtonGhostText}>Rifiuta</Text>
+                      </Pressable>
+                    </View>
+                  )}
+                </View>
+              );
+            })}
+          </View>
+        ) : null}
+
         <Pressable
-          style={[styles.toggleRow, directContactsEnabled && styles.toggleRowActive]}
-          onPress={() => setDirectContactsEnabled((current) => !current)}
+          style={({ pressed }) => [styles.listRow, styles.listRowDivider, pressed && styles.rowPressed]}
+          onPress={() => router.push('/date-invites' as any)}
+          accessibilityRole="button"
         >
-          <View>
-            <Text style={styles.toggleTitle}>Contatti diretti</Text>
-            <Text style={styles.toggleSubtitle}>{directContactsEnabled ? 'Attivi' : 'Disattivati'}</Text>
-          </View>
-          <Text style={styles.toggleValue}>{directContactsEnabled ? 'ON' : 'OFF'}</Text>
+          <Ionicons name="mail-outline" size={22} color={BAJUJU_PINK} />
+          <Text style={styles.listRowText}>Inviti a uscire</Text>
+          {invites.length > 0 ? (
+            <View style={styles.countBadge}>
+              <Text style={styles.countBadgeText}>{invites.length}</Text>
+            </View>
+          ) : null}
+          <Ionicons name="chevron-forward" size={18} color={CHEVRON_COLOR} />
         </Pressable>
 
-        <Pressable style={styles.primaryButton} onPress={saveProfile} disabled={saving}>
-          <Text style={styles.primaryButtonText}>{saving ? 'Salvataggio...' : 'Salva modifiche'}</Text>
-        </Pressable>
-      </View>
-
-      <View style={[styles.card, styles.flashInviteCard]} onLayout={(event) => setFlashInvitesOffsetY(event.nativeEvent.layout.y)}>
-        <View style={styles.sectionHeaderRow}>
-          <View style={[styles.sectionIconBubble, styles.flashInviteIconBubble]}>
-            <Text style={styles.sectionIconText}>⚡</Text>
-          </View>
-          <View style={styles.sectionHeaderText}>
-            <Text style={styles.sectionTitle}>Inviti Flash ricevuti</Text>
-            <Text style={styles.sectionHint}>Qui trovi gli inviti ricevuti perché ti sei reso disponibile su Bajuju Flash.</Text>
-          </View>
-        </View>
-
-        {flashInvites.length === 0 ? (
-          <Text style={styles.emptyText}>Nessun invito Flash al momento.</Text>
-        ) : (
-          flashInvites.map((item) => {
-            const status = item.status.toLowerCase();
-            const isClosed = ['accepted', 'rejected', 'declined', 'archived'].includes(status);
-
-            return (
-              <View key={`${item.table}-${item.id}`} style={styles.itemBox}>
-                <Text style={styles.itemTitle}>{item.title}</Text>
-                <Text style={styles.itemSubtitle}>{item.subtitle}</Text>
-                <Text style={styles.flashInviteStatus}>
-                  Stato: {status === 'accepted' ? 'Accettato' : status === 'rejected' || status === 'declined' ? 'Rifiutato' : status === 'archived' ? 'Eliminato dall’elenco' : 'In attesa'}
-                </Text>
-
-                {isClosed ? (
-                  <View style={styles.rowButtons}>
-                    <Pressable style={styles.smallButtonGhost} onPress={() => removeItemFromList(item)}>
-                      <Text style={styles.smallButtonGhostText}>Elimina dall’elenco</Text>
-                    </Pressable>
-                  </View>
-                ) : (
-                  <View style={styles.rowButtons}>
-                    <Pressable style={styles.smallButton} onPress={() => answerItem(item, 'accepted')}>
-                      <Text style={styles.smallButtonText}>Accetta</Text>
-                    </Pressable>
-                    <Pressable style={styles.smallButtonGhost} onPress={() => answerItem(item, 'rejected')}>
-                      <Text style={styles.smallButtonGhostText}>Rifiuta</Text>
-                    </Pressable>
-                  </View>
-                )}
-              </View>
-            );
-          })
-        )}
-      </View>
-
-      <View style={[styles.card, styles.contactCard]}>
-        <View style={styles.sectionHeaderRow}>
-          <View style={[styles.sectionIconBubble, styles.contactIconBubble]}>
-            <Text style={styles.sectionIconText}>📞</Text>
-          </View>
-          <View style={styles.sectionHeaderText}>
-            <Text style={styles.sectionTitle}>Contatti diretti</Text>
-            <Text style={styles.sectionHint}>Telefono/WhatsApp e Telegram condivisi dopo un’esperienza.</Text>
-          </View>
-        </View>
-        <Text style={styles.emptyText}>{contactRequests.length} {contactRequests.length === 1 ? 'richiesta in attesa' : 'richieste in attesa'}</Text>
-        <Pressable style={styles.linkButton} onPress={() => router.push('/direct-contacts' as any)}>
-          <Text style={styles.linkButtonText}>Apri contatti diretti</Text>
+        <Pressable
+          style={({ pressed }) => [styles.listRow, pressed && styles.rowPressed]}
+          onPress={() => router.push('/direct-contacts' as any)}
+          accessibilityRole="button"
+        >
+          <Ionicons name="call-outline" size={22} color={BAJUJU_PINK} />
+          <Text style={styles.listRowText}>Contatti diretti</Text>
+          {contactRequests.length > 0 ? (
+            <View style={styles.countBadge}>
+              <Text style={styles.countBadgeText}>{contactRequests.length}</Text>
+            </View>
+          ) : null}
+          <Ionicons name="chevron-forward" size={18} color={CHEVRON_COLOR} />
         </Pressable>
       </View>
 
-      <View style={[styles.card, styles.dateInviteCard]} onLayout={(event) => setDateInvitesOffsetY(event.nativeEvent.layout.y)}>
-        <View style={styles.sectionHeaderRow}>
-          <View style={[styles.sectionIconBubble, styles.dateInviteIconBubble]}>
-            <Text style={styles.sectionIconText}>💗</Text>
-          </View>
-          <View style={styles.sectionHeaderText}>
-            <Text style={styles.sectionTitle}>Inviti a uscire</Text>
-            <Text style={styles.sectionHint}>Messaggio, accettazione/rifiuto e risposta sono gestiti in una schermata dedicata.</Text>
-          </View>
-        </View>
-        <Text style={styles.emptyText}>{invites.length} {invites.length === 1 ? 'invito in attesa' : 'inviti in attesa'}</Text>
-        <Pressable style={styles.linkButton} onPress={() => router.push('/date-invites' as any)}>
-          <Text style={styles.linkButtonText}>Apri inviti a uscire</Text>
+      <View style={styles.listCard}>
+        <Text style={styles.listCardTitle}>Account</Text>
+        <ProfileAdminChatRow
+          rowStyle={[styles.listRow, styles.listRowDivider]}
+          iconColor={BAJUJU_PINK}
+          labelStyle={styles.listRowText}
+          chevronColor={CHEVRON_COLOR}
+        />
+        <Pressable
+          style={({ pressed }) => [styles.listRow, styles.listRowDivider, pressed && styles.rowPressed]}
+          onPress={() => router.push('/privacy')}
+          accessibilityRole="button"
+        >
+          <Ionicons name="lock-closed-outline" size={22} color={BAJUJU_PINK} />
+          <Text style={styles.listRowText}>Privacy Policy</Text>
+          <Ionicons name="chevron-forward" size={18} color={CHEVRON_COLOR} />
+        </Pressable>
+        <Pressable
+          style={({ pressed }) => [styles.listRow, styles.listRowDivider, pressed && styles.rowPressed]}
+          onPress={() => router.push('/rules')}
+          accessibilityRole="button"
+        >
+          <Ionicons name="document-text-outline" size={22} color={BAJUJU_PINK} />
+          <Text style={styles.listRowText}>Regole community</Text>
+          <Ionicons name="chevron-forward" size={18} color={CHEVRON_COLOR} />
+        </Pressable>
+        <Pressable
+          style={({ pressed }) => [styles.listRow, styles.listRowDivider, pressed && styles.rowPressed]}
+          onPress={() => router.push('/blocked-users' as any)}
+          accessibilityRole="button"
+        >
+          <Ionicons name="ban-outline" size={22} color={BAJUJU_PINK} />
+          <Text style={styles.listRowText}>Utenti bloccati</Text>
+          <Ionicons name="chevron-forward" size={18} color={CHEVRON_COLOR} />
+        </Pressable>
+        <Pressable
+          style={({ pressed }) => [styles.listRow, pressed && styles.rowPressed]}
+          onPress={logout}
+          accessibilityRole="button"
+        >
+          <Ionicons name="log-out-outline" size={22} color={BAJUJU_PINK} />
+          <Text style={styles.listRowText}>Esci</Text>
         </Pressable>
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Privacy e regole</Text>
-        <Pressable style={styles.linkButton} onPress={() => router.push('/privacy')}>
-          <Text style={styles.linkButtonText}>Apri Privacy Policy</Text>
-        </Pressable>
-        <Pressable style={styles.linkButton} onPress={() => router.push('/rules')}>
-          <Text style={styles.linkButtonText}>Apri Regole community</Text>
-        </Pressable>
-        <Pressable style={styles.linkButton} onPress={() => router.push('/blocked-users' as any)}>
-          <Text style={styles.linkButtonText}>Utenti bloccati</Text>
-        </Pressable>
-        <Pressable style={styles.deleteButton} onPress={requestProfileDeletion}>
-          <Text style={styles.deleteButtonText}>Elimina definitivamente account</Text>
-        </Pressable>
-      </View>
-
-      <Pressable style={styles.logoutButton} onPress={logout}>
-        <Text style={styles.logoutButtonText}>Esci</Text>
+      <Pressable style={styles.deleteTextButton} onPress={requestProfileDeletion} accessibilityRole="button">
+        <Text style={styles.deleteTextButtonText}>Elimina definitivamente account</Text>
       </Pressable>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  topBackButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#ffffff',
+    borderWidth: 1.5,
+    borderColor: BAJUJU_COLORS.line,
+  },
+  topTitle: {
+    flex: 1,
+    color: BAJUJU_COLORS.plum,
+    fontFamily: BAJUJU_FONTS.bold,
+    fontSize: 28,
+  },
+  completeFirstText: {
+    marginTop: -8,
+    color: BAJUJU_COLORS.muted,
+    fontFamily: BAJUJU_FONTS.medium,
+    fontSize: 13,
+  },
+  photoCameraButton: {
+    position: 'absolute',
+    right: -4,
+    bottom: -4,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 3,
+    borderColor: '#ffffff',
+    backgroundColor: BAJUJU_PINK,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  profileMetaText: {
+    color: '#6B3652',
+    fontFamily: BAJUJU_FONTS.medium,
+    fontSize: 15,
+  },
+  adminRow: {
+    minHeight: 56,
+    paddingHorizontal: 14,
+    borderRadius: 18,
+    backgroundColor: '#3A1029',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  adminRowText: {
+    flex: 1,
+    color: '#ffffff',
+    fontFamily: BAJUJU_FONTS.semiBold,
+    fontSize: 16,
+  },
+  rowPressed: {
+    opacity: 0.72,
+  },
+  cardTitle: {
+    marginBottom: 10,
+    color: BAJUJU_COLORS.plum,
+    fontFamily: BAJUJU_FONTS.bold,
+    fontSize: 19,
+  },
+  fieldLabel: {
+    marginBottom: 6,
+    color: '#6B3652',
+    fontFamily: BAJUJU_FONTS.semiBold,
+    fontSize: 14,
+  },
+  fieldInput: {
+    minHeight: 50,
+    marginBottom: 14,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: BAJUJU_COLORS.line,
+    backgroundColor: BAJUJU_COLORS.background,
+    color: BAJUJU_COLORS.plum,
+    fontFamily: BAJUJU_FONTS.medium,
+    fontSize: 16,
+  },
+  fieldRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  fieldRowWide: {
+    flex: 2,
+  },
+  fieldRowNarrow: {
+    flex: 1,
+  },
+  segment: {
+    flexDirection: 'row',
+    gap: 4,
+    padding: 4,
+    borderRadius: 999,
+    backgroundColor: BAJUJU_COLORS.softPink,
+  },
+  segmentButton: {
+    flex: 1,
+    minHeight: 40,
+    paddingHorizontal: 4,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  segmentButtonSelected: {
+    backgroundColor: BAJUJU_PINK,
+  },
+  segmentText: {
+    color: '#7A3C5E',
+    fontFamily: BAJUJU_FONTS.medium,
+    fontSize: 14,
+  },
+  segmentTextSelected: {
+    color: '#ffffff',
+    fontFamily: BAJUJU_FONTS.semiBold,
+  },
+  listCard: {
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 4,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: BAJUJU_COLORS.line,
+    backgroundColor: '#ffffff',
+  },
+  listCardTitle: {
+    marginBottom: 2,
+    color: BAJUJU_COLORS.plum,
+    fontFamily: BAJUJU_FONTS.bold,
+    fontSize: 19,
+  },
+  listRow: {
+    minHeight: 56,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  listRowDivider: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#FBE3EF',
+  },
+  listRowLast: {
+    borderBottomWidth: 0,
+  },
+  listRowText: {
+    flex: 1,
+    color: BAJUJU_COLORS.plum,
+    fontFamily: BAJUJU_FONTS.medium,
+    fontSize: 16,
+  },
+  listRowHint: {
+    color: BAJUJU_COLORS.muted,
+    fontFamily: BAJUJU_FONTS.regular,
+    fontSize: 13,
+  },
+  switchRow: {
+    minHeight: 56,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#FBE3EF',
+  },
+  switchTextBox: {
+    flex: 1,
+  },
+  countBadge: {
+    minWidth: 24,
+    height: 24,
+    paddingHorizontal: 7,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: BAJUJU_PINK,
+  },
+  countBadgeText: {
+    color: '#ffffff',
+    fontFamily: BAJUJU_FONTS.semiBold,
+    fontSize: 13,
+  },
+  flashInviteList: {
+    paddingBottom: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: '#FBE3EF',
+  },
+  saveButton: {
+    minHeight: 54,
+    borderRadius: 27,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: BAJUJU_PINK,
+  },
+  saveButtonText: {
+    color: '#ffffff',
+    fontFamily: BAJUJU_FONTS.bold,
+    fontSize: 17,
+  },
+  deleteTextButton: {
+    alignSelf: 'center',
+    minHeight: 44,
+    paddingHorizontal: 16,
+    justifyContent: 'center',
+  },
+  deleteTextButtonText: {
+    color: '#B4233C',
+    fontFamily: BAJUJU_FONTS.semiBold,
+    fontSize: 15,
+  },
   profileBackButton: {
     alignSelf: 'flex-start',
     backgroundColor: '#fff0f7',
@@ -1624,9 +1919,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF9FC',
   },
   content: {
-    paddingTop: 64,
-    padding: 18,
+    paddingTop: 56,
+    padding: 16,
     paddingBottom: 40,
+    gap: 16,
   },
   center: {
     flex: 1,
@@ -1674,21 +1970,21 @@ const styles = StyleSheet.create({
   },
   profileNameText: {
     color: '#4b1430',
-    fontSize: 22,
-    lineHeight: 27,
-    fontWeight: '900',
+    fontSize: 23,
+    lineHeight: 28,
+    fontFamily: BAJUJU_FONTS.bold,
     flexShrink: 1,
   },
   profileRolePill: {
     alignSelf: 'flex-start',
-    marginTop: 8,
+    marginTop: 6,
     paddingVertical: 5,
     paddingHorizontal: 10,
     borderRadius: 999,
     backgroundColor: '#fff0f7',
-    color: '#e43f98',
+    color: '#C2287A',
     fontSize: 12,
-    fontWeight: '900',
+    fontFamily: BAJUJU_FONTS.semiBold,
     overflow: 'hidden',
   },
   photoButton: {
@@ -1756,10 +2052,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   email: {
-    color: '#7b4960',
+    color: BAJUJU_COLORS.muted,
     fontSize: 13,
     lineHeight: 18,
-    fontWeight: '800',
+    fontFamily: BAJUJU_FONTS.medium,
     flexShrink: 1,
   },
   changePhotoButton: {

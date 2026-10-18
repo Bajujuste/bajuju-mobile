@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
 import {
@@ -67,23 +68,40 @@ function isActiveParticipationStatus(value: unknown) {
   return !['annullato', 'annullata', 'rejected', 'rifiutato', 'declined', 'deleted', 'removed'].includes(normalized);
 }
 
-function formatEventDate(row: MyActivity) {
-  const date = activityStart(row);
-  if (!date) return 'Data da definire';
+const WEEKDAYS = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
+const MONTHS_SHORT = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
+const MONTHS_LONG = [
+  'GENNAIO', 'FEBBRAIO', 'MARZO', 'APRILE', 'MAGGIO', 'GIUGNO',
+  'LUGLIO', 'AGOSTO', 'SETTEMBRE', 'OTTOBRE', 'NOVEMBRE', 'DICEMBRE',
+];
 
-  const day = date.toLocaleDateString('it-IT', {
-    weekday: 'short',
-    day: '2-digit',
-    month: '2-digit',
-    year: '2-digit',
-  });
+function formatEventMeta(row: MyActivity) {
+  const date = activityStart(row);
+  const place = row.city || row.province || '';
+  if (!date) return ['Data da definire', place].filter(Boolean).join(' · ');
+
+  const day = `${WEEKDAYS[date.getDay()]} ${date.getDate()} ${MONTHS_SHORT[date.getMonth()]}`;
   const time = String(row.activity_time || '').slice(0, 5);
 
-  return [day, time].filter(Boolean).join(' · ');
+  return [day, time, place].filter(Boolean).join(' · ');
 }
 
-function eventPlace(row: MyActivity) {
-  return [row.city, row.province].filter(Boolean).join(' · ') || 'Luogo da definire';
+function monthLabel(row: MyActivity, now: number) {
+  const date = activityStart(row);
+  if (!date) return 'DATA DA DEFINIRE';
+  const label = MONTHS_LONG[date.getMonth()];
+  return date.getFullYear() === new Date(now).getFullYear() ? label : `${label} ${date.getFullYear()}`;
+}
+
+function groupByMonth(items: MyActivity[], now: number) {
+  const groups: { label: string; items: MyActivity[] }[] = [];
+  items.forEach((item) => {
+    const label = monthLabel(item, now);
+    const last = groups[groups.length - 1];
+    if (last && last.label === label) last.items.push(item);
+    else groups.push({ label, items: [item] });
+  });
+  return groups;
 }
 
 export default function MyEventsScreen() {
@@ -93,6 +111,7 @@ export default function MyEventsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [loadedAt, setLoadedAt] = useState(Date.now());
+  const [selectedTab, setSelectedTab] = useState<'upcoming' | 'past' | null>(null);
 
   const loadMyEvents = useCallback(async (mode: 'initial' | 'refresh' = 'initial') => {
     if (mode === 'refresh') setRefreshing(true);
@@ -228,17 +247,13 @@ export default function MyEventsScreen() {
     });
   }
 
+  const comingCount = currentEvents.length + upcomingEvents.length;
+  const activeTab = selectedTab ?? (comingCount === 0 && pastEvents.length > 0 ? 'past' : 'upcoming');
+
   function renderCard(item: MyActivity) {
     const state = temporalState(item, loadedAt);
     const cancelled = isCancelled(item);
     const organizedByMe = Boolean(currentUserId && item.creator_id === currentUserId);
-    const badgeLabel = cancelled
-      ? 'ANNULLATO'
-      : state === 'current'
-        ? 'IN CORSO'
-        : state === 'upcoming'
-          ? 'PROSSIMO'
-          : 'CONCLUSO';
 
     return (
       <Pressable
@@ -259,52 +274,51 @@ export default function MyEventsScreen() {
         />
 
         <View style={styles.eventBody}>
-          <View style={styles.badgesRow}>
-            <Text
-              style={[
-                styles.statusBadge,
-                state === 'current' && !cancelled && styles.statusBadgeCurrent,
-                cancelled && styles.statusBadgeCancelled,
-              ]}
-            >
-              {badgeLabel}
-            </Text>
-            <Text style={styles.roleBadge}>
-              {organizedByMe ? 'Organizzi tu' : 'Partecipi'}
-            </Text>
-          </View>
-
-          <Text style={styles.eventTitle} numberOfLines={2}>
+          <Text style={[styles.eventTitle, cancelled && styles.eventTitleCancelled]} numberOfLines={2}>
             {item.title || 'Esperienza Bajuju'}
           </Text>
-          <Text style={styles.eventMeta}>{formatEventDate(item)}</Text>
-          <Text style={styles.eventMeta} numberOfLines={1}>{eventPlace(item)}</Text>
+          <Text style={styles.eventMeta} numberOfLines={1}>{formatEventMeta(item)}</Text>
 
-          <View style={styles.openRow}>
-            <Text style={styles.openText}>Apri evento</Text>
-            <BajujuIcon name="arrow" size={20} color={BAJUJU_COLORS.brightPink} />
-          </View>
+          {cancelled || organizedByMe || state === 'current' ? (
+            <View style={styles.badgesRow}>
+              {cancelled ? (
+                <Text style={[styles.statusBadge, styles.statusBadgeCancelled]}>ANNULLATO</Text>
+              ) : state === 'current' ? (
+                <Text style={[styles.statusBadge, styles.statusBadgeCurrent]}>IN CORSO</Text>
+              ) : null}
+              {organizedByMe ? <Text style={styles.roleBadge}>Organizzi tu</Text> : null}
+            </View>
+          ) : null}
         </View>
+
+        <Ionicons name="chevron-forward" size={20} color={BAJUJU_COLORS.pink} />
       </Pressable>
     );
   }
 
-  function renderSection(title: string, subtitle: string, items: MyActivity[]) {
-    if (items.length === 0) return null;
-
-    return (
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.sectionTitle}>{title}</Text>
-            <Text style={styles.sectionSubtitle}>{subtitle}</Text>
-          </View>
-          <View style={styles.counterPill}>
-            <Text style={styles.counterText}>{items.length}</Text>
-          </View>
-        </View>
-        <View style={styles.cardsList}>{items.map(renderCard)}</View>
+  function renderGroups(items: MyActivity[]) {
+    return groupByMonth(items, loadedAt).map((group) => (
+      <View key={group.label} style={styles.monthGroup}>
+        <Text style={styles.monthLabel}>{group.label}</Text>
+        <View style={styles.cardsList}>{group.items.map(renderCard)}</View>
       </View>
+    ));
+  }
+
+  function renderTabButton(tab: 'upcoming' | 'past', label: string, count: number) {
+    const selected = activeTab === tab;
+    return (
+      <Pressable
+        accessibilityRole="tab"
+        accessibilityState={{ selected }}
+        onPress={() => setSelectedTab(tab)}
+        style={[styles.tabButton, selected && styles.tabButtonSelected]}
+      >
+        <Text style={[styles.tabText, selected && styles.tabTextSelected]}>{label}</Text>
+        <View style={[styles.tabCount, selected && styles.tabCountSelected]}>
+          <Text style={[styles.tabCountText, selected && styles.tabCountTextSelected]}>{count}</Text>
+        </View>
+      </Pressable>
     );
   }
 
@@ -322,15 +336,8 @@ export default function MyEventsScreen() {
         }
       >
         <View style={styles.header}>
-          <View style={styles.headerIcon}>
-            <BajujuIcon name="calendar" size={30} color={BAJUJU_COLORS.brightPink} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.title}>I miei eventi</Text>
-            <Text style={styles.subtitle}>
-              Quelli a cui partecipi, hai partecipato o che organizzi.
-            </Text>
-          </View>
+          <Text style={styles.title}>I miei eventi</Text>
+          <Text style={styles.subtitle}>A cui partecipi o che organizzi</Text>
         </View>
 
         {loading ? (
@@ -358,20 +365,29 @@ export default function MyEventsScreen() {
           </View>
         ) : (
           <>
-            {renderSection(
-              'In corso',
-              'Quelli che stai vivendo adesso: sono sempre i primi.',
-              currentEvents
-            )}
-            {renderSection(
-              'Prossimi',
-              'Dal più vicino nel tempo in avanti.',
-              upcomingEvents
-            )}
-            {renderSection(
-              'Passati',
-              'Dal più recente al più vecchio, fino a 60 giorni.',
-              pastEvents
+            <View style={styles.tabs} accessibilityRole="tablist">
+              {renderTabButton('upcoming', 'Prossimi', comingCount)}
+              {renderTabButton('past', 'Passati', pastEvents.length)}
+            </View>
+
+            {activeTab === 'upcoming' ? (
+              comingCount === 0 ? (
+                <Text style={styles.emptyTabText}>Nessun evento in programma.</Text>
+              ) : (
+                <>
+                  {currentEvents.length > 0 ? (
+                    <View style={styles.monthGroup}>
+                      <Text style={styles.monthLabel}>ADESSO</Text>
+                      <View style={styles.cardsList}>{currentEvents.map(renderCard)}</View>
+                    </View>
+                  ) : null}
+                  {renderGroups(upcomingEvents)}
+                </>
+              )
+            ) : pastEvents.length === 0 ? (
+              <Text style={styles.emptyTabText}>Nessun evento negli ultimi 60 giorni.</Text>
+            ) : (
+              renderGroups(pastEvents)
             )}
           </>
         )}
@@ -393,112 +409,132 @@ const styles = StyleSheet.create({
     paddingBottom: 142,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 13,
-    marginBottom: 22,
-  },
-  headerIcon: {
-    width: 58,
-    height: 58,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: BAJUJU_COLORS.softPink,
-    borderWidth: 1,
-    borderColor: BAJUJU_COLORS.line,
+    marginBottom: 14,
   },
   title: {
     color: BAJUJU_COLORS.plum,
     fontFamily: BAJUJU_FONTS.bold,
-    fontSize: 30,
-    letterSpacing: -0.7,
+    fontSize: 28,
+    letterSpacing: -0.5,
   },
   subtitle: {
-    marginTop: 3,
-    color: BAJUJU_COLORS.muted,
-    fontFamily: BAJUJU_FONTS.medium,
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  section: {
-    marginBottom: 27,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 12,
-  },
-  sectionTitle: {
-    color: BAJUJU_COLORS.plum,
-    fontFamily: BAJUJU_FONTS.bold,
-    fontSize: 22,
-  },
-  sectionSubtitle: {
     marginTop: 2,
     color: BAJUJU_COLORS.muted,
     fontFamily: BAJUJU_FONTS.medium,
-    fontSize: 12.5,
-    lineHeight: 17,
+    fontSize: 14,
   },
-  counterPill: {
-    minWidth: 38,
-    height: 38,
-    paddingHorizontal: 10,
-    borderRadius: 19,
+  tabs: {
+    flexDirection: 'row',
+    gap: 4,
+    padding: 4,
+    marginBottom: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: BAJUJU_COLORS.line,
+    backgroundColor: BAJUJU_COLORS.white,
+  },
+  tabButton: {
+    flex: 1,
+    minHeight: 42,
+    borderRadius: 999,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  tabButtonSelected: {
+    backgroundColor: BAJUJU_COLORS.pink,
+  },
+  tabText: {
+    color: '#7A3C5E',
+    fontFamily: BAJUJU_FONTS.medium,
+    fontSize: 15,
+  },
+  tabTextSelected: {
+    color: BAJUJU_COLORS.white,
+    fontFamily: BAJUJU_FONTS.semiBold,
+  },
+  tabCount: {
+    minWidth: 22,
+    height: 22,
+    paddingHorizontal: 6,
+    borderRadius: 11,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: BAJUJU_COLORS.softPink,
   },
-  counterText: {
-    color: BAJUJU_COLORS.brightPink,
-    fontFamily: BAJUJU_FONTS.bold,
-    fontSize: 14,
+  tabCountSelected: {
+    backgroundColor: BAJUJU_COLORS.white,
+  },
+  tabCountText: {
+    color: '#7A3C5E',
+    fontFamily: BAJUJU_FONTS.semiBold,
+    fontSize: 12,
+  },
+  tabCountTextSelected: {
+    color: '#C2287A',
+  },
+  monthGroup: {
+    marginTop: 14,
+  },
+  monthLabel: {
+    marginBottom: 8,
+    color: '#9B5A7C',
+    fontFamily: BAJUJU_FONTS.semiBold,
+    fontSize: 13,
+    letterSpacing: 0.8,
+  },
+  emptyTabText: {
+    marginTop: 24,
+    color: BAJUJU_COLORS.muted,
+    fontFamily: BAJUJU_FONTS.medium,
+    fontSize: 15,
+    textAlign: 'center',
   },
   cardsList: {
-    gap: 12,
+    gap: 10,
   },
   eventCard: {
-    minHeight: 124,
-    padding: 11,
-    borderRadius: 25,
-    borderWidth: 1.5,
+    padding: 10,
+    borderRadius: 20,
+    borderWidth: 1,
     borderColor: BAJUJU_COLORS.line,
     backgroundColor: BAJUJU_COLORS.white,
     flexDirection: 'row',
-    gap: 13,
+    alignItems: 'center',
+    gap: 12,
     ...BAJUJU_SHADOW,
+    shadowOpacity: 0.06,
+    elevation: 1,
   },
   eventCardCurrent: {
     borderColor: '#E7C56A',
     backgroundColor: '#FFFDF5',
   },
   eventImage: {
-    width: 92,
-    height: 102,
-    borderRadius: 19,
+    width: 76,
+    height: 76,
+    borderRadius: 14,
     backgroundColor: BAJUJU_COLORS.softPink,
   },
   eventBody: {
     flex: 1,
-    paddingVertical: 2,
+    minWidth: 0,
+    gap: 3,
   },
   badgesRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 6,
-    marginBottom: 6,
+    marginTop: 2,
   },
   statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingHorizontal: 9,
+    paddingVertical: 3,
     borderRadius: 999,
     overflow: 'hidden',
-    backgroundColor: BAJUJU_COLORS.softPink,
-    color: BAJUJU_COLORS.muted,
-    fontFamily: BAJUJU_FONTS.bold,
-    fontSize: 10,
+    fontFamily: BAJUJU_FONTS.semiBold,
+    fontSize: 11,
   },
   statusBadgeCurrent: {
     backgroundColor: '#E5F8EE',
@@ -509,37 +545,28 @@ const styles = StyleSheet.create({
     color: '#765D69',
   },
   roleBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingHorizontal: 9,
+    paddingVertical: 3,
     borderRadius: 999,
     overflow: 'hidden',
-    backgroundColor: '#FFF4C7',
+    backgroundColor: '#FFF4D6',
     color: '#7A5A00',
     fontFamily: BAJUJU_FONTS.semiBold,
-    fontSize: 10,
+    fontSize: 12,
   },
   eventTitle: {
     color: BAJUJU_COLORS.plum,
     fontFamily: BAJUJU_FONTS.bold,
-    fontSize: 18,
-    lineHeight: 21,
+    fontSize: 17,
+    lineHeight: 20,
+  },
+  eventTitleCancelled: {
+    color: BAJUJU_COLORS.muted,
   },
   eventMeta: {
-    marginTop: 3,
-    color: BAJUJU_COLORS.muted,
+    color: '#6B3652',
     fontFamily: BAJUJU_FONTS.medium,
-    fontSize: 12,
-  },
-  openRow: {
-    marginTop: 7,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  openText: {
-    color: BAJUJU_COLORS.brightPink,
-    fontFamily: BAJUJU_FONTS.semiBold,
-    fontSize: 12,
+    fontSize: 14,
   },
   stateCard: {
     minHeight: 245,

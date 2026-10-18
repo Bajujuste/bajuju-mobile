@@ -12,8 +12,7 @@
       "supportsTablet": false,
       "bundleIdentifier": "it.bajuju.mobile",
       "associatedDomains": [
-        "applinks:bajuju.it",
-        "applinks:bajuju.netlify.app"
+        "applinks:bajuju.it"
       ],
       "buildNumber": "10",
       "infoPlist": {
@@ -38,11 +37,6 @@
             {
               "scheme": "https",
               "host": "bajuju.it",
-              "pathPrefix": "/experience-detail"
-            },
-            {
-              "scheme": "https",
-              "host": "bajuju.netlify.app",
               "pathPrefix": "/experience-detail"
             }
           ],

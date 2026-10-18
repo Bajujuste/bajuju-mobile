@@ -203,7 +203,7 @@ export default function CreateGroupScreen() {
         <View style={styles.topBar}>
           <Pressable
             style={styles.backButton}
-            onPress={() => router.back()}
+            onPress={() => (router.canGoBack() ? router.back() : router.replace('/groups' as any))}
             accessibilityRole="button"
             accessibilityLabel="Torna ai gruppi"
           >

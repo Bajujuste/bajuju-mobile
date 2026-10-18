@@ -69,15 +69,13 @@ export function BajujuBottomNav({ active }: BajujuBottomNavProps) {
     <View
       style={[
         styles.bottomNav,
-        { bottom: Math.max(13, insets.bottom + 7) },
+        { bottom: Math.max(12, insets.bottom + 6) },
       ]}
     >
       {ITEMS.map((item) => {
         const selected = item.key === active;
         const color = item.key === 'how'
-          ? selected
-            ? BAJUJU_COLORS.white
-            : HOW_IT_WORKS_PINK
+          ? HOW_IT_WORKS_PINK
           : item.key === 'myEvents'
             ? MY_EVENTS_PETROL
             : selected
@@ -96,43 +94,39 @@ export function BajujuBottomNav({ active }: BajujuBottomNavProps) {
                 router.replace(item.route as any);
               }
             }}
-            style={({ pressed }) => [
-              styles.navItem,
-              item.key === 'create' && styles.createNavItem,
-              item.key === 'how' && styles.howNavItem,
-              item.key === 'how' && selected && styles.howNavItemActive,
-              pressed && styles.pressed,
-            ]}
+            style={({ pressed }) => [styles.navItem, pressed && styles.pressed]}
           >
-            <BajujuIcon
-              name={selected ? item.activeIcon : item.icon}
-              size={item.key === 'create' ? 38 : 27}
-              color={item.key === 'create' ? BAJUJU_COLORS.white : color}
-            />
-            <Text
-              numberOfLines={2}
-              style={[
-                styles.navLabel,
-                (item.key === 'myEvents' || item.key === 'how' || item.key === 'create' || item.key === 'groups') && styles.navLabelCompact,
-                item.key === 'create' && styles.createLabel,
-                item.key === 'how' && styles.howLabel,
-                item.key === 'myEvents' && styles.myEventsLabel,
-                selected && item.key !== 'how' && item.key !== 'myEvents' && styles.navLabelActive,
-                selected && item.key === 'how' && styles.howLabelActive,
-                selected && item.key === 'myEvents' && styles.myEventsLabelActive,
-              ]}
-            >
-              {item.key === 'how' ? 'Come\nfunziona' : item.key === 'myEvents' ? 'I miei\neventi' : item.key === 'groups' ? 'Crea\ngruppo' : item.label}
-            </Text>
-            {selected ? (
-              <View
-                style={[
-                  styles.activeIndicator,
-                  item.key === 'how' && styles.howActiveIndicator,
-                  item.key === 'myEvents' && styles.myEventsActiveIndicator,
-                ]}
-              />
-            ) : null}
+            {item.key === 'create' ? (
+              <View style={styles.createButton}>
+                <BajujuIcon name="plus" size={34} color={BAJUJU_COLORS.white} />
+              </View>
+            ) : (
+              <>
+                <BajujuIcon name={selected ? item.activeIcon : item.icon} size={25} color={color} />
+                <Text
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.8}
+                  style={[
+                    styles.navLabel,
+                    item.key === 'how' && styles.howLabel,
+                    item.key === 'myEvents' && styles.myEventsLabel,
+                    selected && styles.navLabelActive,
+                    selected && item.key !== 'how' && item.key !== 'myEvents' && { color: BAJUJU_COLORS.brightPink },
+                  ]}
+                >
+                  {item.label}
+                </Text>
+                {selected ? (
+                  <View
+                    style={[
+                      styles.activeIndicator,
+                      item.key === 'myEvents' && styles.myEventsActiveIndicator,
+                    ]}
+                  />
+                ) : null}
+              </>
+            )}
           </Pressable>
         );
       })}
@@ -143,92 +137,68 @@ export function BajujuBottomNav({ active }: BajujuBottomNavProps) {
 const styles = StyleSheet.create({
   bottomNav: {
     position: 'absolute',
-    left: 15,
-    right: 15,
-    bottom: 13,
-    height: 94,
+    left: 12,
+    right: 12,
+    bottom: 12,
+    height: 80,
     paddingHorizontal: 4,
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 31,
+    borderRadius: 30,
     borderWidth: 1,
-    borderColor: '#F8D7E8',
+    borderColor: BAJUJU_COLORS.line,
     backgroundColor: BAJUJU_COLORS.white,
     shadowColor: '#761046',
-    shadowOpacity: 0.12,
+    shadowOpacity: 0.1,
     shadowRadius: 14,
-    shadowOffset: { width: 0, height: 8 },
+    shadowOffset: { width: 0, height: -2 },
     elevation: 10,
   },
   navItem: {
     position: 'relative',
     flex: 1,
-    height: 76,
+    height: 72,
+    paddingHorizontal: 2,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
   },
-  createNavItem: { height: 86, marginTop: -18, borderRadius: 24, backgroundColor: '#2FAE66', elevation: 7 },
-  createLabel: { color: '#FFFFFF', fontFamily: BAJUJU_FONTS.bold, textAlign: 'center' },
+  createButton: {
+    width: 60,
+    height: 60,
+    marginTop: -28,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#2FAE66',
+    shadowColor: '#2FAE66',
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 8,
+  },
   navLabel: {
     color: BAJUJU_COLORS.plum,
     fontFamily: BAJUJU_FONTS.medium,
-    fontSize: 13,
-  },
-  navLabelCompact: {
-    fontSize: 11.5,
-    lineHeight: 14,
-    letterSpacing: -0.15,
+    fontSize: 12,
     textAlign: 'center',
-  },
-  howNavItem: {
-    height: 68,
-    marginHorizontal: 3,
-    borderRadius: 23,
-    borderWidth: 1.5,
-    borderColor: '#F4A7CA',
-    backgroundColor: '#FFE8F3',
-    shadowColor: '#C91B70',
-    shadowOpacity: 0.16,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
-  },
-  howNavItemActive: {
-    borderColor: HOW_IT_WORKS_PINK,
-    backgroundColor: HOW_IT_WORKS_PINK,
   },
   howLabel: {
     color: HOW_IT_WORKS_PINK,
-    fontFamily: BAJUJU_FONTS.semiBold,
-  },
-  howLabelActive: {
-    color: BAJUJU_COLORS.white,
-    fontFamily: BAJUJU_FONTS.bold,
   },
   myEventsLabel: {
     color: MY_EVENTS_PETROL,
-    fontFamily: BAJUJU_FONTS.semiBold,
-  },
-  myEventsLabelActive: {
-    color: MY_EVENTS_PETROL,
-    fontFamily: BAJUJU_FONTS.bold,
   },
   navLabelActive: {
-    color: BAJUJU_COLORS.brightPink,
     fontFamily: BAJUJU_FONTS.semiBold,
   },
   activeIndicator: {
     position: 'absolute',
-    left: 25,
-    right: 25,
-    bottom: -4,
-    height: 4,
+    bottom: 2,
+    width: 18,
+    height: 3,
     borderRadius: 2,
     backgroundColor: BAJUJU_COLORS.brightPink,
-  },
-  howActiveIndicator: {
-    backgroundColor: BAJUJU_COLORS.white,
   },
   myEventsActiveIndicator: {
     backgroundColor: MY_EVENTS_PETROL,

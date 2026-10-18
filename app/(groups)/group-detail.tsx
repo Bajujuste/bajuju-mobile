@@ -620,7 +620,7 @@ export default function GroupDetailScreen() {
     <SafeAreaView style={styles.safeArea}>
       {photoPickerModal}
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        <Pressable style={styles.backPill} onPress={() => router.back()}>
+        <Pressable style={styles.backPill} onPress={() => (router.canGoBack() ? router.back() : router.replace('/groups' as any))}>
           <Text style={styles.backPillText}>← Gruppi</Text>
         </Pressable>
 

@@ -1,4 +1,4 @@
-import { Share } from 'react-native';
+import { Platform, Share } from 'react-native';
 
 const BAJUJU_EVENT_LINK = 'https://bajuju.it';
 const BAJUJU_GROUP_LINK = 'https://bajuju.netlify.app';
@@ -72,7 +72,7 @@ export async function shareBajujuExperience(params: ShareExperienceParams) {
     ? `${BAJUJU_EVENT_LINK}/experience-detail?id=${encodeURIComponent(id)}`
     : BAJUJU_LINK;
 
-  // Le righe mancanti sono null; la riga vuota resta e stacca il motto e il link dal resto.
+  // Le righe mancanti sono null; la riga vuota resta e stacca il motto dal resto.
   const lines = [
     `Guarda questa esperienza su Bajuju:`,
     title,
@@ -81,13 +81,18 @@ export async function shareBajujuExperience(params: ShareExperienceParams) {
     when ? `Quando: ${when}` : null,
     '',
     'Dal Vivo è Meglio',
-    eventLink,
   ].filter((line) => line !== null);
 
-  await Share.share({
-    title,
-    message: lines.join('\n'),
-  });
+  if (Platform.OS === 'ios') {
+    // Su iOS il link va in url: Facebook lo usa per la card con foto e titolo, WhatsApp mostra anche il testo.
+    await Share.share({ title, message: lines.join('\n'), url: eventLink });
+    return;
+  }
+
+  // Su Android Share.share manda un solo testo: l'app di Facebook crea la card di anteprima solo
+  // se il testo è il link da solo, altrimenti pubblica il testo lungo senza anteprima. La card
+  // (foto, titolo, luogo e data dalla pagina bajuju.it) porta già tutte le informazioni.
+  await Share.share({ title, message: eventLink });
 }
 
 export async function shareBajujuGroup(params: ShareGroupParams) {

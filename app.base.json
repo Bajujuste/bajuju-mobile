@@ -2,7 +2,7 @@
   "expo": {
     "name": "Bajuju",
     "slug": "bajuju-mobile",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "bajuju",
@@ -15,7 +15,7 @@
         "applinks:bajuju.it",
         "applinks:bajuju.netlify.app"
       ],
-      "buildNumber": "9",
+      "buildNumber": "10",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }

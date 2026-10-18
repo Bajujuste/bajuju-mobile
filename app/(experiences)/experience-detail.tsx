@@ -1149,6 +1149,7 @@ export default function ExperienceDetailScreen() {
     currentUserId,
     experienceId,
     loadAlbumPhotos,
+    pickPhoto,
     uploadingAlbumPhoto,
     userAlbumLimitReached,
   ]);

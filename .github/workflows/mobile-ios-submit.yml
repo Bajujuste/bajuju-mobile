@@ -1,0 +1,31 @@
+name: Bajuju iOS TestFlight
+on:
+  workflow_run:
+    workflows: ["Bajuju native event links"]
+    types: [completed]
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  submit:
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Submit matching iOS build
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EXPECTED_SHA: ${{ github.event.workflow_run.head_sha }}
+          CI: "1"
+        run: |
+          npx eas-cli@latest build:list --platform ios --build-profile production --limit 10 --json --non-interactive > /tmp/builds.json
+          BUILD_ID=$(node -e 'const fs=require("fs");const rows=JSON.parse(fs.readFileSync("/tmp/builds.json","utf8"));const b=rows.find(x=>x.gitCommitHash===process.env.EXPECTED_SHA&&x.status==="FINISHED");if(!b)process.exit(1);process.stdout.write(b.id)')
+          npx eas-cli@latest submit --platform ios --profile production --id "$BUILD_ID" --non-interactive --wait

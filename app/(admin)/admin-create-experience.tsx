@@ -216,6 +216,7 @@ export default function AdminCreateExperienceScreen() {
       );
       const geolocatedPayload = {
         ...payload,
+        meeting_place: [resolvedLocation.street, resolvedLocation.streetNumber].filter(Boolean).join(' ') || payload.meeting_place,
         latitude: resolvedLocation.latitude,
         longitude: resolvedLocation.longitude,
       };

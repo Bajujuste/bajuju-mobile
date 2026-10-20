@@ -142,7 +142,7 @@ export async function resolveAddressSuggestion(
   const provinceCode = String(place.province_code || '').trim().toUpperCase();
   const province = normalizeProvince(rawProvince, provinceCode);
 
-  if (!street || !streetNumber || !city || !province) {
+  if (!street || !city || !province) {
     throw new Error('INCOMPLETE_STREET_ADDRESS');
   }
 
@@ -163,6 +163,8 @@ export async function resolveAddressSuggestion(
 }
 
 export type ResolvedCoordinates = {
+  street: string;
+  streetNumber: string;
   latitude: number;
   longitude: number;
   formattedAddress: string;
@@ -202,5 +204,7 @@ export async function resolveAddressText(query: string): Promise<ResolvedCoordin
     latitude,
     longitude,
     formattedAddress: String(response.formatted_address || '').trim(),
+    street: String(response.street || '').trim(),
+    streetNumber: String(response.street_number || '').trim(),
   };
 }

@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Istruzioni per richiedere l'eliminazione permanente dell'account Bajuju e dei dati associati."
+    />
+    <meta name="robots" content="index,follow" />
+    <link rel="canonical" href="https://www.bajuju.it/delete-account.html" />
+    <title>Eliminazione account | Bajuju</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --pink: #e43f98;
+        --pink-dark: #a61f69;
+        --ink: #351027;
+        --muted: #745468;
+        --soft: #fff5f9;
+        --line: #f1cddd;
+        --white: #fff;
+        --shadow: 0 22px 60px rgba(80, 8, 48, 0.1);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--soft);
+        color: var(--ink);
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 17px;
+        line-height: 1.65;
+      }
+
+      a {
+        color: var(--pink-dark);
+        font-weight: 700;
+      }
+
+      a:focus-visible {
+        outline: 3px solid #ff9dcc;
+        outline-offset: 4px;
+      }
+
+      header {
+        background: linear-gradient(135deg, #dc1f7c, #f3378f);
+        color: var(--white);
+      }
+
+      .header-inner,
+      main,
+      footer {
+        width: min(100% - 32px, 920px);
+        margin: 0 auto;
+      }
+
+      .header-inner {
+        padding: 46px 0 42px;
+      }
+
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 11px;
+        color: var(--white);
+        text-decoration: none;
+        font-size: 30px;
+        font-weight: 900;
+        letter-spacing: -0.04em;
+      }
+
+      .brand img {
+        width: 54px;
+        height: 60px;
+        border-radius: 13px;
+        background: var(--white);
+        object-fit: contain;
+        padding: 4px;
+      }
+
+      h1 {
+        max-width: 780px;
+        margin: 28px 0 8px;
+        font-size: clamp(38px, 7vw, 62px);
+        line-height: 1.02;
+        letter-spacing: -0.05em;
+      }
+
+      .header-lead {
+        max-width: 680px;
+        margin: 14px 0 0;
+        color: rgba(255, 255, 255, 0.92);
+        font-size: 19px;
+      }
+
+      main {
+        margin-top: 30px;
+        margin-bottom: 30px;
+        padding: clamp(24px, 5vw, 54px);
+        border: 1px solid var(--line);
+        border-radius: 24px;
+        background: var(--white);
+        box-shadow: var(--shadow);
+      }
+
+      h2 {
+        margin: 38px 0 12px;
+        color: var(--pink-dark);
+        font-size: 25px;
+        line-height: 1.25;
+      }
+
+      h2:first-of-type {
+        margin-top: 0;
+      }
+
+      p,
+      ul,
+      ol {
+        margin-top: 8px;
+        margin-bottom: 14px;
+      }
+
+      li + li {
+        margin-top: 9px;
+      }
+
+      .steps {
+        padding: 0;
+        list-style: none;
+        counter-reset: step;
+      }
+
+      .steps li {
+        position: relative;
+        min-height: 60px;
+        padding: 4px 0 18px 66px;
+        counter-increment: step;
+      }
+
+      .steps li::before {
+        content: counter(step);
+        position: absolute;
+        top: 0;
+        left: 0;
+        display: grid;
+        width: 46px;
+        height: 46px;
+        place-items: center;
+        border-radius: 50%;
+        background: var(--soft);
+        color: var(--pink-dark);
+        font-size: 20px;
+        font-weight: 900;
+      }
+
+      .request-box {
+        margin: 30px 0 6px;
+        padding: 24px;
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        background: var(--soft);
+        text-align: center;
+      }
+
+      .request-box strong {
+        display: block;
+        margin-bottom: 14px;
+        font-size: 21px;
+      }
+
+      .button {
+        display: inline-flex;
+        min-height: 56px;
+        align-items: center;
+        justify-content: center;
+        border-radius: 15px;
+        background: var(--pink);
+        color: var(--white);
+        padding: 0 26px;
+        text-decoration: none;
+        font-weight: 850;
+        box-shadow: 0 12px 28px rgba(166, 31, 105, 0.2);
+      }
+
+      .note {
+        padding: 18px 20px;
+        border-left: 5px solid var(--pink);
+        border-radius: 10px;
+        background: var(--soft);
+      }
+
+      footer {
+        padding: 0 0 38px;
+        color: var(--muted);
+        text-align: center;
+        font-size: 15px;
+      }
+
+      @media (max-width: 560px) {
+        body {
+          font-size: 16px;
+        }
+
+        .header-inner {
+          padding: 30px 0 28px;
+        }
+
+        main {
+          margin-top: 16px;
+          border-radius: 18px;
+        }
+
+        .steps li {
+          padding-left: 58px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="header-inner">
+        <a class="brand" href="/" aria-label="Bajuju, torna alla homepage">
+          <img src="/bajuju-panda.png" alt="Panda Bajuju" />
+          <span>Bajuju</span>
+        </a>
+        <h1>Elimina il tuo account Bajuju</h1>
+        <p class="header-lead">
+          Da questa pagina puoi richiedere l’eliminazione permanente del tuo
+          account e dei dati personali associati.
+        </p>
+      </div>
+    </header>
+
+    <main>
+      <h2>Come richiedere l’eliminazione</h2>
+      <ol class="steps">
+        <li>
+          Invia la richiesta dall’indirizzo email collegato al tuo account
+          Bajuju.
+        </li>
+        <li>
+          Indica nell’email il tuo indirizzo email di registrazione e il nome
+          del profilo, senza inviare password.
+        </li>
+        <li>
+          Potremmo chiederti una semplice verifica per assicurarci che la
+          richiesta provenga dal titolare dell’account.
+        </li>
+        <li>
+          Riceverai una conferma quando l’account e i dati associati saranno
+          stati eliminati o anonimizzati.
+        </li>
+      </ol>
+
+      <div class="request-box">
+        <strong>Invia la richiesta di eliminazione</strong>
+        <a
+          class="button"
+          href="mailto:info@bajuju.it?subject=Richiesta%20eliminazione%20account%20Bajuju&amp;body=Email%20dell%27account%3A%20%0ANome%20profilo%3A%20"
+        >
+          Richiedi l’eliminazione
+        </a>
+        <p>
+          Se il pulsante non apre l’app di posta, scrivi direttamente a
+          <a href="mailto:info@bajuju.it">info@bajuju.it</a> con oggetto
+          “Richiesta eliminazione account Bajuju”.
+        </p>
+      </div>
+
+      <h2>Dati che vengono eliminati</h2>
+      <p>Dopo la verifica della richiesta elimineremo o renderemo anonimi:</p>
+      <ul>
+        <li>l’account e i dati del profilo;</li>
+        <li>la foto profilo e gli altri contenuti personali caricati;</li>
+        <li>le iscrizioni, le disponibilità e i collegamenti alle esperienze;</li>
+        <li>i token per le notifiche e gli altri identificativi dell’account;</li>
+        <li>
+          messaggi, fotografie e altri contenuti associati, salvo i casi in cui
+          sia necessario conservarli temporaneamente per le ragioni indicate
+          sotto.
+        </li>
+      </ul>
+
+      <h2>Dati che possono essere conservati</h2>
+      <p>
+        Alcuni dati possono essere conservati soltanto per il periodo necessario
+        a rispettare obblighi di legge, prevenire abusi o frodi, gestire
+        segnalazioni e contestazioni o tutelare i diritti degli utenti e di
+        Bajuju. Eventuali copie presenti nei backup protetti vengono eliminate
+        secondo i normali cicli di rotazione e non vengono utilizzate per altre
+        finalità.
+      </p>
+
+      <h2>Tempi e conseguenze</h2>
+      <p>
+        La richiesta viene gestita dopo la verifica dell’identità, normalmente
+        entro 30 giorni. L’eliminazione è permanente: non sarà più possibile
+        accedere all’account o recuperare i dati rimossi.
+      </p>
+
+      <p class="note">
+        Per ulteriori informazioni sul trattamento dei dati personali consulta
+        le <a href="/privacy.html">Norme sulla privacy di Bajuju</a>.
+      </p>
+    </main>
+
+    <footer>
+      <p>© 2026 Bajuju · <a href="/">Torna al sito</a></p>
+    </footer>
+  </body>
+</html>

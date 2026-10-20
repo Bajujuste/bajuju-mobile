@@ -1,0 +1,227 @@
+/* Famiglia Bajuju: grafica comune a tutte le pagine */
+:root {
+  --bg: #FFF9FC;
+  --ink: #3A1426;
+  --muted: #7D5A6B;
+  --card: #FFFFFF;
+  --line: #F3D3E2;
+  --pink: #E43F98;
+  --pink-ink: #B21F6E;
+  --pink-soft: #FFF0F7;
+  --red: #C8102E;
+  --red-ink: #960A22;
+  --red-soft: #FFF1F2;
+  --radius: 28px;
+  --shadow: 0 14px 40px rgba(155, 26, 91, 0.12);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "Fredoka", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 17px;
+  line-height: 1.55;
+}
+
+img { max-width: 100%; display: block; }
+a { color: inherit; }
+a:focus-visible { outline: 3px solid var(--pink); outline-offset: 4px; border-radius: 12px; }
+
+.wrap { max-width: 1040px; margin: 0 auto; padding: 0 16px; }
+
+/* Barra in alto */
+.top { padding: 20px 0; }
+.top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; font-weight: 600; font-size: 22px; }
+.brand img { width: 40px; height: 40px; border-radius: 12px; }
+.back { text-decoration: none; font-weight: 500; color: var(--muted); font-size: 16px; }
+.back:hover { color: var(--ink); }
+
+/* Home: il mondo Bajuju */
+.family { text-align: center; padding: 32px 0 24px; }
+.family .kicker { display: inline-block; font-weight: 600; font-size: 14px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--pink-ink); background: var(--pink-soft); padding: 6px 14px; border-radius: 999px; }
+.family h1 { font-size: clamp(36px, 8vw, 60px); line-height: 1.05; margin: 16px 0 0; font-weight: 600; }
+.family h1 span { color: var(--pink); }
+.family p { color: var(--muted); font-size: 19px; margin: 14px auto 0; max-width: 520px; }
+
+.cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 24px 0 56px; max-width: 880px; margin: 0 auto; }
+@media (min-width: 700px) { .cards { grid-template-columns: 1fr 1fr; gap: 28px; } }
+
+.app-card {
+  aspect-ratio: 1 / 1;
+  min-height: 0;
+  border-radius: var(--radius);
+  background: var(--card);
+  box-shadow: var(--shadow);
+  text-decoration: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 28px;
+  border: 3px solid transparent;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+.app-card:hover { transform: translateY(-6px); box-shadow: 0 22px 50px rgba(155, 26, 91, 0.2); }
+.app-card { min-width: 0; }
+.app-card img { mix-blend-mode: multiply; height: auto; width: 52%; max-width: 230px; aspect-ratio: 1 / 1; object-fit: contain; }
+.app-card .name { font-size: clamp(30px, 6vw, 40px); font-weight: 600; margin-top: 14px; line-height: 1.1; }
+.app-card .what { color: var(--muted); font-size: 17px; margin-top: 6px; }
+@media (max-width: 699px) {
+  .app-card { aspect-ratio: auto; justify-content: flex-start; padding: 16px 10px 18px; border-radius: 22px; }
+  .app-card img { width: 78%; }
+  .app-card .name { font-size: 22px; margin-top: 8px; }
+  .app-card .what { font-size: 14px; line-height: 1.35; flex: 1; }
+  .app-card .go { margin-top: 12px; font-size: 15px; padding: 8px 18px; }
+}
+.app-card .go { margin-top: 18px; font-weight: 600; font-size: 17px; padding: 10px 22px; border-radius: 999px; color: #FFFFFF; }
+
+.app-card.bajuju { background: linear-gradient(180deg, #FFFFFF 0%, var(--pink-soft) 100%); }
+.app-card.bajuju:hover { border-color: var(--pink); }
+.app-card.bajuju .name { color: var(--pink); }
+.app-card.bajuju .go { background: var(--pink); }
+
+.app-card.date { background: linear-gradient(180deg, #FFFFFF 0%, var(--red-soft) 100%); }
+.app-card.date:hover { border-color: var(--red); }
+.app-card.date .name { color: var(--red); font-family: "Fraunces", Georgia, serif; }
+.app-card.date .name em { font-style: italic; }
+.app-card.date .go { background: var(--red); }
+
+/* Home: BajujuDate è visibile come anteprima, ma non è ancora cliccabile. */
+.app-card.date.coming-soon {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  cursor: default;
+}
+.app-card.date.coming-soon:hover {
+  transform: none;
+  border-color: transparent;
+  box-shadow: var(--shadow);
+}
+.app-card.date.coming-soon::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: rgba(38, 12, 22, 0.15);
+  pointer-events: none;
+}
+.app-card.date.coming-soon .go { opacity: 0.70; }
+.app-card.date.coming-soon .coming-soon-ribbon {
+  position: absolute;
+  z-index: 2;
+  top: 48%;
+  left: -18%;
+  width: 136%;
+  padding: 13px 4px;
+  background: var(--red);
+  color: #fff;
+  font-family: "Fredoka", system-ui, sans-serif;
+  font-size: clamp(14px, 2.6vw, 23px);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.045em;
+  text-align: center;
+  white-space: nowrap;
+  transform: rotate(-12deg);
+  box-shadow: 0 6px 18px rgba(58, 20, 38, 0.22);
+  pointer-events: none;
+}
+@media (max-width: 699px) {
+  .app-card.date.coming-soon .coming-soon-ribbon {
+    padding: 9px 2px;
+  }
+}
+
+
+/* Pagine delle app */
+.hero { padding: 24px 0 8px; display: grid; gap: 24px; align-items: center; }
+@media (min-width: 800px) { .hero { grid-template-columns: 1.3fr 1fr; padding-top: 48px; } }
+.hero h1 { font-size: clamp(38px, 8vw, 64px); line-height: 1.02; margin: 0; font-weight: 600; }
+.hero .sub { font-size: 22px; font-weight: 500; margin: 14px 0 0; }
+.hero p { color: var(--muted); font-size: 18px; margin: 12px 0 0; }
+.hero .art { height: auto; mix-blend-mode: multiply; justify-self: center; width: min(320px, 80%); border-radius: var(--radius); background: #FFFFFF; box-shadow: var(--shadow); overflow: hidden; }
+
+.pills { list-style: none; padding: 0; margin: 20px 0 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.pills li { background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px; font-size: 15px; font-weight: 500; }
+
+.btns { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
+.btn { display: inline-flex; align-items: center; gap: 8px; padding: 13px 24px; border-radius: 999px; font-weight: 600; text-decoration: none; color: #FFFFFF; background: var(--accent, var(--pink)); }
+.btn.ghost { background: transparent; color: var(--ink); border: 2px solid var(--line); }
+.btn.soon { cursor: default; }
+
+section.block { padding: 48px 0 8px; }
+.block h2 { font-size: clamp(28px, 5vw, 40px); line-height: 1.1; margin: 0; font-weight: 600; max-width: 720px; }
+.block .intro { color: var(--muted); font-size: 18px; margin: 12px 0 0; max-width: 640px; }
+.label { display: inline-block; font-weight: 600; font-size: 14px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent-ink, var(--pink-ink)); margin-bottom: 10px; }
+
+.grid { display: grid; gap: 14px; margin-top: 24px; grid-template-columns: 1fr; }
+@media (min-width: 700px) { .grid.three { grid-template-columns: repeat(3, 1fr); } .grid.two { grid-template-columns: repeat(2, 1fr); } }
+.tile { background: var(--card); border: 1px solid var(--line); border-radius: 22px; padding: 22px; }
+.tile .num { width: 40px; height: 40px; border-radius: 14px; display: grid; place-items: center; font-weight: 600; color: #FFFFFF; background: var(--accent, var(--pink)); margin-bottom: 12px; }
+.tile .big { font-size: 40px; font-weight: 600; color: var(--accent, var(--pink)); line-height: 1; margin-bottom: 8px; }
+.tile h3 { margin: 0 0 4px; font-size: 20px; font-weight: 600; }
+.tile p { margin: 0; color: var(--muted); }
+
+.chips { list-style: none; padding: 0; margin: 20px 0 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.chips li { background: var(--accent-soft, var(--pink-soft)); color: var(--accent-ink, var(--pink-ink)); border-radius: 999px; padding: 8px 16px; font-weight: 500; }
+
+.final { margin: 56px 0 0; padding: 40px 24px; border-radius: var(--radius); text-align: center; background: var(--accent, var(--pink)); color: #FFFFFF; }
+.final h2 { font-size: clamp(26px, 5vw, 38px); margin: 0 auto; max-width: 620px; line-height: 1.15; font-weight: 600; }
+.final .btn { background: #FFFFFF; color: var(--accent-ink, var(--pink-ink)); margin-top: 20px; }
+
+/* Le altre app del mondo Bajuju */
+.sibling { display: flex; align-items: center; gap: 16px; margin-top: 40px; padding: 18px; background: var(--card); border: 1px solid var(--line); border-radius: 22px; text-decoration: none; }
+.sibling img { width: 64px; height: 64px; border-radius: 16px; flex: none; }
+.sibling small { display: block; color: var(--muted); font-size: 14px; }
+.sibling b { font-size: 20px; font-weight: 600; }
+
+/* Pagina BajujuDate: rosso passione e titoli serif */
+.theme-date { --accent: var(--red); --accent-ink: var(--red-ink); --accent-soft: var(--red-soft); --line: #F3E3E6; background: #FFF8F8; }
+.theme-date h1, .theme-date .block h2, .theme-date .final h2 { font-family: "Fraunces", Georgia, serif; letter-spacing: -0.01em; }
+.theme-date h1 em, .theme-date h2 em { font-style: italic; color: var(--red); }
+.theme-date .final h2 em { color: #FFFFFF; }
+.theme-bajuju h1 span, .theme-bajuju h2 span { color: var(--pink); }
+
+/* Fondo pagina */
+footer { margin-top: 56px; border-top: 1px solid var(--line); padding: 24px 0 40px; color: var(--muted); font-size: 15px; }
+footer ul { list-style: none; padding: 0; margin: 0 0 12px; display: flex; flex-wrap: wrap; gap: 8px 20px; }
+footer a { color: var(--ink); }
+footer p { margin: 4px 0; }
+
+.tile .num { display: inline-grid; min-width: 40px; width: auto; padding: 0 8px; }
+@media (min-width: 700px) { .grid.two .tile.wide { grid-column: 1 / -1; } }
+
+/* Home: tutto gratis */
+.family p b { color: var(--ink); font-weight: 600; }
+.free { max-width: 880px; margin: 0 auto 24px; padding: 28px 20px; border-radius: var(--radius); background: var(--card); box-shadow: var(--shadow); text-align: center; }
+.free h2 { margin: 0; font-size: clamp(24px, 5vw, 34px); line-height: 1.15; font-weight: 600; }
+.free h2 span { color: var(--red); }
+.free p { color: var(--muted); margin: 10px auto 0; max-width: 560px; }
+.free ul { list-style: none; padding: 0; margin: 20px 0 0; display: grid; gap: 10px; text-align: left; }
+@media (min-width: 700px) { .free ul { grid-template-columns: 1fr 1fr; } }
+.free li { background: var(--pink-soft); border-radius: 16px; padding: 12px 16px; }
+.free li::before { content: "✓ "; color: var(--pink-ink); font-weight: 600; }
+.free li b { font-weight: 600; }
+
+/* Pagine documenti BajujuDate (privacy, termini, supporto) */
+.doc { max-width: 760px; padding-top: 16px; padding-bottom: 8px; display: grid; gap: 14px; }
+.doc h1 { font-family: "Fraunces", Georgia, serif; font-size: clamp(32px, 7vw, 46px); line-height: 1.1; margin: 8px 0 0; font-weight: 600; }
+.doc h1 em { font-style: italic; color: var(--red); }
+.doc .meta, .doc .lead { color: var(--muted); margin: 0; }
+.doc .lead { font-size: 18px; }
+.doc article { display: grid; gap: 14px; }
+.doc .tile h2 { font-size: 20px; margin: 0 0 6px; font-weight: 600; }
+.doc .tile p { color: var(--ink); margin: 0; }
+.doc .tile p + p, .doc .tile p + ol, .doc .tile p + ul { margin-top: 10px; }
+.doc .tile ol, .doc .tile ul { margin: 6px 0 0; padding-left: 22px; }
+.doc .tile a { color: var(--red-ink); }
+.doc .step-label { display: inline-block; font-size: 13px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--red-ink); margin-bottom: 6px; }
+.doc .path { font-weight: 600; }
+.doc .mono { font-family: ui-monospace, Menlo, monospace; font-size: 0.92em; background: var(--red-soft); padding: 1px 6px; border-radius: 6px; }

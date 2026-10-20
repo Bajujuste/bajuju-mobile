@@ -1,0 +1,10 @@
+[build]
+  publish = "public"
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+[[headers]]
+  for = "/.well-known/*"
+  [headers.values]
+    Content-Type = "application/json"
+    Cache-Control = "public, max-age=3600"

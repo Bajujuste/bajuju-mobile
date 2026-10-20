@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Registrazione avvenuta · BajujuDate</title>
+<meta name="theme-color" content="#FFF8F8">
+<link rel="icon" type="image/png" href="img/panda-cuore.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600&family=Fraunces:ital,opsz,wght@0,9..144,600;1,9..144,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+.ok { min-height: 72vh; display: grid; place-items: center; padding: 24px 16px; }
+.ok-card { width: 100%; max-width: 460px; text-align: center; background: linear-gradient(180deg, #FFFFFF 0%, var(--red-soft) 100%); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 36px 24px 32px; }
+.ok-card .logo { display: block; margin: 0 auto; width: 220px; max-width: 70%; height: auto; mix-blend-mode: multiply; animation: beat 1.6s ease-in-out infinite; }
+.ok-card h1 { font-family: "Fraunces", Georgia, serif; font-size: clamp(30px, 7.5vw, 40px); line-height: 1.1; margin: 16px 0 0; font-weight: 600; }
+.ok-card h1 em { font-style: italic; color: var(--red); }
+.ok-card p { font-size: 20px; margin: 14px 0 0; }
+.ok-card .btn { margin-top: 26px; background: var(--red); font-size: 18px; padding: 15px 30px; }
+.ok-card .help { font-size: 15px; color: var(--muted); margin-top: 22px; }
+.ok-card .help a { color: var(--red-ink); }
+@keyframes beat { 0%, 100% { transform: scale(1); } 15% { transform: scale(1.06); } 30% { transform: scale(1); } 45% { transform: scale(1.04); } }
+@media (prefers-reduced-motion: reduce) { .ok-card .logo { animation: none; } }
+</style>
+</head>
+<body class="theme-date">
+<main class="wrap ok">
+<div class="ok-card">
+<img class="logo" src="img/bajujudate-logo.png" alt="Logo BajujuDate: il panda dentro un cuore rosso" width="220" height="220">
+<h1 id="titolo">Registrazione avvenuta <em>correttamente</em></h1>
+<p id="testo">Torna alla App e inizia a&nbsp;divertirti&nbsp;❤️</p>
+<a class="btn" href="amiva://">Apri BajujuDate</a>
+<p class="help">Problemi? Scrivici a <a href="mailto:royaleventi@gmail.com?subject=Registrazione%20BajujuDate">royaleventi@gmail.com</a></p>
+</div>
+</main>
+<script>
+// Never keep login tokens in the address bar or history.
+var h = location.hash;
+if (h) history.replaceState(null, "", location.pathname);
+if (/error/.test(h) || /error/.test(location.search)) {
+  document.getElementById("titolo").innerHTML = "Link <em>scaduto</em>";
+  document.getElementById("testo").textContent = "Questo link non è più valido, forse lo avevi già usato. Prova ad accedere dall'app: se serve, da lì puoi chiedere una nuova email.";
+}
+</script>
+</body>
+</html>

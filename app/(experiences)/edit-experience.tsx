@@ -1,8 +1,12 @@
 import { router, useLocalSearchParams } from 'expo-router';
+import * as ImageManipulator from 'expo-image-manipulator';
+import * as ImagePicker from 'expo-image-picker';
+import { useBajujuPhotoPicker } from '../../src/components/useBajujuPhotoPicker';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -22,6 +26,7 @@ import { supabase } from '../../src/lib/supabase';
 type ActivityRow = {
   id: string;
   creator_id: string;
+  photo_url: string | null;
   title: string | null;
   description: string | null;
   activity_date: string | null;
@@ -84,6 +89,10 @@ function categoryToDatabaseValue(value: string) {
 }
 
 export default function EditExperienceScreen() {
+  const { pickPhoto, photoPickerModal } = useBajujuPhotoPicker();
+  const [photoUrl, setPhotoUrl] = useState('');
+  const [newPhotoUri, setNewPhotoUri] = useState<string | null>(null);
+  const [preparingPhoto, setPreparingPhoto] = useState(false);
   const params = useLocalSearchParams<{ id?: string }>();
   const experienceId = String(params.id || '').trim();
 
@@ -141,7 +150,7 @@ export default function EditExperienceScreen() {
 
       const result = await supabase
         .from('activities')
-        .select('id,creator_id,title,description,activity_date,activity_time,city,province,meeting_place,category,max_participants,join_approval_required,min_age,max_age,budget_amount,is_flash,latitude,longitude')
+        .select('id,creator_id,photo_url,title,description,activity_date,activity_time,city,province,meeting_place,category,max_participants,join_approval_required,min_age,max_age,budget_amount,is_flash,latitude,longitude')
         .eq('id', experienceId)
         .eq('is_flash', false)
         .maybeSingle();
@@ -178,6 +187,8 @@ export default function EditExperienceScreen() {
       setAuthorizedUserId(userId);
       setAuthorizedAsAdmin(isAdmin);
       setMinimumParticipants(Math.max(1, activeParticipantIds.size + 1));
+      setPhotoUrl(String(row.photo_url || ''));
+      setNewPhotoUri(null);
       setTitle(String(row.title || ''));
       setDescription(String(row.description || ''));
       setActivityDate(String(row.activity_date || ''));
@@ -233,8 +244,31 @@ export default function EditExperienceScreen() {
     loadExperience();
   }, [loadExperience]);
 
+  async function changePhoto() {
+    if (saving || preparingPhoto) return;
+    setPreparingPhoto(true);
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert('Foto evento', 'Autorizza l’accesso alle immagini per scegliere la copertina.');
+        return;
+      }
+      const picked = await pickPhoto({ aspect: [16, 9], quality: 0.9 });
+      if (!picked) return;
+      const prepared = await ImageManipulator.manipulateAsync(
+        picked.uri, [{ resize: { width: 1280 } }],
+        { compress: 0.72, format: ImageManipulator.SaveFormat.JPEG }
+      );
+      setNewPhotoUri(prepared.uri);
+    } catch (error: any) {
+      Alert.alert('Foto evento', error?.message || 'Non riesco a preparare la foto. Riprova.');
+    } finally {
+      setPreparingPhoto(false);
+    }
+  }
+
   async function saveExperience() {
-    if (!authorizedUserId || !experienceId || saving) return;
+    if (!authorizedUserId || !experienceId || saving || preparingPhoto) return;
 
     const cleanTitle = title.trim();
     const cleanDescription = description.trim();
@@ -303,9 +337,22 @@ export default function EditExperienceScreen() {
       const latitude = resolvedAddress.latitude;
       const longitude = resolvedAddress.longitude;
 
+      let replacementPhotoUrl: string | undefined;
+      if (newPhotoUri) {
+        const response = await fetch(newPhotoUri);
+        const buffer = await response.arrayBuffer();
+        const path = `${experienceId}/${authorizedUserId}-cover-${Date.now()}.jpg`;
+        const uploaded = await supabase.storage.from('event-photos')
+          .upload(path, buffer, { contentType: 'image/jpeg', upsert: false });
+        if (uploaded.error) throw uploaded.error;
+        replacementPhotoUrl = supabase.storage.from('event-photos').getPublicUrl(path).data.publicUrl;
+        if (!replacementPhotoUrl) throw new Error('URL della copertina non disponibile.');
+      }
+
       let updateQuery = supabase
         .from('activities')
         .update({
+          ...(replacementPhotoUrl ? { photo_url: replacementPhotoUrl } : {}),
           title: cleanTitle,
           description: cleanDescription,
           activity_date: activityDate,
@@ -343,6 +390,10 @@ export default function EditExperienceScreen() {
         return;
       }
 
+      if (replacementPhotoUrl) {
+        setPhotoUrl(replacementPhotoUrl);
+        setNewPhotoUri(null);
+      }
       Alert.alert(
         'Evento aggiornato',
         'Le modifiche sono state salvate. La fascia d’età vale solo per le nuove partecipazioni: chi è già nell’evento rimane dentro.',
@@ -390,6 +441,14 @@ export default function EditExperienceScreen() {
             </View>
           ) : (
             <View style={styles.card}>
+              <Text style={styles.label}>Copertina evento</Text>
+              {newPhotoUri || photoUrl ? (
+                <Image source={{ uri: newPhotoUri || photoUrl }} style={{ width: '100%', aspectRatio: 16 / 9, borderRadius: 15 }} />
+              ) : null}
+              <Pressable style={styles.saveButton} onPress={() => { void changePhoto(); }} disabled={saving || preparingPhoto}>
+                <Text style={styles.saveButtonText}>{preparingPhoto ? 'Preparazione...' : newPhotoUri || photoUrl ? 'Cambia foto' : 'Aggiungi foto'}</Text>
+              </Pressable>
+              {newPhotoUri ? <Text style={styles.hint}>La nuova foto verrà pubblicata con Salva modifiche.</Text> : null}
               <Text style={styles.label}>Titolo</Text>
               <TextInput style={styles.input} value={title} onChangeText={setTitle} maxLength={100} />
 
@@ -586,15 +645,16 @@ export default function EditExperienceScreen() {
                 </View>
               ) : null}
 
-              <Text style={styles.notice}>La foto, il creatore, i partecipanti, la chat e la galleria non vengono modificati.</Text>
+              <Text style={styles.notice}>Il creatore, i partecipanti, la chat e la galleria restano invariati.</Text>
 
-              <Pressable style={[styles.saveButton, saving && styles.disabledButton]} onPress={saveExperience} disabled={saving}>
+              <Pressable style={[styles.saveButton, saving && styles.disabledButton]} onPress={saveExperience} disabled={saving || preparingPhoto}>
                 <Text style={styles.saveButtonText}>{saving ? 'Salvataggio...' : 'Salva modifiche'}</Text>
               </Pressable>
             </View>
           )}
         </ScrollView>
       </KeyboardAvoidingView>
+      {photoPickerModal}
     </SafeAreaView>
   );
 }

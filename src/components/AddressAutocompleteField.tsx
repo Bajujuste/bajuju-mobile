@@ -30,7 +30,7 @@ function addressErrorMessage(error: unknown) {
   const message = error instanceof Error ? error.message : String(error || '');
 
   if (message.includes('INCOMPLETE_STREET_ADDRESS')) {
-    return 'Seleziona un indirizzo completo di numero civico.';
+    return 'Seleziona una via e un comune dai suggerimenti.';
   }
 
   if (message.includes('ADDRESS_OUTSIDE_ITALY')) {

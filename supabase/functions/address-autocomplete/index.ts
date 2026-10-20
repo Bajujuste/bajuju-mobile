@@ -30,6 +30,18 @@ const RATE_LIMITS: Record<string, number> = {
   resolve_text: 30,
 };
 
+// Logga il motivo esatto restituito da Google (mai la chiave API) per poter diagnosticare
+// rapidamente errori come PERMISSION_DENIED, API non abilitata o fatturazione disattivata.
+async function logProviderError(label: string, response: Response) {
+  let bodyText = '';
+  try {
+    bodyText = (await response.text()).slice(0, 500);
+  } catch {
+    bodyText = '(impossibile leggere il corpo della risposta)';
+  }
+  console.error(`${label}: status=${response.status} body=${bodyText}`);
+}
+
 function cleanString(value: unknown, maxLength = 200) {
   return typeof value === 'string' ? value.trim().slice(0, maxLength) : '';
 }
@@ -52,6 +64,22 @@ function addressComponent(
 
   const value = component[field];
   return typeof value === 'string' ? value.trim() : '';
+}
+
+
+function resolvedPlaceLocation(place: Record<string, any>) {
+  const components = Array.isArray(place.addressComponents) ? place.addressComponents : [];
+  const hasNumber = Boolean(addressComponent(components, 'street_number'));
+  const isStreet = Array.isArray(place.types) && place.types.includes('route');
+  const low = place.viewport?.low;
+  const high = place.viewport?.high;
+  const bounds = [low?.latitude, low?.longitude, high?.latitude, high?.longitude];
+  // Solo una via senza civico: punto centrale dell'estensione restituita da Google.
+  // Un luogo preciso (fiera, museo...) mantiene invece la posizione del luogo.
+  if (!hasNumber && isStreet && bounds.every(v => typeof v === 'number' && Number.isFinite(v))) {
+    return { latitude: (low.latitude + high.latitude) / 2, longitude: (low.longitude + high.longitude) / 2 };
+  }
+  return { latitude: Number(place.location?.latitude), longitude: Number(place.location?.longitude) };
 }
 
 Deno.serve(async (req) => {
@@ -128,7 +156,7 @@ Deno.serve(async (req) => {
         headers: {
           'Content-Type': 'application/json',
           'X-Goog-Api-Key': GOOGLE_PLACES_API_KEY,
-          'X-Goog-FieldMask': 'places.location,places.formattedAddress',
+          'X-Goog-FieldMask': 'places.location,places.formattedAddress,places.addressComponents,places.types,places.viewport',
         },
         body: JSON.stringify({
           textQuery: query,
@@ -140,7 +168,7 @@ Deno.serve(async (req) => {
     );
 
     if (!searchResponse.ok) {
-      console.error('Google Places text search failed:', searchResponse.status);
+      await logProviderError('Google Places text search failed', searchResponse);
       return jsonResponse(
         { ok: false, error: 'TEXT_SEARCH_FAILED', provider_status: searchResponse.status },
         502
@@ -149,8 +177,13 @@ Deno.serve(async (req) => {
 
     const searchData = await searchResponse.json();
     const place = Array.isArray(searchData.places) ? searchData.places[0] : null;
-    const latitude = Number(place?.location?.latitude);
-    const longitude = Number(place?.location?.longitude);
+    const components = Array.isArray(place?.addressComponents) ? place.addressComponents : [];
+    const street = addressComponent(components, 'route');
+    const streetNumber = addressComponent(components, 'street_number');
+    if (!street || addressComponent(components, 'country', 'shortText').toUpperCase() !== 'IT') {
+      return jsonResponse({ ok: false, error: 'INCOMPLETE_STREET_ADDRESS' }, 400);
+    }
+    const { latitude, longitude } = resolvedPlaceLocation(place);
 
     if (
       !Number.isFinite(latitude) ||
@@ -168,6 +201,8 @@ Deno.serve(async (req) => {
       latitude,
       longitude,
       formatted_address: cleanString(place?.formattedAddress, 400),
+      street,
+      street_number: streetNumber,
     });
   }
 
@@ -205,7 +240,7 @@ Deno.serve(async (req) => {
     );
 
     if (!placesResponse.ok) {
-      console.error('Google Places autocomplete failed:', placesResponse.status);
+      await logProviderError('Google Places autocomplete failed', placesResponse);
 
       return jsonResponse(
         {
@@ -271,12 +306,12 @@ Deno.serve(async (req) => {
       headers: {
         'X-Goog-Api-Key': GOOGLE_PLACES_API_KEY,
         'X-Goog-FieldMask':
-          'id,formattedAddress,shortFormattedAddress,location,addressComponents',
+          'id,formattedAddress,shortFormattedAddress,location,addressComponents,types,viewport',
       },
     });
 
     if (!detailsResponse.ok) {
-      console.error('Google Places details failed:', detailsResponse.status);
+      await logProviderError('Google Places details failed', detailsResponse);
 
       return jsonResponse(
         {
@@ -290,8 +325,7 @@ Deno.serve(async (req) => {
 
     const place = await detailsResponse.json();
 
-    const latitude = Number(place.location?.latitude);
-    const longitude = Number(place.location?.longitude);
+    const { latitude, longitude } = resolvedPlaceLocation(place);
 
     if (
       !Number.isFinite(latitude) ||
@@ -329,7 +363,7 @@ Deno.serve(async (req) => {
       return jsonResponse({ ok: false, error: 'ADDRESS_OUTSIDE_ITALY' }, 400);
     }
 
-    if (!street || !streetNumber || !city || !province) {
+    if (!street || !city || !province) {
       return jsonResponse(
         {
           ok: false,

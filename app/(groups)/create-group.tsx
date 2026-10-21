@@ -17,7 +17,7 @@ import {
   View,
 } from 'react-native';
 
-import { createBajujuGroup, uploadBajujuGroupCover } from '../../src/lib/bajujuGroups';
+import { createBajujuGroup, GROUP_DESCRIPTION_MAX_LENGTH, uploadBajujuGroupCover } from '../../src/lib/bajujuGroups';
 import { BAJUJU_GROUP_CATEGORIES } from '../../src/constants/groupCategories';
 import { resolveAddressText } from '../../src/lib/addressAutocomplete';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -264,8 +264,9 @@ export default function CreateGroupScreen() {
             placeholderTextColor={BAJUJU_COLORS.muted}
             style={[styles.input, styles.textArea]}
             multiline
-            maxLength={500}
+            maxLength={GROUP_DESCRIPTION_MAX_LENGTH}
           />
+          <Text style={styles.helper}>{description.length}/{GROUP_DESCRIPTION_MAX_LENGTH}</Text>
 
           <Text style={styles.label}>Categoria</Text>
           <View style={styles.categoryGrid}>

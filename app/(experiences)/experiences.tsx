@@ -223,19 +223,35 @@ export default function ExperiencesScreen() {
         Date.now() - PAST_RETENTION_DAYS * 24 * 60 * 60 * 1000
       ).toISOString().slice(0, 10);
 
-      const activitiesResult = await supabase
-        .from('activities')
-        .select('id,creator_id,title,category,city,province,activity_date,activity_time,created_at,max_participants,join_approval_required,min_age,max_age,is_flash,photo_url,deleted_at,status,latitude,longitude')
-        .neq('is_flash', true)
-        .gte('activity_date', oldestUsefulDate)
-        .order('activity_date', { ascending: true })
-        .order('activity_time', { ascending: true })
-        .limit(500);
+      const today = new Date().toISOString().slice(0, 10);
+      const selectedColumns = 'id,creator_id,title,category,city,province,activity_date,activity_time,created_at,max_participants,join_approval_required,min_age,max_age,is_flash,photo_url,deleted_at,status,latitude,longitude';
 
-      if (activitiesResult.error) throw activitiesResult.error;
+      // Gli eventi passati non devono occupare i 500 posti riservati ai prossimi appuntamenti.
+      const [upcomingResult, recentPastResult] = await Promise.all([
+        supabase.from('activities')
+          .select(selectedColumns)
+          .neq('is_flash', true)
+          .gte('activity_date', today)
+          .order('activity_date', { ascending: true })
+          .order('activity_time', { ascending: true })
+          .limit(500),
+        supabase.from('activities')
+          .select(selectedColumns)
+          .neq('is_flash', true)
+          .gte('activity_date', oldestUsefulDate)
+          .lt('activity_date', today)
+          .order('activity_date', { ascending: false })
+          .order('activity_time', { ascending: false })
+          .limit(100),
+      ]);
 
-      const cleanActivities = ((activitiesResult.data || []) as ActivityRow[])
-        .filter((row) => !isDeleted(row));
+      if (upcomingResult.error) throw upcomingResult.error;
+      if (recentPastResult.error) throw recentPastResult.error;
+
+      const cleanActivities = [
+        ...((upcomingResult.data || []) as ActivityRow[]),
+        ...((recentPastResult.data || []) as ActivityRow[]),
+      ].filter((row) => !isDeleted(row));
       setActivities(cleanActivities);
 
       const activityIds = cleanActivities.map((row) => String(row.id || '')).filter(Boolean);

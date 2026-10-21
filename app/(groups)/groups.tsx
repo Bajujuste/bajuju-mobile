@@ -210,7 +210,8 @@ export default function GroupsScreen() {
         )}
       </ScrollView>
 
-      <BajujuBottomNav active="home" />
+      {/* Come la lista eventi: nessuna scheda evidenziata, così il tasto Home riporta davvero alla Home. */}
+      <BajujuBottomNav active="find" />
     </SafeAreaView>
   );
 }

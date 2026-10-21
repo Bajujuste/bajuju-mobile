@@ -225,9 +225,9 @@ export default function HomeScreen() {
         }
         const today = new Date().toISOString().slice(0, 10);
         const result = await supabase.from('activities')
-          .select('id,title,category,city,activity_date,activity_time,photo_url,latitude,longitude,status')
+          .select('id,title,category,city,activity_date,activity_time,photo_url,latitude,longitude,status,created_at')
           .eq('is_flash', false).is('deleted_at', null).gte('activity_date', today)
-          .order('activity_date', { ascending: true }).limit(500);
+          .order('created_at', { ascending: false }).limit(500);
         if (result.error) throw result.error;
         const radians = (value: number) => value * Math.PI / 180;
         const events = (result.data || []).flatMap((row: any) => {
@@ -243,7 +243,7 @@ export default function HomeScreen() {
           return [{ id: String(row.id), title: String(row.title || 'Esperienza Bajuju'), category: String(row.category || ''),
             city: String(row.city || 'Luogo da definire'), date: experienceDateLabel(time, Boolean(row.activity_time)),
             photoUrl: String(row.photo_url || ''), distanceKm }];
-        }).sort((a, b) => a.distanceKm - b.distanceKm).slice(0, 5);
+        }).slice(0, 80);
         if (active) setNearbyExperiences(events);
       }
 

@@ -126,7 +126,7 @@ export default function GroupsScreen() {
           <TextInput
             value={search}
             onChangeText={setSearch}
-            placeholder="Cerca un gruppo"
+            placeholder="Cerca per parola chiave"
             placeholderTextColor={BAJUJU_COLORS.muted}
             style={styles.searchInput}
             autoCorrect={false}

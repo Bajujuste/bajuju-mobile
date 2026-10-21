@@ -228,7 +228,8 @@ export default function ExperiencesScreen() {
         .select('id,creator_id,title,category,city,province,activity_date,activity_time,created_at,max_participants,join_approval_required,min_age,max_age,is_flash,photo_url,deleted_at,status,latitude,longitude')
         .neq('is_flash', true)
         .gte('activity_date', oldestUsefulDate)
-        .order('created_at', { ascending: false })
+        .order('activity_date', { ascending: true })
+        .order('activity_time', { ascending: true })
         .limit(500);
 
       if (activitiesResult.error) throw activitiesResult.error;

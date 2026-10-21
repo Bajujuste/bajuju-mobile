@@ -11,6 +11,7 @@ import { trackBajujuEvent } from '../src/utils/bajujuAnalytics';
 import { refreshBajujuNotificationLocation } from '../src/utils/bajujuNotificationLocation';
 import { experienceDateLabel } from '../src/utils/experienceDateLabel';
 import { shareBajujuHome } from '../src/utils/shareBajuju';
+import { getBajujuNotificationCategory, BajujuNotificationCategory } from '../src/utils/bajujuNotificationCategories';
 import {
   refreshBajujuPushRegistrationIfAuthorized,
   registerForBajujuPushNotifications,
@@ -61,6 +62,7 @@ export default function HomeScreen() {
   const homeFocusCountRef = useRef(0);
   const [profilePhotoUrl, setProfilePhotoUrl] = useState('');
   const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
+  const [notificationCounts, setNotificationCounts] = useState<Record<BajujuNotificationCategory, number>>({ requests: 0, chat: 0, other: 0 });
   const [nextExperience, setNextExperience] = useState<NextExperience | null>(null);
   const [nearbyExperiences, setNearbyExperiences] = useState<HomeNearbyExperience[]>([]);
   const [groups, setGroups] = useState<HomeGroupPreview[]>([]);
@@ -160,14 +162,24 @@ export default function HomeScreen() {
       let channel: ReturnType<typeof supabase.channel> | null = null;
 
       async function refreshUnreadCount(userId: string) {
-        const { count, error } = await supabase
+        const { data, error } = await supabase
           .from('push_notification_logs')
-          .select('id', { count: 'exact', head: true })
+          .select('notification_type,data')
           .eq('user_id', userId)
-          .eq('is_read', false);
+          .eq('is_read', false)
+          .order('sent_at', { ascending: false })
+          .limit(1000);
 
         if (error) throw error;
-        if (active) setUnreadNotificationsCount(count || 0);
+        const counts: Record<BajujuNotificationCategory, number> = { requests: 0, chat: 0, other: 0 };
+        (data || []).forEach((row) => {
+          const category = getBajujuNotificationCategory(row.notification_type, row.data as Record<string, unknown> | null);
+          counts[category] += 1;
+        });
+        if (active) {
+          setNotificationCounts(counts);
+          setUnreadNotificationsCount(counts.requests + counts.chat + counts.other);
+        }
       }
 
       async function refreshGroups(userId: string) {
@@ -175,10 +187,10 @@ export default function HomeScreen() {
           // Aggiorna la posizione solo se il permesso è già stato concesso:
           // get_bajuju_groups ordina poi automaticamente i gruppi per distanza.
           await refreshBajujuNotificationLocation(userId, { requestPermission: false }).catch(() => null);
-          const loadedGroups = await loadBajujuGroups(userId, { limit: 30 });
+          const loadedGroups = await loadBajujuGroups(userId, { limit: 100 });
           if (!active) return;
           setGroups(
-            loadedGroups.map((group) => ({
+            [...loadedGroups].sort((a, b) => b.memberCount - a.memberCount || a.name.localeCompare(b.name, 'it')).map((group) => ({
               id: group.id,
               name: group.name,
               city: group.city,
@@ -316,6 +328,7 @@ export default function HomeScreen() {
           if (!userId || !active) {
             if (active) {
               setUnreadNotificationsCount(0);
+            setNotificationCounts({ requests: 0, chat: 0, other: 0 });
               setNextExperience(null);
               setGroups([]);
               setNearbyExperiences([]);
@@ -357,6 +370,7 @@ export default function HomeScreen() {
           console.log('Errore aggiornamento Home:', error);
           if (active) {
             setUnreadNotificationsCount(0);
+            setNotificationCounts({ requests: 0, chat: 0, other: 0 });
             setGroups([]);
           }
         }
@@ -421,6 +435,7 @@ export default function HomeScreen() {
     <BajujuHomeView
       profilePhotoUrl={profilePhotoUrl}
       unreadNotificationsCount={unreadNotificationsCount}
+      notificationCounts={notificationCounts}
       nextExperience={nextExperience}
       groups={groups}
       nearbyExperiences={nearbyExperiences}
@@ -430,6 +445,7 @@ export default function HomeScreen() {
         void trackBajujuEvent('next_experience_open', { activityId: nextExperience.id });
         router.push({ pathname: '/experience-detail' as any, params: { id: nextExperience.id } });
       }}
+      onOpenNotificationCategory={(category) => router.push({ pathname: '/notifications' as any, params: { tab: category } })}
       onOpenNotifications={() => {
         void trackBajujuEvent('notification_open', { source: 'home' });
         router.push('/notifications' as any);

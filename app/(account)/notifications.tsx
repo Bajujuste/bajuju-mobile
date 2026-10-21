@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -10,9 +10,10 @@ import {
   Text,
   View,
 } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 
 import { supabase } from '../../src/lib/supabase';
+import { getBajujuNotificationCategory, BAJUJU_NOTIFICATION_CATEGORY_LABELS, BajujuNotificationCategory } from '../../src/utils/bajujuNotificationCategories';
 
 type NotificationData = Record<string, unknown>;
 
@@ -41,6 +42,10 @@ function notificationIcon(type: string) {
     case 'new_experience': return '🎉';
     case 'new_flash': return '⚡';
     case 'new_participant': return '🙋';
+    case 'chat_message': return '💬';
+    case 'support_message': return '💬';
+    case 'experience_join_accepted': return '✅';
+    case 'group_join_request': return '🙋';
     case 'contact_request': return '💌';
     case 'contact_accepted': return '✅';
     case 'contact_rejected': return '❌';
@@ -52,10 +57,20 @@ function notificationIcon(type: string) {
 }
 
 export default function NotificationsScreen() {
+  const params = useLocalSearchParams<{ tab?: string }>();
+  const initialTab: BajujuNotificationCategory = params.tab === 'chat' || params.tab === 'requests' || params.tab === 'other' ? params.tab : 'requests';
+  const [activeTab, setActiveTab] = useState<BajujuNotificationCategory>(initialTab);
   const [notifications, setNotifications] = useState<NotificationRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const counts = useMemo(() => notifications.reduce<Record<BajujuNotificationCategory, number>>((acc, notification) => {
+    if (!notification.is_read) acc[getBajujuNotificationCategory(notification.notification_type, notification.data)] += 1;
+    return acc;
+  }, { requests: 0, chat: 0, other: 0 }), [notifications]);
+  const visibleNotifications = useMemo(() => notifications.filter((notification) =>
+    getBajujuNotificationCategory(notification.notification_type, notification.data) === activeTab
+  ), [notifications, activeTab]);
 
   const loadNotifications = useCallback(async (showRefresh = false) => {
     if (showRefresh) setRefreshing(true);
@@ -227,7 +242,7 @@ export default function NotificationsScreen() {
         </Pressable>
         <View style={styles.headerTextBlock}>
           <Text style={styles.headerTitle}>Notifiche</Text>
-          <Text style={styles.headerSubtitle}>Le novità importanti di Bajuju</Text>
+          <Text style={styles.headerSubtitle}>Richieste, conversazioni e altre novità</Text>
         </View>
         <View style={styles.headerSpacer} />
       </View>
@@ -242,6 +257,22 @@ export default function NotificationsScreen() {
           contentContainerStyle={styles.container}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void loadNotifications(true)} tintColor={PINK} />}
         >
+          <View style={styles.tabs} accessibilityRole="tablist">
+            {(['requests', 'chat', 'other'] as const).map((tab) => (
+              <Pressable
+                key={tab}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: activeTab === tab }}
+                accessibilityLabel={`${BAJUJU_NOTIFICATION_CATEGORY_LABELS[tab]}, ${counts[tab]} notifiche`}
+                onPress={() => setActiveTab(tab)}
+                style={[styles.tabButton, activeTab === tab && styles.activeTabButton]}
+              >
+                <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>
+                  {BAJUJU_NOTIFICATION_CATEGORY_LABELS[tab]} ({counts[tab]})
+                </Text>
+              </Pressable>
+            ))}
+          </View>
           {errorMessage ? (
             <View style={styles.messageCard}>
               <Text style={styles.messageTitle}>Qualcosa non ha funzionato</Text>
@@ -250,11 +281,11 @@ export default function NotificationsScreen() {
                 <Text style={styles.retryButtonText}>Riprova</Text>
               </Pressable>
             </View>
-          ) : notifications.length === 0 ? (
+          ) : visibleNotifications.length === 0 ? (
             <View style={styles.emptyCard}>
               <Text style={styles.emptyIcon}>🔔</Text>
               <Text style={styles.emptyTitle}>Nessuna notifica</Text>
-              <Text style={styles.emptyText}>Qui compariranno esperienze, Flash, partecipazioni e inviti.</Text>
+              <Text style={styles.emptyText}>Non ci sono notifiche in questa sezione.</Text>
             </View>
           ) : (
             <>
@@ -262,7 +293,7 @@ export default function NotificationsScreen() {
                 <Text style={styles.deleteAllButtonText}>Elimina tutte</Text>
               </Pressable>
 
-              {notifications.map((notification) => (
+              {visibleNotifications.map((notification) => (
                 <Pressable
                   key={notification.id}
                   style={[styles.notificationCard, !notification.is_read && styles.unreadCard]}
@@ -312,6 +343,11 @@ const WHITE = '#ffffff';
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: BG },
+  tabs: { flexDirection: 'row', gap: 6, marginBottom: 14 },
+  tabButton: { flex: 1, minWidth: 0, paddingVertical: 12, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: WHITE, borderWidth: 1, borderColor: BORDER },
+  activeTabButton: { backgroundColor: PINK, borderColor: PINK },
+  tabText: { color: PINK_DARK, fontWeight: '700', fontSize: 12 },
+  activeTabText: { color: WHITE },
   header: { minHeight: 74, paddingHorizontal: 15, paddingTop: 10, paddingBottom: 10, flexDirection: 'row', alignItems: 'center', backgroundColor: BG },
   backButton: { width: 44, height: 44, borderRadius: 999, alignItems: 'center', justifyContent: 'center', backgroundColor: WHITE, borderWidth: 1, borderColor: BORDER },
   backButtonText: { marginTop: -4, fontSize: 38, lineHeight: 40, fontWeight: '500', color: PINK_DARK },

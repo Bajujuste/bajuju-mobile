@@ -14,7 +14,7 @@
       "associatedDomains": [
         "applinks:bajuju.it"
       ],
-      "buildNumber": "10",
+      "buildNumber": "11",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -38,6 +38,11 @@
               "scheme": "https",
               "host": "bajuju.it",
               "pathPrefix": "/experience-detail"
+            },
+            {
+              "scheme": "https",
+              "host": "bajuju.it",
+              "pathPrefix": "/group-detail"
             }
           ],
           "category": [
@@ -46,7 +51,7 @@
           ]
         }
       ],
-      "versionCode": 16
+      "versionCode": 17
     },
     "web": {
       "output": "static",

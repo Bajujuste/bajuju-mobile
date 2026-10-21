@@ -1,7 +1,7 @@
 import { Platform, Share } from 'react-native';
 
 const BAJUJU_EVENT_LINK = 'https://bajuju.it';
-const BAJUJU_GROUP_LINK = 'https://bajuju.netlify.app';
+const BAJUJU_GROUP_LINK = 'https://bajuju.it';
 const BAJUJU_LINK = 'https://bajuju.it';
 
 type ShareExperienceParams = {
@@ -111,13 +111,15 @@ export async function shareBajujuGroup(params: ShareGroupParams) {
     place ? `Dove: ${place}` : null,
     '',
     'Dal Vivo è Meglio',
-    groupLink,
   ].filter((line) => line !== null);
 
-  await Share.share({
-    title: name,
-    message: lines.join('\n'),
-  });
+  if (Platform.OS === 'ios') {
+    await Share.share({ title: name, message: lines.join('\n'), url: groupLink });
+    return;
+  }
+
+  // Come per gli eventi: su Android solo il link, così Facebook crea la card con foto e nome del gruppo.
+  await Share.share({ title: name, message: groupLink });
 }
 
 export async function shareBajujuFlash(params: ShareExperienceParams) {

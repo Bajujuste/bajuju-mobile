@@ -1,5 +1,8 @@
 import { supabase } from './supabase';
 
+// Deve restare uguale al vincolo groups_description_length_chk sulla tabella groups.
+export const GROUP_DESCRIPTION_MAX_LENGTH = 500;
+
 export type BajujuGroupCard = {
   id: string;
   name: string;

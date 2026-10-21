@@ -9,13 +9,15 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
 
+import { BajujuIcon } from '../../src/components/icons/BajujuIcon';
 import { BajujuBottomNav } from '../../src/components/navigation/BajujuBottomNav';
 import { BajujuGroupCard, loadBajujuGroups } from '../../src/lib/bajujuGroups';
 import { supabase } from '../../src/lib/supabase';
-import { BAJUJU_COLORS, BAJUJU_FONTS, BAJUJU_SHADOW } from '../../src/theme/bajujuTheme';
+import { BAJUJU_COLORS, BAJUJU_FONTS } from '../../src/theme/bajujuTheme';
 
 type GroupRequestRow = {
   id: string;
@@ -33,6 +35,8 @@ export default function GroupsScreen() {
   const [searching, setSearching] = useState(false);
   const [userId, setUserId] = useState('');
   const [search, setSearch] = useState('');
+  const { width: screenWidth } = useWindowDimensions();
+  const cardWidth = Math.min(320, Math.max(260, screenWidth - 76));
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -114,16 +118,11 @@ export default function GroupsScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        <View style={styles.header}>
-          <Text style={styles.eyebrow}>COMMUNITY BAJUJU</Text>
-          <Text style={styles.title}>Gruppi</Text>
-          <Text style={styles.subtitle}>
-            Cerca una community, entra nel gruppo e scopri le esperienze dedicate.
-          </Text>
-        </View>
+        <Text style={styles.screenTitle}>Gruppi</Text>
+        <Text style={styles.subtitle}>Entra in una community e scopri le sue esperienze.</Text>
 
         <View style={styles.searchBox}>
-          <Text style={styles.searchIcon}>⌕</Text>
+          <BajujuIcon name="search" size={20} color={BAJUJU_COLORS.pink} />
           <TextInput
             value={search}
             onChangeText={setSearch}
@@ -141,16 +140,15 @@ export default function GroupsScreen() {
         </View>
 
         {loading ? (
-          <View style={styles.loadingBox}>
-            <ActivityIndicator size="large" color={BAJUJU_COLORS.brightPink} />
-            <Text style={styles.loadingText}>Carico i gruppi...</Text>
+          <View style={styles.emptyCard}>
+            <ActivityIndicator color={BAJUJU_COLORS.pink} />
+            <Text style={styles.emptyText}>Carico i gruppi…</Text>
           </View>
         ) : (
           <>
             {!hasSearch && groupRequests.length > 0 ? (
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Le mie richieste</Text>
-                <Text style={styles.sectionHint}>I gruppi diventano pubblici solo dopo l’approvazione di Bajuju.</Text>
+                <SectionHeader title="Le mie richieste" count={groupRequests.length} hint="I gruppi diventano pubblici solo dopo l’approvazione di Bajuju." />
                 {groupRequests.map((group) => (
                   <Pressable
                     key={`request-${group.id}`}
@@ -158,14 +156,14 @@ export default function GroupsScreen() {
                     onPress={() => openGroup(group.id)}
                   >
                     <View style={styles.requestCopy}>
-                      <Text style={styles.groupName} numberOfLines={1}>{group.name || 'Gruppo Bajuju'}</Text>
-                      {group.city ? <Text style={styles.groupMeta}>{group.city}</Text> : null}
+                      <Text style={styles.requestName} numberOfLines={1}>{group.name || 'Gruppo Bajuju'}</Text>
+                      {group.city ? <Text style={styles.requestMeta}>{group.city}</Text> : null}
                       {group.status === 'rejected' && group.review_note ? (
                         <Text style={styles.requestNote} numberOfLines={2}>{group.review_note}</Text>
                       ) : null}
                     </View>
                     <Text style={[styles.requestBadge, group.status === 'rejected' && styles.requestBadgeRejected]}>
-                      {group.status === 'rejected' ? 'DA RIVEDERE' : 'IN APPROVAZIONE'}
+                      {group.status === 'rejected' ? 'Da rivedere' : 'In approvazione'}
                     </Text>
                   </Pressable>
                 ))}
@@ -174,35 +172,36 @@ export default function GroupsScreen() {
 
             {!hasSearch && myGroups.length > 0 ? (
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>I miei gruppi</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <SectionHeader title="I miei gruppi" count={myGroups.length} />
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.cardsRow}>
                   {myGroups.map((group) => (
-                    <GroupRow key={`mine-${group.id}`} group={group} onPress={() => openGroup(group.id)} />
+                    <GroupCard key={`mine-${group.id}`} group={group} width={cardWidth} onPress={() => openGroup(group.id)} />
                   ))}
                 </ScrollView>
               </View>
             ) : null}
 
             <View style={styles.section}>
-              <View style={styles.sectionHeaderRow}>
-                <Text style={styles.sectionTitle}>{hasSearch ? 'Risultati' : 'Tutti i gruppi'}</Text>
-                {searching ? <ActivityIndicator size="small" color={BAJUJU_COLORS.brightPink} /> : null}
-              </View>
-              {!hasSearch ? <Text style={styles.sectionHint}>Prima quelli più vicini a te.</Text> : null}
+              <SectionHeader
+                title={hasSearch ? 'Risultati' : 'Tutti i gruppi'}
+                count={groups.length}
+                detail={hasSearch ? '' : 'dal più vicino'}
+                loading={searching}
+              />
 
               {groups.length === 0 ? (
                 <View style={styles.emptyCard}>
                   <Text style={styles.emptyTitle}>{hasSearch ? 'Nessun gruppo trovato' : 'I primi gruppi stanno arrivando'}</Text>
                   <Text style={styles.emptyText}>
                     {hasSearch
-                      ? 'Prova con un’altra parola chiave.'
+                      ? 'Prova con un’altra parola.'
                       : 'Quando verranno approvati nuovi gruppi, li vedrai qui.'}
                   </Text>
                 </View>
               ) : (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.cardsRow}>
                   {groups.map((group) => (
-                    <GroupRow key={group.id} group={group} onPress={() => openGroup(group.id)} />
+                    <GroupCard key={group.id} group={group} width={cardWidth} onPress={() => openGroup(group.id)} />
                   ))}
                 </ScrollView>
               )}
@@ -216,30 +215,61 @@ export default function GroupsScreen() {
   );
 }
 
-function GroupRow({ group, onPress }: { group: BajujuGroupCard; onPress: () => void }) {
-  const distance = group.distanceKm === null
-    ? ''
-    : group.distanceKm < 1
-      ? '< 1 km'
-      : `${Math.round(group.distanceKm)} km`;
-  const place = [group.city, distance].filter(Boolean).join(' · ');
+function SectionHeader({ title, count, detail, hint, loading }: { title: string; count: number; detail?: string; hint?: string; loading?: boolean }) {
+  return (
+    <View style={styles.sectionHeader}>
+      <View style={styles.sectionTitleRow}>
+        <Text style={styles.sectionTitle}>{title}</Text>
+        <Text style={styles.sectionCount}>
+          {count} {count === 1 ? 'gruppo' : 'gruppi'}{detail ? ` · ${detail}` : ''}
+        </Text>
+        {loading ? <ActivityIndicator size="small" color={BAJUJU_COLORS.pink} /> : null}
+      </View>
+      {hint ? <Text style={styles.sectionHint}>{hint}</Text> : null}
+    </View>
+  );
+}
+
+function formatDistance(distanceKm: number | null) {
+  if (distanceKm === null) return '';
+  return distanceKm < 1 ? '< 1 km' : `${Math.round(distanceKm)} km`;
+}
+
+function GroupCard({ group, width, onPress }: { group: BajujuGroupCard; width: number; onPress: () => void }) {
+  const distance = formatDistance(group.distanceKm);
+  const place = group.city || group.province;
 
   return (
-    <Pressable style={({ pressed }) => [styles.groupCard, pressed && styles.pressed]} onPress={onPress}>
-      {group.coverUrl ? (
-        <Image source={{ uri: group.coverUrl }} style={styles.groupCover} resizeMode="cover" />
-      ) : (
-        <View style={styles.groupAvatar}><Text style={styles.groupAvatarText}>👥</Text></View>
-      )}
-      <View style={styles.groupCopy}>
-        <Text style={styles.groupCategory}>COMMUNITY</Text>
-        <Text style={styles.groupName} numberOfLines={2}>{group.name}</Text>
-        {place ? <Text style={styles.groupMeta} numberOfLines={1}>{place}</Text> : null}
-        <Text style={styles.groupMembers}>
-          {group.memberCount} {group.memberCount === 1 ? 'iscritto' : 'iscritti'}
-          {group.joinedByMe ? ' · Sei iscritto' : ''}
-        </Text>
-        <Text style={styles.groupOpen}>Apri →</Text>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`Apri il gruppo ${group.name}`}
+      style={({ pressed }) => [styles.groupCard, { width }, pressed && styles.pressed]}
+      onPress={onPress}
+    >
+      <View style={styles.imageBox}>
+        {group.coverUrl ? (
+          <Image source={{ uri: group.coverUrl }} style={styles.image} resizeMode="cover" />
+        ) : (
+          <View style={styles.imagePlaceholder}><BajujuIcon name="group" size={44} color={BAJUJU_COLORS.pink} /></View>
+        )}
+        {group.category ? <Text style={[styles.imageChip, styles.categoryChip]} numberOfLines={1}>{group.category}</Text> : null}
+        {distance ? <Text style={[styles.imageChip, styles.distanceChip]}>{distance}</Text> : null}
+        {group.joinedByMe ? <Text style={[styles.imageChip, styles.joinedChip]}>Sei iscritto</Text> : null}
+      </View>
+      <View style={styles.cardBody}>
+        <Text style={styles.cardTitle} numberOfLines={2}>{group.name}</Text>
+        {place ? (
+          <View style={styles.metaRow}>
+            <BajujuIcon name="pin" size={16} color="#C2287A" />
+            <Text style={styles.cardMeta} numberOfLines={1}>{place}</Text>
+          </View>
+        ) : null}
+        <View style={styles.metaRow}>
+          <BajujuIcon name="group" size={16} color="#C2287A" />
+          <Text style={styles.cardMeta} numberOfLines={1}>
+            {group.memberCount} {group.memberCount === 1 ? 'iscritto' : 'iscritti'}
+          </Text>
+        </View>
       </View>
     </Pressable>
   );
@@ -247,121 +277,71 @@ function GroupRow({ group, onPress }: { group: BajujuGroupCard; onPress: () => v
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: BAJUJU_COLORS.background },
-  container: { paddingHorizontal: 22, paddingTop: 18, paddingBottom: 150 },
-  header: {
-    padding: 22,
-    borderRadius: 29,
-    borderWidth: 1.5,
-    borderColor: BAJUJU_COLORS.line,
-    backgroundColor: '#FFFFFFE8',
-    ...BAJUJU_SHADOW,
-  },
-  eyebrow: {
-    color: BAJUJU_COLORS.brightPink,
-    fontFamily: BAJUJU_FONTS.bold,
-    fontSize: 12,
-    letterSpacing: 1.1,
-  },
-  title: {
-    marginTop: 2,
-    color: BAJUJU_COLORS.plum,
-    fontFamily: BAJUJU_FONTS.bold,
-    fontSize: 38,
-  },
-  subtitle: {
-    marginTop: 7,
-    color: BAJUJU_COLORS.muted,
-    fontFamily: BAJUJU_FONTS.medium,
-    fontSize: 15,
-    lineHeight: 21,
-  },
-  createButton: {
-    alignSelf: 'flex-start',
-    minHeight: 46,
-    marginTop: 17,
-    paddingHorizontal: 18,
-    borderRadius: 23,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: BAJUJU_COLORS.brightPink,
-  },
-  createButtonText: { color: '#fff', fontFamily: BAJUJU_FONTS.bold, fontSize: 15 },
+  container: { padding: 16, paddingTop: 20, paddingBottom: 150 },
+  pressed: { opacity: 0.85 },
+  screenTitle: { color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.bold, fontSize: 28, letterSpacing: -0.5 },
+  subtitle: { marginTop: 4, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.medium, fontSize: 14, lineHeight: 19 },
   searchBox: {
-    minHeight: 56,
-    marginTop: 18,
-    paddingHorizontal: 15,
-    borderRadius: 20,
-    borderWidth: 1.5,
-    borderColor: BAJUJU_COLORS.palePink,
+    height: 50,
+    marginTop: 14,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: BAJUJU_COLORS.line,
     backgroundColor: '#fff',
     flexDirection: 'row',
     alignItems: 'center',
-    ...BAJUJU_SHADOW,
+    gap: 8,
   },
-  searchIcon: { color: BAJUJU_COLORS.brightPink, fontFamily: BAJUJU_FONTS.bold, fontSize: 24, marginRight: 8 },
-  searchInput: { flex: 1, minHeight: 52, color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.medium, fontSize: 16 },
-  clearSearch: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  clearSearchText: { color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.bold, fontSize: 24 },
-  loadingBox: { paddingVertical: 56, alignItems: 'center', gap: 12 },
-  loadingText: { color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.medium, fontSize: 14 },
-  section: { marginTop: 25 },
-  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  sectionTitle: {
-    marginBottom: 6,
-    color: BAJUJU_COLORS.plum,
-    fontFamily: BAJUJU_FONTS.bold,
-    fontSize: 22,
-  },
-  sectionHint: { marginBottom: 12, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.medium, fontSize: 12 },
+  searchInput: { flex: 1, height: 48, color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.medium, fontSize: 16 },
+  clearSearch: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  clearSearchText: { color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.bold, fontSize: 22 },
+  section: { marginTop: 24 },
+  sectionHeader: { marginBottom: 12 },
+  sectionTitleRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', columnGap: 8 },
+  sectionTitle: { color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.bold, fontSize: 21 },
+  sectionCount: { color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.medium, fontSize: 14 },
+  sectionHint: { marginTop: 3, color: '#8F5573', fontFamily: BAJUJU_FONTS.medium, fontSize: 13, lineHeight: 18 },
+  cardsRow: { gap: 12, paddingRight: 16, paddingBottom: 8 },
+  groupCard: { borderRadius: 22, overflow: 'hidden', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: BAJUJU_COLORS.line },
+  imageBox: { height: 150, backgroundColor: BAJUJU_COLORS.softPink },
+  image: { width: '100%', height: '100%' },
+  imagePlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  imageChip: { position: 'absolute', overflow: 'hidden', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, fontFamily: BAJUJU_FONTS.semiBold, fontSize: 13 },
+  categoryChip: { top: 10, left: 10, maxWidth: '62%', backgroundColor: '#FFFFFF', color: '#9B1F61' },
+  distanceChip: { top: 10, right: 10, backgroundColor: 'rgba(75, 12, 45, 0.82)', color: '#FFFFFF' },
+  joinedChip: { bottom: 10, left: 10, backgroundColor: BAJUJU_COLORS.pink, color: '#FFFFFF', fontSize: 12 },
+  cardBody: { paddingHorizontal: 14, paddingTop: 12, paddingBottom: 14, gap: 6 },
+  cardTitle: { color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.bold, fontSize: 18, lineHeight: 22, marginBottom: 2 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  cardMeta: { flex: 1, color: '#6B3652', fontFamily: BAJUJU_FONTS.medium, fontSize: 14 },
   requestCard: {
-    minHeight: 82,
-    marginBottom: 11,
+    marginBottom: 10,
     padding: 14,
-    borderRadius: 22,
-    borderWidth: 1.5,
-    borderColor: BAJUJU_COLORS.palePink,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: BAJUJU_COLORS.line,
     backgroundColor: '#fff',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    ...BAJUJU_SHADOW,
   },
   requestCopy: { flex: 1, minWidth: 0 },
-  requestNote: { marginTop: 5, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.medium, fontSize: 11, lineHeight: 15 },
+  requestName: { color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.bold, fontSize: 16 },
+  requestMeta: { marginTop: 3, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.medium, fontSize: 13 },
+  requestNote: { marginTop: 5, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.medium, fontSize: 12, lineHeight: 16 },
   requestBadge: {
-    paddingHorizontal: 9,
-    paddingVertical: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: 999,
     overflow: 'hidden',
     backgroundColor: '#FFF4C7',
     color: '#7A5A00',
-    fontFamily: BAJUJU_FONTS.bold,
-    fontSize: 9,
+    fontFamily: BAJUJU_FONTS.semiBold,
+    fontSize: 12,
   },
-  requestBadgeRejected: {
-    backgroundColor: '#FCE5EC',
-    color: '#A3345E',
-  },
-  groupCard: { width: 286, marginRight: 12, borderRadius: 24, overflow: 'hidden', borderWidth: 1, borderColor: BAJUJU_COLORS.palePink, backgroundColor: '#fff' },
-  groupAvatar: { width: '100%', height: 166, alignItems: 'center', justifyContent: 'center', backgroundColor: BAJUJU_COLORS.palePink },
-  groupCover: { width: '100%', height: 166, backgroundColor: BAJUJU_COLORS.palePink },
-  groupAvatarText: { fontSize: 44 },
-  groupCopy: { padding: 15, minHeight: 142 },
-  groupCategory: { color: BAJUJU_COLORS.brightPink, fontFamily: BAJUJU_FONTS.semiBold, fontSize: 12 },
-  groupName: { marginTop: 7, color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.bold, fontSize: 18, lineHeight: 22 },
-  groupMeta: { marginTop: 5, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.medium, fontSize: 12 },
-  groupMembers: { marginTop: 5, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.semiBold, fontSize: 12 },
-  groupOpen: { marginTop: 12, color: BAJUJU_COLORS.brightPink, fontFamily: BAJUJU_FONTS.bold, fontSize: 13 },
-  arrow: { color: BAJUJU_COLORS.brightPink },
-  emptyCard: {
-    marginTop: 6,
-    padding: 20,
-    borderRadius: 24,
-    borderWidth: 1.5,
-    borderColor: BAJUJU_COLORS.palePink,
-    backgroundColor: '#fff',
-  },
-  emptyTitle: { color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.bold, fontSize: 17 },
-  emptyText: { marginTop: 6, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.medium, fontSize: 14, lineHeight: 20 },
-  pressed: { opacity: 0.72 },
+  requestBadgeRejected: { backgroundColor: '#FCE5EC', color: '#A3345E' },
+  emptyCard: { minHeight: 150, borderRadius: 22, padding: 24, backgroundColor: '#ffffff', borderWidth: 1, borderColor: BAJUJU_COLORS.line, alignItems: 'center', justifyContent: 'center' },
+  emptyTitle: { color: BAJUJU_COLORS.pink, fontFamily: BAJUJU_FONTS.bold, fontSize: 18, textAlign: 'center' },
+  emptyText: { marginTop: 8, color: '#6b3652', fontFamily: BAJUJU_FONTS.medium, fontSize: 14, lineHeight: 20, textAlign: 'center' },
 });

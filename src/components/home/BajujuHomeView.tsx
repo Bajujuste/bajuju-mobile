@@ -90,9 +90,6 @@ type BajujuHomeViewProps = {
   onCreateGroup: () => void;
   onOpenGroup: (groupId: string) => void;
   onShare: () => void;
-  onOpenRules: () => void;
-  onOpenPrivacy: () => void;
-  onLogout: () => void;
 };
 
 export function BajujuHomeView({
@@ -115,9 +112,6 @@ export function BajujuHomeView({
   onCreateGroup,
   onOpenGroup,
   onShare,
-  onOpenRules,
-  onOpenPrivacy,
-  onLogout,
 }: BajujuHomeViewProps) {
   const insets = useSafeAreaInsets();
 
@@ -316,18 +310,6 @@ export function BajujuHomeView({
               <Text style={styles.shareText}>Condividi Bajuju</Text>
             </Pressable>
 
-            <View style={styles.legalLinksRow}>
-              <Pressable accessibilityRole="link" onPress={onOpenRules} style={({ pressed }) => [styles.legalButton, pressed && styles.pressed]}>
-                <Text style={styles.legalButtonText}>Regole community</Text>
-              </Pressable>
-              <Pressable accessibilityRole="link" onPress={onOpenPrivacy} style={({ pressed }) => [styles.legalButton, pressed && styles.pressed]}>
-                <Text style={styles.legalButtonText}>Privacy Policy</Text>
-              </Pressable>
-            </View>
-
-            <Pressable accessibilityRole="button" accessibilityLabel="Esci dall'account" onPress={onLogout} style={styles.logoutButton}>
-              <Text style={styles.logoutText}>Esci dall’account</Text>
-            </Pressable>
           </View>
         </View>
       </ScrollView>

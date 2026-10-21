@@ -72,14 +72,12 @@ export type HomeGroupPreview = {
 
 type BajujuHomeViewProps = {
   profilePhotoUrl: string;
-  unreadNotificationsCount: number;
   notificationCounts: Record<BajujuNotificationCategory, number>;
   nextExperience?: NextExperience | null;
   groups?: HomeGroupPreview[];
   nearbyExperiences?: HomeNearbyExperience[];
   onOpenExperience: (id: string) => void;
   onOpenNextExperience?: () => void;
-  onOpenNotifications: () => void;
   onOpenNotificationCategory: (category: BajujuNotificationCategory) => void;
   onOpenProfile: () => void;
   onFind: () => void;
@@ -94,14 +92,12 @@ type BajujuHomeViewProps = {
 
 export function BajujuHomeView({
   profilePhotoUrl,
-  unreadNotificationsCount,
   notificationCounts,
   nextExperience,
   groups = [],
   nearbyExperiences = [],
   onOpenExperience,
   onOpenNextExperience,
-  onOpenNotifications,
   onOpenNotificationCategory,
   onOpenProfile,
   onFind,
@@ -133,22 +129,6 @@ export function BajujuHomeView({
           </View>
 
           <View style={styles.headerActions}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Apri notifiche"
-              onPress={onOpenNotifications}
-              style={({ pressed }) => [styles.roundButton, pressed && styles.pressed]}
-            >
-              <BajujuIcon name="bell" size={24} color={COLORS.plum} />
-              {unreadNotificationsCount > 0 ? (
-                <View style={styles.notificationBadge}>
-                  <Text style={styles.notificationBadgeText}>
-                    {unreadNotificationsCount > 99 ? '99+' : unreadNotificationsCount}
-                  </Text>
-                </View>
-              ) : null}
-            </Pressable>
-
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Apri il profilo"
@@ -424,9 +404,6 @@ const styles = StyleSheet.create({
   notificationShortcut: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, minHeight: 42, borderRadius: 14, backgroundColor: COLORS.white, borderWidth: 1, borderColor: COLORS.line },
   notificationShortcutLabel: { fontFamily: 'FredokaMedium', fontSize: 12, color: COLORS.plum },
   notificationShortcutCount: { minWidth: 18, paddingHorizontal: 4, borderRadius: 10, overflow: 'hidden', fontFamily: 'FredokaBold', fontSize: 11, textAlign: 'center', color: COLORS.white, backgroundColor: COLORS.brightPink },
-  roundButton: { position: 'relative', width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.white, borderWidth: 1.4, borderColor: '#F4C4DC' },
-  notificationBadge: { position: 'absolute', right: -4, top: -4, minWidth: 20, height: 20, paddingHorizontal: 4, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.brightPink, borderWidth: 2, borderColor: COLORS.white },
-  notificationBadgeText: { color: COLORS.white, fontFamily: 'FredokaBold', fontSize: 10, lineHeight: 12 },
   profileButton: { width: 46, height: 46, borderRadius: 23, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.white, borderWidth: 2, borderColor: COLORS.pink },
   profilePhoto: { width: '100%', height: '100%', backgroundColor: COLORS.softPink },
   content: { paddingHorizontal: 16 },

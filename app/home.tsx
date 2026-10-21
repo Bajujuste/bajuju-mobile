@@ -61,7 +61,6 @@ export default function HomeScreen() {
   // aggiornarli anche qui farebbe partire due registrazioni in parallelo.
   const homeFocusCountRef = useRef(0);
   const [profilePhotoUrl, setProfilePhotoUrl] = useState('');
-  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
   const [notificationCounts, setNotificationCounts] = useState<Record<BajujuNotificationCategory, number>>({ requests: 0, chat: 0, other: 0 });
   const [nextExperience, setNextExperience] = useState<NextExperience | null>(null);
   const [nearbyExperiences, setNearbyExperiences] = useState<HomeNearbyExperience[]>([]);
@@ -178,7 +177,6 @@ export default function HomeScreen() {
         });
         if (active) {
           setNotificationCounts(counts);
-          setUnreadNotificationsCount(counts.requests + counts.chat + counts.other);
         }
       }
 
@@ -327,7 +325,6 @@ export default function HomeScreen() {
           const userId = authResult.data.user?.id;
           if (!userId || !active) {
             if (active) {
-              setUnreadNotificationsCount(0);
             setNotificationCounts({ requests: 0, chat: 0, other: 0 });
               setNextExperience(null);
               setGroups([]);
@@ -369,7 +366,6 @@ export default function HomeScreen() {
         } catch (error) {
           console.log('Errore aggiornamento Home:', error);
           if (active) {
-            setUnreadNotificationsCount(0);
             setNotificationCounts({ requests: 0, chat: 0, other: 0 });
             setGroups([]);
           }
@@ -423,7 +419,6 @@ export default function HomeScreen() {
   return (
     <BajujuHomeView
       profilePhotoUrl={profilePhotoUrl}
-      unreadNotificationsCount={unreadNotificationsCount}
       notificationCounts={notificationCounts}
       nextExperience={nextExperience}
       groups={groups}
@@ -435,10 +430,6 @@ export default function HomeScreen() {
         router.push({ pathname: '/experience-detail' as any, params: { id: nextExperience.id } });
       }}
       onOpenNotificationCategory={(category) => router.push({ pathname: '/notifications' as any, params: { tab: category } })}
-      onOpenNotifications={() => {
-        void trackBajujuEvent('notification_open', { source: 'home' });
-        router.push('/notifications' as any);
-      }}
       onOpenProfile={() => router.push('/profile')}
       onFind={() => {
         void trackBajujuEvent('find_open', { source: 'home' });

@@ -225,7 +225,7 @@ export default function HomeScreen() {
         const result = await supabase.from('activities')
           .select('id,title,category,city,activity_date,activity_time,photo_url,latitude,longitude,status,created_at')
           .eq('is_flash', false).is('deleted_at', null).gte('activity_date', today)
-          .order('created_at', { ascending: false }).limit(500);
+          .order('activity_date', { ascending: true }).order('activity_time', { ascending: true }).limit(500);
         if (result.error) throw result.error;
         const radians = (value: number) => value * Math.PI / 180;
         const events = (result.data || []).flatMap((row: any) => {

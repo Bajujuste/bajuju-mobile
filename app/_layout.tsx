@@ -18,6 +18,7 @@ SplashScreen.preventAutoHideAsync().catch(() => {});
 function openPushNotification(data: Record<string, unknown>) {
   const screen = typeof data.screen === 'string' ? data.screen : '';
   const activityId = typeof data.activityId === 'string' ? data.activityId : '';
+  const groupId = typeof data.groupId === 'string' ? data.groupId : '';
   const section = typeof data.section === 'string' ? data.section : '';
   const threadId = typeof data.threadId === 'string' ? data.threadId : '';
   const type = typeof data.type === 'string' ? data.type : '';
@@ -28,6 +29,9 @@ function openPushNotification(data: Record<string, unknown>) {
   }
 
   switch (screen) {
+    case 'group-detail':
+      router.push(groupId ? ({ pathname: '/group-detail', params: { id: groupId, section: 'requests' } } as any) : '/groups');
+      break;
     case 'experience':
       router.push(activityId ? ({ pathname: '/experience-detail', params: { id: activityId, section: section || undefined } } as any) : '/experiences');
       break;

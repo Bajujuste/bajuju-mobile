@@ -9,6 +9,11 @@ export function getBajujuNotificationCategory(
   const screen = typeof data?.screen === 'string' ? data.screen.toLowerCase() : '';
   const section = typeof data?.section === 'string' ? data.section.toLowerCase() : '';
 
+  // Le richieste per entrare nei gruppi sono avvisi di gestione per chi li crea.
+  // Non vanno mescolate con le richieste personali di contatto.
+  if (type === 'group_join_request' || type === 'group_approval_request' ||
+      (screen === 'group-detail' && section === 'requests')) return 'other';
+
   if (
     type.includes('chat') ||
     type.includes('message') ||

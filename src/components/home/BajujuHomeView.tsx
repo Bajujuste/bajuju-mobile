@@ -5,6 +5,7 @@ import type { BajujuNotificationCategory } from '../../utils/bajujuNotificationC
 import { BajujuBottomNav } from '../navigation/BajujuBottomNav';
 import { getExperienceCategoryIcon, normalizeExperienceCategory } from '../../constants/experienceCategories';
 import {
+  FlatList,
   Image,
   Pressable,
   ScrollView,
@@ -221,8 +222,17 @@ export function BajujuHomeView({
               <Text style={styles.seeAllLink}>Vedi tutti ›</Text>
             </Pressable>
           </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.cardsScroll} style={styles.horizontalSection}>
-            {nearbyExperiences.map((event) => (
+          <FlatList
+            horizontal
+            data={nearbyExperiences}
+            keyExtractor={(event) => event.id}
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.cardsScroll}
+            style={styles.horizontalSection}
+            initialNumToRender={5}
+            maxToRenderPerBatch={8}
+            windowSize={5}
+            renderItem={({ item: event }) => (
               <Pressable key={event.id} style={({ pressed }) => [styles.eventCard, pressed && styles.pressed]} onPress={() => onOpenExperience(event.id)} accessibilityRole="button" accessibilityLabel={`Apri esperienza ${event.title}`}>
                 <View style={styles.eventImageBox}>
                   {event.photoUrl ? <Image source={{ uri: event.photoUrl }} style={styles.eventImage} resizeMode="cover" /> : <View style={styles.eventPlaceholder}><BajujuIcon name="pin" size={44} color={COLORS.pink} /></View>}
@@ -248,13 +258,15 @@ export function BajujuHomeView({
                   </View>
                 </View>
               </Pressable>
-            ))}
-            <Pressable style={({ pressed }) => [styles.eventCard, styles.seeAllCard, pressed && styles.pressed]} onPress={onFind} accessibilityRole="button" accessibilityLabel="Visualizza tutti gli eventi">
+            )}
+            ListFooterComponent={
+              <Pressable style={({ pressed }) => [styles.eventCard, styles.seeAllCard, pressed && styles.pressed]} onPress={onFind} accessibilityRole="button" accessibilityLabel="Visualizza tutti gli eventi">
               <BajujuIcon name="search" size={42} color={COLORS.pink} />
               <Text style={styles.seeAllText}>Visualizza tutti</Text>
               <Text style={styles.seeAllLink}>Trova esperienze →</Text>
-            </Pressable>
-          </ScrollView>
+              </Pressable>
+            }
+          />
 
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Gruppi</Text>

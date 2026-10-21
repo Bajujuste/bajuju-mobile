@@ -132,6 +132,7 @@ export default function NotificationsScreen() {
     const notificationData = notification.data || {};
     const screen = typeof notificationData.screen === 'string' ? notificationData.screen : '';
     const activityId = typeof notificationData.activityId === 'string' ? notificationData.activityId : '';
+    const groupId = typeof notificationData.groupId === 'string' ? notificationData.groupId : '';
     const section = typeof notificationData.section === 'string' ? notificationData.section : '';
     const threadId = typeof notificationData.threadId === 'string' ? notificationData.threadId : '';
 
@@ -141,6 +142,10 @@ export default function NotificationsScreen() {
     }
 
     switch (screen) {
+      case 'group-detail':
+        if (groupId) router.push({ pathname: '/group-detail' as any, params: { id: groupId, section: 'requests' } });
+        else router.push('/groups' as any);
+        return;
       case 'experience':
         if (activityId) router.push({ pathname: '/experience-detail' as any, params: { id: activityId, section: section || undefined } });
         else router.push('/experiences' as any);

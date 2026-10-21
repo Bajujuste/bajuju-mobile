@@ -39,6 +39,7 @@ type ActivityRow = {
   province?: string | null;
   activity_date?: string | null;
   activity_time?: string | null;
+  created_at?: string | null;
   max_participants?: number | null;
   join_approval_required?: boolean | null;
   min_age?: number | null;
@@ -224,10 +225,10 @@ export default function ExperiencesScreen() {
 
       const activitiesResult = await supabase
         .from('activities')
-        .select('id,creator_id,title,category,city,province,activity_date,activity_time,max_participants,join_approval_required,min_age,max_age,is_flash,photo_url,deleted_at,status,latitude,longitude')
+        .select('id,creator_id,title,category,city,province,activity_date,activity_time,created_at,max_participants,join_approval_required,min_age,max_age,is_flash,photo_url,deleted_at,status,latitude,longitude')
         .neq('is_flash', true)
         .gte('activity_date', oldestUsefulDate)
-        .order('activity_date', { ascending: true })
+        .order('created_at', { ascending: false })
         .limit(500);
 
       if (activitiesResult.error) throw activitiesResult.error;
@@ -312,11 +313,10 @@ export default function ExperiencesScreen() {
         const target = rowCoordinates(row);
         return { ...row, distanceKm: coordinates && target ? distanceKm(coordinates, target) : null };
       })
-      .filter((row) => row.distanceKm === null || Number(row.distanceKm) > NEARBY_RADIUS_KM)
       .sort((a, b) => {
-        const distanceA = typeof a.distanceKm === 'number' ? a.distanceKm : Number.MAX_SAFE_INTEGER;
-        const distanceB = typeof b.distanceKm === 'number' ? b.distanceKm : Number.MAX_SAFE_INTEGER;
-        if (distanceA !== distanceB) return distanceA - distanceB;
+        const publishedA = Date.parse(a.created_at || '') || 0;
+        const publishedB = Date.parse(b.created_at || '') || 0;
+        if (publishedA !== publishedB) return publishedB - publishedA;
         return (activityMoment(a)?.getTime() || Number.MAX_SAFE_INTEGER) -
           (activityMoment(b)?.getTime() || Number.MAX_SAFE_INTEGER);
       });
@@ -497,8 +497,8 @@ export default function ExperiencesScreen() {
             <SectionHeader
               title="Tutti gli eventi"
               count={allEventsActivities.length}
-              detail={coordinates ? `oltre i ${NEARBY_RADIUS_KM} km` : ''}
-              hint={coordinates ? '' : 'Attiva la posizione per ordinarli per distanza.'}
+              detail="dal più recente"
+              hint="Scorri verso sinistra per vedere gli altri eventi."
             />
 
             {visibleAllEvents.length === 0 ? (
@@ -508,7 +508,18 @@ export default function ExperiencesScreen() {
               </View>
             ) : (
               <>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.cardsRow}>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.cardsRow}
+                  scrollEventThrottle={100}
+                  onScroll={({ nativeEvent }) => {
+                    const { contentOffset, layoutMeasurement, contentSize } = nativeEvent;
+                    if (contentOffset.x + layoutMeasurement.width >= contentSize.width - 240) {
+                      setAllEventsVisibleCount((count) => Math.min(count + PAGE_SIZE, allEventsActivities.length));
+                    }
+                  }}
+                >
                   {visibleAllEvents.map((item) => {
                     const activityId = String(item.id || '');
                     const organizedByMe = Boolean(currentUserId && String(item.creator_id || '') === currentUserId);
@@ -528,11 +539,6 @@ export default function ExperiencesScreen() {
                     );
                   })}
                 </ScrollView>
-                {allEventsVisibleCount < allEventsActivities.length ? (
-                  <Pressable style={styles.moreButton} onPress={() => setAllEventsVisibleCount((value) => value + PAGE_SIZE)}>
-                    <Text style={styles.moreButtonText}>Mostra altri {Math.min(PAGE_SIZE, allEventsActivities.length - allEventsVisibleCount)}</Text>
-                  </Pressable>
-                ) : null}
               </>
             )}
           </View>

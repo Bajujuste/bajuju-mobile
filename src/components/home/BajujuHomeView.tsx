@@ -1,5 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
 import React from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import type { BajujuNotificationCategory } from '../../utils/bajujuNotificationCategories';
 import { BajujuBottomNav } from '../navigation/BajujuBottomNav';
 import { getExperienceCategoryIcon, normalizeExperienceCategory } from '../../constants/experienceCategories';
 import {
@@ -70,12 +72,14 @@ export type HomeGroupPreview = {
 type BajujuHomeViewProps = {
   profilePhotoUrl: string;
   unreadNotificationsCount: number;
+  notificationCounts: Record<BajujuNotificationCategory, number>;
   nextExperience?: NextExperience | null;
   groups?: HomeGroupPreview[];
   nearbyExperiences?: HomeNearbyExperience[];
   onOpenExperience: (id: string) => void;
   onOpenNextExperience?: () => void;
   onOpenNotifications: () => void;
+  onOpenNotificationCategory: (category: BajujuNotificationCategory) => void;
   onOpenProfile: () => void;
   onFind: () => void;
   onOpenHowItWorks: () => void;
@@ -93,12 +97,14 @@ type BajujuHomeViewProps = {
 export function BajujuHomeView({
   profilePhotoUrl,
   unreadNotificationsCount,
+  notificationCounts,
   nextExperience,
   groups = [],
   nearbyExperiences = [],
   onOpenExperience,
   onOpenNextExperience,
   onOpenNotifications,
+  onOpenNotificationCategory,
   onOpenProfile,
   onFind,
   onOpenHowItWorks,
@@ -161,6 +167,30 @@ export function BajujuHomeView({
               )}
             </Pressable>
           </View>
+        </View>
+
+        <View style={styles.notificationShortcuts}>
+          {([
+            { key: 'requests', label: 'Richieste', icon: 'mail-unread-outline' },
+            { key: 'chat', label: 'Chat', icon: 'chatbubbles-outline' },
+            { key: 'other', label: 'Altre', icon: 'notifications-outline' },
+          ] as const).map((item) => (
+            <Pressable
+              key={item.key}
+              accessibilityRole="button"
+              accessibilityLabel={`${item.label}: ${notificationCounts[item.key]} notifiche non lette`}
+              onPress={() => onOpenNotificationCategory(item.key)}
+              style={({ pressed }) => [styles.notificationShortcut, pressed && styles.pressed]}
+            >
+              <Ionicons name={item.icon} size={18} color={COLORS.plum} />
+              <Text style={styles.notificationShortcutLabel}>{item.label}</Text>
+              {notificationCounts[item.key] > 0 ? (
+                <Text style={styles.notificationShortcutCount}>
+                  {notificationCounts[item.key] > 99 ? '99+' : notificationCounts[item.key]}
+                </Text>
+              ) : null}
+            </Pressable>
+          ))}
         </View>
 
         <View style={styles.content}>
@@ -397,6 +427,10 @@ const styles = StyleSheet.create({
   panda: { width: 40, height: 44 },
   brand: { color: COLORS.pink, fontFamily: 'FredokaBold', fontSize: 31, letterSpacing: -1.2 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  notificationShortcuts: { flexDirection: 'row', paddingHorizontal: 16, gap: 8, paddingBottom: 12 },
+  notificationShortcut: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, minHeight: 42, borderRadius: 14, backgroundColor: COLORS.white, borderWidth: 1, borderColor: COLORS.line },
+  notificationShortcutLabel: { fontFamily: 'FredokaMedium', fontSize: 12, color: COLORS.plum },
+  notificationShortcutCount: { minWidth: 18, paddingHorizontal: 4, borderRadius: 10, overflow: 'hidden', fontFamily: 'FredokaBold', fontSize: 11, textAlign: 'center', color: COLORS.white, backgroundColor: COLORS.brightPink },
   roundButton: { position: 'relative', width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.white, borderWidth: 1.4, borderColor: '#F4C4DC' },
   notificationBadge: { position: 'absolute', right: -4, top: -4, minWidth: 20, height: 20, paddingHorizontal: 4, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.brightPink, borderWidth: 2, borderColor: COLORS.white },
   notificationBadgeText: { color: COLORS.white, fontFamily: 'FredokaBold', fontSize: 10, lineHeight: 12 },

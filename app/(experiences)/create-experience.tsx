@@ -8,6 +8,7 @@ import React, { useEffect, useState } from 'react';
 import {
   Alert,
   Image,
+  Platform,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -93,6 +94,8 @@ export default function CreateExperienceScreen() {
   const [minute, setMinute] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const [pendingDate, setPendingDate] = useState(() => new Date());
+  const [pendingTime, setPendingTime] = useState(() => new Date());
   const [maxParticipants, setMaxParticipants] = useState('10');
   const [joinApprovalRequired, setJoinApprovalRequired] = useState(false);
   const [ageRestricted, setAgeRestricted] = useState(false);
@@ -186,21 +189,38 @@ export default function CreateExperienceScreen() {
     !ageRangeIsValid ? 'età' : '',
   ].filter(Boolean);
 
-  function handleDateChange(event: DateTimePickerEvent, selectedDate?: Date) {
-    setShowDatePicker(false);
-    if (event.type === 'dismissed' || selectedDate === undefined) return;
+  function applyDateSelection(selectedDate: Date) {
     setDay(String(selectedDate.getDate()).padStart(2, '0'));
     setMonth(String(selectedDate.getMonth() + 1).padStart(2, '0'));
     setYear(String(selectedDate.getFullYear()));
   }
 
-  function handleTimeChange(event: DateTimePickerEvent, selectedTime?: Date) {
-    setShowTimePicker(false);
-    if (event.type === 'dismissed' || selectedTime === undefined) return;
+  function applyTimeSelection(selectedTime: Date) {
     const selectedHour = selectedTime.getHours();
     const selectedMinute = selectedTime.getMinutes() >= 30 ? 30 : 0;
     setHour(String(selectedHour).padStart(2, '0'));
     setMinute(String(selectedMinute).padStart(2, '0'));
+  }
+
+  function handleDateChange(event: DateTimePickerEvent, selectedDate?: Date) {
+    if (Platform.OS === 'ios') {
+      // iOS emits changes while the inline picker is open; don't unmount it mid-interaction.
+      if (selectedDate) setPendingDate(selectedDate);
+      return;
+    }
+    setShowDatePicker(false);
+    if (event.type === 'dismissed' || !selectedDate) return;
+    applyDateSelection(selectedDate);
+  }
+
+  function handleTimeChange(event: DateTimePickerEvent, selectedTime?: Date) {
+    if (Platform.OS === 'ios') {
+      if (selectedTime) setPendingTime(selectedTime);
+      return;
+    }
+    setShowTimePicker(false);
+    if (event.type === 'dismissed' || !selectedTime) return;
+    applyTimeSelection(selectedTime);
   }
 
   function toggleGroup(groupId: string) {
@@ -520,6 +540,7 @@ export default function CreateExperienceScreen() {
                 style={styles.pickerButton}
                 onPress={() => {
                   setShowTimePicker(false);
+                  setPendingDate(datePickerValue);
                   setShowDatePicker(true);
                 }}
               >
@@ -534,6 +555,7 @@ export default function CreateExperienceScreen() {
                 style={styles.pickerButton}
                 onPress={() => {
                   setShowDatePicker(false);
+                  setPendingTime(timePickerValue);
                   setShowTimePicker(true);
                 }}
               >
@@ -544,19 +566,71 @@ export default function CreateExperienceScreen() {
           </View>
 
           {showDatePicker ? (
-            <DateTimePicker value={datePickerValue} mode="date" display="calendar" onChange={handleDateChange} />
+            Platform.OS === 'ios' ? (
+              <View style={styles.iosPickerContainer}>
+                <DateTimePicker
+                  value={pendingDate}
+                  mode="date"
+                  display="inline"
+                  onChange={handleDateChange}
+                />
+                <View style={styles.iosPickerActions}>
+                  <Pressable onPress={() => setShowDatePicker(false)} style={styles.iosPickerAction}>
+                    <Text style={styles.iosPickerCancelText}>Annulla</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => {
+                      applyDateSelection(pendingDate);
+                      setShowDatePicker(false);
+                    }}
+                    style={styles.iosPickerAction}
+                  >
+                    <Text style={styles.iosPickerConfirmText}>Conferma data</Text>
+                  </Pressable>
+                </View>
+              </View>
+            ) : (
+              <DateTimePicker value={datePickerValue} mode="date" display="calendar" onChange={handleDateChange} />
+            )
           ) : null}
           {showTimePicker ? (
-            <DateTimePicker
-              value={timePickerValue}
-              mode="time"
-              display="spinner"
-              minuteInterval={30}
-              is24Hour
-              positiveButton={{ label: 'OK', textColor: BAJUJU_COLORS.plum }}
-              negativeButton={{ label: 'Annulla', textColor: BAJUJU_COLORS.plum }}
-              onChange={handleTimeChange}
-            />
+            Platform.OS === 'ios' ? (
+              <View style={styles.iosPickerContainer}>
+                <DateTimePicker
+                  value={pendingTime}
+                  mode="time"
+                  display="spinner"
+                  minuteInterval={30}
+                  is24Hour
+                  onChange={handleTimeChange}
+                />
+                <View style={styles.iosPickerActions}>
+                  <Pressable onPress={() => setShowTimePicker(false)} style={styles.iosPickerAction}>
+                    <Text style={styles.iosPickerCancelText}>Annulla</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => {
+                      applyTimeSelection(pendingTime);
+                      setShowTimePicker(false);
+                    }}
+                    style={styles.iosPickerAction}
+                  >
+                    <Text style={styles.iosPickerConfirmText}>Conferma ora</Text>
+                  </Pressable>
+                </View>
+              </View>
+            ) : (
+              <DateTimePicker
+                value={timePickerValue}
+                mode="time"
+                display="spinner"
+                minuteInterval={30}
+                is24Hour
+                positiveButton={{ label: 'OK', textColor: BAJUJU_COLORS.plum }}
+                negativeButton={{ label: 'Annulla', textColor: BAJUJU_COLORS.plum }}
+                onChange={handleTimeChange}
+              />
+            )
           ) : null}
         </View>
 
@@ -837,6 +911,24 @@ const styles = StyleSheet.create({
   },
   pickerButtonText: { flex: 1, color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.medium, fontSize: 15 },
   placeholder: { color: BAJUJU_COLORS.muted },
+  iosPickerContainer: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: BAJUJU_COLORS.line,
+    backgroundColor: '#fff',
+    overflow: 'hidden',
+  },
+  iosPickerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  iosPickerAction: { paddingVertical: 9, paddingHorizontal: 10 },
+  iosPickerCancelText: { color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.semiBold, fontSize: 14 },
+  iosPickerConfirmText: { color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.bold, fontSize: 14 },
   stepper: {
     minHeight: 50,
     marginBottom: 12,

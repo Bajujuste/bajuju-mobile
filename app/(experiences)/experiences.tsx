@@ -223,18 +223,35 @@ export default function ExperiencesScreen() {
         Date.now() - PAST_RETENTION_DAYS * 24 * 60 * 60 * 1000
       ).toISOString().slice(0, 10);
 
-      const activitiesResult = await supabase
-        .from('activities')
-        .select('id,creator_id,title,category,city,province,activity_date,activity_time,created_at,max_participants,join_approval_required,min_age,max_age,is_flash,photo_url,deleted_at,status,latitude,longitude')
-        .neq('is_flash', true)
-        .gte('activity_date', oldestUsefulDate)
-        .order('created_at', { ascending: false })
-        .limit(500);
+      const today = new Date().toISOString().slice(0, 10);
+      const selectedColumns = 'id,creator_id,title,category,city,province,activity_date,activity_time,created_at,max_participants,join_approval_required,min_age,max_age,is_flash,photo_url,deleted_at,status,latitude,longitude';
 
-      if (activitiesResult.error) throw activitiesResult.error;
+      // Gli eventi passati non devono occupare i 500 posti riservati ai prossimi appuntamenti.
+      const [upcomingResult, recentPastResult] = await Promise.all([
+        supabase.from('activities')
+          .select(selectedColumns)
+          .neq('is_flash', true)
+          .gte('activity_date', today)
+          .order('activity_date', { ascending: true })
+          .order('activity_time', { ascending: true })
+          .limit(500),
+        supabase.from('activities')
+          .select(selectedColumns)
+          .neq('is_flash', true)
+          .gte('activity_date', oldestUsefulDate)
+          .lt('activity_date', today)
+          .order('activity_date', { ascending: false })
+          .order('activity_time', { ascending: false })
+          .limit(100),
+      ]);
 
-      const cleanActivities = ((activitiesResult.data || []) as ActivityRow[])
-        .filter((row) => !isDeleted(row));
+      if (upcomingResult.error) throw upcomingResult.error;
+      if (recentPastResult.error) throw recentPastResult.error;
+
+      const cleanActivities = [
+        ...((upcomingResult.data || []) as ActivityRow[]),
+        ...((recentPastResult.data || []) as ActivityRow[]),
+      ].filter((row) => !isDeleted(row));
       setActivities(cleanActivities);
 
       const activityIds = cleanActivities.map((row) => String(row.id || '')).filter(Boolean);
@@ -299,7 +316,11 @@ export default function ExperiencesScreen() {
         return { ...row, distanceKm: target ? distanceKm(coordinates, target) : null };
       })
       .filter((row) => row.distanceKm !== null && Number(row.distanceKm) <= NEARBY_RADIUS_KM)
-      .sort((a, b) => Number(a.distanceKm || 9999) - Number(b.distanceKm || 9999));
+      .sort((a, b) => {
+        const startA = activityMoment(a)?.getTime() ?? Number.MAX_SAFE_INTEGER;
+        const startB = activityMoment(b)?.getTime() ?? Number.MAX_SAFE_INTEGER;
+        return startA - startB || Number(a.distanceKm ?? 9999) - Number(b.distanceKm ?? 9999);
+      });
   }, [activities, coordinates]);
 
   const allEventsActivities = useMemo<ExperienceWithDistance[]>(() => {
@@ -314,11 +335,9 @@ export default function ExperiencesScreen() {
         return { ...row, distanceKm: coordinates && target ? distanceKm(coordinates, target) : null };
       })
       .sort((a, b) => {
-        const publishedA = Date.parse(a.created_at || '') || 0;
-        const publishedB = Date.parse(b.created_at || '') || 0;
-        if (publishedA !== publishedB) return publishedB - publishedA;
-        return (activityMoment(a)?.getTime() || Number.MAX_SAFE_INTEGER) -
-          (activityMoment(b)?.getTime() || Number.MAX_SAFE_INTEGER);
+        const startA = activityMoment(a)?.getTime() ?? Number.MAX_SAFE_INTEGER;
+        const startB = activityMoment(b)?.getTime() ?? Number.MAX_SAFE_INTEGER;
+        return startA - startB || String(a.id || '').localeCompare(String(b.id || ''));
       });
   }, [activities, coordinates]);
 
@@ -428,7 +447,7 @@ export default function ExperiencesScreen() {
         <SectionHeader
           title={mode === 'nearby' ? `Entro ${NEARBY_RADIUS_KM} km` : mode === 'joined' ? 'A cui partecipi' : mode === 'organized' ? 'I tuoi eventi' : 'I tuoi eventi passati'}
           count={selectedActivities.length}
-          detail={mode === 'nearby' && coordinates ? 'dal più vicino' : ''}
+          detail={mode === 'nearby' && coordinates ? 'per data di svolgimento' : ''}
           hint={mode === 'nearby' && !coordinates ? `Attiva la posizione per vedere gli eventi entro ${NEARBY_RADIUS_KM} km.` : ''}
         />
 
@@ -497,7 +516,7 @@ export default function ExperiencesScreen() {
             <SectionHeader
               title="Tutti gli eventi"
               count={allEventsActivities.length}
-              detail="dal più recente"
+              detail="per data di svolgimento"
               hint="Scorri verso sinistra per vedere gli altri eventi."
             />
 

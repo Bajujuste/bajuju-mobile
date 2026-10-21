@@ -61,7 +61,6 @@ export default function HomeScreen() {
   // aggiornarli anche qui farebbe partire due registrazioni in parallelo.
   const homeFocusCountRef = useRef(0);
   const [profilePhotoUrl, setProfilePhotoUrl] = useState('');
-  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
   const [notificationCounts, setNotificationCounts] = useState<Record<BajujuNotificationCategory, number>>({ requests: 0, chat: 0, other: 0 });
   const [nextExperience, setNextExperience] = useState<NextExperience | null>(null);
   const [nearbyExperiences, setNearbyExperiences] = useState<HomeNearbyExperience[]>([]);
@@ -178,7 +177,6 @@ export default function HomeScreen() {
         });
         if (active) {
           setNotificationCounts(counts);
-          setUnreadNotificationsCount(counts.requests + counts.chat + counts.other);
         }
       }
 
@@ -227,7 +225,7 @@ export default function HomeScreen() {
         const result = await supabase.from('activities')
           .select('id,title,category,city,activity_date,activity_time,photo_url,latitude,longitude,status,created_at')
           .eq('is_flash', false).is('deleted_at', null).gte('activity_date', today)
-          .order('created_at', { ascending: false }).limit(500);
+          .order('activity_date', { ascending: true }).order('activity_time', { ascending: true }).limit(500);
         if (result.error) throw result.error;
         const radians = (value: number) => value * Math.PI / 180;
         const events = (result.data || []).flatMap((row: any) => {
@@ -242,8 +240,11 @@ export default function HomeScreen() {
           if (distanceKm > 25) return [];
           return [{ id: String(row.id), title: String(row.title || 'Esperienza Bajuju'), category: String(row.category || ''),
             city: String(row.city || 'Luogo da definire'), date: experienceDateLabel(time, Boolean(row.activity_time)),
-            photoUrl: String(row.photo_url || ''), distanceKm }];
-        }).slice(0, 80);
+            photoUrl: String(row.photo_url || ''), distanceKm, startsAt: time.getTime() }];
+        })
+          .sort((a, b) => a.startsAt - b.startsAt || a.id.localeCompare(b.id))
+          .slice(0, 80)
+          .map(({ startsAt, ...event }) => event);
         if (active) setNearbyExperiences(events);
       }
 
@@ -327,7 +328,6 @@ export default function HomeScreen() {
           const userId = authResult.data.user?.id;
           if (!userId || !active) {
             if (active) {
-              setUnreadNotificationsCount(0);
             setNotificationCounts({ requests: 0, chat: 0, other: 0 });
               setNextExperience(null);
               setGroups([]);
@@ -369,7 +369,6 @@ export default function HomeScreen() {
         } catch (error) {
           console.log('Errore aggiornamento Home:', error);
           if (active) {
-            setUnreadNotificationsCount(0);
             setNotificationCounts({ requests: 0, chat: 0, other: 0 });
             setGroups([]);
           }
@@ -423,7 +422,6 @@ export default function HomeScreen() {
   return (
     <BajujuHomeView
       profilePhotoUrl={profilePhotoUrl}
-      unreadNotificationsCount={unreadNotificationsCount}
       notificationCounts={notificationCounts}
       nextExperience={nextExperience}
       groups={groups}
@@ -435,10 +433,6 @@ export default function HomeScreen() {
         router.push({ pathname: '/experience-detail' as any, params: { id: nextExperience.id } });
       }}
       onOpenNotificationCategory={(category) => router.push({ pathname: '/notifications' as any, params: { tab: category } })}
-      onOpenNotifications={() => {
-        void trackBajujuEvent('notification_open', { source: 'home' });
-        router.push('/notifications' as any);
-      }}
       onOpenProfile={() => router.push('/profile')}
       onFind={() => {
         void trackBajujuEvent('find_open', { source: 'home' });

@@ -319,11 +319,9 @@ export default function ExperiencesScreen() {
         return { ...row, distanceKm: coordinates && target ? distanceKm(coordinates, target) : null };
       })
       .sort((a, b) => {
-        const publishedA = Date.parse(a.created_at || '') || 0;
-        const publishedB = Date.parse(b.created_at || '') || 0;
-        if (publishedA !== publishedB) return publishedB - publishedA;
-        return (activityMoment(a)?.getTime() || Number.MAX_SAFE_INTEGER) -
-          (activityMoment(b)?.getTime() || Number.MAX_SAFE_INTEGER);
+        const startA = activityMoment(a)?.getTime() ?? Number.MAX_SAFE_INTEGER;
+        const startB = activityMoment(b)?.getTime() ?? Number.MAX_SAFE_INTEGER;
+        return startA - startB || String(a.id || '').localeCompare(String(b.id || ''));
       });
   }, [activities, coordinates]);
 

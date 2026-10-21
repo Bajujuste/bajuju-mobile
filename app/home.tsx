@@ -240,8 +240,11 @@ export default function HomeScreen() {
           if (distanceKm > 25) return [];
           return [{ id: String(row.id), title: String(row.title || 'Esperienza Bajuju'), category: String(row.category || ''),
             city: String(row.city || 'Luogo da definire'), date: experienceDateLabel(time, Boolean(row.activity_time)),
-            photoUrl: String(row.photo_url || ''), distanceKm }];
-        }).slice(0, 80);
+            photoUrl: String(row.photo_url || ''), distanceKm, startsAt: time.getTime() }];
+        })
+          .sort((a, b) => a.startsAt - b.startsAt || a.id.localeCompare(b.id))
+          .slice(0, 80)
+          .map(({ startsAt, ...event }) => event);
         if (active) setNearbyExperiences(events);
       }
 

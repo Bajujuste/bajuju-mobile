@@ -90,9 +90,6 @@ type BajujuHomeViewProps = {
   onCreateGroup: () => void;
   onOpenGroup: (groupId: string) => void;
   onShare: () => void;
-  onOpenRules: () => void;
-  onOpenPrivacy: () => void;
-  onLogout: () => void;
 };
 
 export function BajujuHomeView({
@@ -115,9 +112,6 @@ export function BajujuHomeView({
   onCreateGroup,
   onOpenGroup,
   onShare,
-  onOpenRules,
-  onOpenPrivacy,
-  onLogout,
 }: BajujuHomeViewProps) {
   const insets = useSafeAreaInsets();
 
@@ -314,19 +308,6 @@ export function BajujuHomeView({
             >
               <BajujuIcon name="share" size={22} color={COLORS.white} />
               <Text style={styles.shareText}>Condividi Bajuju</Text>
-            </Pressable>
-
-            <View style={styles.legalLinksRow}>
-              <Pressable accessibilityRole="link" onPress={onOpenRules} style={({ pressed }) => [styles.legalButton, pressed && styles.pressed]}>
-                <Text style={styles.legalButtonText}>Regole community</Text>
-              </Pressable>
-              <Pressable accessibilityRole="link" onPress={onOpenPrivacy} style={({ pressed }) => [styles.legalButton, pressed && styles.pressed]}>
-                <Text style={styles.legalButtonText}>Privacy Policy</Text>
-              </Pressable>
-            </View>
-
-            <Pressable accessibilityRole="button" accessibilityLabel="Esci dall'account" onPress={onLogout} style={styles.logoutButton}>
-              <Text style={styles.logoutText}>Esci dall’account</Text>
             </Pressable>
           </View>
         </View>
@@ -525,11 +506,6 @@ const styles = StyleSheet.create({
   footer: { alignItems: 'center', paddingTop: 18, paddingBottom: 20 },
   shareButton: { minHeight: 58, paddingHorizontal: 28, borderRadius: 29, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, backgroundColor: COLORS.brightPink, shadowColor: '#9B1A5B', shadowOpacity: 0.18, shadowRadius: 13, shadowOffset: { width: 0, height: 8 }, elevation: 4 },
   shareText: { color: COLORS.white, fontFamily: 'FredokaBold', fontSize: 17 },
-  legalLinksRow: { marginTop: 14, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 10 },
-  legalButton: { paddingHorizontal: 16, paddingVertical: 11, borderRadius: 23, borderWidth: 1.5, borderColor: COLORS.line, backgroundColor: COLORS.white },
-  legalButtonText: { color: COLORS.plum, fontFamily: 'FredokaSemiBold', fontSize: 14 },
-  logoutButton: { marginTop: 17, paddingHorizontal: 16, paddingVertical: 10 },
-  logoutText: { color: COLORS.muted, fontFamily: 'FredokaSemiBold', fontSize: 14, textDecorationLine: 'underline' },
   bottomNav: { position: 'absolute', left: 15, right: 15, bottom: 13, height: 94, paddingHorizontal: 4, flexDirection: 'row', alignItems: 'center', borderRadius: 31, borderWidth: 1.4, borderColor: '#F4C4DC', backgroundColor: COLORS.white, shadowColor: '#761046', shadowOpacity: 0.22, shadowRadius: 20, shadowOffset: { width: 0, height: 13 }, elevation: 11 },
   navItem: { position: 'relative', flex: 1, height: 76, alignItems: 'center', justifyContent: 'center', gap: 4 },
   navLabel: { color: COLORS.plum, fontFamily: 'FredokaMedium', fontSize: 13 },

@@ -420,17 +420,6 @@ export default function HomeScreen() {
     return () => { isMounted = false; };
   }, []);
 
-  async function handleLogout() {
-    try {
-      const result = await supabase.auth.signOut();
-      if (result.error) throw result.error;
-      router.replace('/');
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Non sono riuscito a effettuare il logout.';
-      Alert.alert('Errore logout', message);
-    }
-  }
-
   return (
     <BajujuHomeView
       profilePhotoUrl={profilePhotoUrl}
@@ -464,9 +453,6 @@ export default function HomeScreen() {
         router.push({ pathname: '/group-detail' as any, params: { id: groupId } });
       }}
       onShare={() => { void shareBajujuHome(); }}
-      onOpenRules={() => router.push('/rules' as any)}
-      onOpenPrivacy={() => router.push('/privacy' as any)}
-      onLogout={() => { void handleLogout(); }}
     />
   );
 }

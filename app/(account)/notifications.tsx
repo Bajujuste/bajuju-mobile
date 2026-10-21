@@ -65,7 +65,7 @@ export default function NotificationsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const counts = useMemo(() => notifications.reduce<Record<BajujuNotificationCategory, number>>((acc, notification) => {
-    acc[getBajujuNotificationCategory(notification.notification_type, notification.data)] += 1;
+    if (!notification.is_read) acc[getBajujuNotificationCategory(notification.notification_type, notification.data)] += 1;
     return acc;
   }, { requests: 0, chat: 0, other: 0 }), [notifications]);
   const visibleNotifications = useMemo(() => notifications.filter((notification) =>

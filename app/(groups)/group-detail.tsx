@@ -3,7 +3,7 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import { useBajujuPhotoPicker } from '../../src/components/useBajujuPhotoPicker';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -56,7 +56,8 @@ const DESCRIPTION_PREVIEW_LINES = 6;
 
 export default function GroupDetailScreen() {
   const { pickPhoto, photoPickerModal } = useBajujuPhotoPicker();
-  const params = useLocalSearchParams<{ id?: string }>();
+  const params = useLocalSearchParams<{ id?: string; section?: string }>();
+  const groupScrollRef = useRef<ScrollView>(null);
   const groupId = String(params.id || '').trim();
 
   const [loading, setLoading] = useState(true);
@@ -74,7 +75,7 @@ export default function GroupDetailScreen() {
   const [joined, setJoined] = useState(false);
   const [joinState, setJoinState] = useState<GroupJoinState>('none');
   const [joinRequests, setJoinRequests] = useState<GroupJoinRequest[]>([]);
-  const [requestsOpen, setRequestsOpen] = useState(false);
+  const [requestsOpen, setRequestsOpen] = useState(params.section === 'requests');
   const [reviewBusyUserId, setReviewBusyUserId] = useState('');
   const [approvalModeBusy, setApprovalModeBusy] = useState(false);
   const [ageModeBusy, setAgeModeBusy] = useState(false);
@@ -625,7 +626,7 @@ export default function GroupDetailScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       {photoPickerModal}
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+      <ScrollView ref={groupScrollRef} contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <View style={styles.topBar}>
           <Pressable
             style={styles.roundButton}
@@ -973,7 +974,11 @@ export default function GroupDetailScreen() {
         ) : null}
 
         {canManageGroup && isPublicGroup && joinRequests.length > 0 ? (
-          <View style={styles.requestsCard}>
+          <View style={styles.requestsCard} onLayout={(event) => {
+            if (params.section === 'requests') {
+              groupScrollRef.current?.scrollTo({ y: Math.max(0, event.nativeEvent.layout.y - 18), animated: true });
+            }
+          }}>
             <Pressable
               style={styles.requestsHeader}
               onPress={() => setRequestsOpen((current) => !current)}

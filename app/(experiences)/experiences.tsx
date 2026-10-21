@@ -431,7 +431,7 @@ export default function ExperiencesScreen() {
         <SectionHeader
           title={mode === 'nearby' ? `Entro ${NEARBY_RADIUS_KM} km` : mode === 'joined' ? 'A cui partecipi' : mode === 'organized' ? 'I tuoi eventi' : 'I tuoi eventi passati'}
           count={selectedActivities.length}
-          detail={mode === 'nearby' && coordinates ? 'dal più vicino' : ''}
+          detail={mode === 'nearby' && coordinates ? 'per data di svolgimento' : ''}
           hint={mode === 'nearby' && !coordinates ? `Attiva la posizione per vedere gli eventi entro ${NEARBY_RADIUS_KM} km.` : ''}
         />
 
@@ -500,7 +500,7 @@ export default function ExperiencesScreen() {
             <SectionHeader
               title="Tutti gli eventi"
               count={allEventsActivities.length}
-              detail="dal più recente"
+              detail="per data di svolgimento"
               hint="Scorri verso sinistra per vedere gli altri eventi."
             />
 

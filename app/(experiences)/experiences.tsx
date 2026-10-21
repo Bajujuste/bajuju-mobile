@@ -300,7 +300,11 @@ export default function ExperiencesScreen() {
         return { ...row, distanceKm: target ? distanceKm(coordinates, target) : null };
       })
       .filter((row) => row.distanceKm !== null && Number(row.distanceKm) <= NEARBY_RADIUS_KM)
-      .sort((a, b) => Number(a.distanceKm || 9999) - Number(b.distanceKm || 9999));
+      .sort((a, b) => {
+        const startA = activityMoment(a)?.getTime() ?? Number.MAX_SAFE_INTEGER;
+        const startB = activityMoment(b)?.getTime() ?? Number.MAX_SAFE_INTEGER;
+        return startA - startB || Number(a.distanceKm ?? 9999) - Number(b.distanceKm ?? 9999);
+      });
   }, [activities, coordinates]);
 
   const allEventsActivities = useMemo<ExperienceWithDistance[]>(() => {

@@ -18,6 +18,7 @@ import { BajujuBottomNav } from '../../src/components/navigation/BajujuBottomNav
 import { BajujuGroupCard, loadBajujuGroups } from '../../src/lib/bajujuGroups';
 import { supabase } from '../../src/lib/supabase';
 import { BAJUJU_COLORS, BAJUJU_FONTS } from '../../src/theme/bajujuTheme';
+import { KeyboardAwareScrollView } from '../../src/components/KeyboardAwareScrollView';
 
 type GroupRequestRow = {
   id: string;
@@ -117,7 +118,7 @@ export default function GroupsScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      <KeyboardAwareScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <Text style={styles.screenTitle}>Gruppi</Text>
         <Text style={styles.subtitle}>Entra in una community e scopri le sue esperienze.</Text>
 
@@ -208,7 +209,7 @@ export default function GroupsScreen() {
             </View>
           </>
         )}
-      </ScrollView>
+      </KeyboardAwareScrollView>
 
       {/* Come la lista eventi: nessuna scheda evidenziata, così il tasto Home riporta davvero alla Home. */}
       <BajujuBottomNav active="find" />

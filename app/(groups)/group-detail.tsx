@@ -34,6 +34,7 @@ import {
 import { supabase } from '../../src/lib/supabase';
 import { BAJUJU_COLORS, BAJUJU_FONTS, BAJUJU_SHADOW } from '../../src/theme/bajujuTheme';
 import { shareBajujuGroup } from '../../src/utils/shareBajuju';
+import { KeyboardAwareScrollView } from '../../src/components/KeyboardAwareScrollView';
 
 type MemberRow = {
   user_id?: string | null;
@@ -626,7 +627,7 @@ export default function GroupDetailScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       {photoPickerModal}
-      <ScrollView ref={groupScrollRef} contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+      <KeyboardAwareScrollView ref={groupScrollRef} contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <View style={styles.topBar}>
           <Pressable
             style={styles.roundButton}
@@ -1150,7 +1151,7 @@ export default function GroupDetailScreen() {
             </View>
           </View>
         )}
-      </ScrollView>
+      </KeyboardAwareScrollView>
 
       <Modal
         visible={Boolean(selectedMemberPhotoUrl)}
@@ -1237,7 +1238,7 @@ const styles = StyleSheet.create({
   approvalModeButtonTextSelected: { color: BAJUJU_COLORS.brightPink },
   fieldLabel: { marginTop: 16, marginBottom: 7, color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.semiBold, fontSize: 13 },
   input: { minHeight: 52, paddingHorizontal: 14, borderRadius: 17, borderWidth: 1.5, borderColor: BAJUJU_COLORS.palePink, color: BAJUJU_COLORS.plum, backgroundColor: BAJUJU_COLORS.white, fontFamily: BAJUJU_FONTS.medium, fontSize: 15 },
-  textArea: { minHeight: 112, paddingTop: 13 },
+  textArea: { minHeight: 112, maxHeight: 220, paddingTop: 13, textAlignVertical: 'top' },
   saveButton: { minHeight: 50, marginTop: 11, borderRadius: 25, alignItems: 'center', justifyContent: 'center', backgroundColor: BAJUJU_COLORS.brightPink },
   saveButtonText: { color: '#fff', fontFamily: BAJUJU_FONTS.bold, fontSize: 14 },
   ageInputsRow: { flexDirection: 'row', gap: 12, marginTop: 8 },

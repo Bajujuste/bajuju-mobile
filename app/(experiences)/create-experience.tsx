@@ -11,7 +11,6 @@ import {
   Platform,
   Pressable,
   SafeAreaView,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -31,6 +30,7 @@ import { supabase } from '../../src/lib/supabase';
 import { BAJUJU_COLORS, BAJUJU_FONTS, BAJUJU_SHADOW } from '../../src/theme/bajujuTheme';
 import { trackBajujuEvent } from '../../src/utils/bajujuAnalytics';
 import { sendBajujuPushNotification } from '../../src/utils/bajujuNotifications';
+import { KeyboardAwareScrollView } from '../../src/components/KeyboardAwareScrollView';
 
 function categoryToDatabaseValue(value: string) {
   switch (value) {
@@ -433,7 +433,7 @@ export default function CreateExperienceScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       {photoPickerModal}
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+      <KeyboardAwareScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <View style={styles.topBar}>
           <Pressable
             style={styles.backButton}
@@ -818,7 +818,7 @@ export default function CreateExperienceScreen() {
         {!saving && missingFields.length > 0 ? (
           <Text style={styles.missingText}>Mancano: {missingFields.join(', ')}</Text>
         ) : null}
-      </ScrollView>
+      </KeyboardAwareScrollView>
 
       <BajujuBottomNav active="create" />
     </SafeAreaView>
@@ -886,7 +886,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   inputLast: { marginBottom: 0 },
-  textArea: { minHeight: 92, paddingTop: 12, textAlignVertical: 'top' },
+  textArea: { minHeight: 92, maxHeight: 220, paddingTop: 12, textAlignVertical: 'top' },
   helper: { marginTop: 2, marginBottom: 12, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.regular, fontSize: 12, lineHeight: 17 },
   helperLast: { color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.regular, fontSize: 12, lineHeight: 17 },
   categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 },

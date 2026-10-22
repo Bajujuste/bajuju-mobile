@@ -4,6 +4,7 @@ import { ActivityIndicator, Alert, Pressable, SafeAreaView, StyleSheet, Text, Te
 
 import { supabase } from '../../src/lib/supabase';
 import { sendBajujuPushNotification } from '../../src/utils/bajujuNotifications';
+import { KeyboardAwareScrollView } from '../../src/components/KeyboardAwareScrollView';
 
 export default function InviteOutScreen() {
   const params = useLocalSearchParams<{ targetUserId?: string; activityId?: string }>();
@@ -182,7 +183,7 @@ export default function InviteOutScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
+      <KeyboardAwareScrollView contentContainerStyle={styles.container}>
         <Pressable style={styles.backButton} onPress={() => router.back()}>
           <Text style={styles.backText}>← Indietro</Text>
         </Pressable>
@@ -215,14 +216,14 @@ export default function InviteOutScreen() {
             </>
           )}
         </View>
-      </View>
+      </KeyboardAwareScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#FFF9FC' },
-  container: { flex: 1, padding: 18 },
+  container: { flexGrow: 1, padding: 18 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   backButton: { alignSelf: 'flex-start', paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999, backgroundColor: '#fff0f7', borderWidth: 1, borderColor: '#ffd1e6', marginBottom: 14 },
   backText: { color: '#e43f98', fontWeight: '900' },
@@ -231,7 +232,7 @@ const styles = StyleSheet.create({
   subtitle: { marginTop: 7, color: '#6b3652', fontSize: 14, lineHeight: 20, fontWeight: '700' },
   warningBox: { marginTop: 18, borderRadius: 18, padding: 14, backgroundColor: '#FFF0F7', borderWidth: 1, borderColor: '#f3c6dc' },
   warningText: { color: '#6b3652', fontWeight: '800', lineHeight: 20 },
-  input: { marginTop: 18, minHeight: 130, borderWidth: 1, borderColor: '#f3c6dc', borderRadius: 20, padding: 14, textAlignVertical: 'top', color: '#4b1430', backgroundColor: '#FFF9FC', fontSize: 15 },
+  input: { marginTop: 18, minHeight: 130, maxHeight: 220, borderWidth: 1, borderColor: '#f3c6dc', borderRadius: 20, padding: 14, textAlignVertical: 'top', color: '#4b1430', backgroundColor: '#FFF9FC', fontSize: 15 },
   counter: { marginTop: 6, alignSelf: 'flex-end', color: '#a95d86', fontWeight: '700', fontSize: 12 },
   sendButton: { marginTop: 18, height: 52, borderRadius: 18, backgroundColor: '#e43f98', alignItems: 'center', justifyContent: 'center' },
   sendText: { color: '#ffffff', fontWeight: '900', fontSize: 16 },

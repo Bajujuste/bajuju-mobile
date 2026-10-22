@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { supabase } from '../../src/lib/supabase';
+import { KeyboardAwareScrollView } from '../../src/components/KeyboardAwareScrollView';
 
 type LooseRow = Record<string, any>;
 
@@ -341,7 +342,7 @@ export default function FlashDetailScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.page}>
+    <KeyboardAwareScrollView contentContainerStyle={styles.page}>
       <View style={styles.card}>
         <Text style={styles.kicker}>Bajuju Flash</Text>
         <Text style={styles.title}>Dettaglio Flash</Text>
@@ -474,7 +475,7 @@ export default function FlashDetailScreen() {
           <Text style={styles.mutedText}>Non sono riuscito a trovare questo Flash.</Text>
         </View>
       )}
-    </ScrollView>
+    </KeyboardAwareScrollView>
   );
 }
 
@@ -633,6 +634,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     color: '#351326',
     minHeight: 86,
+    maxHeight: 180,
     padding: 12,
     textAlignVertical: 'top',
   },

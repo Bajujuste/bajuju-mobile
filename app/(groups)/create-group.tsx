@@ -10,7 +10,6 @@ import {
   Platform,
   Pressable,
   SafeAreaView,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -24,6 +23,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { supabase } from '../../src/lib/supabase';
 import { BAJUJU_COLORS, BAJUJU_FONTS, BAJUJU_SHADOW } from '../../src/theme/bajujuTheme';
+import { KeyboardAwareScrollView } from '../../src/components/KeyboardAwareScrollView';
 
 export default function CreateGroupScreen() {
   const { pickPhoto, photoPickerModal } = useBajujuPhotoPicker();
@@ -199,7 +199,7 @@ export default function CreateGroupScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       {photoPickerModal}
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+      <KeyboardAwareScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <View style={styles.topBar}>
           <Pressable
             style={styles.backButton}
@@ -384,7 +384,7 @@ export default function CreateGroupScreen() {
         {showMissingFields && missingFields.length > 0 ? (
           <Text style={styles.missingText}>Da completare: {missingFields.join(' · ')}</Text>
         ) : null}
-      </ScrollView>
+      </KeyboardAwareScrollView>
 
       <View style={[styles.bottomBar, { paddingBottom: 12 + androidBottomInset }]}>
         <Pressable
@@ -474,7 +474,7 @@ const styles = StyleSheet.create({
     backgroundColor: BAJUJU_COLORS.background,
   },
   inputInner: { flex: 1, minHeight: 48, color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.medium, fontSize: 16 },
-  textArea: { minHeight: 92, paddingTop: 12, textAlignVertical: 'top' },
+  textArea: { minHeight: 92, maxHeight: 220, paddingTop: 12, textAlignVertical: 'top' },
   helper: { marginTop: -6, marginBottom: 12, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.regular, fontSize: 12, lineHeight: 17 },
   helperLast: { marginTop: 8, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.regular, fontSize: 12, lineHeight: 17 },
   categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },

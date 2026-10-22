@@ -12,6 +12,7 @@ import { BAJUJU_COLORS, BAJUJU_FONTS } from '../../src/theme/bajujuTheme';
 import { shareBajujuFlash } from '../../src/utils/shareBajuju';
 import { sendBajujuPushNotification } from '../../src/utils/bajujuNotifications';
 import { ITALIAN_MUNICIPALITIES_BY_PROVINCE } from '../../src/data/italianMunicipalities';
+import { KeyboardAwareScrollView } from '../../src/components/KeyboardAwareScrollView';
 
 const bajujuLogo = require('../../assets/brand/bajuju-logo.png');
 
@@ -1671,7 +1672,7 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView
+      <KeyboardAwareScrollView
         contentContainerStyle={styles.page}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
@@ -2237,7 +2238,7 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
           ))
         )}
       </View>
-      </ScrollView>
+      </KeyboardAwareScrollView>
       <BajujuBottomNav active="flash" />
     </SafeAreaView>
   );

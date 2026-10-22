@@ -11,7 +11,6 @@ import {
     Platform,
     Pressable,
     RefreshControl,
-    ScrollView,
     StyleSheet,
     Switch,
     Text,
@@ -27,6 +26,7 @@ import {
   registerForBajujuPushNotifications,
   sendBajujuPushNotification,
 } from '../../src/utils/bajujuNotifications';
+import { KeyboardAwareScrollView } from '../../src/components/KeyboardAwareScrollView';
 
 const bajujuLogo = require('../../assets/brand/bajuju-logo.png');
 
@@ -1306,7 +1306,7 @@ export default function ProfileScreen() {
   }
 
   return (
-    <ScrollView
+    <KeyboardAwareScrollView
       ref={scrollRef}
       style={styles.page}
       contentContainerStyle={styles.content}
@@ -1675,7 +1675,7 @@ export default function ProfileScreen() {
       <Pressable style={styles.deleteTextButton} onPress={requestProfileDeletion} accessibilityRole="button">
         <Text style={styles.deleteTextButtonText}>Elimina definitivamente account</Text>
       </Pressable>
-    </ScrollView>
+    </KeyboardAwareScrollView>
   );
 }
 

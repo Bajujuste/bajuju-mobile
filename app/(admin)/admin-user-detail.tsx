@@ -7,7 +7,6 @@ import {
   Modal,
   Pressable,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -24,6 +23,7 @@ import {
   organizerGradeFromLabel,
   type OrganizerGradeLabel,
 } from '../../src/utils/organizerGrade';
+import { KeyboardAwareScrollView } from '../../src/components/KeyboardAwareScrollView';
 
 type LooseRow = Record<string, any>;
 
@@ -755,7 +755,7 @@ export default function AdminUserDetailScreen() {
 
   return (
     <>
-      <ScrollView
+      <KeyboardAwareScrollView
       contentContainerStyle={styles.page}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
@@ -1073,7 +1073,7 @@ export default function AdminUserDetailScreen() {
           </View>
         </>
       ) : null}
-      </ScrollView>
+      </KeyboardAwareScrollView>
 
       <Modal
         visible={photoPreviewOpen && Boolean(photoUrl)}
@@ -1494,6 +1494,7 @@ const styles = StyleSheet.create({
   },
   roleTextArea: {
     minHeight: 86,
+    maxHeight: 200,
     textAlignVertical: 'top',
   },
   roleCounter: {

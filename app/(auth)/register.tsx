@@ -3,11 +3,8 @@ import React, { useState, useEffect } from 'react';
 import {
   ActivityIndicator,
   Image,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
   SafeAreaView,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -17,6 +14,7 @@ import {
 import { trackAcquisition } from '../../src/utils/acquisitionAnalytics';
 
 import { supabase } from '../../src/lib/supabase';
+import { KeyboardAwareScrollView } from '../../src/components/KeyboardAwareScrollView';
 
 const bajujuLogo = require('../../assets/brand/bajuju-logo.png');
 
@@ -259,11 +257,8 @@ export default function RegisterScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <KeyboardAvoidingView
-        style={styles.keyboardView}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+      <View style={styles.keyboardView}>
+        <KeyboardAwareScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
           <Pressable style={styles.backButton} onPress={() => router.replace('/')}>
             <Text style={styles.backText}>← Indietro</Text>
           </Pressable>
@@ -366,8 +361,8 @@ export default function RegisterScreen() {
               <Text style={styles.switchLinkText}>Hai già un account? Accedi</Text>
             </Pressable>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </KeyboardAwareScrollView>
+      </View>
     </SafeAreaView>
   );
 }

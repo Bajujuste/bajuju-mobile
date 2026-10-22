@@ -13,6 +13,7 @@ import {
 
 import { supabase } from '../../src/lib/supabase';
 import { sendBajujuPushNotification } from '../../src/utils/bajujuNotifications';
+import { KeyboardAwareScrollView } from '../../src/components/KeyboardAwareScrollView';
 
 type ContactType = 'telefono' | 'telegram';
 type LooseRow = Record<string, any>;
@@ -305,7 +306,7 @@ export default function ShareContactScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
+      <KeyboardAwareScrollView contentContainerStyle={styles.container}>
         <Pressable style={styles.backButton} onPress={() => router.back()}>
           <Text style={styles.backText}>← Indietro</Text>
         </Pressable>
@@ -364,14 +365,14 @@ export default function ShareContactScreen() {
             </>
           )}
         </View>
-      </View>
+      </KeyboardAwareScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#FFF9FC' },
-  container: { flex: 1, padding: 18 },
+  container: { flexGrow: 1, padding: 18 },
   backButton: { alignSelf: 'flex-start', paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999, backgroundColor: '#fff0f7', borderWidth: 1, borderColor: '#ffd1e6', marginBottom: 14 },
   backText: { color: '#e43f98', fontWeight: '900' },
   card: { backgroundColor: '#ffffff', borderRadius: 26, borderWidth: 1, borderColor: '#f3c6dc', padding: 18 },

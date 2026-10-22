@@ -5,7 +5,6 @@ import {
   Alert,
   Pressable,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -14,6 +13,7 @@ import {
 
 import { supabase } from '../../src/lib/supabase';
 import { getProfileCompletion } from '../../src/utils/profileCompletion';
+import { KeyboardAwareScrollView } from '../../src/components/KeyboardAwareScrollView';
 
 type LooseRow = Record<string, any>;
 
@@ -493,7 +493,7 @@ export default function AdminUsersScreen() {
   );
 
   return (
-    <ScrollView
+    <KeyboardAwareScrollView
       contentContainerStyle={styles.page}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
@@ -602,7 +602,7 @@ export default function AdminUsersScreen() {
           ))
         )}
       </View>
-    </ScrollView>
+    </KeyboardAwareScrollView>
   );
 }
 

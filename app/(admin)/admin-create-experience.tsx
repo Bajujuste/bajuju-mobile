@@ -9,7 +9,6 @@ import {
   Image,
   Pressable,
   SafeAreaView,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -18,6 +17,7 @@ import {
 
 import { resolveAddressText } from '../../src/lib/addressAutocomplete';
 import { supabase } from '../../src/lib/supabase';
+import { KeyboardAwareScrollView } from '../../src/components/KeyboardAwareScrollView';
 
 type ExperienceDraft = {
   title: string;
@@ -327,7 +327,7 @@ export default function AdminCreateExperienceScreen() {
   return (
     <SafeAreaView style={styles.page}>
       {photoPickerModal}
-      <ScrollView contentContainerStyle={styles.card} keyboardShouldPersistTaps='handled'>
+      <KeyboardAwareScrollView contentContainerStyle={styles.card} keyboardShouldPersistTaps='handled'>
         <Text style={styles.title}>Crea evento con dettatura</Text>
         <Text style={styles.text}>
           Descrivi l’evento a voce usando il microfono della tastiera, oppure scrivilo.
@@ -493,7 +493,7 @@ export default function AdminCreateExperienceScreen() {
         <Pressable style={styles.button} onPress={() => router.back()}>
           <Text style={styles.buttonText}>← Torna all’area Admin</Text>
         </Pressable>
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </SafeAreaView>
   );
 }
@@ -504,7 +504,7 @@ const styles = StyleSheet.create({
   title: { color: '#e43f98', fontSize: 28, fontWeight: '900', marginBottom: 12 },
   text: { color: '#4b1430', fontSize: 15, lineHeight: 22, fontWeight: '700', marginBottom: 20 },
   label: { color: '#4b1430', fontSize: 15, fontWeight: '900', marginBottom: 8 },
-  dictationInput: { minHeight: 180, backgroundColor: '#FFF9FC', borderRadius: 18, borderWidth: 1, borderColor: '#ffd3e6', padding: 14, color: '#4b1430', fontSize: 16, lineHeight: 23, marginBottom: 10 },
+  dictationInput: { minHeight: 180, maxHeight: 260, backgroundColor: '#FFF9FC', borderRadius: 18, borderWidth: 1, borderColor: '#ffd3e6', padding: 14, color: '#4b1430', fontSize: 16, lineHeight: 23, marginBottom: 10 },
   helper: { color: '#7b4960', fontSize: 13, lineHeight: 18, fontWeight: '700', marginBottom: 20 },
   analyzeButton: { backgroundColor: '#ef2d82', borderRadius: 16, paddingVertical: 14, paddingHorizontal: 18, alignItems: 'center', marginBottom: 14 },
   analyzeButtonText: { color: '#ffffff', fontSize: 16, fontWeight: '900' },
@@ -513,7 +513,7 @@ const styles = StyleSheet.create({
   resultTitle: { color: '#4b1430', fontSize: 18, fontWeight: '900', marginBottom: 10 },
   resultText: { color: '#4b1430', fontSize: 14, lineHeight: 20, fontWeight: '600' },
   editableInput: { backgroundColor: '#ffffff', borderRadius: 14, borderWidth: 1, borderColor: '#ffd3e6', paddingVertical: 11, paddingHorizontal: 12, color: '#4b1430', fontSize: 15, marginBottom: 14 },
-  descriptionInput: { minHeight: 110 },
+  descriptionInput: { minHeight: 110, maxHeight: 220, textAlignVertical: 'top' },
   photoPicker: { width: '100%', aspectRatio: 16 / 9, overflow: 'hidden', backgroundColor: '#ffffff', borderRadius: 18, borderWidth: 1, borderColor: '#ffd3e6', marginBottom: 10 },
   photoPreview: { width: '100%', height: '100%' },
   photoPlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },

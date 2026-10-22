@@ -7,11 +7,8 @@ import {
   ActivityIndicator,
   Alert,
   Image,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
   SafeAreaView,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -22,6 +19,7 @@ import { EXPERIENCE_CATEGORIES, normalizeExperienceCategory } from '@/constants/
 import { AddressAutocompleteField } from '../../src/components/AddressAutocompleteField';
 import type { ResolvedAddress } from '../../src/lib/addressAutocomplete';
 import { supabase } from '../../src/lib/supabase';
+import { KeyboardAwareScrollView } from '../../src/components/KeyboardAwareScrollView';
 
 type ActivityRow = {
   id: string;
@@ -417,8 +415,8 @@ export default function EditExperienceScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+      <View style={styles.flex}>
+        <KeyboardAwareScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
           <Pressable style={styles.backButton} onPress={() => router.back()}>
             <Text style={styles.backText}>← Indietro</Text>
           </Pressable>
@@ -652,8 +650,8 @@ export default function EditExperienceScreen() {
               </Pressable>
             </View>
           )}
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </KeyboardAwareScrollView>
+      </View>
       {photoPickerModal}
     </SafeAreaView>
   );
@@ -708,7 +706,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
   },
-  textArea: { minHeight: 130 },
+  textArea: { minHeight: 130, maxHeight: 220, textAlignVertical: 'top' },
   row: { flexDirection: 'row', gap: 10 },
   rowItem: { flex: 1, minWidth: 0 },
   approvalModeRow: { flexDirection: 'row', gap: 10, marginTop: 2 },

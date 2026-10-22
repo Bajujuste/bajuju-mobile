@@ -6,7 +6,6 @@ import {
   Pressable,
   RefreshControl,
   SafeAreaView,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -16,6 +15,7 @@ import { useFocusEffect } from 'expo-router';
 
 import { supabase } from '../../src/lib/supabase';
 import { sendBajujuPushNotification } from '../../src/utils/bajujuNotifications';
+import { KeyboardAwareScrollView } from '../../src/components/KeyboardAwareScrollView';
 
 type InviteRow = {
   id: string;
@@ -267,7 +267,7 @@ export default function DateInvitesScreen() {
       {loading ? (
         <View style={styles.center}><ActivityIndicator color="#e43f98" /></View>
       ) : (
-        <ScrollView
+        <KeyboardAwareScrollView
           contentContainerStyle={styles.container}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void loadInvites(true)} />}
         >
@@ -341,7 +341,7 @@ export default function DateInvitesScreen() {
               </View>
             );
           })}
-        </ScrollView>
+        </KeyboardAwareScrollView>
       )}
     </SafeAreaView>
   );
@@ -378,6 +378,6 @@ const styles = StyleSheet.create({
   replyButton: { marginTop: 14, minHeight: 46, borderRadius: 15, borderWidth: 1, borderColor: '#e43f98', alignItems: 'center', justifyContent: 'center' },
   replyButtonText: { color: '#e43f98', fontWeight: '900' },
   replyComposer: { marginTop: 12 },
-  input: { minHeight: 90, padding: 12, borderRadius: 15, borderWidth: 1, borderColor: '#f3c6dc', color: '#4b1430', textAlignVertical: 'top', backgroundColor: '#FFF9FC' },
+  input: { minHeight: 90, maxHeight: 200, padding: 12, borderRadius: 15, borderWidth: 1, borderColor: '#f3c6dc', color: '#4b1430', textAlignVertical: 'top', backgroundColor: '#FFF9FC' },
   counter: { alignSelf: 'flex-end', marginTop: 5, color: '#a95d86', fontSize: 11, fontWeight: '700' },
 });

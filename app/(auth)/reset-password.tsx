@@ -5,11 +5,8 @@ import * as SecureStore from 'expo-secure-store';
 import {
   ActivityIndicator,
   Image,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
   SafeAreaView,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -18,6 +15,7 @@ import {
 
 import { establishRecoverySession } from '../../src/lib/authRecovery';
 import { supabase } from '../../src/lib/supabase';
+import { KeyboardAwareScrollView } from '../../src/components/KeyboardAwareScrollView';
 
 const bajujuLogo = require('../../assets/brand/bajuju-logo.png');
 
@@ -175,11 +173,8 @@ export default function ResetPasswordScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <KeyboardAvoidingView
-        style={styles.keyboardView}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+      <View style={styles.keyboardView}>
+        <KeyboardAwareScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
           <View style={styles.logoBox}>
             <Image source={bajujuLogo} style={styles.logoImage} resizeMode="contain" />
             <Text style={styles.logoText}>Nuova password</Text>
@@ -268,8 +263,8 @@ export default function ResetPasswordScreen() {
               </Pressable>
             )}
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </KeyboardAwareScrollView>
+      </View>
     </SafeAreaView>
   );
 }

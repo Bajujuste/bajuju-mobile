@@ -8,7 +8,6 @@ import { useBajujuPhotoPicker } from '../../src/components/useBajujuPhotoPicker'
 import {
   Alert,
   Image,
-  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
@@ -25,6 +24,7 @@ import { shareBajujuExperience } from '../../src/utils/shareBajuju';
 import { getExperienceCategoryIcon, normalizeExperienceCategory } from '@/constants/experienceCategories';
 import { sendBajujuPushNotification } from '../../src/utils/bajujuNotifications';
 import { BAJUJU_COLORS, BAJUJU_FONTS, BAJUJU_SHADOW } from '../../src/theme/bajujuTheme';
+import { KeyboardAwareScrollView } from '../../src/components/KeyboardAwareScrollView';
 
 const bajujuLogo = require('../../assets/brand/bajuju-logo.png');
 
@@ -1362,11 +1362,8 @@ export default function ExperienceDetailScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       {photoPickerModal}
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-      >
-        <ScrollView
+      <View style={{ flex: 1 }}>
+        <KeyboardAwareScrollView
           ref={pageScrollRef}
           contentContainerStyle={[
             styles.container,
@@ -1745,7 +1742,7 @@ export default function ExperienceDetailScreen() {
               </View>
             </>
           )}
-        </ScrollView>
+        </KeyboardAwareScrollView>
 
         {showBottomBar ? (
           <View style={[styles.bottomBar, androidBottomInset > 0 && { paddingBottom: 14 + androidBottomInset }]}>
@@ -1828,7 +1825,7 @@ export default function ExperienceDetailScreen() {
             )}
           </View>
         ) : null}
-      </KeyboardAvoidingView>
+      </View>
 
       <Modal visible={participantsOpen} transparent animationType="slide" onRequestClose={() => setParticipantsOpen(false)}>
         <Pressable style={styles.sheetBackdrop} onPress={() => setParticipantsOpen(false)} />
@@ -2316,6 +2313,7 @@ const styles = StyleSheet.create({
     fontFamily: F.regular,
     fontSize: 15,
     minHeight: 44,
+    maxHeight: 130,
     paddingHorizontal: 16,
     paddingVertical: 11,
   },

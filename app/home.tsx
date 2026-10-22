@@ -60,6 +60,8 @@ export default function HomeScreen() {
   // Al primo focus token push e posizione li gestisce già l'effetto di avvio:
   // aggiornarli anche qui farebbe partire due registrazioni in parallelo.
   const homeFocusCountRef = useRef(0);
+  const homeLocationAskedRef = useRef(false);
+  const reloadNearbyRef = useRef<(() => void) | null>(null);
   const [profilePhotoUrl, setProfilePhotoUrl] = useState('');
   const [notificationCounts, setNotificationCounts] = useState<Record<BajujuNotificationCategory, number>>({ requests: 0, chat: 0, other: 0 });
   const [nextExperience, setNextExperience] = useState<NextExperience | null>(null);
@@ -130,6 +132,7 @@ export default function HomeScreen() {
                     { onConflict: 'user_id' }
                   );
                   if (saveResult.error) console.log('Preferenza notifiche No non salvata su Supabase.');
+                  reloadNearbyRef.current?.();
                 })().catch(() => console.log('Scelta notifiche No non salvata.'));
               },
             },
@@ -209,7 +212,14 @@ export default function HomeScreen() {
         let latitude = preference.data?.latitude == null ? NaN : Number(preference.data.latitude);
         let longitude = preference.data?.longitude == null ? NaN : Number(preference.data.longitude);
         try {
-          const permission = await Location.getForegroundPermissionsAsync();
+          let permission = await Location.getForegroundPermissionsAsync();
+          // Chi ha detto No alle notifiche non passa dalla richiesta posizione delle notifiche:
+          // la chiediamo qui, una volta per avvio, per poter mostrare gli eventi vicini.
+          if (permission.status !== 'granted' && permission.canAskAgain && !homeLocationAskedRef.current
+            && await AsyncStorage.getItem(`bajuju-notification-choice-v2:${userId}`) === 'declined') {
+            homeLocationAskedRef.current = true;
+            permission = await Location.requestForegroundPermissionsAsync();
+          }
           if (permission.status === 'granted') {
             const location = await Location.getLastKnownPositionAsync({ maxAge: 6 * 60 * 60 * 1000 })
               || await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
@@ -217,6 +227,20 @@ export default function HomeScreen() {
             longitude = location.coords.longitude;
           }
         } catch { /* Ultima posizione salvata, se disponibile. */ }
+        if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+          // Senza posizione usiamo la città del profilo.
+          const profile = await supabase.from('profiles').select('city,province').eq('id', userId).maybeSingle();
+          const place = [profile.data?.city, profile.data?.province].map((value) => String(value || '').trim()).filter(Boolean).join(', ');
+          if (place) {
+            try {
+              const [match] = await Location.geocodeAsync(`${place}, Italia`);
+              if (match) {
+                latitude = match.latitude;
+                longitude = match.longitude;
+              }
+            } catch { /* Città non trovata. */ }
+          }
+        }
         if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
           if (active) setNearbyExperiences([]);
           return;
@@ -347,6 +371,10 @@ export default function HomeScreen() {
             if (!locationResult.ok) console.log('Posizione notifiche non aggiornata al focus Home.');
           }
 
+          reloadNearbyRef.current = () => {
+            void refreshNearbyExperiences(userId).catch(() => console.log('Eventi vicini non aggiornati.'));
+          };
+
           await Promise.all([
             refreshUnreadCount(userId),
             refreshNextExperience(userId),
@@ -377,6 +405,7 @@ export default function HomeScreen() {
 
       return () => {
         active = false;
+        reloadNearbyRef.current = null;
         if (channel) void supabase.removeChannel(channel);
       };
     }, [])

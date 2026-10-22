@@ -180,7 +180,10 @@ Deno.serve(async (req) => {
     const components = Array.isArray(place?.addressComponents) ? place.addressComponents : [];
     const street = addressComponent(components, 'route');
     const streetNumber = addressComponent(components, 'street_number');
-    if (!street || addressComponent(components, 'country', 'shortText').toUpperCase() !== 'IT') {
+    // Un Comune da solo (es. creazione gruppo) non ha via: va bene, si usa il centro del Comune.
+    const placeTypes = Array.isArray(place?.types) ? place.types : [];
+    const isLocality = ['locality', 'administrative_area_level_3', 'postal_town'].some((t) => placeTypes.includes(t));
+    if ((!street && !isLocality) || addressComponent(components, 'country', 'shortText').toUpperCase() !== 'IT') {
       return jsonResponse({ ok: false, error: 'INCOMPLETE_STREET_ADDRESS' }, 400);
     }
     const { latitude, longitude } = resolvedPlaceLocation(place);

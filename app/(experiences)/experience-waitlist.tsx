@@ -264,12 +264,12 @@ export default function ExperienceWaitlistScreen() {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
         <View style={styles.topRow}>
-          <BajujuBackButton onPress={() => router.back()} accessibilityLabel="Indietro" style={{ alignSelf: 'flex-start' }} />
-          <BajujuProfileButton />
+          <BajujuBackButton onPress={() => router.back()} accessibilityLabel="Indietro" />
+          <Text style={styles.screenTitle} numberOfLines={1}>Lista d’attesa</Text>
+          <BajujuProfileButton size={38} />
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.eyebrow}>LISTA D’ATTESA</Text>
           <Text style={styles.title}>{activity?.title || 'Esperienza Bajuju'}</Text>
           <Text style={styles.meta}>
             {[activity?.city || activity?.province, formatDate(activity?.activity_date), activity?.activity_time ? String(activity.activity_time).slice(0, 5) : '']
@@ -352,9 +352,10 @@ const styles = StyleSheet.create({
   topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 14 },
   backButton: { alignSelf: 'flex-start', paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999, backgroundColor: '#FFF0F7', borderWidth: 1, borderColor: '#F3C6DC' },
   backText: { color: '#E43F98', fontFamily: 'FredokaBold' },
+  screenTitle: { flex: 1, color: '#4B0C2D', fontSize: 24, fontFamily: 'FredokaBold' },
   card: { borderRadius: 28, padding: 20, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#F3C6DC' },
   eyebrow: { color: '#E43F98', fontFamily: 'FredokaBold', fontSize: 12, letterSpacing: 1 },
-  title: { marginTop: 7, color: '#4B0C2D', fontSize: 25, lineHeight: 30, fontFamily: 'FredokaBold' },
+  title: { color: '#4B0C2D', fontSize: 25, lineHeight: 30, fontFamily: 'FredokaBold' },
   meta: { marginTop: 7, color: '#8f5573', fontSize: 13, lineHeight: 19, fontFamily: 'FredokaBold' },
   centerBox: { paddingVertical: 34, alignItems: 'center', gap: 10 },
   noticeBox: { marginTop: 20, padding: 18, borderRadius: 22, backgroundColor: '#FFF9FC', borderWidth: 1, borderColor: '#F3C6DC' },
@@ -362,8 +363,8 @@ const styles = StyleSheet.create({
   noticeTitle: { color: '#4B0C2D', fontSize: 19, fontFamily: 'FredokaBold', textAlign: 'center' },
   positionText: { marginTop: 10, color: '#E43F98', fontSize: 27, fontFamily: 'FredokaBold', textAlign: 'center' },
   infoText: { marginTop: 9, color: '#8D5E77', fontSize: 14, lineHeight: 20, fontFamily: 'FredokaBold', textAlign: 'center' },
-  mainButton: { marginTop: 16, minHeight: 50, borderRadius: 999, backgroundColor: '#E43F98', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18 },
-  mainButtonText: { color: '#ffffff', fontSize: 15, fontFamily: 'FredokaBold' },
-  secondaryButton: { marginTop: 10, minHeight: 46, borderRadius: 999, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#E43F98', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18 },
+  mainButton: { marginTop: 16, minHeight: 48, borderRadius: 999, backgroundColor: '#E43F98', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18 },
+  mainButtonText: { color: '#ffffff', fontSize: 16, fontFamily: 'FredokaBold' },
+  secondaryButton: { marginTop: 10, minHeight: 48, borderRadius: 999, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#E43F98', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18 },
   secondaryButtonText: { color: '#E43F98', fontSize: 14, fontFamily: 'FredokaBold' },
 });

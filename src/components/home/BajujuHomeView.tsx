@@ -88,6 +88,7 @@ type BajujuHomeViewProps = {
   onOpenGroups: () => void;
   onCreateGroup: () => void;
   onOpenGroup: (groupId: string) => void;
+  onAskBajuju: () => void;
   onShare: () => void;
 };
 
@@ -108,6 +109,7 @@ export function BajujuHomeView({
   onOpenGroups,
   onCreateGroup,
   onOpenGroup,
+  onAskBajuju,
   onShare,
 }: BajujuHomeViewProps) {
   const insets = useSafeAreaInsets();
@@ -281,6 +283,23 @@ export function BajujuHomeView({
             })}
           </ScrollView>
 
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Chiedi a Bajuju"
+            onPress={onAskBajuju}
+            style={({ pressed }) => [styles.askCard, pressed && styles.pressed]}
+          >
+            <View style={styles.askIcon}>
+              <Ionicons name="chatbubble-ellipses-outline" size={22} color={COLORS.pink} />
+            </View>
+            <View style={styles.askCopy}>
+              <Text style={styles.askEyebrow}>Hai un dubbio o un'idea?</Text>
+              <Text style={styles.askTitle}>Chiedi a Bajuju</Text>
+            </View>
+            <View style={styles.openButton}>
+              <BajujuIcon name="arrow" size={20} color={COLORS.pink} />
+            </View>
+          </Pressable>
         </View>
       </ScrollView>
 
@@ -437,6 +456,11 @@ const styles = StyleSheet.create({
   nextExperienceCard: { marginTop: 6, marginBottom: 6, padding: 12, paddingLeft: 14, borderRadius: 20, borderWidth: 1.5, borderColor: '#E7C56A', backgroundColor: '#FFF9E7', flexDirection: 'row', alignItems: 'center', gap: 12 },
   nextExperienceIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.white },
   nextExperienceCopy: { flex: 1 },
+  askCard: { marginTop: 22, padding: 14, borderRadius: 20, borderWidth: 1.5, borderColor: COLORS.line, backgroundColor: COLORS.white, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  askIcon: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.softPink },
+  askCopy: { flex: 1 },
+  askEyebrow: { color: COLORS.muted, fontFamily: 'FredokaMedium', fontSize: 13 },
+  askTitle: { marginTop: 1, color: COLORS.pink, fontFamily: 'FredokaBold', fontSize: 18 },
   sectionHeader: { marginTop: 18, marginBottom: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   sectionTitle: { color: COLORS.plum, fontFamily: 'FredokaBold', fontSize: 22, letterSpacing: -0.3 },
   seeAllButton: { minHeight: 44, justifyContent: 'center' },

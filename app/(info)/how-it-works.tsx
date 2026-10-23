@@ -84,8 +84,8 @@ const SECTIONS: GuideSection[] = [
       },
       {
         emoji: '💬',
-        title: 'Scrivi a Bajuju',
-        text: 'Dal Profilo, in Messaggi Bajuju.',
+        title: 'Chiedi a Bajuju',
+        text: 'In fondo alla Home o nel Profilo.',
       },
     ],
   },

@@ -475,6 +475,7 @@ export default function HomeScreen() {
       onOpenGroup={(groupId) => {
         router.push({ pathname: '/group-detail' as any, params: { id: groupId } });
       }}
+      onAskBajuju={() => router.push('/admin-private-chat' as any)}
       onShare={() => { void shareBajujuHome(); }}
     />
   );

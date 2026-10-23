@@ -14,6 +14,7 @@ import {
 import AcquisitionStats from '../../src/components/admin/AcquisitionStats';
 
 import { supabase } from '../../src/lib/supabase';
+import { BajujuBackButton } from '../../src/components/navigation/BajujuBackButton';
 
 type AnalyticsSummary = {
   days?: number;
@@ -121,9 +122,7 @@ export default function AdminAnalyticsScreen() {
           />
         }
       >
-        <Pressable style={styles.backButton} onPress={() => router.replace('/admin' as any)}>
-          <Text style={styles.backText}>← Area Admin</Text>
-        </Pressable>
+        <BajujuBackButton onPress={() => router.replace('/admin' as any)} accessibilityLabel="Indietro" style={{ alignSelf: 'flex-start' }} />
 
         <View style={styles.headerCard}>
           <Text style={styles.kicker}>BAJUJU ANALYTICS</Text>

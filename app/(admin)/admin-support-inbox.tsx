@@ -14,6 +14,7 @@ import {
 
 import { supabase } from '../../src/lib/supabase';
 import { BAJUJU_COLORS, BAJUJU_FONTS, BAJUJU_SHADOW } from '../../src/theme/bajujuTheme';
+import { BajujuBackButton } from '../../src/components/navigation/BajujuBackButton';
 
 type ThreadRow = {
   id: string;
@@ -163,9 +164,7 @@ export default function AdminSupportInboxScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { void refresh(); }} tintColor={BAJUJU_COLORS.brightPink} />}
       >
         <View style={styles.header}>
-          <Pressable style={styles.backButton} onPress={() => router.back()}>
-            <Text style={styles.backText}>← Admin</Text>
-          </Pressable>
+          <BajujuBackButton onPress={() => router.back()} accessibilityLabel="Indietro" style={{ alignSelf: 'flex-start', marginBottom: 12 }} />
           <Text style={styles.kicker}>ASSISTENZA</Text>
           <Text style={styles.title}>Messaggi Bajuju</Text>
           <Text style={styles.subtitle}>

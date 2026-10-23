@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import React from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { BajujuProfileButton } from '../../src/components/navigation/BajujuProfileButton';
+import { BajujuBackButton } from '../../src/components/navigation/BajujuBackButton';
 
 const PRIVACY_SECTIONS = [
   {
@@ -114,9 +115,7 @@ export default function PrivacyScreen() {
   return (
     <ScrollView contentContainerStyle={styles.page}>
       <View style={styles.topRow}>
-        <TouchableOpacity style={styles.topBackButton} onPress={() => router.back()}>
-          <Text style={styles.topBackButtonText}>← Indietro</Text>
-        </TouchableOpacity>
+        <BajujuBackButton onPress={() => router.back()} accessibilityLabel="Indietro" style={{ alignSelf: 'flex-start' }} />
         <BajujuProfileButton />
       </View>
 

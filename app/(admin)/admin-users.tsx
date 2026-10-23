@@ -14,6 +14,7 @@ import {
 import { supabase } from '../../src/lib/supabase';
 import { getProfileCompletion } from '../../src/utils/profileCompletion';
 import { KeyboardAwareScrollView } from '../../src/components/KeyboardAwareScrollView';
+import { BajujuBackButton } from '../../src/components/navigation/BajujuBackButton';
 
 type LooseRow = Record<string, any>;
 
@@ -502,9 +503,7 @@ export default function AdminUsersScreen() {
         <Text style={styles.title}>Iscritti attivi</Text>
         <Text style={styles.text}>Utenti attivi visibili: {filteredUsers.length}</Text>
 
-        <Pressable style={styles.backButton} onPress={() => router.push('/admin')}>
-          <Text style={styles.backButtonText}>← Torna ad Admin</Text>
-        </Pressable>
+        <BajujuBackButton onPress={() => router.push('/admin')} accessibilityLabel="Indietro" style={{ alignSelf: 'flex-start' }} />
       </View>
 
       <View style={styles.statsCard}>

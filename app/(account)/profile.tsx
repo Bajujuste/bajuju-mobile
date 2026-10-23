@@ -1332,7 +1332,7 @@ export default function ProfileScreen() {
           accessibilityRole="button"
           accessibilityLabel="Torna alla home"
         >
-          <Ionicons name="arrow-back" size={22} color={BAJUJU_COLORS.plum} />
+          <Ionicons name="chevron-back" size={20} color={BAJUJU_COLORS.plum} />
         </Pressable>
         <Text style={styles.topTitle}>Profilo</Text>
       </View>

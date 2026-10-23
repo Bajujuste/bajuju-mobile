@@ -14,6 +14,7 @@ import {
 
 import { supabase } from '../../src/lib/supabase';
 import { BajujuProfileButton } from '../../src/components/navigation/BajujuProfileButton';
+import { BajujuBackButton } from '../../src/components/navigation/BajujuBackButton';
 
 type BlockedUser = {
   user_id: string;
@@ -76,9 +77,7 @@ export default function BlockedUsersScreen() {
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.page}>
         <View style={styles.topRow}>
-          <Pressable style={styles.backButton} onPress={() => router.back()}>
-            <Text style={styles.backText}>← Profilo</Text>
-          </Pressable>
+          <BajujuBackButton onPress={() => router.back()} accessibilityLabel="Indietro" style={{ alignSelf: 'flex-start' }} />
           <BajujuProfileButton />
         </View>
 

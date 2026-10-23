@@ -19,6 +19,7 @@ import {
 import { BajujuProfileButton } from '../../src/components/navigation/BajujuProfileButton';
 import { LocationProfileView } from '../../src/components/location/LocationProfileView';
 import { BajujuLocation, loadBajujuLocation } from '../../src/lib/bajujuLocations';
+import { BajujuBackButton } from '../../src/components/navigation/BajujuBackButton';
 
 const bajujuLogo = require('../../assets/brand/bajuju-logo.png');
 
@@ -504,9 +505,7 @@ export default function UserProfileScreen() {
   return (
     <ScrollView style={styles.page} contentContainerStyle={styles.content}>
       <View style={styles.topRow}>
-        <Pressable style={styles.backButton} onPress={() => router.back()}>
-          <Text style={styles.backText}>← Indietro</Text>
-        </Pressable>
+        <BajujuBackButton onPress={() => router.back()} accessibilityLabel="Indietro" style={{ alignSelf: 'flex-start' }} />
         <BajujuProfileButton />
       </View>
 

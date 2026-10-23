@@ -15,6 +15,7 @@ import { supabase } from '../../src/lib/supabase';
 import { trackBajujuEvent } from '../../src/utils/bajujuAnalytics';
 import { sendBajujuPushNotification } from '../../src/utils/bajujuNotifications';
 import { BajujuProfileButton } from '../../src/components/navigation/BajujuProfileButton';
+import { BajujuBackButton } from '../../src/components/navigation/BajujuBackButton';
 
 type ActivityRow = {
   id: string;
@@ -263,9 +264,7 @@ export default function ExperienceWaitlistScreen() {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
         <View style={styles.topRow}>
-          <Pressable style={styles.backButton} onPress={() => router.back()}>
-            <Text style={styles.backText}>← Indietro</Text>
-          </Pressable>
+          <BajujuBackButton onPress={() => router.back()} accessibilityLabel="Indietro" style={{ alignSelf: 'flex-start' }} />
           <BajujuProfileButton />
         </View>
 

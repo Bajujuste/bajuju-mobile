@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { supabase } from '../../src/lib/supabase';
+import { BajujuBackButton } from '../../src/components/navigation/BajujuBackButton';
 
 type LooseRow = Record<string, any>;
 
@@ -127,9 +128,7 @@ export default function AdminChatReportsScreen() {
         <Text style={styles.title}>Chat segnalate</Text>
         <Text style={styles.text}>Messaggi segnalati visibili: {items.length}</Text>
 
-        <Pressable style={styles.backButton} onPress={() => router.push('/admin')}>
-          <Text style={styles.backButtonText}>← Torna ad Admin</Text>
-        </Pressable>
+        <BajujuBackButton onPress={() => router.push('/admin')} accessibilityLabel="Indietro" style={{ alignSelf: 'flex-start' }} />
       </View>
 
       {loading ? (

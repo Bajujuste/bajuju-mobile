@@ -15,6 +15,7 @@ import { supabase } from '../../src/lib/supabase';
 import { sendBajujuPushNotification } from '../../src/utils/bajujuNotifications';
 import { KeyboardAwareScrollView } from '../../src/components/KeyboardAwareScrollView';
 import { BajujuProfileButton } from '../../src/components/navigation/BajujuProfileButton';
+import { BajujuBackButton } from '../../src/components/navigation/BajujuBackButton';
 
 type ContactType = 'telefono' | 'telegram';
 type LooseRow = Record<string, any>;
@@ -309,9 +310,7 @@ export default function ShareContactScreen() {
     <SafeAreaView style={styles.safeArea}>
       <KeyboardAwareScrollView contentContainerStyle={styles.container}>
         <View style={styles.topRow}>
-          <Pressable style={styles.backButton} onPress={() => router.back()}>
-            <Text style={styles.backText}>← Indietro</Text>
-          </Pressable>
+          <BajujuBackButton onPress={() => router.back()} accessibilityLabel="Indietro" style={{ alignSelf: 'flex-start' }} />
           <BajujuProfileButton />
         </View>
 

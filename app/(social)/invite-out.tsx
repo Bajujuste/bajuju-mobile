@@ -6,6 +6,7 @@ import { supabase } from '../../src/lib/supabase';
 import { sendBajujuPushNotification } from '../../src/utils/bajujuNotifications';
 import { KeyboardAwareScrollView } from '../../src/components/KeyboardAwareScrollView';
 import { BajujuProfileButton } from '../../src/components/navigation/BajujuProfileButton';
+import { BajujuBackButton } from '../../src/components/navigation/BajujuBackButton';
 
 export default function InviteOutScreen() {
   const params = useLocalSearchParams<{ targetUserId?: string; activityId?: string }>();
@@ -186,9 +187,7 @@ export default function InviteOutScreen() {
     <SafeAreaView style={styles.safeArea}>
       <KeyboardAwareScrollView contentContainerStyle={styles.container}>
         <View style={styles.topRow}>
-          <Pressable style={styles.backButton} onPress={() => router.back()}>
-            <Text style={styles.backText}>← Indietro</Text>
-          </Pressable>
+          <BajujuBackButton onPress={() => router.back()} accessibilityLabel="Indietro" style={{ alignSelf: 'flex-start' }} />
           <BajujuProfileButton />
         </View>
 

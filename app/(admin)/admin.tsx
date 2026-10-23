@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 
 import { supabase } from '../../src/lib/supabase';
+import { BajujuBackButton } from '../../src/components/navigation/BajujuBackButton';
 
 type AdminStats = {
   users: number;
@@ -277,9 +278,7 @@ export default function AdminScreen() {
             Pannello rapido per controllare community, eventi, statistiche, segnalazioni e sicurezza.
           </Text>
 
-          <Pressable style={styles.backButton} onPress={() => router.push('/profile')}>
-            <Text style={styles.backButtonText}>← Torna al profilo</Text>
-          </Pressable>
+          <BajujuBackButton onPress={() => router.push('/profile')} accessibilityLabel="Indietro" style={{ alignSelf: 'flex-start' }} />
         </View>
 
         {loading ? (

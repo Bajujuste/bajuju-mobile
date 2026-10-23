@@ -16,6 +16,7 @@ import { useFocusEffect } from 'expo-router';
 import { supabase } from '../../src/lib/supabase';
 import { sendBajujuPushNotification } from '../../src/utils/bajujuNotifications';
 import { BajujuProfileButton } from '../../src/components/navigation/BajujuProfileButton';
+import { BajujuBackButton } from '../../src/components/navigation/BajujuBackButton';
 
 type ContactType = 'telefono' | 'telegram';
 type Direction = 'received' | 'sent';
@@ -180,9 +181,7 @@ export default function DirectContactsScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
-        <Pressable style={styles.backButton} onPress={() => router.back()}>
-          <Text style={styles.backText}>‹</Text>
-        </Pressable>
+        <BajujuBackButton onPress={() => router.back()} accessibilityLabel="Indietro" />
         <View style={styles.headerText}>
           <Text style={styles.title}>Contatti diretti</Text>
           <Text style={styles.subtitle}>Telefono, WhatsApp e Telegram condivisi su Bajuju</Text>

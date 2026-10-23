@@ -19,6 +19,7 @@ import { BajujuProfileButton } from '@/components/navigation/BajujuProfileButton
 import { normalizeExperienceCategory } from '@/constants/experienceCategories';
 import { BAJUJU_COLORS, BAJUJU_FONTS, BAJUJU_SHADOW } from '@/theme/bajujuTheme';
 import { supabase } from '../../src/lib/supabase';
+import { BajujuBackButton } from '../../src/components/navigation/BajujuBackButton';
 
 type ActivityRow = Record<string, any>;
 
@@ -500,9 +501,7 @@ export default function ExperiencesMapScreen() {
   return (
     <SafeAreaView style={screenStyles.safeArea}>
       <View style={screenStyles.header}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Torna a Trova esperienze" onPress={() => router.back()} style={screenStyles.backButton}>
-          <Text style={screenStyles.backText}>‹</Text>
-        </Pressable>
+        <BajujuBackButton onPress={() => router.back()} accessibilityLabel="Torna a Trova esperienze" />
         <Text style={screenStyles.heading}>Mappa esperienze</Text>
         <Text style={screenStyles.count}>{mapItems.length + mapLocations.reduce((total, location) => total + location.events.length, 0)}</Text>
         <BajujuProfileButton size={38} />

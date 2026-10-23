@@ -13,6 +13,7 @@ import {
 
 import { supabase } from '../../src/lib/supabase';
 import { KeyboardAwareScrollView } from '../../src/components/KeyboardAwareScrollView';
+import { BajujuBackButton } from '../../src/components/navigation/BajujuBackButton';
 
 const bajujuLogo = require('../../assets/brand/bajuju-logo.png');
 
@@ -69,9 +70,7 @@ export default function ForgotPasswordScreen() {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.keyboardView}>
         <KeyboardAwareScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-          <Pressable style={styles.backButton} onPress={() => router.replace('/login')}>
-            <Text style={styles.backText}>← Accedi</Text>
-          </Pressable>
+          <BajujuBackButton onPress={() => router.replace('/login')} accessibilityLabel="Indietro" style={{ alignSelf: 'flex-start', marginBottom: 18 }} />
 
           <View style={styles.logoBox}>
             <Image source={bajujuLogo} style={styles.logoImage} resizeMode="contain" />

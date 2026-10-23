@@ -13,6 +13,7 @@ import { shareBajujuFlash } from '../../src/utils/shareBajuju';
 import { sendBajujuPushNotification } from '../../src/utils/bajujuNotifications';
 import { ITALIAN_MUNICIPALITIES_BY_PROVINCE } from '../../src/data/italianMunicipalities';
 import { KeyboardAwareScrollView } from '../../src/components/KeyboardAwareScrollView';
+import { BajujuBackButton } from '../../src/components/navigation/BajujuBackButton';
 
 const bajujuLogo = require('../../assets/brand/bajuju-logo.png');
 
@@ -1682,9 +1683,7 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
         <View style={[styles.flashHeroBlob, styles.flashHeroBlobBottom]} />
         <Text style={[styles.flashHeroDoodle, styles.flashHeroDoodleLeft]}>‹‹</Text>
         <Text style={[styles.flashHeroDoodle, styles.flashHeroDoodleRight]}>✦</Text>
-        <Pressable style={styles.flashBackButton} onPress={() => router.push(forcedSection ? '/flash' : '/home')}>
-          <Text style={styles.flashBackText}>{forcedSection ? '← Bajuju Flash' : '← Home'}</Text>
-        </Pressable>
+        <BajujuBackButton onPress={() => router.push(forcedSection ? '/flash' : '/home')} accessibilityLabel="Indietro" style={{ zIndex: 3, alignSelf: 'flex-start', marginBottom: 16 }} />
 
         <View style={styles.flashHeroTopRow}>
           <View style={styles.flashHeroTextBlock}>
@@ -1744,9 +1743,7 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
           <Text style={[styles.flashHeroDoodle, styles.flashHeroDoodleLeft]}>‹‹</Text>
           <Text style={[styles.flashHeroDoodle, styles.flashHeroDoodleRight]}>✦</Text>
           {/* dismissTo torna alla schermata Flash già aperta invece di impilarne una nuova copia. */}
-          <Pressable style={styles.flashBackButton} onPress={() => router.dismissTo('/flash')}>
-            <Text style={styles.flashBackText}>← Bajuju Flash</Text>
-          </Pressable>
+          <BajujuBackButton onPress={() => router.dismissTo('/flash')} accessibilityLabel="Indietro" style={{ zIndex: 3, alignSelf: 'flex-start', marginBottom: 16 }} />
 
           <Text style={styles.flashDedicatedTitle}>
             <Text style={styles.flashHeroTitlePlum}>{dedicatedTitleLead}</Text>

@@ -15,6 +15,7 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { supabase } from '../../src/lib/supabase';
 import { getBajujuNotificationCategory, BAJUJU_NOTIFICATION_CATEGORY_LABELS, BajujuNotificationCategory } from '../../src/utils/bajujuNotificationCategories';
 import { BajujuProfileButton } from '../../src/components/navigation/BajujuProfileButton';
+import { BajujuBackButton } from '../../src/components/navigation/BajujuBackButton';
 
 type NotificationData = Record<string, unknown>;
 
@@ -248,9 +249,7 @@ export default function NotificationsScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
-        <Pressable style={styles.backButton} onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Torna indietro">
-          <Text style={styles.backButtonText}>‹</Text>
-        </Pressable>
+        <BajujuBackButton onPress={() => router.back()} accessibilityLabel="Torna indietro" />
         <View style={styles.headerTextBlock}>
           <Text style={styles.headerTitle}>Notifiche</Text>
           <Text style={styles.headerSubtitle}>Richieste, conversazioni e altre novità</Text>

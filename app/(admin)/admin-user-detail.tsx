@@ -25,6 +25,7 @@ import {
   type OrganizerGradeLabel,
 } from '../../src/utils/organizerGrade';
 import { KeyboardAwareScrollView } from '../../src/components/KeyboardAwareScrollView';
+import { BajujuBackButton } from '../../src/components/navigation/BajujuBackButton';
 
 type LooseRow = Record<string, any>;
 
@@ -767,9 +768,7 @@ export default function AdminUserDetailScreen() {
         <Text style={styles.kicker}>Area Admin</Text>
         <Text style={styles.title}>Dettaglio utente</Text>
 
-        <Pressable style={styles.backButton} onPress={() => router.push('/admin-users')}>
-          <Text style={styles.backButtonText}>← Torna agli iscritti</Text>
-        </Pressable>
+        <BajujuBackButton onPress={() => router.push('/admin-users')} accessibilityLabel="Indietro" style={{ alignSelf: 'flex-start' }} />
       </View>
 
       {loading ? (

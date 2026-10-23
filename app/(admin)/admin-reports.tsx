@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 
 import { supabase } from '../../src/lib/supabase';
+import { BajujuBackButton } from '../../src/components/navigation/BajujuBackButton';
 
 type LooseRow = Record<string, any>;
 
@@ -215,9 +216,7 @@ export default function AdminReportsScreen() {
         <Text style={styles.text}>Segnalazioni aperte: {reports.length}</Text>
 
         <View style={styles.topActions}>
-          <Pressable style={styles.backButton} onPress={() => router.push('/admin')}>
-            <Text style={styles.backButtonText}>← Torna ad Admin</Text>
-          </Pressable>
+          <BajujuBackButton onPress={() => router.push('/admin')} accessibilityLabel="Indietro" style={{ alignSelf: 'flex-start' }} />
 
           <Pressable style={styles.archiveTopButton} onPress={() => router.push('/admin-reports-archived')}>
             <Text style={styles.archiveTopButtonText}>Archivate</Text>

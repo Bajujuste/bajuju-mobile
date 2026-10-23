@@ -208,7 +208,7 @@ export default function CreateGroupScreen() {
             accessibilityRole="button"
             accessibilityLabel="Torna ai gruppi"
           >
-            <Ionicons name="arrow-back" size={22} color={BAJUJU_COLORS.plum} />
+            <Ionicons name="chevron-back" size={20} color={BAJUJU_COLORS.plum} />
           </Pressable>
           <Text style={styles.title}>Nuovo gruppo</Text>
           <BajujuProfileButton />

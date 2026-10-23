@@ -21,6 +21,7 @@ import type { ResolvedAddress } from '../../src/lib/addressAutocomplete';
 import { supabase } from '../../src/lib/supabase';
 import { KeyboardAwareScrollView } from '../../src/components/KeyboardAwareScrollView';
 import { BajujuProfileButton } from '../../src/components/navigation/BajujuProfileButton';
+import { BajujuBackButton } from '../../src/components/navigation/BajujuBackButton';
 
 type ActivityRow = {
   id: string;
@@ -419,9 +420,7 @@ export default function EditExperienceScreen() {
       <View style={styles.flex}>
         <KeyboardAwareScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
           <View style={styles.topRow}>
-            <Pressable style={styles.backButton} onPress={() => router.back()}>
-              <Text style={styles.backText}>← Indietro</Text>
-            </Pressable>
+            <BajujuBackButton onPress={() => router.back()} accessibilityLabel="Indietro" style={{ alignSelf: 'flex-start' }} />
             <BajujuProfileButton />
           </View>
 

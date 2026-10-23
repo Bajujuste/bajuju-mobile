@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 
 import { supabase } from '../../src/lib/supabase';
+import { BajujuBackButton } from '../../src/components/navigation/BajujuBackButton';
 
 const BAJUJU_CREATOR_EMAIL = 'royaleventi@gmail.com';
 
@@ -543,9 +544,7 @@ export default function AdminEventsScreen() {
         <Text style={styles.title}>Eventi disponibili</Text>
         <Text style={styles.text}>Eventi mostrati: {filteredActivities.length}</Text>
 
-        <Pressable style={styles.backButton} onPress={() => router.push('/admin')}>
-          <Text style={styles.backButtonText}>← Torna ad Admin</Text>
-        </Pressable>
+        <BajujuBackButton onPress={() => router.push('/admin')} accessibilityLabel="Indietro" style={{ alignSelf: 'flex-start' }} />
       </View>
 
       <View style={styles.filtersCard}>

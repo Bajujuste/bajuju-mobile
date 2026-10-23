@@ -17,6 +17,7 @@ import { supabase } from '../../src/lib/supabase';
 import { sendBajujuPushNotification } from '../../src/utils/bajujuNotifications';
 import { KeyboardAwareScrollView } from '../../src/components/KeyboardAwareScrollView';
 import { BajujuProfileButton } from '../../src/components/navigation/BajujuProfileButton';
+import { BajujuBackButton } from '../../src/components/navigation/BajujuBackButton';
 
 type InviteRow = {
   id: string;
@@ -255,9 +256,7 @@ export default function DateInvitesScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
-        <Pressable style={styles.backButton} onPress={() => router.back()}>
-          <Text style={styles.backText}>‹</Text>
-        </Pressable>
+        <BajujuBackButton onPress={() => router.back()} accessibilityLabel="Indietro" />
         <View style={styles.headerText}>
           <Text style={styles.title}>Inviti a uscire</Text>
           <Text style={styles.subtitle}>Inviti, risposte e stato delle richieste</Text>

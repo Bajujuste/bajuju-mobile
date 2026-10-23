@@ -27,7 +27,7 @@ async function loadProfileChatSummary(userId: string) {
   return { isMainAdmin, unread: countResult.error ? 0 : countResult.count || 0 };
 }
 
-// Riga "Scrivi a Bajuju" dentro l'elenco del profilo (al posto del pulsante flottante).
+// Riga "Chiedi a Bajuju" dentro l'elenco del profilo (al posto del pulsante flottante).
 export function ProfileAdminChatRow({ rowStyle, iconColor, labelStyle, chevronColor }: {
   rowStyle: StyleProp<ViewStyle>;
   iconColor: string;
@@ -68,7 +68,7 @@ export function ProfileAdminChatRow({ rowStyle, iconColor, labelStyle, chevronCo
       onPress={() => router.push('/admin-private-chat' as any)}
     >
       <Ionicons name="chatbubble-ellipses-outline" size={22} color={iconColor} />
-      <Text style={labelStyle}>{isMainAdmin ? 'Messaggi Bajuju' : 'Scrivi a Bajuju'}</Text>
+      <Text style={labelStyle}>{isMainAdmin ? 'Messaggi Bajuju' : 'Chiedi a Bajuju'}</Text>
       {unread > 0 ? (
         <View style={styles.badge}>
           <Text style={styles.badgeText}>{unread > 99 ? '99+' : unread}</Text>

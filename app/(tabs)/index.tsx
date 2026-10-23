@@ -127,7 +127,7 @@ export default function WelcomeScreen() {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.loadingBox}>
-          <ActivityIndicator color="#e43f98" size="large" />
+          <ActivityIndicator color="#E43F98" size="large" />
           <Text style={styles.loadingText}>Apro Bajuju...</Text>
         </View>
       </SafeAreaView>
@@ -195,8 +195,8 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 14,
     fontSize: 16,
-    fontWeight: '900',
-    color: '#e43f98',
+    fontFamily: 'FredokaBold',
+    color: '#E43F98',
   },
   container: {
     flexGrow: 1,
@@ -212,8 +212,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: '#ffd3e7',
-    shadowColor: '#e43f98',
+    borderColor: '#F3C6DC',
+    shadowColor: '#E43F98',
     shadowOpacity: 0.12,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 8 },
@@ -223,7 +223,7 @@ const styles = StyleSheet.create({
     width: 230,
     height: 230,
     borderRadius: 115,
-    backgroundColor: '#fff0f7',
+    backgroundColor: '#FFF0F7',
     borderWidth: 2,
     borderColor: '#ffc2df',
     alignItems: 'center',
@@ -237,23 +237,23 @@ const styles = StyleSheet.create({
   },
   brand: {
     fontSize: 48,
-    fontWeight: '900',
-    color: '#e43f98',
+    fontFamily: 'FredokaBold',
+    color: '#E43F98',
     letterSpacing: -0.8,
   },
   claim: {
     marginTop: 4,
     fontSize: 20,
-    fontWeight: '900',
-    color: '#e43f98',
+    fontFamily: 'FredokaBold',
+    color: '#E43F98',
   },
   description: {
     marginTop: 16,
     maxWidth: 310,
     fontSize: 16,
     lineHeight: 23,
-    fontWeight: '700',
-    color: '#6b3652',
+    fontFamily: 'FredokaBold',
+    color: '#8D5E77',
     textAlign: 'center',
   },
   actions: {
@@ -264,35 +264,35 @@ const styles = StyleSheet.create({
   primaryButton: {
     height: 54,
     borderRadius: 20,
-    backgroundColor: '#e43f98',
+    backgroundColor: '#E43F98',
     alignItems: 'center',
     justifyContent: 'center',
   },
   primaryButtonText: {
     color: '#ffffff',
     fontSize: 17,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   secondaryButton: {
     height: 54,
     borderRadius: 20,
-    backgroundColor: '#fff0f7',
+    backgroundColor: '#FFF0F7',
     borderWidth: 1,
-    borderColor: '#e43f98',
+    borderColor: '#E43F98',
     alignItems: 'center',
     justifyContent: 'center',
   },
   secondaryButtonText: {
-    color: '#e43f98',
+    color: '#E43F98',
     fontSize: 17,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   footerText: {
     marginTop: 18,
     fontSize: 12,
     lineHeight: 18,
-    fontWeight: '800',
-    color: '#9b1f61',
+    fontFamily: 'FredokaBold',
+    color: '#4B0C2D',
     textAlign: 'center',
   },
   legalLinks: {
@@ -304,13 +304,13 @@ const styles = StyleSheet.create({
   },
   legalLinkText: {
     fontSize: 12,
-    fontWeight: '900',
-    color: '#e43f98',
+    fontFamily: 'FredokaBold',
+    color: '#E43F98',
     textDecorationLine: 'underline',
   },
   legalSeparator: {
     fontSize: 13,
-    fontWeight: '900',
-    color: '#9b1f61',
+    fontFamily: 'FredokaBold',
+    color: '#4B0C2D',
   },
 });

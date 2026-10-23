@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 
 import { supabase } from '../../src/lib/supabase';
+import { BajujuBackButton } from '../../src/components/navigation/BajujuBackButton';
 
 type LooseRow = Record<string, any>;
 
@@ -156,9 +157,7 @@ export default function AdminReportsArchivedScreen() {
         <Text style={styles.title}>Archivate</Text>
         <Text style={styles.text}>Segnalazioni archiviate: {reports.length}</Text>
 
-        <Pressable style={styles.backButton} onPress={() => router.push('/admin-reports')}>
-          <Text style={styles.backButtonText}>← Torna alle segnalazioni</Text>
-        </Pressable>
+        <BajujuBackButton onPress={() => router.push('/admin-reports')} accessibilityLabel="Indietro" style={{ alignSelf: 'flex-start' }} />
       </View>
 
       {loading ? (
@@ -199,81 +198,81 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     padding: 20,
     borderWidth: 1,
-    borderColor: '#ffd3e6',
+    borderColor: '#F3C6DC',
   },
   card: {
     backgroundColor: '#ffffff',
     borderRadius: 24,
     padding: 18,
     borderWidth: 1,
-    borderColor: '#ffd3e6',
+    borderColor: '#F3C6DC',
   },
   kicker: {
-    color: '#ef2d82',
+    color: '#E43F98',
     fontSize: 14,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
     marginBottom: 8,
   },
   title: {
-    color: '#e43f98',
+    color: '#E43F98',
     fontSize: 29,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
     marginBottom: 8,
   },
   text: {
-    color: '#4b1430',
+    color: '#4B0C2D',
     fontSize: 15,
-    fontWeight: '800',
+    fontFamily: 'FredokaBold',
     marginBottom: 14,
   },
   backButton: {
     alignSelf: 'flex-start',
-    backgroundColor: '#fff0f7',
+    backgroundColor: '#FFF0F7',
     borderRadius: 999,
     paddingVertical: 10,
     paddingHorizontal: 14,
     borderWidth: 1,
-    borderColor: '#ffd3e6',
+    borderColor: '#F3C6DC',
   },
   backButtonText: {
-    color: '#9b1f61',
+    color: '#4B0C2D',
     fontSize: 14,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   loadingText: {
-    color: '#7b4960',
-    fontWeight: '800',
+    color: '#8D5E77',
+    fontFamily: 'FredokaBold',
     marginTop: 8,
   },
   emptyText: {
-    color: '#7b4960',
+    color: '#8D5E77',
     fontSize: 15,
-    fontWeight: '800',
+    fontFamily: 'FredokaBold',
   },
   reportBox: {
     backgroundColor: '#FFF9FC',
     borderRadius: 16,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#ffd3e6',
+    borderColor: '#F3C6DC',
     marginBottom: 10,
   },
   reportTitle: {
-    color: '#4b1430',
+    color: '#4B0C2D',
     fontSize: 17,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
     marginBottom: 6,
   },
   reportSubtitle: {
-    color: '#7b4960',
+    color: '#8D5E77',
     fontSize: 14,
-    fontWeight: '700',
+    fontFamily: 'FredokaBold',
     lineHeight: 20,
   },
   reportMeta: {
-    color: '#9b1f61',
+    color: '#4B0C2D',
     fontSize: 12,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
     marginTop: 6,
   },
 });

@@ -25,6 +25,7 @@ import {
   type OrganizerGradeLabel,
 } from '../../src/utils/organizerGrade';
 import { KeyboardAwareScrollView } from '../../src/components/KeyboardAwareScrollView';
+import { BajujuBackButton } from '../../src/components/navigation/BajujuBackButton';
 
 type LooseRow = Record<string, any>;
 
@@ -767,9 +768,7 @@ export default function AdminUserDetailScreen() {
         <Text style={styles.kicker}>Area Admin</Text>
         <Text style={styles.title}>Dettaglio utente</Text>
 
-        <Pressable style={styles.backButton} onPress={() => router.push('/admin-users')}>
-          <Text style={styles.backButtonText}>← Torna agli iscritti</Text>
-        </Pressable>
+        <BajujuBackButton onPress={() => router.push('/admin-users')} accessibilityLabel="Indietro" style={{ alignSelf: 'flex-start' }} />
       </View>
 
       {loading ? (
@@ -1056,7 +1055,7 @@ export default function AdminUserDetailScreen() {
                 value={locationText}
                 onChangeText={(value) => setLocationText(value.slice(0, 200))}
                 placeholder="Descrizione breve Location"
-                placeholderTextColor="#a95d86"
+                placeholderTextColor="#8D5E77"
                 style={[styles.roleInput, styles.roleTextArea]}
                 multiline
               />
@@ -1130,51 +1129,51 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     padding: 20,
     borderWidth: 1,
-    borderColor: '#ffd3e6',
+    borderColor: '#F3C6DC',
   },
   card: {
     backgroundColor: '#ffffff',
     borderRadius: 24,
     padding: 18,
     borderWidth: 1,
-    borderColor: '#ffd3e6',
+    borderColor: '#F3C6DC',
     gap: 10,
   },
   kicker: {
-    color: '#ef2d82',
+    color: '#E43F98',
     fontSize: 14,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
     marginBottom: 8,
   },
   title: {
-    color: '#e43f98',
+    color: '#E43F98',
     fontSize: 29,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
     marginBottom: 12,
   },
   backButton: {
     alignSelf: 'flex-start',
-    backgroundColor: '#fff0f7',
+    backgroundColor: '#FFF0F7',
     borderRadius: 999,
     paddingVertical: 10,
     paddingHorizontal: 14,
     borderWidth: 1,
-    borderColor: '#ffd3e6',
+    borderColor: '#F3C6DC',
   },
   backButtonText: {
-    color: '#9b1f61',
+    color: '#4B0C2D',
     fontSize: 14,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   loadingText: {
-    color: '#7b4960',
-    fontWeight: '800',
+    color: '#8D5E77',
+    fontFamily: 'FredokaBold',
     marginTop: 8,
   },
   emptyText: {
-    color: '#7b4960',
+    color: '#8D5E77',
     fontSize: 15,
-    fontWeight: '800',
+    fontFamily: 'FredokaBold',
   },
   profileHeader: {
     flexDirection: 'row',
@@ -1189,25 +1188,25 @@ const styles = StyleSheet.create({
     width: 104,
     height: 104,
     borderRadius: 52,
-    backgroundColor: '#fff0f7',
+    backgroundColor: '#FFF0F7',
     borderWidth: 2,
-    borderColor: '#ffd3e6',
+    borderColor: '#F3C6DC',
   },
   profilePhotoPlaceholder: {
     width: 104,
     height: 104,
     borderRadius: 52,
-    backgroundColor: '#fff0f7',
+    backgroundColor: '#FFF0F7',
     borderWidth: 2,
-    borderColor: '#ffd3e6',
+    borderColor: '#F3C6DC',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 10,
   },
   profilePhotoPlaceholderText: {
-    color: '#a95d86',
+    color: '#8D5E77',
     fontSize: 12,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
     textAlign: 'center',
   },
   incompleteBanner: {
@@ -1221,14 +1220,14 @@ const styles = StyleSheet.create({
   incompleteBannerTitle: {
     color: '#7b4a00',
     fontSize: 14,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   incompleteBannerText: {
     marginTop: 4,
     color: '#7b4a00',
     fontSize: 12,
     lineHeight: 18,
-    fontWeight: '800',
+    fontFamily: 'FredokaBold',
   },
   photoModalBackdrop: {
     flex: 1,
@@ -1257,25 +1256,25 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
   },
   photoModalCloseText: {
-    color: '#4b1430',
+    color: '#4B0C2D',
     fontSize: 14,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   profileSubtitle: {
     marginTop: 4,
-    color: '#7b4960',
+    color: '#8D5E77',
     fontSize: 13,
-    fontWeight: '800',
+    fontFamily: 'FredokaBold',
   },
   name: {
-    color: '#4b1430',
+    color: '#4B0C2D',
     fontSize: 24,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   sectionTitle: {
-    color: '#4b1430',
+    color: '#4B0C2D',
     fontSize: 21,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
     marginBottom: 8,
   },
   privateChatButton: {
@@ -1295,25 +1294,25 @@ const styles = StyleSheet.create({
   privateChatButtonText: {
     color: '#FFFFFF',
     fontSize: 15,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   detailRow: {
     backgroundColor: '#FFF9FC',
     borderRadius: 14,
     padding: 12,
     borderWidth: 1,
-    borderColor: '#ffd3e6',
+    borderColor: '#F3C6DC',
   },
   detailLabel: {
-    color: '#9b1f61',
+    color: '#4B0C2D',
     fontSize: 12,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
     marginBottom: 4,
   },
   detailValue: {
-    color: '#4b1430',
+    color: '#4B0C2D',
     fontSize: 14,
-    fontWeight: '800',
+    fontFamily: 'FredokaBold',
     lineHeight: 20,
   },
   reactivateButton: {
@@ -1330,7 +1329,7 @@ const styles = StyleSheet.create({
   reactivateButtonText: {
     color: '#197a45',
     fontSize: 13,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   roleCard: {
     marginTop: 18,
@@ -1338,13 +1337,13 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     backgroundColor: '#FFF9FC',
     borderWidth: 1,
-    borderColor: '#ffd3e7',
+    borderColor: '#F3C6DC',
     gap: 10,
   },
   roleTitle: {
-    color: '#9b1f61',
+    color: '#4B0C2D',
     fontSize: 16,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   roleButtonsRow: {
     flexDirection: 'row',
@@ -1359,7 +1358,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: '#ffd3e7',
+    borderColor: '#F3C6DC',
     alignItems: 'center',
   },
   roleNotice: {
@@ -1370,26 +1369,26 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: '#ffd3e7',
+    borderColor: '#F3C6DC',
   },
   roleNoticeText: {
-    color: '#a95d86',
+    color: '#8D5E77',
     fontSize: 12,
-    fontWeight: '800',
+    fontFamily: 'FredokaBold',
     textAlign: 'center',
     lineHeight: 17,
   },
   roleButtonActive: {
-    backgroundColor: '#e43f98',
-    borderColor: '#e43f98',
+    backgroundColor: '#E43F98',
+    borderColor: '#E43F98',
   },
   roleButtonDisabled: {
     opacity: 0.55,
   },
   roleButtonText: {
-    color: '#9b1f61',
+    color: '#4B0C2D',
     fontSize: 13,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
     textAlign: 'center',
   },
   roleButtonTextActive: {
@@ -1397,9 +1396,9 @@ const styles = StyleSheet.create({
   },
   roleLabel: {
     marginTop: 8,
-    color: '#9b1f61',
+    color: '#4B0C2D',
     fontSize: 13,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   gradeSection: {
     marginTop: 4,
@@ -1409,41 +1408,41 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: '#ffd3e7',
+    borderColor: '#F3C6DC',
     padding: 13,
   },
   gradeSummaryLabel: {
-    color: '#a95d86',
+    color: '#8D5E77',
     fontSize: 11,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
     textTransform: 'uppercase',
   },
   gradeSummarySecondLabel: {
     marginTop: 9,
   },
   gradeSummaryValue: {
-    color: '#4b1430',
+    color: '#4B0C2D',
     fontSize: 15,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
     marginTop: 2,
   },
   manualPromotionText: {
     marginTop: 9,
     color: '#6e31a8',
     fontSize: 12,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   automaticText: {
     marginTop: 9,
     color: '#197a45',
     fontSize: 12,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   gradeInstruction: {
-    color: '#6b3652',
+    color: '#8D5E77',
     fontSize: 12,
     lineHeight: 18,
-    fontWeight: '800',
+    fontFamily: 'FredokaBold',
   },
   gradeChoices: {
     gap: 8,
@@ -1474,46 +1473,46 @@ const styles = StyleSheet.create({
     borderWidth: 3,
   },
   gradeChoiceTitle: {
-    color: '#4b1430',
+    color: '#4B0C2D',
     fontSize: 14,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   gradeChoiceMeta: {
-    color: '#7b4960',
+    color: '#8D5E77',
     fontSize: 12,
-    fontWeight: '800',
+    fontFamily: 'FredokaBold',
     marginTop: 3,
   },
   autoGradeButton: {
     alignSelf: 'flex-start',
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: '#9b1f61',
+    borderColor: '#4B0C2D',
     backgroundColor: '#ffffff',
     paddingVertical: 9,
     paddingHorizontal: 13,
   },
   autoGradeButtonText: {
-    color: '#9b1f61',
+    color: '#4B0C2D',
     fontSize: 12,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   gradeRuleText: {
-    color: '#7b4960',
+    color: '#8D5E77',
     fontSize: 11,
     lineHeight: 17,
-    fontWeight: '700',
+    fontFamily: 'FredokaBold',
   },
   roleInput: {
     borderWidth: 1,
-    borderColor: '#ffd3e7',
+    borderColor: '#F3C6DC',
     borderRadius: 16,
     paddingVertical: 11,
     paddingHorizontal: 13,
     backgroundColor: '#ffffff',
     color: '#4a1230',
     fontSize: 14,
-    fontWeight: '800',
+    fontFamily: 'FredokaBold',
   },
   roleTextArea: {
     minHeight: 86,
@@ -1522,24 +1521,24 @@ const styles = StyleSheet.create({
   },
   roleCounter: {
     alignSelf: 'flex-end',
-    color: '#a95d86',
+    color: '#8D5E77',
     fontSize: 12,
-    fontWeight: '800',
+    fontFamily: 'FredokaBold',
   },
   roleSaveButton: {
     alignSelf: 'flex-start',
     paddingVertical: 10,
     paddingHorizontal: 15,
     borderRadius: 999,
-    backgroundColor: '#e43f98',
+    backgroundColor: '#E43F98',
   },
   roleSaveButtonText: {
     color: '#ffffff',
     fontSize: 13,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   warningButton: {
-    backgroundColor: '#9b1f61',
+    backgroundColor: '#4B0C2D',
     borderRadius: 16,
     paddingVertical: 13,
     alignItems: 'center',
@@ -1561,19 +1560,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   button: {
-    backgroundColor: '#ef2d82',
+    backgroundColor: '#E43F98',
     borderRadius: 16,
     paddingVertical: 13,
     alignItems: 'center',
   },
   buttonText: {
     color: '#ffffff',
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
     fontSize: 15,
   },
   actionButtonText: {
     color: '#ffffff',
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
     fontSize: 15,
   },
 });

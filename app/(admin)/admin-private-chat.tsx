@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { supabase } from '../../src/lib/supabase';
 import { BAJUJU_COLORS, BAJUJU_FONTS, BAJUJU_SHADOW } from '../../src/theme/bajujuTheme';
+import { BajujuBackButton } from '../../src/components/navigation/BajujuBackButton';
 
 type ChatMessage = {
   id: string;
@@ -299,9 +300,7 @@ export default function AdminPrivateChatScreen() {
       keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}
     >
       <View style={styles.header}>
-        <Pressable style={styles.backButton} onPress={() => router.back()}>
-          <Text style={styles.backText}>← Indietro</Text>
-        </Pressable>
+        <BajujuBackButton onPress={() => router.back()} accessibilityLabel="Indietro" />
         <View style={styles.headerCopy}>
           <Text style={styles.title}>{adminViewingUser ? targetName : 'Bajuju'}</Text>
           <Text style={styles.subtitle}>

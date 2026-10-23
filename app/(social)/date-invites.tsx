@@ -17,6 +17,7 @@ import { supabase } from '../../src/lib/supabase';
 import { sendBajujuPushNotification } from '../../src/utils/bajujuNotifications';
 import { KeyboardAwareScrollView } from '../../src/components/KeyboardAwareScrollView';
 import { BajujuProfileButton } from '../../src/components/navigation/BajujuProfileButton';
+import { BajujuBackButton } from '../../src/components/navigation/BajujuBackButton';
 
 type InviteRow = {
   id: string;
@@ -255,9 +256,7 @@ export default function DateInvitesScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
-        <Pressable style={styles.backButton} onPress={() => router.back()}>
-          <Text style={styles.backText}>‹</Text>
-        </Pressable>
+        <BajujuBackButton onPress={() => router.back()} accessibilityLabel="Indietro" />
         <View style={styles.headerText}>
           <Text style={styles.title}>Inviti a uscire</Text>
           <Text style={styles.subtitle}>Inviti, risposte e stato delle richieste</Text>
@@ -266,7 +265,7 @@ export default function DateInvitesScreen() {
       </View>
 
       {loading ? (
-        <View style={styles.center}><ActivityIndicator color="#e43f98" /></View>
+        <View style={styles.center}><ActivityIndicator color="#E43F98" /></View>
       ) : (
         <KeyboardAwareScrollView
           contentContainerStyle={styles.container}
@@ -351,33 +350,33 @@ export default function DateInvitesScreen() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#FFF9FC' },
   header: { minHeight: 76, paddingHorizontal: 15, flexDirection: 'row', alignItems: 'center' },
-  backButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#f3c6dc', alignItems: 'center', justifyContent: 'center' },
-  backText: { color: '#8f1658', fontSize: 36, lineHeight: 38, marginTop: -4 },
+  backButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#F3C6DC', alignItems: 'center', justifyContent: 'center' },
+  backText: { color: '#4B0C2D', fontFamily: 'FredokaRegular', fontSize: 36, lineHeight: 38, marginTop: -4 },
   headerText: { flex: 1, alignItems: 'center' },
-  title: { color: '#e43f98', fontSize: 24, fontWeight: '900' },
-  subtitle: { marginTop: 2, color: '#a95d86', fontWeight: '700', fontSize: 12 },
+  title: { color: '#E43F98', fontSize: 24, fontFamily: 'FredokaBold' },
+  subtitle: { marginTop: 2, color: '#8D5E77', fontFamily: 'FredokaBold', fontSize: 12 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   container: { padding: 15, paddingBottom: 36 },
-  emptyCard: { padding: 26, borderRadius: 24, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#f3c6dc', alignItems: 'center' },
-  emptyTitle: { color: '#e43f98', fontSize: 19, fontWeight: '900' },
-  emptyText: { marginTop: 7, color: '#6b3652', lineHeight: 20, textAlign: 'center', fontWeight: '700' },
-  card: { marginBottom: 12, padding: 16, borderRadius: 23, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#f3c6dc' },
-  directionLabel: { color: '#a95d86', fontSize: 10, fontWeight: '900', letterSpacing: 1 },
-  cardTitle: { marginTop: 5, color: '#4b1430', fontSize: 18, fontWeight: '900' },
-  message: { marginTop: 9, color: '#6b3652', fontSize: 14, lineHeight: 20, fontWeight: '700' },
-  status: { marginTop: 10, alignSelf: 'flex-start', color: '#8f5573', backgroundColor: '#fff0f7', paddingHorizontal: 9, paddingVertical: 5, borderRadius: 999, fontWeight: '900', fontSize: 11 },
+  emptyCard: { padding: 26, borderRadius: 24, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#F3C6DC', alignItems: 'center' },
+  emptyTitle: { color: '#E43F98', fontSize: 19, fontFamily: 'FredokaBold' },
+  emptyText: { marginTop: 7, color: '#8D5E77', lineHeight: 20, textAlign: 'center', fontFamily: 'FredokaBold' },
+  card: { marginBottom: 12, padding: 16, borderRadius: 23, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#F3C6DC' },
+  directionLabel: { color: '#8D5E77', fontSize: 10, fontFamily: 'FredokaBold', letterSpacing: 1 },
+  cardTitle: { marginTop: 5, color: '#4B0C2D', fontSize: 18, fontFamily: 'FredokaBold' },
+  message: { marginTop: 9, color: '#8D5E77', fontSize: 14, lineHeight: 20, fontFamily: 'FredokaBold' },
+  status: { marginTop: 10, alignSelf: 'flex-start', color: '#8f5573', backgroundColor: '#FFF0F7', paddingHorizontal: 9, paddingVertical: 5, borderRadius: 999, fontFamily: 'FredokaBold', fontSize: 11 },
   statusAccepted: { color: '#217a4b', backgroundColor: '#eaf8f0' },
   actionsRow: { marginTop: 14, flexDirection: 'row', gap: 9 },
-  acceptButton: { flex: 1, minHeight: 46, borderRadius: 15, backgroundColor: '#e43f98', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10 },
-  acceptText: { color: '#ffffff', fontWeight: '900' },
-  rejectButton: { flex: 1, minHeight: 46, borderRadius: 15, backgroundColor: '#fff0f7', borderWidth: 1, borderColor: '#f3c6dc', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10 },
-  rejectText: { color: '#8f1658', fontWeight: '900' },
+  acceptButton: { flex: 1, minHeight: 46, borderRadius: 15, backgroundColor: '#E43F98', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10 },
+  acceptText: { color: '#ffffff', fontFamily: 'FredokaBold' },
+  rejectButton: { flex: 1, minHeight: 46, borderRadius: 15, backgroundColor: '#FFF0F7', borderWidth: 1, borderColor: '#F3C6DC', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10 },
+  rejectText: { color: '#4B0C2D', fontFamily: 'FredokaBold' },
   replyBox: { marginTop: 12, padding: 12, borderRadius: 15, backgroundColor: '#FFF9FC' },
-  replyLabel: { color: '#e43f98', fontSize: 11, fontWeight: '900' },
-  replyText: { marginTop: 4, color: '#5a2842', lineHeight: 19, fontWeight: '700' },
-  replyButton: { marginTop: 14, minHeight: 46, borderRadius: 15, borderWidth: 1, borderColor: '#e43f98', alignItems: 'center', justifyContent: 'center' },
-  replyButtonText: { color: '#e43f98', fontWeight: '900' },
+  replyLabel: { color: '#E43F98', fontSize: 11, fontFamily: 'FredokaBold' },
+  replyText: { marginTop: 4, color: '#4B0C2D', lineHeight: 19, fontFamily: 'FredokaBold' },
+  replyButton: { marginTop: 14, minHeight: 46, borderRadius: 15, borderWidth: 1, borderColor: '#E43F98', alignItems: 'center', justifyContent: 'center' },
+  replyButtonText: { color: '#E43F98', fontFamily: 'FredokaBold' },
   replyComposer: { marginTop: 12 },
-  input: { minHeight: 90, maxHeight: 200, padding: 12, borderRadius: 15, borderWidth: 1, borderColor: '#f3c6dc', color: '#4b1430', textAlignVertical: 'top', backgroundColor: '#FFF9FC' },
-  counter: { alignSelf: 'flex-end', marginTop: 5, color: '#a95d86', fontSize: 11, fontWeight: '700' },
+  input: { minHeight: 90, maxHeight: 200, padding: 12, borderRadius: 15, borderWidth: 1, borderColor: '#F3C6DC', color: '#4B0C2D', textAlignVertical: 'top', backgroundColor: '#FFF9FC' },
+  counter: { alignSelf: 'flex-end', marginTop: 5, color: '#8D5E77', fontSize: 11, fontFamily: 'FredokaBold' },
 });

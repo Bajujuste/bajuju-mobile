@@ -574,7 +574,7 @@ const styles = StyleSheet.create({
     color: BAJUJU_COLORS.muted,
   },
   eventMeta: {
-    color: '#6B3652',
+    color: '#8D5E77',
     fontFamily: BAJUJU_FONTS.medium,
     fontSize: 14,
   },

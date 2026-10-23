@@ -19,6 +19,7 @@ import { BajujuProfileButton } from '@/components/navigation/BajujuProfileButton
 import { normalizeExperienceCategory } from '@/constants/experienceCategories';
 import { BAJUJU_COLORS, BAJUJU_FONTS, BAJUJU_SHADOW } from '@/theme/bajujuTheme';
 import { supabase } from '../../src/lib/supabase';
+import { BajujuBackButton } from '../../src/components/navigation/BajujuBackButton';
 
 type ActivityRow = Record<string, any>;
 
@@ -500,9 +501,7 @@ export default function ExperiencesMapScreen() {
   return (
     <SafeAreaView style={screenStyles.safeArea}>
       <View style={screenStyles.header}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Torna a Trova esperienze" onPress={() => router.back()} style={screenStyles.backButton}>
-          <Text style={screenStyles.backText}>‹</Text>
-        </Pressable>
+        <BajujuBackButton onPress={() => router.back()} accessibilityLabel="Torna a Trova esperienze" />
         <Text style={screenStyles.heading}>Mappa esperienze</Text>
         <Text style={screenStyles.count}>{mapItems.length + mapLocations.reduce((total, location) => total + location.events.length, 0)}</Text>
         <BajujuProfileButton size={38} />
@@ -545,7 +544,7 @@ const screenStyles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#FFF7FB' },
   header: { height: 62, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#FFFFFF' },
   backButton: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#FFF0F7', alignItems: 'center', justifyContent: 'center' },
-  backText: { fontSize: 29, lineHeight: 34, color: '#E43F98' },
+  backText: { fontFamily: 'FredokaRegular', fontSize: 29, lineHeight: 34, color: '#E43F98' },
   heading: { flex: 1, color: '#4B0C2D', fontFamily: BAJUJU_FONTS.bold, fontSize: 22 },
   count: { minWidth: 30, color: '#E43F98', fontFamily: BAJUJU_FONTS.bold, fontSize: 16, textAlign: 'center' },
   mapArea: { flex: 1, marginBottom: 112 },
@@ -591,32 +590,32 @@ const legacyStyles = StyleSheet.create({
     borderRadius: 24,
     padding: 18,
     borderWidth: 1,
-    borderColor: '#ffd3e6',
+    borderColor: '#F3C6DC',
     alignItems: 'center',
     gap: 10,
     overflow: 'hidden',
   },
   backButton: {
     alignSelf: 'flex-start',
-    backgroundColor: '#fff0f7',
+    backgroundColor: '#FFF0F7',
     borderRadius: 999,
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderWidth: 1,
-    borderColor: '#ffd3e6',
+    borderColor: '#F3C6DC',
   },
   backButtonText: {
-    color: '#9b1f61',
+    color: '#4B0C2D',
     fontSize: 13,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   logoCircle: {
     width: 74,
     height: 74,
     borderRadius: 37,
-    backgroundColor: '#fff0f7',
+    backgroundColor: '#FFF0F7',
     borderWidth: 1,
-    borderColor: '#ffd3e6',
+    borderColor: '#F3C6DC',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 8,
@@ -628,27 +627,28 @@ const legacyStyles = StyleSheet.create({
     borderRadius: 999,
   },
   kicker: {
-    color: '#e43f98',
+    color: '#E43F98',
     fontSize: 13,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   title: {
-    color: '#4b1430',
+    color: '#4B0C2D',
     fontSize: 28,
     lineHeight: 33,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
     textAlign: 'center',
   },
   subtitle: {
-    color: '#7b4960',
+    color: '#8D5E77',
     fontSize: 15,
     lineHeight: 22,
-    fontWeight: '800',
+    fontFamily: 'FredokaBold',
     textAlign: 'center',
   },
 
 
   mapPinIcon: {
+    fontFamily: 'FredokaRegular',
     fontSize: 18,
   },
 
@@ -657,20 +657,20 @@ const legacyStyles = StyleSheet.create({
     borderRadius: 24,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#ffd3e6',
+    borderColor: '#F3C6DC',
     gap: 12,
   },
   sectionTitle: {
-    color: '#4b1430',
+    color: '#4B0C2D',
     fontSize: 21,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   eventBox: {
     backgroundColor: '#FFF9FC',
     borderRadius: 20,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#ffd3e6',
+    borderColor: '#F3C6DC',
     gap: 8,
   },
   eventHeader: {
@@ -682,13 +682,14 @@ const legacyStyles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#fff0f7',
+    backgroundColor: '#FFF0F7',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#ffd3e6',
+    borderColor: '#F3C6DC',
   },
   pinIcon: {
+    fontFamily: 'FredokaRegular',
     fontSize: 18,
   },
   eventTextBox: {
@@ -696,35 +697,35 @@ const legacyStyles = StyleSheet.create({
     minWidth: 0,
   },
   eventTitle: {
-    color: '#4b1430',
+    color: '#4B0C2D',
     fontSize: 16,
     lineHeight: 21,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   eventMeta: {
-    color: '#e43f98',
+    color: '#E43F98',
     fontSize: 12,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
     marginTop: 2,
   },
   eventInfo: {
-    color: '#7b4960',
+    color: '#8D5E77',
     fontSize: 13,
     lineHeight: 18,
-    fontWeight: '800',
+    fontFamily: 'FredokaBold',
   },
   addressText: {
-    color: '#4b1430',
+    color: '#4B0C2D',
     fontSize: 13,
     lineHeight: 18,
-    fontWeight: '800',
+    fontFamily: 'FredokaBold',
     backgroundColor: '#ffffff',
     borderRadius: 14,
     padding: 10,
   },
   mapButton: {
     alignSelf: 'flex-start',
-    backgroundColor: '#e43f98',
+    backgroundColor: '#E43F98',
     borderRadius: 999,
     paddingVertical: 10,
     paddingHorizontal: 14,
@@ -732,11 +733,11 @@ const legacyStyles = StyleSheet.create({
   mapButtonText: {
     color: '#ffffff',
     fontSize: 13,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   mainButton: {
     alignSelf: 'flex-start',
-    backgroundColor: '#e43f98',
+    backgroundColor: '#E43F98',
     borderRadius: 999,
     paddingVertical: 10,
     paddingHorizontal: 14,
@@ -744,45 +745,45 @@ const legacyStyles = StyleSheet.create({
   mainButtonText: {
     color: '#ffffff',
     fontSize: 13,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   mutedText: {
-    color: '#7b4960',
+    color: '#8D5E77',
     fontSize: 14,
     lineHeight: 20,
-    fontWeight: '800',
+    fontFamily: 'FredokaBold',
   },
   emptyTitle: {
-    color: '#4b1430',
+    color: '#4B0C2D',
     fontSize: 18,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   errorTitle: {
     color: '#b00020',
     fontSize: 18,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   errorText: {
-    color: '#7b4960',
+    color: '#8D5E77',
     fontSize: 14,
     lineHeight: 20,
-    fontWeight: '800',
+    fontFamily: 'FredokaBold',
   },
   staticMapSurface: {
     height: 360,
     borderRadius: 24,
-    backgroundColor: '#fff0f7',
+    backgroundColor: '#FFF0F7',
     overflow: 'hidden',
     position: 'relative',
     borderWidth: 1,
-    borderColor: '#ffd3e7',
+    borderColor: '#F3C6DC',
   },
   staticMapGlowOne: {
     position: 'absolute',
     width: 260,
     height: 260,
     borderRadius: 130,
-    backgroundColor: '#ffd3e7',
+    backgroundColor: '#F3C6DC',
     top: -70,
     left: -50,
     opacity: 0.7,
@@ -875,12 +876,14 @@ const styles = StyleSheet.create({
   heroDoodleLeft: {
     left: 30,
     top: 121,
+    fontFamily: 'FredokaRegular',
     fontSize: 23,
     transform: [{ rotate: '-8deg' }],
   },
   heroDoodleRight: {
     right: 27,
     top: 25,
+    fontFamily: 'FredokaRegular',
     fontSize: 23,
     transform: [{ rotate: '8deg' }],
   },
@@ -966,6 +969,7 @@ filtersRow: { flexDirection: 'row', gap: 6, marginBottom: 4 },  filterColumn: { 
     backgroundColor: BAJUJU_COLORS.white,
   },
   pinIcon: {
+    fontFamily: 'FredokaRegular',
     fontSize: 18,
   },
   eventTextBox: {

@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as Location from 'expo-location';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -13,6 +14,7 @@ import { shareBajujuFlash } from '../../src/utils/shareBajuju';
 import { sendBajujuPushNotification } from '../../src/utils/bajujuNotifications';
 import { ITALIAN_MUNICIPALITIES_BY_PROVINCE } from '../../src/data/italianMunicipalities';
 import { KeyboardAwareScrollView } from '../../src/components/KeyboardAwareScrollView';
+import { BajujuBackButton } from '../../src/components/navigation/BajujuBackButton';
 
 const bajujuLogo = require('../../assets/brand/bajuju-logo.png');
 
@@ -1682,9 +1684,7 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
         <View style={[styles.flashHeroBlob, styles.flashHeroBlobBottom]} />
         <Text style={[styles.flashHeroDoodle, styles.flashHeroDoodleLeft]}>‹‹</Text>
         <Text style={[styles.flashHeroDoodle, styles.flashHeroDoodleRight]}>✦</Text>
-        <Pressable style={styles.flashBackButton} onPress={() => router.push(forcedSection ? '/flash' : '/home')}>
-          <Text style={styles.flashBackText}>{forcedSection ? '← Bajuju Flash' : '← Home'}</Text>
-        </Pressable>
+        <BajujuBackButton onPress={() => router.push(forcedSection ? '/flash' : '/home')} accessibilityLabel="Indietro" style={{ zIndex: 3, alignSelf: 'flex-start', marginBottom: 16 }} />
 
         <View style={styles.flashHeroTopRow}>
           <View style={styles.flashHeroTextBlock}>
@@ -1744,9 +1744,7 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
           <Text style={[styles.flashHeroDoodle, styles.flashHeroDoodleLeft]}>‹‹</Text>
           <Text style={[styles.flashHeroDoodle, styles.flashHeroDoodleRight]}>✦</Text>
           {/* dismissTo torna alla schermata Flash già aperta invece di impilarne una nuova copia. */}
-          <Pressable style={styles.flashBackButton} onPress={() => router.dismissTo('/flash')}>
-            <Text style={styles.flashBackText}>← Bajuju Flash</Text>
-          </Pressable>
+          <BajujuBackButton onPress={() => router.dismissTo('/flash')} accessibilityLabel="Indietro" style={{ zIndex: 3, alignSelf: 'flex-start', marginBottom: 16 }} />
 
           <Text style={styles.flashDedicatedTitle}>
             <Text style={styles.flashHeroTitlePlum}>{dedicatedTitleLead}</Text>
@@ -2168,7 +2166,9 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
                 </Pressable>
 
                 <Pressable
-                  style={[styles.shareFlashButton, styles.flashActionButton]}
+                  style={styles.shareFlashButton}
+                  accessibilityRole="button"
+                  accessibilityLabel="Condividi Flash"
                   onPress={() =>
                     shareBajujuFlash({
                       title: flashTitle(row),
@@ -2179,7 +2179,7 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
                     })
                   }
                 >
-                  <Text style={styles.shareFlashButtonText}>Condividi</Text>
+                  <Ionicons name="share-outline" size={19} color={BAJUJU_COLORS.plum} />
                 </Pressable>
               </View>
 
@@ -2263,7 +2263,7 @@ const styles = StyleSheet.create({
     backgroundColor: BAJUJU_COLORS.softPink,
     color: BAJUJU_COLORS.brightPink,
     fontSize: 25,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   availabilityIntroBanner: {
     margin: -18,
@@ -2288,13 +2288,14 @@ const styles = StyleSheet.create({
     textAlignVertical: 'center',
     backgroundColor: BAJUJU_COLORS.softPink,
     color: BAJUJU_COLORS.brightPink,
+    fontFamily: 'FredokaRegular',
     fontSize: 34,
   },
   availableEmptyTitle: {
     marginTop: 16,
     color: BAJUJU_COLORS.plum,
     fontSize: 19,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   availableRefreshButton: {
     marginTop: 16,
@@ -2308,7 +2309,7 @@ const styles = StyleSheet.create({
   availableRefreshButtonText: {
     color: BAJUJU_COLORS.brightPink,
     fontSize: 13,
-    fontWeight: '700',
+    fontFamily: 'FredokaBold',
   },
   flashLiveWideButton: {
     width: '100%',
@@ -2328,13 +2329,13 @@ const styles = StyleSheet.create({
   flashMainChoiceSubtext: {
     color: BAJUJU_COLORS.muted,
     fontSize: 14,
-    fontWeight: '700',
+    fontFamily: 'FredokaBold',
     lineHeight: 19,
     marginTop: 6,
   },
   flashMainChoiceIcon: {
-    color: '#ef2d82',
-    backgroundColor: '#fff0f7',
+    color: '#E43F98',
+    backgroundColor: '#FFF0F7',
     borderRadius: 999,
     overflow: 'hidden',
     paddingHorizontal: 9,
@@ -2342,6 +2343,7 @@ const styles = StyleSheet.create({
   },
   flashMainChoiceText: {
     color: BAJUJU_COLORS.plum,
+    fontFamily: 'FredokaRegular',
     fontSize: 22,
   },
   flashHeroTopRow: {
@@ -2361,14 +2363,14 @@ const styles = StyleSheet.create({
     color: BAJUJU_COLORS.plum,
     fontSize: 15,
     lineHeight: 20,
-    fontWeight: '500',
+    fontFamily: 'FredokaMedium',
     textAlign: 'center',
   },
   flashDedicatedTitle: {
     zIndex: 1,
     fontSize: 34,
     lineHeight: 39,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
     letterSpacing: -0.9,
     textAlign: 'center',
   },
@@ -2413,7 +2415,7 @@ const styles = StyleSheet.create({
   flashBackText: {
     color: BAJUJU_COLORS.brightPink,
     fontSize: 15,
-    fontWeight: '700',
+    fontFamily: 'FredokaBold',
   },
   flashHeroCard: {
     alignItems: 'stretch',
@@ -2451,17 +2453,19 @@ const styles = StyleSheet.create({
     position: 'absolute',
     zIndex: 2,
     color: BAJUJU_COLORS.brightPink,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   flashHeroDoodleLeft: {
     left: 28,
     top: 111,
+    fontFamily: 'FredokaRegular',
     fontSize: 24,
     transform: [{ rotate: '-8deg' }],
   },
   flashHeroDoodleRight: {
     right: 27,
     top: 24,
+    fontFamily: 'FredokaRegular',
     fontSize: 23,
     transform: [{ rotate: '8deg' }],
   },
@@ -2493,13 +2497,13 @@ const styles = StyleSheet.create({
     color: BAJUJU_COLORS.plum,
     fontSize: 15,
     lineHeight: 20,
-    fontWeight: '500',
+    fontFamily: 'FredokaMedium',
   },
   flashHeroText: {
     color: BAJUJU_COLORS.plum,
     fontSize: 14,
     lineHeight: 21,
-    fontWeight: '700',
+    fontFamily: 'FredokaBold',
     textAlign: 'center',
     marginBottom: 18,
   },
@@ -2539,8 +2543,8 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   flashSecondaryChoiceIcon: {
-    color: '#ef2d82',
-    backgroundColor: '#fff0f7',
+    color: '#E43F98',
+    backgroundColor: '#FFF0F7',
     borderRadius: 999,
     overflow: 'hidden',
     paddingHorizontal: 8,
@@ -2548,18 +2552,19 @@ const styles = StyleSheet.create({
   },
   flashSecondaryChoiceText: {
     color: BAJUJU_COLORS.plum,
+    fontFamily: 'FredokaRegular',
     fontSize: 19,
   },
   flashChoiceIcon: {
     fontSize: 11,
     marginBottom: 8,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
     letterSpacing: 0.7,
   },
   flashChoiceText: {
     color: BAJUJU_COLORS.plum,
     fontSize: 16,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
     textAlign: 'left',
   },
   flashAvailabilityHeroButton: {
@@ -2568,10 +2573,10 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     paddingVertical: 19,
     paddingHorizontal: 18,
-    backgroundColor: '#ef2d82',
+    backgroundColor: '#E43F98',
     borderWidth: 2,
     borderColor: '#f7a7cd',
-    shadowColor: '#ef2d82',
+    shadowColor: '#E43F98',
     shadowOpacity: 0.22,
     shadowRadius: 14,
     shadowOffset: { width: 0, height: 8 },
@@ -2580,13 +2585,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   flashAvailabilityHeroIcon: {
+    fontFamily: 'FredokaRegular',
     fontSize: 30,
     marginBottom: 6,
   },
   flashAvailabilityHeroText: {
     color: '#ffffff',
     fontSize: 19,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
     textAlign: 'center',
   },
   flashSectionHeader: {
@@ -2613,7 +2619,7 @@ const styles = StyleSheet.create({
   availabilityKicker: {
     color: BAJUJU_COLORS.white,
     fontSize: 13,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
     textTransform: 'uppercase',
     letterSpacing: 0.9,
   },
@@ -2621,26 +2627,26 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 25,
     lineHeight: 30,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   availabilityText: {
     marginTop: 8,
     color: BAJUJU_COLORS.white,
     fontSize: 15,
     lineHeight: 21,
-    fontWeight: '500',
+    fontFamily: 'FredokaMedium',
   },
   availabilityLabel: {
     color: BAJUJU_COLORS.plum,
     fontSize: 14,
-    fontWeight: '700',
+    fontFamily: 'FredokaBold',
     marginTop: 8,
   },
   availabilityHelpText: {
     color: '#ffe5f1',
     fontSize: 12,
     lineHeight: 17,
-    fontWeight: '800',
+    fontFamily: 'FredokaBold',
     marginBottom: 8,
   },
   availabilityMainButton: {
@@ -2654,13 +2660,13 @@ const styles = StyleSheet.create({
   availabilityMainButtonText: {
     color: '#ffffff',
     fontSize: 16,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   activeAvailabilityBox: {
     backgroundColor: '#FFF9FC',
     borderRadius: 18,
     borderWidth: 2,
-    borderColor: '#ffd3e6',
+    borderColor: '#F3C6DC',
     paddingVertical: 12,
     paddingHorizontal: 13,
     marginTop: 8,
@@ -2668,13 +2674,13 @@ const styles = StyleSheet.create({
   activeAvailabilityTitle: {
     color: '#7a1248',
     fontSize: 15,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   activeAvailabilityText: {
-    color: '#9b1f61',
+    color: '#4B0C2D',
     fontSize: 13,
     lineHeight: 18,
-    fontWeight: '800',
+    fontFamily: 'FredokaBold',
     marginTop: 4,
   },
   cancelAvailabilityButton: {
@@ -2685,12 +2691,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 8,
     borderWidth: 2,
-    borderColor: '#ffd3e6',
+    borderColor: '#F3C6DC',
   },
   cancelAvailabilityButtonText: {
-    color: '#9b1f61',
+    color: '#4B0C2D',
     fontSize: 16,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   choiceWrap: {
     flexDirection: 'row',
@@ -2718,11 +2724,11 @@ const styles = StyleSheet.create({
   choiceChipText: {
     color: BAJUJU_COLORS.plum,
     fontSize: 13,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   choiceChipTextActive: {
     color: '#ffffff',
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   durationChip: {
     backgroundColor: BAJUJU_COLORS.softPink,
@@ -2738,19 +2744,19 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
   },
   durationChipText: {
-    color: '#9b1f61',
+    color: '#4B0C2D',
     fontSize: 13,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   durationChipTextActive: {
     color: '#ffffff',
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   selectedAvailabilityBox: {
     backgroundColor: '#ffffff',
     borderRadius: 18,
     borderWidth: 3,
-    borderColor: '#ef2d82',
+    borderColor: '#E43F98',
     paddingVertical: 10,
     paddingHorizontal: 13,
     marginTop: 10,
@@ -2759,20 +2765,20 @@ const styles = StyleSheet.create({
   selectedAvailabilityLabel: {
     color: '#7a1248',
     fontSize: 11,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
     textTransform: 'uppercase',
     marginBottom: 3,
   },
   selectedAvailabilityValue: {
-    color: '#ef2d82',
+    color: '#E43F98',
     fontSize: 16,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   addressFallbackText: {
     color: '#8b4b69',
     fontSize: 12,
     lineHeight: 17,
-    fontWeight: '700',
+    fontFamily: 'FredokaBold',
     marginTop: 8,
     marginBottom: 4,
   },
@@ -2793,22 +2799,22 @@ const styles = StyleSheet.create({
     flex: 1,
     color: BAJUJU_COLORS.muted,
     fontSize: 15,
-    fontWeight: '500',
+    fontFamily: 'FredokaMedium',
   },
   municipalityDropdownTextSelected: {
-    color: '#ef2d82',
+    color: '#E43F98',
   },
   municipalityDropdownArrow: {
-    color: '#ef2d82',
+    color: '#E43F98',
     fontSize: 20,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   municipalitySelectBox: {
     maxHeight: 340,
     backgroundColor: '#FFF9FC',
     borderRadius: 20,
     borderWidth: 2,
-    borderColor: '#ffd3e6',
+    borderColor: '#F3C6DC',
     marginTop: 8,
   },
   municipalitySelectContent: {
@@ -2821,21 +2827,21 @@ const styles = StyleSheet.create({
     paddingVertical: 11,
     paddingHorizontal: 13,
     borderWidth: 2,
-    borderColor: '#ffd3e6',
+    borderColor: '#F3C6DC',
   },
   municipalitySelectItemActive: {
-    backgroundColor: '#ef2d82',
+    backgroundColor: '#E43F98',
     borderColor: '#7a1248',
     borderWidth: 4,
   },
   municipalitySelectItemText: {
-    color: '#9b1f61',
+    color: '#4B0C2D',
     fontSize: 14,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   municipalitySelectItemTextActive: {
     color: '#ffffff',
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
 
   availablePeopleSection: {
@@ -2865,26 +2871,26 @@ const styles = StyleSheet.create({
   availablePeopleTitle: {
     color: BAJUJU_COLORS.plum,
     fontSize: 18,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   availablePeopleSubtitle: {
     color: BAJUJU_COLORS.muted,
     fontSize: 13,
     lineHeight: 18,
-    fontWeight: '800',
+    fontFamily: 'FredokaBold',
     marginTop: 3,
   },
   availablePeopleCount: {
     color: BAJUJU_COLORS.brightPink,
     fontSize: 28,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   availablePeopleEmpty: {
     marginTop: 7,
     color: BAJUJU_COLORS.muted,
     fontSize: 14,
     lineHeight: 20,
-    fontWeight: '500',
+    fontFamily: 'FredokaMedium',
     textAlign: 'center',
   },
   availableCardsRow: {
@@ -2897,9 +2903,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderRadius: 30,
     borderWidth: 2,
-    borderColor: '#ffd3e6',
+    borderColor: '#F3C6DC',
     padding: 13,
-    shadowColor: '#e43f98',
+    shadowColor: '#E43F98',
     shadowOpacity: 0.22,
     shadowRadius: 22,
     shadowOffset: { width: 0, height: 10 },
@@ -2909,13 +2915,13 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 240,
     borderRadius: 26,
-    backgroundColor: '#fff0f7',
+    backgroundColor: '#FFF0F7',
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 13,
     borderWidth: 1,
-    borderColor: '#ffd3e6',
+    borderColor: '#F3C6DC',
   },
   availablePhoto: {
     width: '100%',
@@ -2926,24 +2932,24 @@ const styles = StyleSheet.create({
     height: 120,
   },
   availableName: {
-    color: '#4b1430',
+    color: '#4B0C2D',
     fontSize: 20,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   availableZone: {
-    color: '#7b4960',
+    color: '#8D5E77',
     fontSize: 13,
-    fontWeight: '800',
+    fontFamily: 'FredokaBold',
     marginTop: 3,
   },
   availableTime: {
-    color: '#e43f98',
+    color: '#E43F98',
     fontSize: 13,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
     marginTop: 7,
   },
   availableInviteButton: {
-    backgroundColor: '#e43f98',
+    backgroundColor: '#E43F98',
     borderRadius: 16,
     paddingVertical: 12,
     alignItems: 'center',
@@ -2952,13 +2958,13 @@ const styles = StyleSheet.create({
   availableInviteButtonText: {
     color: '#ffffff',
     fontSize: 15,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
 
   sectionTitleSmall: {
     color: BAJUJU_COLORS.plum,
     fontSize: 14,
-    fontWeight: '700',
+    fontFamily: 'FredokaBold',
     marginBottom: 10,
   },
 
@@ -2977,6 +2983,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   mapHighlightIcon: {
+    fontFamily: 'FredokaRegular',
     fontSize: 30,
   },
   mapHighlightTextBox: {
@@ -2985,20 +2992,20 @@ const styles = StyleSheet.create({
   mapHighlightTitle: {
     color: BAJUJU_COLORS.brightPink,
     fontSize: 16,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
     marginBottom: 3,
   },
   mapHighlightSubtitle: {
     color: BAJUJU_COLORS.plum,
     fontSize: 12,
     lineHeight: 17,
-    fontWeight: '700',
+    fontFamily: 'FredokaBold',
   },
 
   mapSmallButton: {
     borderRadius: 999,
-    backgroundColor: '#e43f98',
-    shadowColor: '#e43f98',
+    backgroundColor: '#E43F98',
+    shadowColor: '#E43F98',
     shadowOpacity: 0.30,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 9 },
@@ -3009,7 +3016,7 @@ const styles = StyleSheet.create({
   mapSmallButtonText: {
     color: '#ffffff',
     fontSize: 12,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
 
   card: {
@@ -3030,7 +3037,7 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     color: BAJUJU_COLORS.plum,
     fontSize: 15,
-    fontWeight: '500',
+    fontFamily: 'FredokaMedium',
     lineHeight: 21,
     marginBottom: 18,
     marginTop: 4,
@@ -3039,19 +3046,20 @@ const styles = StyleSheet.create({
   },
   kicker: {
     zIndex: 1,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
     fontSize: 34,
     lineHeight: 39,
     letterSpacing: -0.9,
   },
   title: {
-    color: '#e43f98',
+    color: '#E43F98',
     fontSize: 33,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
     marginBottom: 14,
   },
   text: {
-    color: '#4b1430',
+    color: '#4B0C2D',
+    fontFamily: 'FredokaRegular',
     fontSize: 16,
     lineHeight: 23,
     marginBottom: 18,
@@ -3070,7 +3078,7 @@ const styles = StyleSheet.create({
   buttonText: {
     color: '#ffffff',
     fontSize: 16,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   secondaryButton: {
     backgroundColor: BAJUJU_COLORS.softPink,
@@ -3082,9 +3090,9 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   secondaryButtonText: {
-    color: '#ef2d82',
+    color: '#E43F98',
     fontSize: 16,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   buttonDisabled: {
     opacity: 0.65,
@@ -3092,7 +3100,7 @@ const styles = StyleSheet.create({
   label: {
     color: BAJUJU_COLORS.plum,
     fontSize: 14,
-    fontWeight: '700',
+    fontFamily: 'FredokaBold',
     marginBottom: 7,
   },
   flashDescriptionInput: {
@@ -3104,7 +3112,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-end',
     color: '#9c7b8b',
     fontSize: 11,
-    fontWeight: '800',
+    fontFamily: 'FredokaBold',
     marginTop: -6,
     marginBottom: 2,
   },
@@ -3112,7 +3120,7 @@ const styles = StyleSheet.create({
     color: '#6f4258',
     fontSize: 14,
     lineHeight: 20,
-    fontWeight: '700',
+    fontFamily: 'FredokaBold',
     marginTop: 6,
     marginBottom: 4,
   },
@@ -3123,12 +3131,14 @@ const styles = StyleSheet.create({
     borderColor: BAJUJU_COLORS.palePink,
     backgroundColor: BAJUJU_COLORS.white,
     paddingHorizontal: 14,
+    fontFamily: 'FredokaRegular',
     fontSize: 16,
     color: BAJUJU_COLORS.plum,
     marginBottom: 14,
   },
   formNote: {
     color: BAJUJU_COLORS.muted,
+    fontFamily: 'FredokaRegular',
     fontSize: 13,
     lineHeight: 19,
     marginTop: 10,
@@ -3151,9 +3161,9 @@ const styles = StyleSheet.create({
     borderColor: BAJUJU_COLORS.brightPink,
   },
   durationText: {
-    color: '#7b4960',
+    color: '#8D5E77',
     fontSize: 15,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   durationTextActive: {
     color: '#ffffff',
@@ -3161,7 +3171,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     color: BAJUJU_COLORS.plum,
     fontSize: 20,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
     marginBottom: 12,
   },
   chipsRow: {
@@ -3183,7 +3193,7 @@ const styles = StyleSheet.create({
   chipText: {
     color: BAJUJU_COLORS.plum,
     fontSize: 13,
-    fontWeight: '700',
+    fontFamily: 'FredokaBold',
   },
   chipTextActive: {
     color: '#ffffff',
@@ -3212,7 +3222,7 @@ const styles = StyleSheet.create({
   tabText: {
     color: '#86104f',
     fontSize: 11,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
     textAlign: 'center',
   },
   tabTextActive: {
@@ -3227,27 +3237,29 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   emptyTitle: {
-    color: '#4b1430',
+    color: '#4B0C2D',
     fontSize: 17,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   mutedText: {
-    color: '#7b4960',
+    color: '#8D5E77',
+    fontFamily: 'FredokaRegular',
     fontSize: 15,
     lineHeight: 21,
   },
   errorTitle: {
     color: '#b00020',
     fontSize: 17,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   errorText: {
     color: '#7b1d35',
+    fontFamily: 'FredokaRegular',
     fontSize: 15,
     lineHeight: 21,
   },
   smallButton: {
-    backgroundColor: '#ef2d82',
+    backgroundColor: '#E43F98',
     borderRadius: 14,
     paddingVertical: 10,
     alignItems: 'center',
@@ -3266,24 +3278,24 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   shareFlashButton: {
-    borderRadius: 999,
-    backgroundColor: '#FFF9FC',
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#f4b3d1',
-    paddingVertical: 10,
+    borderColor: '#F3C6DC',
     alignItems: 'center',
-    minHeight: 42,
     justifyContent: 'center',
   },
   shareFlashButtonText: {
-    color: '#e43f98',
+    color: '#E43F98',
     fontSize: 13,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   smallButtonText: {
     color: '#ffffff',
     fontSize: 15,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   flashBox: {
     backgroundColor: '#FFFFFF',
@@ -3292,7 +3304,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: BAJUJU_COLORS.palePink,
     marginBottom: 12,
-    shadowColor: '#e43f98',
+    shadowColor: '#E43F98',
     shadowOpacity: 0.17,
     shadowRadius: 15,
     shadowOffset: { width: 0, height: 8 },
@@ -3301,22 +3313,23 @@ const styles = StyleSheet.create({
   flashTitle: {
     color: '#421229',
     fontSize: 17,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
     marginBottom: 5,
     letterSpacing: -0.2,
   },
   flashMeta: {
     color: '#7f5268',
+    fontFamily: 'FredokaRegular',
     fontSize: 13,
     lineHeight: 18,
     marginTop: 2,
   },
   flashPlace: {
-    color: '#4b1430',
+    color: '#4B0C2D',
     fontSize: 13,
     lineHeight: 18,
     marginTop: 8,
-    fontWeight: '800',
+    fontFamily: 'FredokaBold',
     backgroundColor: '#FFF9FC',
     borderRadius: 14,
     paddingHorizontal: 10,
@@ -3325,7 +3338,7 @@ const styles = StyleSheet.create({
   },
   mapButton: {
     alignSelf: 'flex-start',
-    backgroundColor: '#ef2d82',
+    backgroundColor: '#E43F98',
     borderRadius: 14,
     paddingHorizontal: 14,
     paddingVertical: 10,
@@ -3334,12 +3347,12 @@ const styles = StyleSheet.create({
   mapButtonText: {
     color: '#ffffff',
     fontSize: 14,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   noMapText: {
     color: '#a36a86',
     fontSize: 13,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
     marginTop: 10,
   },
   ownerActions: {
@@ -3361,19 +3374,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   cancelButtonText: {
-    color: '#e43f98',
-    fontWeight: '900',
+    color: '#E43F98',
+    fontFamily: 'FredokaBold',
     fontSize: 13,
   },
   flashStatusText: {
     alignSelf: 'flex-start',
     marginTop: 12,
-    color: '#8f3d65',
+    color: '#8D5E77',
     backgroundColor: '#FFF0F7',
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 5,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
     fontSize: 12,
   },
   joinedActions: {
@@ -3381,7 +3394,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   leaveButton: {
-    backgroundColor: '#fff0f7',
+    backgroundColor: '#FFF0F7',
     borderRadius: 16,
     paddingVertical: 12,
     paddingHorizontal: 14,
@@ -3391,12 +3404,12 @@ const styles = StyleSheet.create({
   },
   leaveButtonText: {
     color: '#d6457a',
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
     fontSize: 14,
   },
   joinButton: {
     width: '100%',
-    backgroundColor: '#ef2d82',
+    backgroundColor: '#E43F98',
     borderRadius: 999,
     paddingHorizontal: 14,
     paddingVertical: 12,
@@ -3407,7 +3420,7 @@ const styles = StyleSheet.create({
   joinButtonText: {
     color: '#ffffff',
     fontSize: 14,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   joinedBadge: {
     alignSelf: 'flex-start',
@@ -3417,19 +3430,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 5,
     fontSize: 13,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
     overflow: 'hidden',
     marginTop: 10,
   },
   ownerBadge: {
     alignSelf: 'flex-start',
     backgroundColor: '#ffe3f0',
-    color: '#ef2d82',
+    color: '#E43F98',
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 5,
     fontSize: 13,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
     overflow: 'hidden',
     marginTop: 10,
   },

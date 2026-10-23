@@ -19,11 +19,14 @@ import {
 import { BajujuProfileButton } from '../../src/components/navigation/BajujuProfileButton';
 import { LocationProfileView } from '../../src/components/location/LocationProfileView';
 import { BajujuLocation, loadBajujuLocation } from '../../src/lib/bajujuLocations';
+import { BajujuBackButton, BajujuRoundIconButton } from '../../src/components/navigation/BajujuBackButton';
+import { BajujuActionBar, BajujuButton } from '../../src/components/BajujuActionBar';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const bajujuLogo = require('../../assets/brand/bajuju-logo.png');
 
 const BAJUJU_CREATOR_EMAIL = 'royaleventi@gmail.com';
-const BAJUJU_PINK = '#e43f98';
+const BAJUJU_PINK = '#E43F98';
 
 type LooseRow = Record<string, any>;
 
@@ -453,7 +456,7 @@ export default function UserProfileScreen() {
               params: { targetUserId: userId, activityId },
             })}
           >
-            <Text style={{ color: '#ffffff', fontWeight: '900' }}>Invita a uscire</Text>
+            <Text style={{ color: '#ffffff', fontFamily: 'FredokaBold' }}>Invita a uscire</Text>
           </Pressable>
   
           <Pressable
@@ -463,16 +466,16 @@ export default function UserProfileScreen() {
               paddingVertical: 12,
               paddingHorizontal: 16,
               alignItems: 'center',
-              backgroundColor: '#fff0f7',
+              backgroundColor: '#FFF0F7',
               borderWidth: 1,
-              borderColor: '#ffd1e6',
+              borderColor: '#F3C6DC',
             }}
             onPress={() => router.push({
               pathname: '/share-contact' as any,
               params: { targetUserId: userId, activityId },
             })}
           >
-            <Text style={{ color: BAJUJU_PINK, fontWeight: '900' }}>Invia WhatsApp o Telegram</Text>
+            <Text style={{ color: BAJUJU_PINK, fontFamily: 'FredokaBold' }}>Invia WhatsApp o Telegram</Text>
           </Pressable>
         </View>
       ) : null}
@@ -501,40 +504,69 @@ export default function UserProfileScreen() {
     </>
   ) : null;
 
-  return (
-    <ScrollView style={styles.page} contentContainerStyle={styles.content}>
-      <View style={styles.topRow}>
-        <Pressable style={styles.backButton} onPress={() => router.back()}>
-          <Text style={styles.backText}>← Indietro</Text>
-        </Pressable>
-        <BajujuProfileButton />
-      </View>
+  const isOtherUser = Boolean(currentUserId && currentUserId !== userId);
+  const canInvite = isOtherUser && canUsePostExperienceActions && Boolean(activityId);
 
-      {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator />
-          <Text style={styles.loadingText}>Carico il profilo...</Text>
-        </View>
-      ) : errorText ? (
-        <View style={styles.card}>
-          <Text style={styles.errorTitle}>Profilo</Text>
-          <Text style={styles.errorText}>{errorText}</Text>
-        </View>
-      ) : location ? (
-        <LocationProfileView
-          location={location}
-          isOwner={currentUserId === userId}
-          footer={<View style={styles.locationActions}>{profileActions}</View>}
-        />
-      ) : (
-        <>
-          <View style={styles.card}>
+  function openProfileMenu() {
+    const options: { text: string; style?: 'destructive' | 'cancel'; onPress?: () => void }[] = [];
+    if (viewerIsOfficialAdmin) {
+      options.push({
+        text: 'Scrivi come Bajuju Admin',
+        onPress: () => router.push({ pathname: '/admin-private-chat' as any, params: { userId } }),
+      });
+    }
+    options.push({ text: 'Segnala utente', onPress: () => { void reportUser(); } });
+    if (!isAdminOrCreator) {
+      options.push({
+        text: isBlockedByMe ? 'Sblocca utente' : 'Blocca utente',
+        style: 'destructive',
+        onPress: () => { void blockUser(); },
+      });
+    }
+    options.push({ text: 'Annulla', style: 'cancel' });
+    Alert.alert(name || 'Profilo', undefined, options);
+  }
+
+  const infoTiles = [
+    { label: 'Organizzati', value: `${organizedCount} ${organizedCount === 1 ? 'evento' : 'eventi'}` },
+    { label: 'Partecipati', value: `${participatedCount} ${participatedCount === 1 ? 'evento' : 'eventi'}` },
+    { label: 'Di dove', value: homeCity || 'Non indicato' },
+    { label: 'Età', value: age || 'Non indicata' },
+    { label: 'Genere', value: gender || 'Non indicato' },
+  ];
+
+  if (!loading && !errorText && !location) {
+    return (
+      <View style={styles.page}>
+        <ScrollView contentContainerStyle={styles.personContent}>
+          <View style={styles.cover}>
+            <LinearGradient
+              colors={['#B98EA3', '#4B0C2D']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={StyleSheet.absoluteFill}
+            />
+            <View style={styles.coverTopBar}>
+              <BajujuBackButton onPress={() => router.back()} accessibilityLabel="Indietro" style={styles.coverButton} />
+              <View style={styles.coverActions}>
+                {isOtherUser && (reportingUser || blockingUser) ? (
+                  <View style={styles.coverButtonPlain}><ActivityIndicator color="#4B0C2D" /></View>
+                ) : isOtherUser ? (
+                  <BajujuRoundIconButton
+                    icon="ellipsis-horizontal"
+                    accessibilityLabel="Altre azioni"
+                    onPress={openProfileMenu}
+                    style={styles.coverButton}
+                  />
+                ) : null}
+                <BajujuProfileButton size={38} />
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.identity}>
             <View style={[styles.photoFrame, photoFrameStyle]}>
-              <Image
-                source={photo ? { uri: photo } : bajujuLogo}
-                style={styles.photo}
-                resizeMode="cover"
-              />
+              <Image source={photo ? { uri: photo } : bajujuLogo} style={styles.photo} resizeMode="cover" />
             </View>
 
             <Text style={styles.name}>{name}</Text>
@@ -554,47 +586,85 @@ export default function UserProfileScreen() {
             {!isAdminOrCreator && isPremium ? (
               <Text style={styles.premiumHint}>Premium verificato direttamente da Bajuju.</Text>
             ) : null}
-
-            {profileActions}
           </View>
 
-          <View style={styles.statsGrid}>
-            <View style={styles.statBox}>
-              <Text style={styles.statNumber}>{organizedCount}</Text>
-              <Text style={styles.statLabel}>Eventi organizzati</Text>
-            </View>
-
-            <View style={styles.statBox}>
-              <Text style={styles.statNumber}>{participatedCount}</Text>
-              <Text style={styles.statLabel}>Eventi partecipati</Text>
-            </View>
+          <View style={styles.infoGrid}>
+            {infoTiles.map((tile) => (
+              <View key={tile.label} style={styles.infoTile}>
+                <Text style={styles.infoLabel}>{tile.label}</Text>
+                <Text style={styles.infoValue} numberOfLines={1}>{tile.value}</Text>
+              </View>
+            ))}
           </View>
+        </ScrollView>
 
-          <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Informazioni</Text>
+        {canInvite ? (
+          <BajujuActionBar>
+            <BajujuButton
+              label="WhatsApp o Telegram"
+              variant="secondary"
+              onPress={() => router.push({ pathname: '/share-contact' as any, params: { targetUserId: userId, activityId } })}
+            />
+            <BajujuButton
+              label="Invita a uscire"
+              onPress={() => router.push({ pathname: '/invite-out' as any, params: { targetUserId: userId, activityId } })}
+            />
+          </BajujuActionBar>
+        ) : null}
+      </View>
+    );
+  }
 
-            <View style={styles.infoBox}>
-              <Text style={styles.label}>Di dove sei</Text>
-              <Text style={styles.value}>{homeCity || 'Non indicato'}</Text>
-            </View>
+  return (
+    <ScrollView style={styles.page} contentContainerStyle={styles.content}>
+      <View style={styles.topRow}>
+        <BajujuBackButton onPress={() => router.back()} accessibilityLabel="Indietro" />
+        <BajujuProfileButton size={38} />
+      </View>
 
-            <View style={styles.infoBox}>
-              <Text style={styles.label}>Età</Text>
-              <Text style={styles.value}>{age || 'Non indicata'}</Text>
-            </View>
-
-            <View style={styles.infoBox}>
-              <Text style={styles.label}>Genere</Text>
-              <Text style={styles.value}>{gender || 'Non indicato'}</Text>
-            </View>
-          </View>
-        </>
-      )}
+      {loading ? (
+        <View style={styles.center}>
+          <ActivityIndicator />
+          <Text style={styles.loadingText}>Carico il profilo...</Text>
+        </View>
+      ) : errorText ? (
+        <View style={styles.card}>
+          <Text style={styles.errorTitle}>Profilo</Text>
+          <Text style={styles.errorText}>{errorText}</Text>
+        </View>
+      ) : location ? (
+        <LocationProfileView
+          location={location}
+          isOwner={currentUserId === userId}
+          footer={<View style={styles.locationActions}>{profileActions}</View>}
+        />
+      ) : null}
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
+  personContent: { paddingBottom: 32 },
+  cover: { height: 170, overflow: 'hidden', borderBottomLeftRadius: 28, borderBottomRightRadius: 28 },
+  coverTopBar: { position: 'absolute', top: 52, left: 14, right: 14, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  coverActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  coverButton: { borderWidth: 0, backgroundColor: 'rgba(255,255,255,0.94)' },
+  coverButtonPlain: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.94)' },
+  identity: { alignItems: 'center', marginTop: -66, paddingHorizontal: 22 },
+  infoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingHorizontal: 18, marginTop: 18 },
+  infoTile: {
+    flexBasis: '45%',
+    flexGrow: 1,
+    minWidth: 0,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#F3C6DC',
+    borderRadius: 18,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  infoLabel: { fontFamily: 'FredokaSemiBold', fontSize: 11, letterSpacing: 0.6, textTransform: 'uppercase', color: '#E43F98' },
+  infoValue: { marginTop: 2, fontFamily: 'FredokaSemiBold', fontSize: 15, color: '#4B0C2D' },
   page: { flex: 1, backgroundColor: '#FFF9FC' },
   content: { padding: 22, paddingTop: 58 },
   topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 18 },
@@ -605,9 +675,9 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: '#ffd3e7',
+    borderColor: '#F3C6DC',
   },
-  backText: { fontSize: 14, fontWeight: '900', color: '#9b1f61' },
+  backText: { fontSize: 14, fontFamily: 'FredokaBold', color: '#4B0C2D' },
   center: {
     marginTop: 60,
     alignItems: 'center',
@@ -615,8 +685,8 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 12,
-    color: '#9b1f61',
-    fontWeight: '800',
+    color: '#4B0C2D',
+    fontFamily: 'FredokaBold',
   },
   card: {
     width: '100%',
@@ -624,7 +694,7 @@ const styles = StyleSheet.create({
     padding: 22,
     backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: '#ffd3e7',
+    borderColor: '#F3C6DC',
     alignItems: 'center',
     marginBottom: 16,
   },
@@ -649,18 +719,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: BAJUJU_PINK,
   },
-  adminMessageButtonText: { color: '#fff', fontSize: 15, fontWeight: '900' },
+  adminMessageButtonText: { color: '#fff', fontSize: 15, fontFamily: 'FredokaBold' },
   photoFrameGold: { borderWidth: 3, borderColor: '#d9a441' },
   photo: {
     width: '100%',
     height: '100%',
     borderRadius: 61,
-    backgroundColor: '#fff0f7',
+    backgroundColor: '#FFF0F7',
   },
   name: {
-    fontSize: 28,
-    fontWeight: '900',
-    color: '#e43f98',
+    fontSize: 26,
+    fontFamily: 'FredokaBold',
+    color: '#4B0C2D',
     textAlign: 'center',
     marginBottom: 12,
   },
@@ -678,8 +748,8 @@ const styles = StyleSheet.create({
   gradeBadgeGold: { backgroundColor: '#fff7db', borderColor: '#ead58a' },
   gradeText: {
     fontSize: 14,
-    fontWeight: '900',
-    color: '#6b3652',
+    fontFamily: 'FredokaBold',
+    color: '#8D5E77',
   },
   premiumBadge: {
     borderRadius: 999,
@@ -693,20 +763,20 @@ const styles = StyleSheet.create({
   premiumBadgeText: {
     color: '#6e31a8',
     fontSize: 13,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   gradeHint: {
     fontSize: 14,
     lineHeight: 20,
-    fontWeight: '700',
-    color: '#6b3652',
+    fontFamily: 'FredokaBold',
+    color: '#8D5E77',
     textAlign: 'center',
   },
   premiumHint: {
     marginTop: 4,
     fontSize: 13,
     lineHeight: 18,
-    fontWeight: '800',
+    fontFamily: 'FredokaBold',
     color: '#6e31a8',
     textAlign: 'center',
   },
@@ -716,14 +786,14 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingVertical: 10,
     paddingHorizontal: 16,
-    backgroundColor: '#fff0f7',
+    backgroundColor: '#FFF0F7',
     borderWidth: 1,
-    borderColor: '#ffd3e7',
+    borderColor: '#F3C6DC',
   },
   reportUserText: {
-    color: '#9b1f61',
+    color: '#4B0C2D',
     fontSize: 13,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   blockUserButton: {
     marginTop: 10,
@@ -732,12 +802,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: '#ffd3e7',
+    borderColor: '#F3C6DC',
   },
   blockUserText: {
-    color: '#7b4960',
+    color: '#8D5E77',
     fontSize: 13,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   statsGrid: {
     flexDirection: 'row',
@@ -749,28 +819,28 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: '#ffd3e7',
+    borderColor: '#F3C6DC',
     padding: 16,
     alignItems: 'center',
   },
   statNumber: {
     fontSize: 30,
-    fontWeight: '900',
-    color: '#e43f98',
+    fontFamily: 'FredokaBold',
+    color: '#E43F98',
     marginBottom: 4,
   },
   statLabel: {
     fontSize: 13,
     lineHeight: 17,
-    fontWeight: '900',
-    color: '#9b1f61',
+    fontFamily: 'FredokaBold',
+    color: '#4B0C2D',
     textAlign: 'center',
   },
   sectionTitle: {
     width: '100%',
     fontSize: 20,
-    fontWeight: '900',
-    color: '#e43f98',
+    fontFamily: 'FredokaBold',
+    color: '#E43F98',
     marginBottom: 14,
   },
   infoBox: {
@@ -778,31 +848,31 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     backgroundColor: '#FFF9FC',
     borderWidth: 1,
-    borderColor: '#ffd3e7',
+    borderColor: '#F3C6DC',
     padding: 14,
     marginBottom: 10,
   },
   label: {
     fontSize: 13,
-    fontWeight: '900',
-    color: '#9b1f61',
+    fontFamily: 'FredokaBold',
+    color: '#4B0C2D',
     marginBottom: 4,
   },
   value: {
     fontSize: 16,
-    fontWeight: '800',
-    color: '#5f2445',
+    fontFamily: 'FredokaBold',
+    color: '#4B0C2D',
   },
   errorTitle: {
     fontSize: 22,
-    fontWeight: '900',
-    color: '#e43f98',
+    fontFamily: 'FredokaBold',
+    color: '#E43F98',
     marginBottom: 8,
   },
   errorText: {
     fontSize: 15,
-    fontWeight: '700',
-    color: '#6b3652',
+    fontFamily: 'FredokaBold',
+    color: '#8D5E77',
     textAlign: 'center',
   },
 });

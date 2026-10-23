@@ -2,14 +2,13 @@ import { router } from 'expo-router';
 import React from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { BajujuProfileButton } from '../../src/components/navigation/BajujuProfileButton';
+import { BajujuBackButton } from '../../src/components/navigation/BajujuBackButton';
 
 export default function RulesScreen() {
   return (
     <ScrollView contentContainerStyle={styles.page}>
       <View style={styles.topRow}>
-        <TouchableOpacity style={styles.topBackButton} onPress={() => router.back()}>
-          <Text style={styles.topBackButtonText}>← Indietro</Text>
-        </TouchableOpacity>
+        <BajujuBackButton onPress={() => router.back()} accessibilityLabel="Indietro" style={{ alignSelf: 'flex-start' }} />
         <BajujuProfileButton />
       </View>
 
@@ -57,14 +56,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: '#ffd3e6',
+    borderColor: '#F3C6DC',
     paddingHorizontal: 14,
     paddingVertical: 9,
   },
   topBackButtonText: {
-    color: '#e43f98',
+    color: '#E43F98',
     fontSize: 15,
-    fontWeight: '800',
+    fontFamily: 'FredokaBold',
   },
   page: {
     flexGrow: 1,
@@ -76,46 +75,47 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     padding: 22,
     borderWidth: 1,
-    borderColor: '#ffd3e6',
+    borderColor: '#F3C6DC',
   },
   kicker: {
-    color: '#ef2d82',
-    fontWeight: '800',
+    color: '#E43F98',
+    fontFamily: 'FredokaBold',
     fontSize: 14,
     marginBottom: 8,
   },
   title: {
-    color: '#e43f98',
+    color: '#E43F98',
     fontSize: 30,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
     marginBottom: 12,
   },
   sectionTitle: {
-    color: '#9b1f61',
+    color: '#4B0C2D',
     fontSize: 20,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
     marginTop: 10,
     marginBottom: 10,
   },
   rule: {
-    color: '#4b1430',
+    color: '#4B0C2D',
+    fontFamily: 'FredokaRegular',
     fontSize: 16,
     lineHeight: 23,
     marginBottom: 12,
   },
   acceptanceNote: {
-    color: '#4b1430',
+    color: '#4B0C2D',
     fontSize: 15,
     lineHeight: 22,
-    fontWeight: '800',
-    backgroundColor: '#fff0f7',
+    fontFamily: 'FredokaBold',
+    backgroundColor: '#FFF0F7',
     borderRadius: 16,
     padding: 14,
     marginTop: 4,
     marginBottom: 2,
   },
   button: {
-    backgroundColor: '#ef2d82',
+    backgroundColor: '#E43F98',
     borderRadius: 18,
     paddingVertical: 14,
     alignItems: 'center',
@@ -124,6 +124,6 @@ const styles = StyleSheet.create({
   buttonText: {
     color: '#ffffff',
     fontSize: 16,
-    fontWeight: '800',
+    fontFamily: 'FredokaBold',
   },
 });

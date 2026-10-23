@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 
 import { supabase } from '../../src/lib/supabase';
+import { BajujuBackButton } from '../../src/components/navigation/BajujuBackButton';
 
 type LooseRow = Record<string, any>;
 
@@ -305,9 +306,7 @@ export default function AdminEventDetailScreen() {
         <Text style={styles.kicker}>Area Admin</Text>
         <Text style={styles.title}>Dettaglio evento</Text>
 
-        <Pressable style={styles.backButton} onPress={() => router.push('/admin-events')}>
-          <Text style={styles.backButtonText}>← Torna agli eventi</Text>
-        </Pressable>
+        <BajujuBackButton onPress={() => router.push('/admin-events')} accessibilityLabel="Indietro" style={{ alignSelf: 'flex-start' }} />
       </View>
 
       {loading ? (
@@ -403,80 +402,80 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     padding: 20,
     borderWidth: 1,
-    borderColor: '#ffd3e6',
+    borderColor: '#F3C6DC',
   },
   card: {
     backgroundColor: '#ffffff',
     borderRadius: 24,
     padding: 18,
     borderWidth: 1,
-    borderColor: '#ffd3e6',
+    borderColor: '#F3C6DC',
     gap: 10,
   },
   kicker: {
-    color: '#ef2d82',
+    color: '#E43F98',
     fontSize: 14,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
     marginBottom: 8,
   },
   title: {
-    color: '#e43f98',
+    color: '#E43F98',
     fontSize: 29,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
     marginBottom: 12,
   },
   backButton: {
     alignSelf: 'flex-start',
-    backgroundColor: '#fff0f7',
+    backgroundColor: '#FFF0F7',
     borderRadius: 999,
     paddingVertical: 10,
     paddingHorizontal: 14,
     borderWidth: 1,
-    borderColor: '#ffd3e6',
+    borderColor: '#F3C6DC',
   },
   backButtonText: {
-    color: '#9b1f61',
+    color: '#4B0C2D',
     fontSize: 14,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   loadingText: {
-    color: '#7b4960',
-    fontWeight: '800',
+    color: '#8D5E77',
+    fontFamily: 'FredokaBold',
     marginTop: 8,
   },
   emptyText: {
-    color: '#7b4960',
+    color: '#8D5E77',
     fontSize: 15,
-    fontWeight: '800',
+    fontFamily: 'FredokaBold',
   },
   name: {
-    color: '#4b1430',
+    color: '#4B0C2D',
     fontSize: 24,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   organizerButton: {
-    backgroundColor: '#fff0f7',
+    backgroundColor: '#FFF0F7',
     borderRadius: 16,
     paddingVertical: 12,
     paddingHorizontal: 14,
     borderWidth: 1,
-    borderColor: '#ffd3e6',
+    borderColor: '#F3C6DC',
   },
   organizerName: {
-    color: '#e43f98',
+    color: '#E43F98',
     fontSize: 16,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   organizerEmail: {
-    color: '#7b4960',
+    color: '#8D5E77',
     fontSize: 13,
-    fontWeight: '800',
+    fontFamily: 'FredokaBold',
     marginTop: 3,
   },
   sectionTitle: {
-    color: '#4b1430',
+    color: '#4B0C2D',
     fontSize: 21,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
     marginBottom: 8,
   },
   detailRow: {
@@ -484,18 +483,18 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     padding: 12,
     borderWidth: 1,
-    borderColor: '#ffd3e6',
+    borderColor: '#F3C6DC',
   },
   detailLabel: {
-    color: '#9b1f61',
+    color: '#4B0C2D',
     fontSize: 12,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
     marginBottom: 4,
   },
   detailValue: {
-    color: '#4b1430',
+    color: '#4B0C2D',
     fontSize: 14,
-    fontWeight: '800',
+    fontFamily: 'FredokaBold',
     lineHeight: 20,
   },
   participantRow: {
@@ -503,29 +502,29 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     padding: 12,
     borderWidth: 1,
-    borderColor: '#ffd3e6',
+    borderColor: '#F3C6DC',
   },
   listTitle: {
-    color: '#4b1430',
+    color: '#4B0C2D',
     fontSize: 16,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
     marginBottom: 4,
   },
   listSubtitle: {
-    color: '#7b4960',
+    color: '#8D5E77',
     fontSize: 13,
     lineHeight: 18,
-    fontWeight: '700',
+    fontFamily: 'FredokaBold',
   },
   button: {
-    backgroundColor: '#ef2d82',
+    backgroundColor: '#E43F98',
     borderRadius: 16,
     paddingVertical: 13,
     alignItems: 'center',
   },
   buttonText: {
     color: '#ffffff',
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
     fontSize: 15,
   },
   dangerButton: {
@@ -536,7 +535,7 @@ const styles = StyleSheet.create({
   },
   actionButtonText: {
     color: '#ffffff',
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
     fontSize: 15,
   },
 });

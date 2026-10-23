@@ -15,6 +15,8 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { supabase } from '../../src/lib/supabase';
 import { getBajujuNotificationCategory, BAJUJU_NOTIFICATION_CATEGORY_LABELS, BajujuNotificationCategory } from '../../src/utils/bajujuNotificationCategories';
 import { BajujuProfileButton } from '../../src/components/navigation/BajujuProfileButton';
+import { BajujuBackButton, BajujuRoundIconButton } from '../../src/components/navigation/BajujuBackButton';
+import { BajujuBottomNav } from '../../src/components/navigation/BajujuBottomNav';
 
 type NotificationData = Record<string, unknown>;
 
@@ -248,15 +250,21 @@ export default function NotificationsScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
-        <Pressable style={styles.backButton} onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Torna indietro">
-          <Text style={styles.backButtonText}>‹</Text>
-        </Pressable>
-        <View style={styles.headerTextBlock}>
-          <Text style={styles.headerTitle}>Notifiche</Text>
-          <Text style={styles.headerSubtitle}>Richieste, conversazioni e altre novità</Text>
-        </View>
-        <BajujuProfileButton size={44} />
+        <BajujuBackButton onPress={() => router.back()} accessibilityLabel="Torna indietro" />
+        <Text style={styles.headerTitle} numberOfLines={1}>Notifiche</Text>
+        {visibleNotifications.length > 0 ? (
+          <BajujuRoundIconButton
+            icon="ellipsis-horizontal"
+            accessibilityLabel="Altre azioni"
+            onPress={() => Alert.alert('Notifiche', undefined, [
+              { text: 'Elimina tutte', style: 'destructive', onPress: deleteAllNotifications },
+              { text: 'Annulla', style: 'cancel' },
+            ])}
+          />
+        ) : null}
+        <BajujuProfileButton size={38} />
       </View>
+      <Text style={styles.headerSubtitle}>Richieste, conversazioni e altre novità</Text>
 
       {loading ? (
         <View style={styles.centerBox}>
@@ -300,10 +308,6 @@ export default function NotificationsScreen() {
             </View>
           ) : (
             <>
-              <Pressable style={styles.deleteAllButton} onPress={deleteAllNotifications} accessibilityRole="button" accessibilityLabel="Elimina tutte le notifiche">
-                <Text style={styles.deleteAllButtonText}>Elimina tutte</Text>
-              </Pressable>
-
               {visibleNotifications.map((notification) => (
                 <Pressable
                   key={notification.id}
@@ -339,17 +343,18 @@ export default function NotificationsScreen() {
           )}
         </ScrollView>
       )}
+      <BajujuBottomNav active="profile" />
     </SafeAreaView>
   );
 }
 
-const PINK = '#e43f98';
-const PINK_DARK = '#8f1658';
-const TEXT = '#5a2842';
-const MUTED = '#a95d86';
+const PINK = '#E43F98';
+const PINK_DARK = '#4B0C2D';
+const TEXT = '#4B0C2D';
+const MUTED = '#8D5E77';
 const BG = '#FFF9FC';
 const SOFT = '#FFF0F7';
-const BORDER = '#f6c6dc';
+const BORDER = '#F3C6DC';
 const WHITE = '#ffffff';
 
 const styles = StyleSheet.create({
@@ -357,38 +362,38 @@ const styles = StyleSheet.create({
   tabs: { flexDirection: 'row', gap: 6, marginBottom: 14 },
   tabButton: { flex: 1, minWidth: 0, paddingVertical: 12, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: WHITE, borderWidth: 1, borderColor: BORDER },
   activeTabButton: { backgroundColor: PINK, borderColor: PINK },
-  tabText: { color: PINK_DARK, fontWeight: '700', fontSize: 12 },
+  tabText: { color: PINK_DARK, fontFamily: 'FredokaBold', fontSize: 12 },
   activeTabText: { color: WHITE },
-  header: { minHeight: 74, paddingHorizontal: 15, paddingTop: 10, paddingBottom: 10, flexDirection: 'row', alignItems: 'center', backgroundColor: BG },
+  header: { minHeight: 64, paddingHorizontal: 15, paddingTop: 10, paddingBottom: 4, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: BG },
   backButton: { width: 44, height: 44, borderRadius: 999, alignItems: 'center', justifyContent: 'center', backgroundColor: WHITE, borderWidth: 1, borderColor: BORDER },
-  backButtonText: { marginTop: -4, fontSize: 38, lineHeight: 40, fontWeight: '500', color: PINK_DARK },
+  backButtonText: { marginTop: -4, fontSize: 38, lineHeight: 40, fontFamily: 'FredokaMedium', color: PINK_DARK },
   headerTextBlock: { flex: 1, alignItems: 'center' },
-  headerTitle: { fontSize: 24, lineHeight: 28, fontWeight: '900', color: PINK },
-  headerSubtitle: { marginTop: 2, fontSize: 12, fontWeight: '800', color: MUTED },
-  container: { flexGrow: 1, padding: 15, paddingTop: 6, paddingBottom: 34 },
+  headerTitle: { flex: 1, marginLeft: 4, fontSize: 24, lineHeight: 28, fontFamily: 'FredokaBold', color: TEXT },
+  headerSubtitle: { paddingHorizontal: 15, marginBottom: 8, fontSize: 13, fontFamily: 'FredokaRegular', color: MUTED },
+  container: { flexGrow: 1, padding: 15, paddingTop: 6, paddingBottom: 130 },
   centerBox: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 30 },
-  loadingText: { marginTop: 12, fontSize: 14, fontWeight: '800', color: TEXT },
+  loadingText: { marginTop: 12, fontSize: 14, fontFamily: 'FredokaBold', color: TEXT },
   messageCard: { borderRadius: 28, padding: 22, backgroundColor: WHITE, borderWidth: 1, borderColor: BORDER, alignItems: 'center' },
-  messageTitle: { fontSize: 18, fontWeight: '900', color: PINK_DARK, textAlign: 'center' },
-  messageText: { marginTop: 8, fontSize: 14, lineHeight: 20, fontWeight: '700', color: TEXT, textAlign: 'center' },
+  messageTitle: { fontSize: 18, fontFamily: 'FredokaBold', color: PINK_DARK, textAlign: 'center' },
+  messageText: { marginTop: 8, fontSize: 14, lineHeight: 20, fontFamily: 'FredokaBold', color: TEXT, textAlign: 'center' },
   retryButton: { marginTop: 16, borderRadius: 999, paddingHorizontal: 20, paddingVertical: 11, backgroundColor: PINK },
-  retryButtonText: { fontSize: 14, fontWeight: '900', color: WHITE },
+  retryButtonText: { fontSize: 14, fontFamily: 'FredokaBold', color: WHITE },
   emptyCard: { minHeight: 260, borderRadius: 30, padding: 28, backgroundColor: WHITE, borderWidth: 1, borderColor: BORDER, alignItems: 'center', justifyContent: 'center' },
-  emptyIcon: { fontSize: 48 },
-  emptyTitle: { marginTop: 12, fontSize: 22, fontWeight: '900', color: PINK },
-  emptyText: { maxWidth: 290, marginTop: 8, fontSize: 14, lineHeight: 21, fontWeight: '700', color: TEXT, textAlign: 'center' },
+  emptyIcon: { fontFamily: 'FredokaRegular', fontSize: 48 },
+  emptyTitle: { marginTop: 12, fontSize: 22, fontFamily: 'FredokaBold', color: PINK },
+  emptyText: { maxWidth: 290, marginTop: 8, fontSize: 14, lineHeight: 21, fontFamily: 'FredokaBold', color: TEXT, textAlign: 'center' },
   deleteAllButton: { alignSelf: 'flex-end', marginBottom: 10, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8, backgroundColor: WHITE, borderWidth: 1, borderColor: BORDER },
-  deleteAllButtonText: { fontSize: 12, fontWeight: '900', color: PINK_DARK },
+  deleteAllButtonText: { fontSize: 12, fontFamily: 'FredokaBold', color: PINK_DARK },
   notificationCard: { marginBottom: 10, borderRadius: 24, padding: 14, flexDirection: 'row', alignItems: 'flex-start', backgroundColor: WHITE, borderWidth: 1, borderColor: BORDER },
   unreadCard: { backgroundColor: SOFT, borderColor: PINK },
   iconBox: { width: 46, height: 46, borderRadius: 999, alignItems: 'center', justifyContent: 'center', backgroundColor: WHITE, borderWidth: 1, borderColor: BORDER },
-  iconText: { fontSize: 23 },
+  iconText: { fontFamily: 'FredokaRegular', fontSize: 23 },
   notificationContent: { flex: 1, marginLeft: 12 },
   notificationTopRow: { flexDirection: 'row', alignItems: 'flex-start' },
-  notificationTitle: { flex: 1, fontSize: 16, lineHeight: 21, fontWeight: '900', color: PINK_DARK },
+  notificationTitle: { flex: 1, fontSize: 16, lineHeight: 21, fontFamily: 'FredokaBold', color: PINK_DARK },
   unreadDot: { width: 9, height: 9, marginTop: 5, marginLeft: 8, borderRadius: 999, backgroundColor: PINK },
-  notificationBody: { marginTop: 5, fontSize: 14, lineHeight: 20, fontWeight: '700', color: TEXT },
-  notificationDate: { marginTop: 8, fontSize: 11, fontWeight: '800', color: MUTED },
+  notificationBody: { marginTop: 5, fontSize: 14, lineHeight: 20, fontFamily: 'FredokaBold', color: TEXT },
+  notificationDate: { marginTop: 8, fontSize: 11, fontFamily: 'FredokaBold', color: MUTED },
   deleteNotificationButton: { alignSelf: 'flex-start', marginTop: 8, paddingVertical: 4, paddingHorizontal: 8 },
-  deleteNotificationButtonText: { fontSize: 11, fontWeight: '900', color: PINK_DARK, textDecorationLine: 'underline' },
+  deleteNotificationButtonText: { fontSize: 11, fontFamily: 'FredokaBold', color: PINK_DARK, textDecorationLine: 'underline' },
 });

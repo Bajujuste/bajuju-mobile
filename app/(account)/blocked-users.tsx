@@ -14,6 +14,7 @@ import {
 
 import { supabase } from '../../src/lib/supabase';
 import { BajujuProfileButton } from '../../src/components/navigation/BajujuProfileButton';
+import { BajujuBackButton } from '../../src/components/navigation/BajujuBackButton';
 
 type BlockedUser = {
   user_id: string;
@@ -76,9 +77,7 @@ export default function BlockedUsersScreen() {
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.page}>
         <View style={styles.topRow}>
-          <Pressable style={styles.backButton} onPress={() => router.back()}>
-            <Text style={styles.backText}>← Profilo</Text>
-          </Pressable>
+          <BajujuBackButton onPress={() => router.back()} accessibilityLabel="Indietro" style={{ alignSelf: 'flex-start' }} />
           <BajujuProfileButton />
         </View>
 
@@ -145,22 +144,22 @@ const styles = StyleSheet.create({
   page: { padding: 18, paddingBottom: 40 },
   topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 12 },
   backButton: { alignSelf: 'flex-start', paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999, backgroundColor: '#FFF0F7' },
-  backText: { color: '#E43F98', fontSize: 14, fontWeight: '900' },
-  header: { padding: 20, borderRadius: 24, borderWidth: 1, borderColor: '#FFD3E6', backgroundColor: '#fff', marginBottom: 14 },
-  kicker: { color: '#E43F98', fontSize: 11, fontWeight: '900', letterSpacing: 1 },
-  title: { marginTop: 3, color: '#4B1430', fontSize: 28, fontWeight: '900' },
-  subtitle: { marginTop: 7, color: '#7B4960', fontSize: 14, lineHeight: 20, fontWeight: '700' },
-  stateCard: { padding: 24, borderRadius: 22, borderWidth: 1, borderColor: '#FFD3E6', backgroundColor: '#fff', alignItems: 'center', gap: 8 },
-  stateTitle: { color: '#4B1430', fontSize: 18, fontWeight: '900' },
-  stateText: { color: '#7B4960', fontSize: 14, lineHeight: 19, fontWeight: '700', textAlign: 'center' },
-  card: { minHeight: 84, padding: 12, marginBottom: 10, borderRadius: 22, borderWidth: 1, borderColor: '#FFD3E6', backgroundColor: '#fff', flexDirection: 'row', alignItems: 'center', gap: 12 },
+  backText: { color: '#E43F98', fontSize: 14, fontFamily: 'FredokaBold' },
+  header: { padding: 20, borderRadius: 24, borderWidth: 1, borderColor: '#F3C6DC', backgroundColor: '#fff', marginBottom: 14 },
+  kicker: { color: '#E43F98', fontSize: 11, fontFamily: 'FredokaBold', letterSpacing: 1 },
+  title: { marginTop: 3, color: '#4B0C2D', fontSize: 28, fontFamily: 'FredokaBold' },
+  subtitle: { marginTop: 7, color: '#8D5E77', fontSize: 14, lineHeight: 20, fontFamily: 'FredokaBold' },
+  stateCard: { padding: 24, borderRadius: 22, borderWidth: 1, borderColor: '#F3C6DC', backgroundColor: '#fff', alignItems: 'center', gap: 8 },
+  stateTitle: { color: '#4B0C2D', fontSize: 18, fontFamily: 'FredokaBold' },
+  stateText: { color: '#8D5E77', fontSize: 14, lineHeight: 19, fontFamily: 'FredokaBold', textAlign: 'center' },
+  card: { minHeight: 84, padding: 12, marginBottom: 10, borderRadius: 22, borderWidth: 1, borderColor: '#F3C6DC', backgroundColor: '#fff', flexDirection: 'row', alignItems: 'center', gap: 12 },
   avatar: { width: 54, height: 54, borderRadius: 18, backgroundColor: '#FFF0F7' },
   avatarFallback: { width: 54, height: 54, borderRadius: 18, backgroundColor: '#FFF0F7', alignItems: 'center', justifyContent: 'center' },
-  avatarFallbackText: { fontSize: 24 },
+  avatarFallbackText: { fontFamily: 'FredokaRegular', fontSize: 24 },
   copy: { flex: 1, minWidth: 0 },
-  name: { color: '#4B1430', fontSize: 16, fontWeight: '900' },
-  city: { marginTop: 3, color: '#7B4960', fontSize: 12, fontWeight: '700' },
+  name: { color: '#4B0C2D', fontSize: 16, fontFamily: 'FredokaBold' },
+  city: { marginTop: 3, color: '#8D5E77', fontSize: 12, fontFamily: 'FredokaBold' },
   unblockButton: { minHeight: 42, paddingHorizontal: 14, borderRadius: 21, backgroundColor: '#FFF0F7', alignItems: 'center', justifyContent: 'center' },
-  unblockText: { color: '#E43F98', fontSize: 13, fontWeight: '900' },
+  unblockText: { color: '#E43F98', fontSize: 13, fontFamily: 'FredokaBold' },
   disabled: { opacity: 0.5 },
 });

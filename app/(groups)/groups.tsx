@@ -315,13 +315,13 @@ const styles = StyleSheet.create({
   image: { width: '100%', height: '100%' },
   imagePlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   imageChip: { position: 'absolute', overflow: 'hidden', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, fontFamily: BAJUJU_FONTS.semiBold, fontSize: 13 },
-  categoryChip: { top: 10, left: 10, maxWidth: '62%', backgroundColor: '#FFFFFF', color: '#9B1F61' },
+  categoryChip: { top: 10, left: 10, maxWidth: '62%', backgroundColor: '#FFFFFF', color: '#4B0C2D' },
   distanceChip: { top: 10, right: 10, backgroundColor: 'rgba(75, 12, 45, 0.82)', color: '#FFFFFF' },
-  joinedChip: { bottom: 10, left: 10, backgroundColor: BAJUJU_COLORS.pink, color: '#FFFFFF', fontSize: 12 },
+  joinedChip: { bottom: 10, left: 10, backgroundColor: BAJUJU_COLORS.pink, color: '#FFFFFF', fontFamily: 'FredokaRegular', fontSize: 12 },
   cardBody: { paddingHorizontal: 14, paddingTop: 12, paddingBottom: 14, gap: 6 },
   cardTitle: { color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.bold, fontSize: 18, lineHeight: 22, marginBottom: 2 },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  cardMeta: { flex: 1, color: '#6B3652', fontFamily: BAJUJU_FONTS.medium, fontSize: 14 },
+  cardMeta: { flex: 1, color: '#8D5E77', fontFamily: BAJUJU_FONTS.medium, fontSize: 14 },
   requestCard: {
     marginBottom: 10,
     padding: 14,
@@ -350,5 +350,5 @@ const styles = StyleSheet.create({
   requestBadgeRejected: { backgroundColor: '#FCE5EC', color: '#A3345E' },
   emptyCard: { minHeight: 150, borderRadius: 22, padding: 24, backgroundColor: '#ffffff', borderWidth: 1, borderColor: BAJUJU_COLORS.line, alignItems: 'center', justifyContent: 'center' },
   emptyTitle: { color: BAJUJU_COLORS.pink, fontFamily: BAJUJU_FONTS.bold, fontSize: 18, textAlign: 'center' },
-  emptyText: { marginTop: 8, color: '#6b3652', fontFamily: BAJUJU_FONTS.medium, fontSize: 14, lineHeight: 20, textAlign: 'center' },
+  emptyText: { marginTop: 8, color: '#8D5E77', fontFamily: BAJUJU_FONTS.medium, fontSize: 14, lineHeight: 20, textAlign: 'center' },
 });

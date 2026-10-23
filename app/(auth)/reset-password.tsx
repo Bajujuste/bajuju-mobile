@@ -184,7 +184,7 @@ export default function ResetPasswordScreen() {
           <View style={styles.card}>
             {checkingRecovery ? (
               <View style={styles.loadingBox}>
-                <ActivityIndicator color="#e43f98" />
+                <ActivityIndicator color="#E43F98" />
                 <Text style={styles.description}>
                   Verifica del link di recupero in corso...
                 </Text>
@@ -293,14 +293,14 @@ const styles = StyleSheet.create({
   logoText: {
     marginTop: 8,
     fontSize: 30,
-    fontWeight: '900',
-    color: '#e43f98',
+    fontFamily: 'FredokaBold',
+    color: '#E43F98',
     textAlign: 'center',
   },
   subtitle: {
     marginTop: 6,
     fontSize: 15,
-    fontWeight: '800',
+    fontFamily: 'FredokaBold',
     color: '#7a214e',
     textAlign: 'center',
   },
@@ -309,8 +309,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     padding: 20,
     borderWidth: 1,
-    borderColor: '#ffd3e8',
-    shadowColor: '#e43f98',
+    borderColor: '#F3C6DC',
+    shadowColor: '#E43F98',
     shadowOpacity: 0.1,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 10 },
@@ -324,12 +324,12 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22,
     color: '#7a214e',
-    fontWeight: '700',
+    fontFamily: 'FredokaBold',
     marginBottom: 18,
   },
   label: {
     fontSize: 13,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
     color: '#4B0C2D',
     marginBottom: 7,
     marginTop: 10,
@@ -341,7 +341,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     paddingVertical: 13,
     fontSize: 15,
-    fontWeight: '700',
+    fontFamily: 'FredokaBold',
     color: '#4B0C2D',
     backgroundColor: '#FFF9FC',
   },
@@ -359,7 +359,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     paddingVertical: 13,
     fontSize: 15,
-    fontWeight: '700',
+    fontFamily: 'FredokaBold',
     color: '#4B0C2D',
   },
   passwordToggle: {
@@ -367,17 +367,17 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
   },
   passwordToggleText: {
-    color: '#e43f98',
-    fontWeight: '900',
+    color: '#E43F98',
+    fontFamily: 'FredokaBold',
     fontSize: 13,
   },
   messageBox: {
     marginTop: 16,
     borderRadius: 18,
     padding: 13,
-    backgroundColor: '#fff0f7',
+    backgroundColor: '#FFF0F7',
     borderWidth: 1,
-    borderColor: '#ffd3e8',
+    borderColor: '#F3C6DC',
   },
   messageBoxSuccess: {
     backgroundColor: '#f2fff6',
@@ -385,20 +385,20 @@ const styles = StyleSheet.create({
   },
   messageTitle: {
     fontSize: 14,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
     color: '#4B0C2D',
     marginBottom: 4,
   },
   messageText: {
     fontSize: 13,
-    fontWeight: '700',
+    fontFamily: 'FredokaBold',
     color: '#7a214e',
     lineHeight: 19,
   },
   button: {
     marginTop: 18,
     borderRadius: 20,
-    backgroundColor: '#e43f98',
+    backgroundColor: '#E43F98',
     paddingVertical: 15,
     alignItems: 'center',
   },
@@ -408,20 +408,20 @@ const styles = StyleSheet.create({
   buttonText: {
     color: '#ffffff',
     fontSize: 16,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   secondaryButton: {
     marginTop: 12,
     borderRadius: 20,
-    backgroundColor: '#fff0f7',
+    backgroundColor: '#FFF0F7',
     paddingVertical: 14,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#ffd3e8',
+    borderColor: '#F3C6DC',
   },
   secondaryButtonText: {
-    color: '#e43f98',
+    color: '#E43F98',
     fontSize: 15,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
 });

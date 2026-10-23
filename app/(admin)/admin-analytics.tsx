@@ -14,6 +14,7 @@ import {
 import AcquisitionStats from '../../src/components/admin/AcquisitionStats';
 
 import { supabase } from '../../src/lib/supabase';
+import { BajujuBackButton } from '../../src/components/navigation/BajujuBackButton';
 
 type AnalyticsSummary = {
   days?: number;
@@ -117,13 +118,11 @@ export default function AdminAnalyticsScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={() => void loadSummary(true, days)}
-            tintColor="#e43f98"
+            tintColor="#E43F98"
           />
         }
       >
-        <Pressable style={styles.backButton} onPress={() => router.replace('/admin' as any)}>
-          <Text style={styles.backText}>← Area Admin</Text>
-        </Pressable>
+        <BajujuBackButton onPress={() => router.replace('/admin' as any)} accessibilityLabel="Indietro" style={{ alignSelf: 'flex-start' }} />
 
         <View style={styles.headerCard}>
           <Text style={styles.kicker}>BAJUJU ANALYTICS</Text>
@@ -144,7 +143,7 @@ export default function AdminAnalyticsScreen() {
 
         {loading ? (
           <View style={styles.messageCard}>
-            <ActivityIndicator color="#e43f98" />
+            <ActivityIndicator color="#E43F98" />
             <Text style={styles.messageText}>Carico statistiche…</Text>
           </View>
         ) : errorMessage ? (
@@ -294,32 +293,32 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 9,
     borderRadius: 999,
-    backgroundColor: '#fff0f7',
+    backgroundColor: '#FFF0F7',
     borderWidth: 1,
-    borderColor: '#ffd3e6',
+    borderColor: '#F3C6DC',
   },
-  backText: { color: '#9b1f61', fontSize: 14, fontWeight: '900' },
+  backText: { color: '#4B0C2D', fontSize: 14, fontFamily: 'FredokaBold' },
   headerCard: {
     padding: 20,
     borderRadius: 26,
     backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: '#ffd3e6',
+    borderColor: '#F3C6DC',
   },
-  kicker: { color: '#e43f98', fontSize: 12, fontWeight: '900', letterSpacing: 1 },
-  title: { marginTop: 6, color: '#4b1430', fontSize: 29, lineHeight: 34, fontWeight: '900' },
-  subtitle: { marginTop: 7, color: '#745068', fontSize: 14, lineHeight: 20, fontWeight: '700' },
+  kicker: { color: '#E43F98', fontSize: 12, fontFamily: 'FredokaBold', letterSpacing: 1 },
+  title: { marginTop: 6, color: '#4B0C2D', fontSize: 29, lineHeight: 34, fontFamily: 'FredokaBold' },
+  subtitle: { marginTop: 7, color: '#745068', fontSize: 14, lineHeight: 20, fontFamily: 'FredokaBold' },
   periodRow: { marginTop: 16, flexWrap: 'wrap', flexDirection: 'row', gap: 8 },
   periodButton: {
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 999,
-    backgroundColor: '#fff0f7',
+    backgroundColor: '#FFF0F7',
     borderWidth: 1,
-    borderColor: '#ffd3e6',
+    borderColor: '#F3C6DC',
   },
-  periodButtonActive: { backgroundColor: '#e43f98', borderColor: '#e43f98' },
-  periodText: { color: '#9b1f61', fontWeight: '900' },
+  periodButtonActive: { backgroundColor: '#E43F98', borderColor: '#E43F98' },
+  periodText: { color: '#4B0C2D', fontFamily: 'FredokaBold' },
   periodTextActive: { color: '#ffffff' },
   messageCard: {
     minHeight: 180,
@@ -327,14 +326,14 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: '#ffd3e6',
+    borderColor: '#F3C6DC',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  errorTitle: { color: '#9b1f61', fontSize: 18, fontWeight: '900', textAlign: 'center' },
-  messageText: { marginTop: 9, color: '#6b3652', fontSize: 14, lineHeight: 20, fontWeight: '700', textAlign: 'center' },
-  retryButton: { marginTop: 14, paddingHorizontal: 18, paddingVertical: 10, borderRadius: 999, backgroundColor: '#e43f98' },
-  retryText: { color: '#ffffff', fontWeight: '900' },
+  errorTitle: { color: '#4B0C2D', fontSize: 18, fontFamily: 'FredokaBold', textAlign: 'center' },
+  messageText: { marginTop: 9, color: '#8D5E77', fontSize: 14, lineHeight: 20, fontFamily: 'FredokaBold', textAlign: 'center' },
+  retryButton: { marginTop: 14, paddingHorizontal: 18, paddingVertical: 10, borderRadius: 999, backgroundColor: '#E43F98' },
+  retryText: { color: '#ffffff', fontFamily: 'FredokaBold' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   statCard: {
     width: '48.4%',
@@ -343,19 +342,19 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: '#ffd3e6',
+    borderColor: '#F3C6DC',
     justifyContent: 'center',
   },
-  statValue: { color: '#e43f98', fontSize: 28, fontWeight: '900' },
-  statLabel: { marginTop: 4, color: '#5a2842', fontSize: 13, lineHeight: 17, fontWeight: '800' },
+  statValue: { color: '#E43F98', fontSize: 28, fontFamily: 'FredokaBold' },
+  statLabel: { marginTop: 4, color: '#4B0C2D', fontSize: 13, lineHeight: 17, fontFamily: 'FredokaBold' },
   listCard: {
     padding: 17,
     borderRadius: 24,
     backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: '#ffd3e6',
+    borderColor: '#F3C6DC',
   },
-  listTitle: { color: '#4b1430', fontSize: 19, fontWeight: '900', marginBottom: 11 },
+  listTitle: { color: '#4B0C2D', fontSize: 19, fontFamily: 'FredokaBold', marginBottom: 11 },
   listRow: {
     minHeight: 46,
     flexDirection: 'row',
@@ -364,8 +363,8 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#ffe5f0',
   },
-  listLabel: { flex: 1, color: '#6b3652', fontSize: 14, fontWeight: '800' },
-  valuePill: { minWidth: 38, height: 30, paddingHorizontal: 9, borderRadius: 15, backgroundColor: '#fff0f7', alignItems: 'center', justifyContent: 'center' },
-  valuePillText: { color: '#e43f98', fontWeight: '900' },
-  emptyText: { color: '#8f5573', fontSize: 13, lineHeight: 19, fontWeight: '700' },
+  listLabel: { flex: 1, color: '#8D5E77', fontSize: 14, fontFamily: 'FredokaBold' },
+  valuePill: { minWidth: 38, height: 30, paddingHorizontal: 9, borderRadius: 15, backgroundColor: '#FFF0F7', alignItems: 'center', justifyContent: 'center' },
+  valuePillText: { color: '#E43F98', fontFamily: 'FredokaBold' },
+  emptyText: { color: '#8f5573', fontSize: 13, lineHeight: 19, fontFamily: 'FredokaBold' },
 });

@@ -15,6 +15,7 @@ import { trackAcquisition } from '../../src/utils/acquisitionAnalytics';
 
 import { supabase } from '../../src/lib/supabase';
 import { KeyboardAwareScrollView } from '../../src/components/KeyboardAwareScrollView';
+import { BajujuBackButton } from '../../src/components/navigation/BajujuBackButton';
 
 const bajujuLogo = require('../../assets/brand/bajuju-logo.png');
 
@@ -259,9 +260,7 @@ export default function RegisterScreen() {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.keyboardView}>
         <KeyboardAwareScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-          <Pressable style={styles.backButton} onPress={() => router.replace('/')}>
-            <Text style={styles.backText}>← Indietro</Text>
-          </Pressable>
+          <BajujuBackButton onPress={() => router.replace('/')} accessibilityLabel="Indietro" style={{ alignSelf: 'flex-start', marginBottom: 18 }} />
 
           <View style={styles.logoBox}>
             <Image source={bajujuLogo} style={styles.logoImage} resizeMode="contain" />
@@ -384,22 +383,22 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: '#ffd3e7',
+    borderColor: '#F3C6DC',
   },
-  backText: { fontSize: 14, fontWeight: '900', color: '#9b1f61' },
+  backText: { fontSize: 14, fontFamily: 'FredokaBold', color: '#4B0C2D' },
   logoBox: { alignItems: 'center', marginBottom: 20 },
   logoImage: { width: 128, height: 128, marginBottom: 8 },
   logoText: {
     fontSize: 40,
-    fontWeight: '900',
-    color: '#e43f98',
+    fontFamily: 'FredokaBold',
+    color: '#E43F98',
     letterSpacing: -0.6,
   },
   subtitle: {
     marginTop: 4,
     fontSize: 16,
-    fontWeight: '800',
-    color: '#9b1f61',
+    fontFamily: 'FredokaBold',
+    color: '#4B0C2D',
   },
   card: {
     width: '100%',
@@ -407,8 +406,8 @@ const styles = StyleSheet.create({
     padding: 22,
     backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: '#ffd3e7',
-    shadowColor: '#e43f98',
+    borderColor: '#F3C6DC',
+    shadowColor: '#E43F98',
     shadowOpacity: 0.1,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 8 },
@@ -417,33 +416,33 @@ const styles = StyleSheet.create({
   description: {
     fontSize: 15,
     lineHeight: 22,
-    fontWeight: '700',
-    color: '#6b3652',
+    fontFamily: 'FredokaBold',
+    color: '#8D5E77',
     marginBottom: 22,
   },
   label: {
     fontSize: 14,
-    fontWeight: '900',
-    color: '#9b1f61',
+    fontFamily: 'FredokaBold',
+    color: '#4B0C2D',
     marginBottom: 8,
   },
   input: {
     height: 52,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#ffd3e7',
+    borderColor: '#F3C6DC',
     backgroundColor: '#FFF9FC',
     paddingHorizontal: 16,
-    color: '#5f2445',
+    color: '#4B0C2D',
     fontSize: 16,
-    fontWeight: '700',
+    fontFamily: 'FredokaBold',
     marginBottom: 16,
   },
   passwordRow: {
     minHeight: 52,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#ffd3e7',
+    borderColor: '#F3C6DC',
     backgroundColor: '#FFF9FC',
     flexDirection: 'row',
     alignItems: 'center',
@@ -454,9 +453,9 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 52,
     paddingHorizontal: 16,
-    color: '#5f2445',
+    color: '#4B0C2D',
     fontSize: 16,
-    fontWeight: '700',
+    fontFamily: 'FredokaBold',
   },
   passwordToggle: {
     minHeight: 52,
@@ -464,13 +463,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderLeftWidth: 1,
-    borderLeftColor: '#ffd3e7',
-    backgroundColor: '#fff0f7',
+    borderLeftColor: '#F3C6DC',
+    backgroundColor: '#FFF0F7',
   },
   passwordToggleText: {
-    color: '#e43f98',
+    color: '#E43F98',
     fontSize: 13,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   termsRow: {
     flexDirection: 'row',
@@ -483,24 +482,24 @@ const styles = StyleSheet.create({
     height: 24,
     borderRadius: 7,
     borderWidth: 2,
-    borderColor: '#e43f98',
+    borderColor: '#E43F98',
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 1,
   },
   checkboxSelected: {
-    backgroundColor: '#e43f98',
+    backgroundColor: '#E43F98',
   },
   checkboxText: {
     color: '#ffffff',
     fontSize: 16,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   termsText: {
     flex: 1,
-    color: '#6b3652',
+    color: '#8D5E77',
     fontSize: 13,
-    fontWeight: '700',
+    fontFamily: 'FredokaBold',
     lineHeight: 19,
   },
   termsLinks: {
@@ -510,46 +509,46 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   termsLinkText: {
-    color: '#e43f98',
+    color: '#E43F98',
     fontSize: 12,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
     textDecorationLine: 'underline',
   },
   button: {
     height: 54,
     borderRadius: 20,
-    backgroundColor: '#e43f98',
+    backgroundColor: '#E43F98',
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 4,
   },
   buttonDisabled: { opacity: 0.65 },
-  buttonText: { color: '#ffffff', fontSize: 17, fontWeight: '900' },
+  buttonText: { color: '#ffffff', fontSize: 17, fontFamily: 'FredokaBold' },
   messageBox: {
     marginTop: 16,
     borderRadius: 18,
-    backgroundColor: '#fff0f7',
+    backgroundColor: '#FFF0F7',
     borderWidth: 1,
     borderColor: '#ffc2df',
     padding: 14,
   },
   messageTitle: {
-    color: '#e43f98',
+    color: '#E43F98',
     fontSize: 14,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
     marginBottom: 4,
   },
   messageText: {
-    color: '#6b3652',
+    color: '#8D5E77',
     fontSize: 13,
-    fontWeight: '700',
+    fontFamily: 'FredokaBold',
     lineHeight: 19,
   },
   switchLink: { marginTop: 18, alignItems: 'center' },
   switchLinkText: {
-    color: '#e43f98',
+    color: '#E43F98',
     fontSize: 14,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
     textAlign: 'center',
   },
 });

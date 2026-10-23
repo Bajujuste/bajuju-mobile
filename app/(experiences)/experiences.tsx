@@ -434,7 +434,6 @@ export default function ExperiencesScreen() {
             onPress={() => router.push('/experiences-map')}
           >
             <BajujuIcon name="pin" size={20} color="#E43F98" />
-            <Text style={styles.mapLabel}>Mappa</Text>
           </Pressable>
           <BajujuProfileButton />
         </View>
@@ -463,7 +462,7 @@ export default function ExperiencesScreen() {
 
         {loading ? (
           <View style={styles.emptyCard}>
-            <ActivityIndicator color="#e43f98" />
+            <ActivityIndicator color="#E43F98" />
             <Text style={styles.emptyText}>Caricamento esperienze…</Text>
           </View>
         ) : errorMessage ? (
@@ -679,8 +678,7 @@ const styles = StyleSheet.create({
   screenHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   screenTitleFill: { flex: 1 },
   screenTitle: { color: PLUM, fontFamily: 'FredokaBold', fontSize: 28, letterSpacing: -0.5 },
-  mapButton: { height: 44, paddingLeft: 12, paddingRight: 16, borderRadius: 999, borderWidth: 1.5, borderColor: LINE, backgroundColor: '#FFFFFF', flexDirection: 'row', alignItems: 'center', gap: 6 },
-  mapLabel: { color: '#C2287A', fontFamily: 'FredokaSemiBold', fontSize: 15 },
+  mapButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, borderColor: LINE, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
   tabsRow: { marginTop: 16, marginBottom: 20, flexDirection: 'row', gap: 4, padding: 4, borderRadius: 999, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: LINE },
   tabButton: { flex: 1, height: 40, borderRadius: 999, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 2 },
   tabButtonActive: { backgroundColor: PINK },
@@ -691,20 +689,20 @@ const styles = StyleSheet.create({
   sectionTitle: { color: PLUM, fontFamily: 'FredokaBold', fontSize: 21 },
   sectionCount: { color: '#8D5E77', fontFamily: 'FredokaMedium', fontSize: 14 },
   sectionSubtitle: { color: '#8F5573', fontFamily: 'FredokaMedium', fontSize: 13, lineHeight: 18, marginTop: 3 },
-  retentionNote: { marginBottom: 14, padding: 12, borderRadius: 16, backgroundColor: '#fff3f8', borderWidth: 1, borderColor: '#ffd1e6' },
+  retentionNote: { marginBottom: 14, padding: 12, borderRadius: 16, backgroundColor: '#fff3f8', borderWidth: 1, borderColor: '#F3C6DC' },
   retentionText: { color: '#7a3c5e', fontFamily: 'FredokaMedium', fontSize: 12, lineHeight: 17 },
   cardsRow: { gap: 12, paddingRight: 16, paddingBottom: 8 },
   experienceCard: { borderRadius: 22, overflow: 'hidden', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: LINE },
   imageBox: { height: 160, backgroundColor: '#FFF0F7' },
   image: { width: '100%', height: '100%' },
   imageChip: { position: 'absolute', overflow: 'hidden', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, fontFamily: 'FredokaSemiBold', fontSize: 13 },
-  categoryChip: { top: 10, left: 10, maxWidth: '60%', backgroundColor: '#FFFFFF', color: '#9B1F61' },
+  categoryChip: { top: 10, left: 10, maxWidth: '60%', backgroundColor: '#FFFFFF', color: '#4B0C2D' },
   distanceChip: { top: 10, right: 10, backgroundColor: 'rgba(75, 12, 45, 0.82)', color: '#FFFFFF' },
-  organizerChip: { bottom: 10, left: 10, backgroundColor: PINK, color: '#FFFFFF', fontSize: 12 },
+  organizerChip: { bottom: 10, left: 10, backgroundColor: PINK, color: '#FFFFFF', fontFamily: 'FredokaRegular', fontSize: 12 },
   cardBody: { paddingHorizontal: 14, paddingTop: 12, paddingBottom: 14, gap: 6 },
   cardTitle: { color: PLUM, fontFamily: 'FredokaBold', fontSize: 18, lineHeight: 22, marginBottom: 2 },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  cardMeta: { flex: 1, color: '#6B3652', fontFamily: 'FredokaMedium', fontSize: 14 },
+  cardMeta: { flex: 1, color: '#8D5E77', fontFamily: 'FredokaMedium', fontSize: 14 },
   tagsLine: { fontFamily: 'FredokaMedium', fontSize: 13 },
   tagFree: { color: '#22633C' },
   tagRequest: { color: '#8A5B00' },
@@ -715,13 +713,13 @@ const styles = StyleSheet.create({
   progressTrack: { height: 6, borderRadius: 999, backgroundColor: '#FFE3F0', overflow: 'hidden' },
   progressFill: { height: 6, borderRadius: 999, backgroundColor: PINK },
   openButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#FFF0F7', alignItems: 'center', justifyContent: 'center' },
-  waitlistButton: { borderRadius: 999, backgroundColor: '#fff0f7', borderWidth: 1, borderColor: PINK, paddingHorizontal: 10, paddingVertical: 8 },
+  waitlistButton: { borderRadius: 999, backgroundColor: '#FFF0F7', borderWidth: 1, borderColor: PINK, paddingHorizontal: 10, paddingVertical: 8 },
   waitlistButtonText: { color: PINK, fontFamily: 'FredokaSemiBold', fontSize: 12 },
   moreButton: { marginTop: 14, alignSelf: 'center', paddingHorizontal: 20, paddingVertical: 12, borderRadius: 999, backgroundColor: PINK },
   moreButtonText: { color: '#ffffff', fontFamily: 'FredokaSemiBold', fontSize: 15 },
   emptyCard: { minHeight: 170, borderRadius: 22, padding: 24, backgroundColor: '#ffffff', borderWidth: 1, borderColor: LINE, alignItems: 'center', justifyContent: 'center' },
   emptyTitle: { color: PINK, fontFamily: 'FredokaBold', fontSize: 18, textAlign: 'center' },
-  emptyText: { marginTop: 8, color: '#6b3652', fontFamily: 'FredokaMedium', fontSize: 14, lineHeight: 20, textAlign: 'center' },
+  emptyText: { marginTop: 8, color: '#8D5E77', fontFamily: 'FredokaMedium', fontSize: 14, lineHeight: 20, textAlign: 'center' },
   retryButton: { marginTop: 14, paddingHorizontal: 18, paddingVertical: 10, borderRadius: 999, backgroundColor: PINK },
   retryText: { color: '#ffffff', fontFamily: 'FredokaSemiBold', fontSize: 15 },
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.88)', alignItems: 'center', justifyContent: 'center', padding: 18 },

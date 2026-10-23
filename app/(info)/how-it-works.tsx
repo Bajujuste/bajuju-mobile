@@ -260,6 +260,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   emoji: {
+    fontFamily: 'FredokaRegular',
     fontSize: 17,
   },
   number: {

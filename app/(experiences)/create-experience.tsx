@@ -19,6 +19,7 @@ import {
 
 import { AddressAutocompleteField } from '../../src/components/AddressAutocompleteField';
 import { BajujuBottomNav } from '../../src/components/navigation/BajujuBottomNav';
+import { BajujuActionBar, BajujuButton } from '../../src/components/BajujuActionBar';
 import { BajujuProfileButton } from '../../src/components/navigation/BajujuProfileButton';
 import { EXPERIENCE_CREATION_CATEGORIES } from '../../src/constants/experienceCategories';
 import {
@@ -520,7 +521,7 @@ export default function CreateExperienceScreen() {
             accessibilityRole="button"
             accessibilityLabel="Torna indietro"
           >
-            <Ionicons name="arrow-back" size={22} color={BAJUJU_COLORS.plum} />
+            <Ionicons name="chevron-back" size={20} color={BAJUJU_COLORS.plum} />
           </Pressable>
           <Text style={styles.title}>Nuova esperienza</Text>
           <BajujuProfileButton />
@@ -933,19 +934,18 @@ export default function CreateExperienceScreen() {
           </View>
         ) : null}
 
-        <Pressable
-          style={[styles.mainButton, !canCreateExperience && styles.disabled]}
-          onPress={handleCreateExperience}
-          disabled={!canCreateExperience}
-        >
-          <Text style={styles.mainButtonText}>{saving ? 'Pubblicazione...' : 'Pubblica esperienza'}</Text>
-        </Pressable>
-
         {!saving && missingFields.length > 0 ? (
           <Text style={styles.missingText}>Mancano: {missingFields.join(', ')}</Text>
         ) : null}
       </KeyboardAwareScrollView>
 
+      <BajujuActionBar withBottomNav>
+        <BajujuButton
+          label={saving ? 'Pubblicazione...' : 'Pubblica esperienza'}
+          onPress={handleCreateExperience}
+          disabled={!canCreateExperience}
+        />
+      </BajujuActionBar>
       <BajujuBottomNav active="create" />
     </SafeAreaView>
   );
@@ -953,7 +953,7 @@ export default function CreateExperienceScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: BAJUJU_COLORS.background },
-  container: { paddingHorizontal: 16, paddingTop: 18, paddingBottom: 190, gap: 16 },
+  container: { paddingHorizontal: 16, paddingTop: 18, paddingBottom: 32, gap: 16 },
   topBar: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   backButton: {
     width: 44,
@@ -1127,8 +1127,6 @@ const styles = StyleSheet.create({
     borderColor: '#D9C2F2',
     backgroundColor: '#fff',
   },
-  mainButton: { minHeight: 54, borderRadius: 27, alignItems: 'center', justifyContent: 'center', backgroundColor: BAJUJU_COLORS.pink },
-  mainButtonText: { color: '#fff', fontFamily: BAJUJU_FONTS.bold, fontSize: 17 },
   disabled: { opacity: 0.45 },
   missingText: { marginTop: -6, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.semiBold, fontSize: 13, lineHeight: 18, textAlign: 'center' },
 });

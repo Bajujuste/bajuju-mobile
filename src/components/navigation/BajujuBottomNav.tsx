@@ -3,6 +3,7 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useKeyboardVisible } from '../../hooks/useKeyboardVisible';
 import { BAJUJU_COLORS, BAJUJU_FONTS } from '../../theme/bajujuTheme';
 import {
   BajujuIcon,
@@ -62,14 +63,31 @@ const ITEMS: {
   },
 ];
 
+const NAV_HEIGHT = 80;
+
+function navBottomOffset(insetBottom: number) {
+  return Math.max(12, insetBottom + 6);
+}
+
+// Spazio occupato dalla barra di navigazione (0 con la tastiera aperta, quando è nascosta).
+export function useBajujuBottomNavSpace() {
+  const insets = useSafeAreaInsets();
+  const keyboardVisible = useKeyboardVisible();
+  return keyboardVisible ? 0 : navBottomOffset(insets.bottom) + NAV_HEIGHT;
+}
+
 export function BajujuBottomNav({ active }: BajujuBottomNavProps) {
   const insets = useSafeAreaInsets();
+  const keyboardVisible = useKeyboardVisible();
+
+  // Con la tastiera aperta la barra coprirebbe i campi: la nascondiamo finché si scrive.
+  if (keyboardVisible) return null;
 
   return (
     <View
       style={[
         styles.bottomNav,
-        { bottom: Math.max(12, insets.bottom + 6) },
+        { bottom: navBottomOffset(insets.bottom) },
       ]}
     >
       {ITEMS.map((item) => {

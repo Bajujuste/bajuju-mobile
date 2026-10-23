@@ -7,7 +7,6 @@ import React, { useEffect, useState } from 'react';
 import {
   Alert,
   Image,
-  Platform,
   Pressable,
   SafeAreaView,
   StyleSheet,
@@ -19,17 +18,16 @@ import {
 import { createBajujuGroup, GROUP_DESCRIPTION_MAX_LENGTH, uploadBajujuGroupCover } from '../../src/lib/bajujuGroups';
 import { BAJUJU_GROUP_CATEGORIES } from '../../src/constants/groupCategories';
 import { resolveAddressText } from '../../src/lib/addressAutocomplete';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { supabase } from '../../src/lib/supabase';
 import { BAJUJU_COLORS, BAJUJU_FONTS, BAJUJU_SHADOW } from '../../src/theme/bajujuTheme';
 import { KeyboardAwareScrollView } from '../../src/components/KeyboardAwareScrollView';
 import { BajujuProfileButton } from '../../src/components/navigation/BajujuProfileButton';
+import { BajujuActionBar, BajujuButton } from '../../src/components/BajujuActionBar';
+import { BajujuBottomNav } from '../../src/components/navigation/BajujuBottomNav';
 
 export default function CreateGroupScreen() {
   const { pickPhoto, photoPickerModal } = useBajujuPhotoPicker();
-  const safeAreaInsets = useSafeAreaInsets();
-  const androidBottomInset = Platform.OS === 'android' ? safeAreaInsets.bottom : 0;
   const [userId, setUserId] = useState('');
   const [allowed, setAllowed] = useState(false);
   const [checking, setChecking] = useState(true);
@@ -388,15 +386,14 @@ export default function CreateGroupScreen() {
         ) : null}
       </KeyboardAwareScrollView>
 
-      <View style={[styles.bottomBar, { paddingBottom: 12 + androidBottomInset }]}>
-        <Pressable
-          style={[styles.mainButton, !canSave && styles.disabled]}
+      <BajujuActionBar withBottomNav>
+        <BajujuButton
+          label={saving ? 'Invio...' : 'Invia per approvazione'}
           disabled={!canSave}
           onPress={() => { void handleCreate(); }}
-        >
-          <Text style={styles.mainButtonText}>{saving ? 'Invio...' : 'Invia per approvazione'}</Text>
-        </Pressable>
-      </View>
+        />
+      </BajujuActionBar>
+      <BajujuBottomNav active="groups" />
     </SafeAreaView>
   );
 }

@@ -763,11 +763,10 @@ export default function GroupDetailScreen() {
           </View>
         ) : null}
 
-        {isOwner || isAdmin ? (
+        {/* L'Admin vede il pulsante come ogni utente: può iscriversi e restare Admin. */}
+        {isOwner ? (
           <View style={styles.ownerBadge}>
-            <Text style={styles.ownerBadgeText}>
-              {isOwner ? 'Sei il proprietario del gruppo' : 'Accesso Admin · Nessuna iscrizione richiesta'}
-            </Text>
+            <Text style={styles.ownerBadgeText}>Sei il proprietario del gruppo</Text>
           </View>
         ) : isPublicGroup ? (
           <>

@@ -20,6 +20,14 @@ import {
 } from 'react-native';
 
 import { supabase } from '../../src/lib/supabase';
+import {
+  BajujuLocation,
+  LOCATION_COLOR,
+  LOCATION_COLOR_SOFT,
+  loadBajujuLocation,
+  locationAddressLine,
+  withLocationIdentity,
+} from '../../src/lib/bajujuLocations';
 import { shareBajujuExperience } from '../../src/utils/shareBajuju';
 import { getExperienceCategoryIcon, normalizeExperienceCategory } from '@/constants/experienceCategories';
 import { sendBajujuPushNotification } from '../../src/utils/bajujuNotifications';
@@ -53,6 +61,7 @@ type ActivityRow = {
   photo_url?: string | null;
   cover_url?: string | null;
   activity_image_url?: string | null;
+  location_owner_id?: string | null;
 };
 
 type ParticipantRow = {
@@ -245,6 +254,7 @@ export default function ExperienceDetailScreen() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isCurrentUserAdmin, setIsCurrentUserAdmin] = useState(false);
   const [experience, setExperience] = useState<ActivityRow | null>(null);
+  const [eventLocation, setEventLocation] = useState<BajujuLocation | null>(null);
   const [participants, setParticipants] = useState<ParticipantRow[]>([]);
   const [profiles, setProfiles] = useState<Record<string, ProfileRow>>({});
   const [messages, setMessages] = useState<MessageRow[]>([]);
@@ -417,7 +427,13 @@ export default function ExperienceDetailScreen() {
       .select('*')
       .in('id', uniqueUserIds);
 
-    ((profilesResult.data || []) as ProfileRow[]).forEach((profile) => {
+    const loadedProfiles = await withLocationIdentity((profilesResult.data || []) as ProfileRow[], {
+      idKey: 'id',
+      nameKeys: ['full_name', 'nickname'],
+      avatarKey: 'avatar_url',
+    });
+
+    loadedProfiles.forEach((profile) => {
       const id = String(profile.id || '');
       if (id) nextProfiles[id] = profile;
     });
@@ -470,7 +486,11 @@ export default function ExperienceDetailScreen() {
     }
 
     if (!requestsResult.error && Array.isArray(requestsResult.data)) {
-      setJoinRequests(requestsResult.data as ActivityJoinRequest[]);
+      setJoinRequests(await withLocationIdentity(requestsResult.data as ActivityJoinRequest[], {
+        idKey: 'user_id',
+        nameKeys: ['nickname'],
+        avatarKey: 'avatar_url',
+      }));
     } else {
       setJoinRequests([]);
     }
@@ -526,6 +546,11 @@ export default function ExperienceDetailScreen() {
     const loadedExperience = result.data as ActivityRow;
 
     setExperience(loadedExperience);
+
+    const locationOwnerId = String(loadedExperience.location_owner_id || '').trim();
+    setEventLocation(
+      locationOwnerId ? await loadBajujuLocation(locationOwnerId).catch(() => null) : null
+    );
 
     await Promise.all([
       loadParticipants(experienceId, loadedExperience),
@@ -1281,8 +1306,8 @@ export default function ExperienceDetailScreen() {
           detail: experience.activity_time ? String(experience.activity_time).slice(0, 5) : 'Ora da definire',
         },
         {
-          label: 'Ritrovo',
-          value: experience.meeting_place || experience.city || 'Non indicato',
+          label: eventLocation ? 'Dove' : 'Ritrovo',
+          value: eventLocation?.name || experience.meeting_place || experience.city || 'Non indicato',
           detail: `${experience.city || 'Comune'} · ${experience.province || 'Provincia'}`,
         },
         {
@@ -1449,6 +1474,27 @@ export default function ExperienceDetailScreen() {
                     </View>
                   ))}
                 </View>
+
+                {eventLocation ? (
+                  <Pressable
+                    style={styles.locationCard}
+                    onPress={() => router.push({ pathname: '/user-profile' as any, params: { userId: eventLocation.ownerId } })}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Apri la pagina di ${eventLocation.name}`}
+                  >
+                    {eventLocation.photos[0] ? (
+                      <Image source={{ uri: eventLocation.photos[0] }} style={styles.locationCardPhoto} resizeMode="cover" />
+                    ) : null}
+                    <View style={styles.locationCardCopy}>
+                      <Text style={styles.locationCardKicker}>Si svolge da</Text>
+                      <Text style={styles.locationCardName} numberOfLines={1}>{eventLocation.name}</Text>
+                      <Text style={styles.locationCardMeta} numberOfLines={1}>
+                        {eventLocation.category} · {locationAddressLine(eventLocation)}
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color={LOCATION_COLOR} />
+                  </Pressable>
+                ) : null}
 
                 <Pressable onPress={() => setDescriptionExpanded((current) => !current)}>
                   <Text style={styles.description} numberOfLines={descriptionExpanded ? undefined : 3}>
@@ -2019,6 +2065,27 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     gap: 14,
   },
+  locationCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 10,
+    borderRadius: 18,
+    backgroundColor: LOCATION_COLOR_SOFT,
+    borderWidth: 1,
+    borderColor: '#E4D2F5',
+  },
+  locationCardPhoto: { width: 54, height: 54, borderRadius: 14 },
+  locationCardCopy: { flex: 1, minWidth: 0 },
+  locationCardKicker: {
+    fontFamily: F.semiBold,
+    fontSize: 11,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    color: LOCATION_COLOR,
+  },
+  locationCardName: { marginTop: 1, fontFamily: F.bold, fontSize: 16, color: C.plum },
+  locationCardMeta: { marginTop: 1, fontFamily: F.medium, fontSize: 12, color: C.muted },
   infoGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',

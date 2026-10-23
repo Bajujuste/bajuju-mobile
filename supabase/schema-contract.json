@@ -79,7 +79,8 @@
       "deleted_at",
       "join_approval_required",
       "min_age",
-      "max_age"
+      "max_age",
+      "location_owner_id"
     ],
     "groups": [
       "id",
@@ -417,6 +418,27 @@
       "requested_at",
       "responded_at",
       "responded_by"
+    ],
+    "bajuju_locations": [
+      "owner_id",
+      "name",
+      "category",
+      "description",
+      "street",
+      "street_number",
+      "city",
+      "province",
+      "formatted_address",
+      "latitude",
+      "longitude",
+      "photos",
+      "instagram_url",
+      "facebook_url",
+      "website_url",
+      "phone",
+      "whatsapp",
+      "created_at",
+      "updated_at"
     ]
   },
   "functions": [

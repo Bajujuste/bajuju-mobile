@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import { useBajujuPhotoPicker } from '../../src/components/useBajujuPhotoPicker';
@@ -27,6 +27,14 @@ import {
   notifyBajujuGroupsForExperience,
 } from '../../src/lib/bajujuGroups';
 import type { ResolvedAddress } from '../../src/lib/addressAutocomplete';
+import {
+  BajujuLocation,
+  LOCATION_COLOR,
+  LOCATION_COLOR_SOFT,
+  loadBajujuLocation,
+  loadPublicBajujuLocations,
+  locationAddressLine,
+} from '../../src/lib/bajujuLocations';
 import { supabase } from '../../src/lib/supabase';
 import { BAJUJU_COLORS, BAJUJU_FONTS, BAJUJU_SHADOW } from '../../src/theme/bajujuTheme';
 import { trackBajujuEvent } from '../../src/utils/bajujuAnalytics';
@@ -79,8 +87,76 @@ function buildTime(hour: string, minute: string) {
   return `${hour}:${minute}`;
 }
 
+function resolvedAddressFromLocation(location: BajujuLocation): ResolvedAddress {
+  return {
+    placeId: '',
+    formattedAddress: location.formattedAddress,
+    shortFormattedAddress: location.formattedAddress,
+    street: location.street,
+    streetNumber: location.streetNumber,
+    city: location.city,
+    province: location.province || location.city,
+    provinceCode: '',
+    latitude: location.latitude,
+    longitude: location.longitude,
+  };
+}
+
 export default function CreateExperienceScreen() {
   const { pickPhoto, photoPickerModal } = useBajujuPhotoPicker();
+  const params = useLocalSearchParams<{ locationId?: string }>();
+  const initialLocationId = String(params.locationId || '').trim();
+  const [selectedLocation, setSelectedLocation] = useState<BajujuLocation | null>(null);
+  const [locationOptions, setLocationOptions] = useState<BajujuLocation[]>([]);
+  const [locationSearch, setLocationSearch] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    void loadPublicBajujuLocations().then((rows) => {
+      if (active) setLocationOptions(rows);
+    });
+    return () => { active = false; };
+  }, []);
+
+  // Da "Organizza un evento qui": il locale arriva già scelto.
+  useEffect(() => {
+    if (!initialLocationId) return;
+    let active = true;
+    void loadBajujuLocation(initialLocationId)
+      .then((location) => {
+        if (active && location) chooseLocation(location);
+      })
+      .catch(() => undefined);
+    return () => { active = false; };
+  }, [initialLocationId]);
+
+  function chooseLocation(location: BajujuLocation) {
+    const address = resolvedAddressFromLocation(location);
+    setSelectedLocation(location);
+    setResolvedAddress(address);
+    setMeetingPlace(`${location.name} · ${locationAddressLine(location)}`);
+    setProvince(address.province);
+    setCity(address.city);
+    setLocationSearch('');
+  }
+
+  function clearLocation() {
+    setSelectedLocation(null);
+    setResolvedAddress(null);
+    setMeetingPlace('');
+    setProvince('');
+    setCity('');
+  }
+
+  const locationMatches = locationSearch.trim().length >= 2
+    ? locationOptions
+        .filter((location) =>
+          `${location.name} ${location.city} ${location.category}`
+            .toLowerCase()
+            .includes(locationSearch.trim().toLowerCase())
+        )
+        .slice(0, 5)
+    : [];
   const [title, setTitle] = useState('');
   const [province, setProvince] = useState('');
   const [city, setCity] = useState('');
@@ -318,6 +394,7 @@ export default function CreateExperienceScreen() {
         expires_at: null,
         latitude: resolvedAddress.latitude,
         longitude: resolvedAddress.longitude,
+        ...(selectedLocation ? { location_owner_id: selectedLocation.ownerId } : {}),
       };
 
       const result = await supabase.from('activities').insert(payload).select('*').single();
@@ -398,6 +475,7 @@ export default function CreateExperienceScreen() {
       setBudgetAmount('');
       setPhotoUri(null);
       setSelectedGroupIds([]);
+      setSelectedLocation(null);
 
       const warnings = [
         photoUploadWarning ? `Foto: ${photoUploadWarning}` : '',
@@ -521,19 +599,65 @@ export default function CreateExperienceScreen() {
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Dove e quando</Text>
 
-          <Text style={styles.label}>Indirizzo</Text>
-          <AddressAutocompleteField
-            value={meetingPlace}
-            resolvedAddress={resolvedAddress}
-            onValueChange={setMeetingPlace}
-            onResolvedAddressChange={(address) => {
-              setResolvedAddress(address);
-              setProvince(address?.province ?? '');
-              setCity(address?.city ?? '');
-            }}
-            disabled={saving}
-          />
-          <Text style={styles.helper}>Scrivi l’indirizzo e scegli quello giusto dai suggerimenti.</Text>
+          {selectedLocation ? (
+            <>
+              <Text style={styles.label}>Locale</Text>
+              <View style={styles.locationChosen}>
+                {selectedLocation.photos[0] ? (
+                  <Image source={{ uri: selectedLocation.photos[0] }} style={styles.locationChosenPhoto} />
+                ) : null}
+                <View style={styles.locationChosenCopy}>
+                  <Text style={styles.locationChosenName} numberOfLines={1}>{selectedLocation.name}</Text>
+                  <Text style={styles.locationChosenMeta} numberOfLines={2}>{locationAddressLine(selectedLocation)}</Text>
+                </View>
+                <Pressable onPress={clearLocation} style={styles.locationChosenRemove} accessibilityLabel="Togli il locale">
+                  <Ionicons name="close" size={18} color={LOCATION_COLOR} />
+                </Pressable>
+              </View>
+              <Text style={styles.helper}>L’evento compare sulla pagina del locale e sulla mappa nel suo segnaposto.</Text>
+            </>
+          ) : (
+            <>
+              {locationOptions.length > 0 ? (
+                <>
+                  <Text style={styles.label}>Si svolge in un locale Bajuju? (facoltativo)</Text>
+                  <TextInput
+                    value={locationSearch}
+                    onChangeText={setLocationSearch}
+                    placeholder="Cerca il locale per nome"
+                    placeholderTextColor={BAJUJU_COLORS.muted}
+                    style={styles.input}
+                  />
+                  {locationMatches.map((location) => (
+                    <Pressable key={location.ownerId} style={styles.locationOption} onPress={() => chooseLocation(location)}>
+                      <Ionicons name="home-outline" size={18} color={LOCATION_COLOR} />
+                      <View style={styles.locationChosenCopy}>
+                        <Text style={styles.locationChosenName} numberOfLines={1}>{location.name}</Text>
+                        <Text style={styles.locationChosenMeta} numberOfLines={1}>{location.category} · {location.city}</Text>
+                      </View>
+                    </Pressable>
+                  ))}
+                  {locationSearch.trim().length >= 2 && locationMatches.length === 0 ? (
+                    <Text style={styles.helper}>Nessun locale trovato: scrivi qui sotto l’indirizzo.</Text>
+                  ) : null}
+                </>
+              ) : null}
+
+              <Text style={styles.label}>Indirizzo</Text>
+              <AddressAutocompleteField
+                value={meetingPlace}
+                resolvedAddress={resolvedAddress}
+                onValueChange={setMeetingPlace}
+                onResolvedAddressChange={(address) => {
+                  setResolvedAddress(address);
+                  setProvince(address?.province ?? '');
+                  setCity(address?.city ?? '');
+                }}
+                disabled={saving}
+              />
+              <Text style={styles.helper}>Scrivi l’indirizzo e scegli quello giusto dai suggerimenti.</Text>
+            </>
+          )}
 
           <View style={styles.dateTimeRow}>
             <View style={styles.dateTimeColumn}>
@@ -975,6 +1099,34 @@ const styles = StyleSheet.create({
   groupChoiceCopy: { flex: 1, minWidth: 0, marginLeft: 11 },
   groupChoiceName: { color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.bold, fontSize: 15 },
   groupChoiceMeta: { marginTop: 3, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.medium, fontSize: 11 },
+  locationChosen: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 10,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#D9C2F2',
+    backgroundColor: LOCATION_COLOR_SOFT,
+  },
+  locationChosenPhoto: { width: 48, height: 48, borderRadius: 12 },
+  locationChosenCopy: { flex: 1, minWidth: 0 },
+  locationChosenName: { color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.bold, fontSize: 15 },
+  locationChosenMeta: { marginTop: 2, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.medium, fontSize: 12 },
+  locationChosenRemove: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' },
+  locationOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    minHeight: 52,
+    marginTop: -4,
+    marginBottom: 10,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: '#D9C2F2',
+    backgroundColor: '#fff',
+  },
   mainButton: { minHeight: 54, borderRadius: 27, alignItems: 'center', justifyContent: 'center', backgroundColor: BAJUJU_COLORS.pink },
   mainButtonText: { color: '#fff', fontFamily: BAJUJU_FONTS.bold, fontSize: 17 },
   disabled: { opacity: 0.45 },

@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 
 import { supabase } from '../../src/lib/supabase';
+import { loadBajujuLocation } from '../../src/lib/bajujuLocations';
 import { getProfileCompletion, profileGenderLabel } from '../../src/utils/profileCompletion';
 import {
   ORGANIZER_GRADE_OPTIONS,
@@ -191,6 +192,7 @@ export default function AdminUserDetailScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [profile, setProfile] = useState<LooseRow | null>(null);
   const [gradeOverride, setGradeOverride] = useState<OrganizerGradeLabel | ''>('');
+  const [locationPageName, setLocationPageName] = useState('');
   const [organizedCount, setOrganizedCount] = useState(0);
   const [locationText, setLocationText] = useState('');
   const [savingRole, setSavingRole] = useState(false);
@@ -237,6 +239,8 @@ export default function AdminUserDetailScreen() {
 
       setProfile(loadedProfileWithEmail);
       setGradeOverride(isOrganizerGradeLabel(rawOverride) ? rawOverride : '');
+      const locationPage = await loadBajujuLocation(profileId).catch(() => null);
+      setLocationPageName(locationPage?.name || '');
       setLocationText(
         firstText(
           loadedProfile,
@@ -952,6 +956,25 @@ export default function AdminUserDetailScreen() {
                   </View>
                 )}
               </View>
+
+              {booleanFromRow(
+                profile,
+                ['is_location_organizer', 'is_location', 'location', 'location_user'],
+                false
+              ) ? (
+                <Pressable
+                  onPress={() => {
+                    if (locationPageName) router.push({ pathname: '/user-profile' as any, params: { userId: currentProfileId } });
+                  }}
+                  disabled={!locationPageName}
+                >
+                  <Text style={locationPageName ? styles.automaticText : styles.manualPromotionText}>
+                    {locationPageName
+                      ? `Pagina locale pubblicata: ${locationPageName} (tocca per vederla)`
+                      : 'Pagina locale da completare: finché non la compila non compare sulla mappa.'}
+                  </Text>
+                </Pressable>
+              ) : null}
 
               <View style={styles.gradeSection}>
                 <Text style={styles.roleLabel}>Grado organizzatore</Text>

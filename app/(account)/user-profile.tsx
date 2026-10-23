@@ -17,6 +17,8 @@ import {
   organizerGradeHint,
 } from '../../src/utils/organizerGrade';
 import { BajujuProfileButton } from '../../src/components/navigation/BajujuProfileButton';
+import { LocationProfileView } from '../../src/components/location/LocationProfileView';
+import { BajujuLocation, loadBajujuLocation } from '../../src/lib/bajujuLocations';
 
 const bajujuLogo = require('../../assets/brand/bajuju-logo.png');
 
@@ -128,6 +130,7 @@ export default function UserProfileScreen() {
   const [isBlockedByMe, setIsBlockedByMe] = useState(false);
   const [organizedCount, setOrganizedCount] = useState(0);
   const [participatedCount, setParticipatedCount] = useState(0);
+  const [location, setLocation] = useState<BajujuLocation | null>(null);
   const [errorText, setErrorText] = useState('');
 
   const loadProfile = useCallback(async () => {
@@ -192,6 +195,13 @@ export default function UserProfileScreen() {
 
       const loadedProfile = byId.data as LooseRow;
       setProfile(loadedProfile);
+
+      // Un profilo attivato come Location con la pagina compilata si mostra come locale.
+      setLocation(
+        loadedProfile.is_location_organizer === true
+          ? await loadBajujuLocation(userId).catch(() => null)
+          : null
+      );
 
       const profileId = String(loadedProfile.id || userId).trim();
       const organizedIds = await fetchOrganizedExperienceIds(profileId);
@@ -411,6 +421,86 @@ export default function UserProfileScreen() {
           ? styles.gradeBadgeGreen
           : styles.gradeBadgeBase;
 
+  const profileActions = currentUserId && currentUserId !== userId ? (
+    <>
+      {viewerIsOfficialAdmin ? (
+        <Pressable
+          style={styles.adminMessageButton}
+          onPress={() => router.push({
+            pathname: '/admin-private-chat' as any,
+            params: { userId },
+          })}
+          accessibilityRole="button"
+          accessibilityLabel="Scrivi un messaggio privato come Bajuju Admin"
+        >
+          <Text style={styles.adminMessageButtonText}>💬 Scrivi come Bajuju Admin</Text>
+        </Pressable>
+      ) : null}
+  
+      {canUsePostExperienceActions && activityId ? (
+        <View style={{ width: '100%', gap: 8, marginTop: 12 }}>
+          <Pressable
+            style={{
+              width: '100%',
+              borderRadius: 999,
+              paddingVertical: 12,
+              paddingHorizontal: 16,
+              alignItems: 'center',
+              backgroundColor: BAJUJU_PINK,
+            }}
+            onPress={() => router.push({
+              pathname: '/invite-out' as any,
+              params: { targetUserId: userId, activityId },
+            })}
+          >
+            <Text style={{ color: '#ffffff', fontWeight: '900' }}>Invita a uscire</Text>
+          </Pressable>
+  
+          <Pressable
+            style={{
+              width: '100%',
+              borderRadius: 999,
+              paddingVertical: 12,
+              paddingHorizontal: 16,
+              alignItems: 'center',
+              backgroundColor: '#fff0f7',
+              borderWidth: 1,
+              borderColor: '#ffd1e6',
+            }}
+            onPress={() => router.push({
+              pathname: '/share-contact' as any,
+              params: { targetUserId: userId, activityId },
+            })}
+          >
+            <Text style={{ color: BAJUJU_PINK, fontWeight: '900' }}>Invia WhatsApp o Telegram</Text>
+          </Pressable>
+        </View>
+      ) : null}
+  
+      <Pressable
+        style={styles.reportUserButton}
+        onPress={reportUser}
+        disabled={reportingUser}
+      >
+        <Text style={styles.reportUserText}>
+          {reportingUser ? 'Invio segnalazione...' : 'Segnala utente'}
+        </Text>
+      </Pressable>
+  
+      {!isAdminOrCreator ? (
+        <Pressable
+          style={styles.blockUserButton}
+          onPress={blockUser}
+          disabled={blockingUser}
+        >
+          <Text style={styles.blockUserText}>
+            {blockingUser ? 'Aggiorno...' : isBlockedByMe ? 'Sblocca utente' : 'Blocca utente'}
+          </Text>
+        </Pressable>
+      ) : null}
+    </>
+  ) : null;
+
   return (
     <ScrollView style={styles.page} contentContainerStyle={styles.content}>
       <View style={styles.topRow}>
@@ -430,6 +520,12 @@ export default function UserProfileScreen() {
           <Text style={styles.errorTitle}>Profilo</Text>
           <Text style={styles.errorText}>{errorText}</Text>
         </View>
+      ) : location ? (
+        <LocationProfileView
+          location={location}
+          isOwner={currentUserId === userId}
+          footer={<View style={styles.locationActions}>{profileActions}</View>}
+        />
       ) : (
         <>
           <View style={styles.card}>
@@ -459,85 +555,7 @@ export default function UserProfileScreen() {
               <Text style={styles.premiumHint}>Premium verificato direttamente da Bajuju.</Text>
             ) : null}
 
-            {currentUserId && currentUserId !== userId ? (
-              <>
-                {viewerIsOfficialAdmin ? (
-                  <Pressable
-                    style={styles.adminMessageButton}
-                    onPress={() => router.push({
-                      pathname: '/admin-private-chat' as any,
-                      params: { userId },
-                    })}
-                    accessibilityRole="button"
-                    accessibilityLabel="Scrivi un messaggio privato come Bajuju Admin"
-                  >
-                    <Text style={styles.adminMessageButtonText}>💬 Scrivi come Bajuju Admin</Text>
-                  </Pressable>
-                ) : null}
-
-                {canUsePostExperienceActions && activityId ? (
-                  <View style={{ width: '100%', gap: 8, marginTop: 12 }}>
-                    <Pressable
-                      style={{
-                        width: '100%',
-                        borderRadius: 999,
-                        paddingVertical: 12,
-                        paddingHorizontal: 16,
-                        alignItems: 'center',
-                        backgroundColor: BAJUJU_PINK,
-                      }}
-                      onPress={() => router.push({
-                        pathname: '/invite-out' as any,
-                        params: { targetUserId: userId, activityId },
-                      })}
-                    >
-                      <Text style={{ color: '#ffffff', fontWeight: '900' }}>Invita a uscire</Text>
-                    </Pressable>
-
-                    <Pressable
-                      style={{
-                        width: '100%',
-                        borderRadius: 999,
-                        paddingVertical: 12,
-                        paddingHorizontal: 16,
-                        alignItems: 'center',
-                        backgroundColor: '#fff0f7',
-                        borderWidth: 1,
-                        borderColor: '#ffd1e6',
-                      }}
-                      onPress={() => router.push({
-                        pathname: '/share-contact' as any,
-                        params: { targetUserId: userId, activityId },
-                      })}
-                    >
-                      <Text style={{ color: BAJUJU_PINK, fontWeight: '900' }}>Invia WhatsApp o Telegram</Text>
-                    </Pressable>
-                  </View>
-                ) : null}
-
-                <Pressable
-                  style={styles.reportUserButton}
-                  onPress={reportUser}
-                  disabled={reportingUser}
-                >
-                  <Text style={styles.reportUserText}>
-                    {reportingUser ? 'Invio segnalazione...' : 'Segnala utente'}
-                  </Text>
-                </Pressable>
-
-                {!isAdminOrCreator ? (
-                  <Pressable
-                    style={styles.blockUserButton}
-                    onPress={blockUser}
-                    disabled={blockingUser}
-                  >
-                    <Text style={styles.blockUserText}>
-                      {blockingUser ? 'Aggiorno...' : isBlockedByMe ? 'Sblocca utente' : 'Blocca utente'}
-                    </Text>
-                  </Pressable>
-                ) : null}
-              </>
-            ) : null}
+            {profileActions}
           </View>
 
           <View style={styles.statsGrid}>
@@ -692,6 +710,7 @@ const styles = StyleSheet.create({
     color: '#6e31a8',
     textAlign: 'center',
   },
+  locationActions: { alignItems: 'center' },
   reportUserButton: {
     marginTop: 16,
     borderRadius: 999,

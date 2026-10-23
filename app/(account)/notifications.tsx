@@ -15,7 +15,8 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { supabase } from '../../src/lib/supabase';
 import { getBajujuNotificationCategory, BAJUJU_NOTIFICATION_CATEGORY_LABELS, BajujuNotificationCategory } from '../../src/utils/bajujuNotificationCategories';
 import { BajujuProfileButton } from '../../src/components/navigation/BajujuProfileButton';
-import { BajujuBackButton } from '../../src/components/navigation/BajujuBackButton';
+import { BajujuBackButton, BajujuRoundIconButton } from '../../src/components/navigation/BajujuBackButton';
+import { BajujuBottomNav } from '../../src/components/navigation/BajujuBottomNav';
 
 type NotificationData = Record<string, unknown>;
 
@@ -250,12 +251,20 @@ export default function NotificationsScreen() {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
         <BajujuBackButton onPress={() => router.back()} accessibilityLabel="Torna indietro" />
-        <View style={styles.headerTextBlock}>
-          <Text style={styles.headerTitle}>Notifiche</Text>
-          <Text style={styles.headerSubtitle}>Richieste, conversazioni e altre novità</Text>
-        </View>
-        <BajujuProfileButton size={44} />
+        <Text style={styles.headerTitle} numberOfLines={1}>Notifiche</Text>
+        {visibleNotifications.length > 0 ? (
+          <BajujuRoundIconButton
+            icon="ellipsis-horizontal"
+            accessibilityLabel="Altre azioni"
+            onPress={() => Alert.alert('Notifiche', undefined, [
+              { text: 'Elimina tutte', style: 'destructive', onPress: deleteAllNotifications },
+              { text: 'Annulla', style: 'cancel' },
+            ])}
+          />
+        ) : null}
+        <BajujuProfileButton size={38} />
       </View>
+      <Text style={styles.headerSubtitle}>Richieste, conversazioni e altre novità</Text>
 
       {loading ? (
         <View style={styles.centerBox}>
@@ -299,10 +308,6 @@ export default function NotificationsScreen() {
             </View>
           ) : (
             <>
-              <Pressable style={styles.deleteAllButton} onPress={deleteAllNotifications} accessibilityRole="button" accessibilityLabel="Elimina tutte le notifiche">
-                <Text style={styles.deleteAllButtonText}>Elimina tutte</Text>
-              </Pressable>
-
               {visibleNotifications.map((notification) => (
                 <Pressable
                   key={notification.id}
@@ -338,6 +343,7 @@ export default function NotificationsScreen() {
           )}
         </ScrollView>
       )}
+      <BajujuBottomNav active="profile" />
     </SafeAreaView>
   );
 }
@@ -358,13 +364,13 @@ const styles = StyleSheet.create({
   activeTabButton: { backgroundColor: PINK, borderColor: PINK },
   tabText: { color: PINK_DARK, fontFamily: 'FredokaBold', fontSize: 12 },
   activeTabText: { color: WHITE },
-  header: { minHeight: 74, paddingHorizontal: 15, paddingTop: 10, paddingBottom: 10, flexDirection: 'row', alignItems: 'center', backgroundColor: BG },
+  header: { minHeight: 64, paddingHorizontal: 15, paddingTop: 10, paddingBottom: 4, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: BG },
   backButton: { width: 44, height: 44, borderRadius: 999, alignItems: 'center', justifyContent: 'center', backgroundColor: WHITE, borderWidth: 1, borderColor: BORDER },
   backButtonText: { marginTop: -4, fontSize: 38, lineHeight: 40, fontFamily: 'FredokaMedium', color: PINK_DARK },
   headerTextBlock: { flex: 1, alignItems: 'center' },
-  headerTitle: { fontSize: 24, lineHeight: 28, fontFamily: 'FredokaBold', color: PINK },
-  headerSubtitle: { marginTop: 2, fontSize: 12, fontFamily: 'FredokaBold', color: MUTED },
-  container: { flexGrow: 1, padding: 15, paddingTop: 6, paddingBottom: 34 },
+  headerTitle: { flex: 1, marginLeft: 4, fontSize: 24, lineHeight: 28, fontFamily: 'FredokaBold', color: TEXT },
+  headerSubtitle: { paddingHorizontal: 15, marginBottom: 8, fontSize: 13, fontFamily: 'FredokaRegular', color: MUTED },
+  container: { flexGrow: 1, padding: 15, paddingTop: 6, paddingBottom: 130 },
   centerBox: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 30 },
   loadingText: { marginTop: 12, fontSize: 14, fontFamily: 'FredokaBold', color: TEXT },
   messageCard: { borderRadius: 28, padding: 22, backgroundColor: WHITE, borderWidth: 1, borderColor: BORDER, alignItems: 'center' },

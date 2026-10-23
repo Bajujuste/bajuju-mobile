@@ -18,6 +18,7 @@ import {
     View,
 } from 'react-native';
 import { ProfileAdminChatRow } from '../../src/components/admin/AdminPrivateChatEntry';
+import { loadBajujuLocation, LOCATION_COLOR } from '../../src/lib/bajujuLocations';
 import { supabase } from '../../src/lib/supabase';
 import { BAJUJU_COLORS, BAJUJU_FONTS } from '../../src/theme/bajujuTheme';
 import { refreshBajujuNotificationLocation } from '../../src/utils/bajujuNotificationLocation';
@@ -421,6 +422,8 @@ export default function ProfileScreen() {
   const [saving, setSaving] = useState(false);
   const [user, setUser] = useState<LooseRow | null>(null);
   const [profile, setProfile] = useState<LooseRow | null>(null);
+  // null = non è una Location; '' = Location senza pagina del locale; altrimenti il nome del locale.
+  const [myLocationName, setMyLocationName] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
 
   const cleanUserEmail = (user?.email || '').trim().toLowerCase();
@@ -739,6 +742,12 @@ export default function ProfileScreen() {
       const currentProfile = await tryReadOneProfile(String(currentUser.id));
       setProfile(currentProfile);
       setPhotoLoadError(false);
+      if (currentProfile?.is_location_organizer === true) {
+        const myLocation = await loadBajujuLocation(String(currentUser.id)).catch(() => null);
+        setMyLocationName(myLocation?.name || '');
+      } else {
+        setMyLocationName(null);
+      }
 
       setProfileName(firstText(currentProfile, ['nickname', 'username', 'display_name', 'full_name', 'name', 'nome'], ''));
       const loadedProvince = firstText(currentProfile, ['province', 'provincia', 'location_province', 'preferred_province'], '');
@@ -1408,6 +1417,23 @@ export default function ProfileScreen() {
         ) : null}
       </View>
 
+      {myLocationName !== null ? (
+        <Pressable
+          style={({ pressed }) => [styles.locationRow, pressed && styles.rowPressed]}
+          onPress={() => router.push('/my-location' as any)}
+          accessibilityRole="button"
+        >
+          <Ionicons name="home-outline" size={22} color="#ffffff" />
+          <View style={styles.locationRowCopy}>
+            <Text style={styles.adminRowText}>Il mio locale</Text>
+            <Text style={styles.locationRowHint} numberOfLines={1}>
+              {myLocationName ? myLocationName : 'Da completare: compila nome, indirizzo e foto'}
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="#ffffff" />
+        </Pressable>
+      ) : null}
+
       {isAdminOrCreator ? (
         <Pressable
           style={({ pressed }) => [styles.adminRow, pressed && styles.rowPressed]}
@@ -1742,6 +1768,23 @@ const styles = StyleSheet.create({
   },
   rowPressed: {
     opacity: 0.72,
+  },
+  locationRow: {
+    minHeight: 62,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 18,
+    backgroundColor: LOCATION_COLOR,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  locationRowCopy: { flex: 1, minWidth: 0 },
+  locationRowHint: {
+    marginTop: 2,
+    color: '#F3EAFC',
+    fontFamily: BAJUJU_FONTS.medium,
+    fontSize: 13,
   },
   cardTitle: {
     marginBottom: 10,

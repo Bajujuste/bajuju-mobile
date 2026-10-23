@@ -37,6 +37,7 @@ import {
   uploadBajujuGroupCover,
 } from '../../src/lib/bajujuGroups';
 import { supabase } from '../../src/lib/supabase';
+import { withLocationIdentity } from '../../src/lib/bajujuLocations';
 import { BAJUJU_COLORS, BAJUJU_FONTS } from '../../src/theme/bajujuTheme';
 import { shareBajujuGroup } from '../../src/utils/shareBajuju';
 import { KeyboardAwareScrollView } from '../../src/components/KeyboardAwareScrollView';
@@ -152,7 +153,11 @@ export default function GroupDetailScreen() {
         canManageJoinRequests ? loadBajujuGroupJoinRequests(groupId) : Promise.resolve([] as GroupJoinRequest[]),
       ]);
       setJoinState(currentJoinState);
-      setJoinRequests(pendingJoinRequests);
+      setJoinRequests(await withLocationIdentity(pendingJoinRequests, {
+        idKey: 'user_id',
+        nameKeys: ['nickname'],
+        avatarKey: 'avatar_url',
+      }));
 
       const [ownerResult, membersResult, linksResult, memberCountResult] = await Promise.all([
         ownerId
@@ -192,7 +197,11 @@ export default function GroupDetailScreen() {
         avatar_url: avatarByUserId.get(String(member.user_id || '')) || null,
       }));
 
-      setMembers(membersWithPhotos);
+      setMembers(await withLocationIdentity(membersWithPhotos, {
+        idKey: 'user_id',
+        nameKeys: ['nickname'],
+        avatarKey: 'avatar_url',
+      }));
       // Se la funzione di conteggio non è ancora disponibile si usa la lunghezza dell'elenco.
       setMemberCount(
         !memberCountResult.error && memberCountResult.data !== null && memberCountResult.data !== undefined

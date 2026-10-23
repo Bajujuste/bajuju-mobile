@@ -12,7 +12,8 @@ import {
   View,
 } from 'react-native';
 
-import BajujuMap, { BajujuMapItem } from '../../src/components/BajujuMap';
+import BajujuMap, { BajujuMapItem, BajujuMapLocation } from '../../src/components/BajujuMap';
+import { BajujuLocation, loadPublicBajujuLocations, locationAddressLine } from '../../src/lib/bajujuLocations';
 import { BajujuBottomNav } from '@/components/navigation/BajujuBottomNav';
 import { BajujuProfileButton } from '@/components/navigation/BajujuProfileButton';
 import { normalizeExperienceCategory } from '@/constants/experienceCategories';
@@ -306,6 +307,7 @@ function openDetail(row: ActivityRow) {
 
 export default function ExperiencesMapScreen() { 
   const [rows, setRows] = useState<ActivityRow[]>([]);
+  const [locations, setLocations] = useState<BajujuLocation[]>([]);
   const [viewerCoordinates, setViewerCoordinates] = useState<Coordinates | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -328,6 +330,9 @@ export default function ExperiencesMapScreen() {
         const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Highest });
         setViewerCoordinates({ latitude: position.coords.latitude, longitude: position.coords.longitude });
         })().catch(() => setViewerCoordinates(null));
+
+      // I locali non bloccano la mappa: se non arrivano si vedono solo gli eventi.
+      void loadPublicBajujuLocations().then(setLocations).catch(() => setLocations([]));
 
       const auth = await supabase.auth.getUser();
       if (auth.data.user?.id) {
@@ -435,11 +440,29 @@ export default function ExperiencesMapScreen() {
     return viewerAge >= min && viewerAge <= max;
   }), [rows, selectedWhen, onlyForMe, viewerAge]);
 
+  const locationIds = useMemo(() => new Set(locations.map((location) => location.ownerId)), [locations]);
+
+  // Gli eventi in un locale stanno nel segnaposto del locale, non in uno proprio.
+  const mapLocations: BajujuMapLocation[] = useMemo(() => locations.map((location) => ({
+    id: location.ownerId,
+    latitude: location.latitude,
+    longitude: location.longitude,
+    name: location.name,
+    category: location.category,
+    addressText: locationAddressLine(location),
+    photoUrl: location.photos[0],
+    events: filteredRows
+      .filter((row) => String(row.location_owner_id || '') === location.ownerId)
+      .map((row) => ({ id: activityId(row), title: activityTitle(row), dateText: formatDate(row) }))
+      .filter((event) => event.id),
+  })), [filteredRows, locations]);
+
   const mapItems: BajujuMapItem[] = filteredRows.flatMap((row) => {
     const id = activityId(row);
     const coordinates = getCoordinates(row);
 
     if (!id || !coordinates) return [];
+    if (row.location_owner_id && locationIds.has(String(row.location_owner_id))) return [];
 
     return [{
       id,
@@ -481,7 +504,7 @@ export default function ExperiencesMapScreen() {
           <Text style={screenStyles.backText}>‹</Text>
         </Pressable>
         <Text style={screenStyles.heading}>Mappa esperienze</Text>
-        <Text style={screenStyles.count}>{mapItems.length}</Text>
+        <Text style={screenStyles.count}>{mapItems.length + mapLocations.reduce((total, location) => total + location.events.length, 0)}</Text>
         <BajujuProfileButton size={38} />
       </View>
 
@@ -495,6 +518,10 @@ export default function ExperiencesMapScreen() {
             emptyText="Nessuna esperienza per questi filtri."
             previewActionText="Apri esperienza →"
             onOpenItem={openMapItem}
+            locations={mapLocations}
+            onOpenLocation={(location) => router.push({ pathname: '/user-profile' as any, params: { userId: location.id } })}
+            onOpenLocationEvent={(eventId) => router.push(`/experience-detail?id=${encodeURIComponent(eventId)}`)}
+            onCreateEventAtLocation={(location) => router.push({ pathname: '/create-experience' as any, params: { locationId: location.id } })}
             fallbackRegion={viewerRegion}
             preferFallbackRegion={viewerRegion !== undefined}
             viewportKey={`${selectedWhen || 'Tutti'}|${onlyForMe}`}

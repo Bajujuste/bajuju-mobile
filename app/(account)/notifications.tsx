@@ -53,6 +53,8 @@ function notificationIcon(type: string) {
     case 'experience_cancelled': return '❌';
     case 'experience_reminder': return '⏰';
     case 'waitlist_spot_available': return '🎟️';
+    case 'location_activated': return '🏠';
+    case 'location_new_event': return '🏠';
     default: return '🔔';
   }
 }
@@ -166,6 +168,9 @@ export default function NotificationsScreen() {
         return;
       case 'direct-contacts':
         router.push('/direct-contacts' as any);
+        return;
+      case 'my-location':
+        router.push('/my-location' as any);
         return;
       case 'profile':
         if (section) router.push({ pathname: '/profile' as any, params: { section } });

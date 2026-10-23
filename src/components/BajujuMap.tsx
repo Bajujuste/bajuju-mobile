@@ -20,6 +20,28 @@ import { BAJUJU_COLORS, BAJUJU_FONTS } from '../theme/bajujuTheme';
 // converte il contenuto di Marker in bitmap.
 const pinkPinImage = require('../../assets/markers/pink-pin.png');
 
+// Segnaposto viola dei locali: senza numero o con il numero di eventi in programma.
+const LOCATION_PIN_IMAGES = [
+  require('../../assets/markers/location-pin.png'),
+  require('../../assets/markers/location-pin-1.png'),
+  require('../../assets/markers/location-pin-2.png'),
+  require('../../assets/markers/location-pin-3.png'),
+  require('../../assets/markers/location-pin-4.png'),
+  require('../../assets/markers/location-pin-5.png'),
+  require('../../assets/markers/location-pin-6.png'),
+  require('../../assets/markers/location-pin-7.png'),
+  require('../../assets/markers/location-pin-8.png'),
+  require('../../assets/markers/location-pin-9.png'),
+  require('../../assets/markers/location-pin-9plus.png'),
+];
+
+const LOCATION_PURPLE = '#7B2FBE';
+const LOCATION_PURPLE_SOFT = '#F3EAFC';
+
+function locationPinImage(eventCount: number) {
+  return LOCATION_PIN_IMAGES[Math.max(0, Math.min(eventCount, 10))];
+}
+
 export type BajujuMapItem = {
   id: string;
   latitude: number;
@@ -31,6 +53,17 @@ export type BajujuMapItem = {
   dateText?: string;
   photoUrl?: string;
   ageText?: string;
+};
+
+export type BajujuMapLocation = {
+  id: string;
+  latitude: number;
+  longitude: number;
+  name: string;
+  category: string;
+  addressText: string;
+  photoUrl?: string;
+  events: { id: string; title: string; dateText: string }[];
 };
 
 type BajujuMapProps = {
@@ -49,6 +82,10 @@ type BajujuMapProps = {
   fullScreen?: boolean;
   topOverlay?: React.ReactNode;
   userCoordinates?: { latitude: number; longitude: number } | null;
+  locations?: BajujuMapLocation[];
+  onOpenLocation?: (location: BajujuMapLocation) => void;
+  onOpenLocationEvent?: (eventId: string) => void;
+  onCreateEventAtLocation?: (location: BajujuMapLocation) => void;
 };
 
 const DEFAULT_REGION: Region = {
@@ -170,10 +207,15 @@ export default function BajujuMap({
   fullScreen = false,
   topOverlay,
   userCoordinates,
+  locations = [],
+  onOpenLocation,
+  onOpenLocationEvent,
+  onCreateEventAtLocation,
 }: BajujuMapProps) {
   const mapRef = useRef<MapView | null>(null);
   const [mapReady, setMapReady] = useState(false);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
   const [previewHeight, setPreviewHeight] = useState(230);
   // Su Android i marker personalizzati vanno ridisegnati solo quando cambiano: con
   // tracksViewChanges sempre attivo la mappa li ridisegna di continuo (fino a 500 marker).
@@ -188,6 +230,9 @@ export default function BajujuMap({
 
   const selectedItem =
     items.find((item) => item.id === selectedItemId) ?? null;
+  const selectedLocation =
+    locations.find((location) => location.id === selectedLocationId) ?? null;
+  const selectedPoint = selectedItem ?? selectedLocation;
 
   const displayMarkers = useMemo(
     () => buildDisplayMarkers(items),
@@ -207,6 +252,12 @@ export default function BajujuMap({
       setSelectedItemId(null);
     }
   }, [items, selectedItemId]);
+
+  useEffect(() => {
+    if (selectedLocationId && !locations.some((location) => location.id === selectedLocationId)) {
+      setSelectedLocationId(null);
+    }
+  }, [locations, selectedLocationId]);
 
   useEffect(() => {
     if (!mapReady || !mapRef.current) return;
@@ -297,7 +348,7 @@ export default function BajujuMap({
     mapRef.current?.animateToRegion({ ...userCoordinates, latitudeDelta: 0.18, longitudeDelta: 0.18 }, 350);
   };
 
-  const openGoogleMaps = (item: BajujuMapItem, directions: boolean) => {
+  const openGoogleMaps = (item: { latitude: number; longitude: number }, directions: boolean) => {
     const destination = `${item.latitude},${item.longitude}`;
     const url = directions
       ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}`
@@ -349,8 +400,29 @@ export default function BajujuMap({
           onTouchEnd={() => onInteractionChange?.(false)}
           onTouchCancel={() => onInteractionChange?.(false)}
           onRegionChangeComplete={() => onInteractionChange?.(false)}
-          onPress={() => setSelectedItemId(null)}
+          onPress={() => {
+            setSelectedItemId(null);
+            setSelectedLocationId(null);
+          }}
         >
+          {locations.map((location) => {
+            const selected = selectedLocationId === location.id;
+            return (
+              <Marker
+                key={`location-${location.id}`}
+                coordinate={{ latitude: location.latitude, longitude: location.longitude }}
+                anchor={{ x: 0.5, y: 1 }}
+                image={locationPinImage(location.events.length)}
+                tracksViewChanges={false}
+                zIndex={selected ? 30 : 10}
+                onPress={(event) => {
+                  event.stopPropagation();
+                  setSelectedItemId(null);
+                  setSelectedLocationId(location.id);
+                }}
+              />
+            );
+          })}
           {items.map((item) => {
             const selected = selectedItemId === item.id;
 
@@ -376,6 +448,7 @@ export default function BajujuMap({
                 zIndex={selected ? 20 : 1}
                 onPress={(event) => {
                   event.stopPropagation();
+                  setSelectedLocationId(null);
                   setSelectedItemId(item.id);
                 }}
               >
@@ -413,21 +486,75 @@ export default function BajujuMap({
         </View> : null}
 
         {fullScreen && userCoordinates ? (
-          <Pressable accessibilityRole="button" accessibilityLabel="Torna alla mia posizione" style={[styles.locationButton, selectedItem && { bottom: previewHeight + 84 }]} onPress={centerOnUser}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Torna alla mia posizione" style={[styles.locationButton, selectedPoint && { bottom: previewHeight + 84 }]} onPress={centerOnUser}>
             <Ionicons name="locate-outline" size={25} color={BAJUJU_COLORS.plum} />
           </Pressable>
         ) : null}
 
-        {fullScreen && selectedItem ? (
+        {fullScreen && selectedPoint ? (
           <View style={[styles.externalMapActions, { bottom: previewHeight + 24 }]}>
-            <Pressable accessibilityRole="button" accessibilityLabel="Indicazioni per raggiungere l'evento" style={styles.externalMapButton} onPress={() => openGoogleMaps(selectedItem, true)}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Indicazioni per raggiungere il luogo" style={styles.externalMapButton} onPress={() => openGoogleMaps(selectedPoint, true)}>
               <Ionicons name="navigate-outline" size={21} color={BAJUJU_COLORS.brightPink} />
               <Text style={styles.externalMapLabel}>Indicazioni</Text>
             </Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel="Apri il luogo in Google Maps" style={styles.externalMapButton} onPress={() => openGoogleMaps(selectedItem, false)}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Apri il luogo in Google Maps" style={styles.externalMapButton} onPress={() => openGoogleMaps(selectedPoint, false)}>
               <Ionicons name="map-outline" size={21} color={BAJUJU_COLORS.brightPink} />
               <Text style={styles.externalMapLabel}>Google Maps</Text>
             </Pressable>
+          </View>
+        ) : null}
+
+        {selectedLocation ? (
+          <View
+            style={[styles.preview, styles.locationPreview]}
+            onLayout={(event) => setPreviewHeight(event.nativeEvent.layout.height)}
+          >
+            <Pressable style={styles.previewHeader} onPress={() => onOpenLocation?.(selectedLocation)}>
+              {selectedLocation.photoUrl ? (
+                <Image source={{ uri: selectedLocation.photoUrl }} style={styles.locationPreviewPhoto} resizeMode="cover" />
+              ) : (
+                <View style={[styles.previewIconCircle, styles.locationIconCircle]}>
+                  <Ionicons name="home" size={18} color={LOCATION_PURPLE} />
+                </View>
+              )}
+              <View style={styles.previewText}>
+                <Text style={[styles.previewKicker, styles.locationKicker]}>Location · {selectedLocation.category}</Text>
+                <Text style={styles.previewTitle} numberOfLines={1}>{selectedLocation.name}</Text>
+                <Text style={styles.locationAddress} numberOfLines={1}>{selectedLocation.addressText}</Text>
+              </View>
+            </Pressable>
+
+            {selectedLocation.events.length > 0 ? (
+              <View style={styles.locationEvents}>
+                {selectedLocation.events.slice(0, 3).map((event) => (
+                  <Pressable key={event.id} style={styles.locationEventRow} onPress={() => onOpenLocationEvent?.(event.id)}>
+                    <View style={styles.locationEventCopy}>
+                      <Text style={styles.locationEventTitle} numberOfLines={1}>{event.title}</Text>
+                      <Text style={styles.locationEventMeta} numberOfLines={1}>{event.dateText}</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={16} color={BAJUJU_COLORS.muted} />
+                  </Pressable>
+                ))}
+                {selectedLocation.events.length > 3 ? (
+                  <Text style={styles.locationMoreText}>
+                    e altri {selectedLocation.events.length - 3} sulla pagina del locale
+                  </Text>
+                ) : null}
+              </View>
+            ) : (
+              <Text style={styles.locationEmptyText}>Nessun evento in programma qui.</Text>
+            )}
+
+            <View style={styles.locationActions}>
+              <Pressable style={styles.locationSecondaryButton} onPress={() => onOpenLocation?.(selectedLocation)}>
+                <Text style={styles.locationSecondaryText}>Vedi il locale</Text>
+              </Pressable>
+              {selectedLocation.events.length === 0 ? (
+                <Pressable style={styles.locationPrimaryButton} onPress={() => onCreateEventAtLocation?.(selectedLocation)}>
+                  <Text style={styles.locationPrimaryText}>Organizza un evento qui</Text>
+                </Pressable>
+              ) : null}
+            </View>
           </View>
         ) : null}
 
@@ -476,7 +603,7 @@ export default function BajujuMap({
         ) : null}
       </View>
 
-        {items.length === 0 ? (
+        {items.length === 0 && locations.every((location) => location.events.length === 0) ? (
           <Text style={styles.emptyText}>{emptyText}</Text>
         ) : null}
     </View>
@@ -646,6 +773,23 @@ const styles = StyleSheet.create({
   externalMapButton: { height: 48, paddingHorizontal: 11, borderRadius: 24, flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#F4C4DC', elevation: 5, shadowColor: '#4B1430', shadowOpacity: 0.16, shadowRadius: 7 },
   externalMapLabel: { color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.semiBold, fontSize: 12 },
   previewPhoto: { width: '100%', height: 94, borderRadius: 14, marginBottom: 9 },
+  locationPreview: { borderColor: '#D9C2F2' },
+  locationPreviewPhoto: { width: 52, height: 52, borderRadius: 14 },
+  locationIconCircle: { borderColor: '#D9C2F2', backgroundColor: LOCATION_PURPLE_SOFT },
+  locationKicker: { color: LOCATION_PURPLE },
+  locationAddress: { marginTop: 2, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.medium, fontSize: 12 },
+  locationEvents: { marginTop: 10, borderTopWidth: 1, borderTopColor: '#F1E6FA' },
+  locationEventRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#F1E6FA' },
+  locationEventCopy: { flex: 1, minWidth: 0 },
+  locationEventTitle: { color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.semiBold, fontSize: 14 },
+  locationEventMeta: { marginTop: 1, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.medium, fontSize: 12 },
+  locationMoreText: { marginTop: 6, color: LOCATION_PURPLE, fontFamily: BAJUJU_FONTS.semiBold, fontSize: 12 },
+  locationEmptyText: { marginTop: 10, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.medium, fontSize: 13 },
+  locationActions: { flexDirection: 'row', gap: 8, marginTop: 12 },
+  locationSecondaryButton: { flex: 1, minHeight: 42, borderRadius: 21, borderWidth: 1.5, borderColor: LOCATION_PURPLE, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
+  locationSecondaryText: { color: LOCATION_PURPLE, fontFamily: BAJUJU_FONTS.bold, fontSize: 13 },
+  locationPrimaryButton: { flex: 1.4, minHeight: 42, borderRadius: 21, backgroundColor: LOCATION_PURPLE, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
+  locationPrimaryText: { color: '#fff', fontFamily: BAJUJU_FONTS.bold, fontSize: 13 },
   card: {
     padding: 22,
     borderRadius: 29,

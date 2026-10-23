@@ -19,6 +19,7 @@ import {
 
 import { AddressAutocompleteField } from '../../src/components/AddressAutocompleteField';
 import { BajujuBottomNav } from '../../src/components/navigation/BajujuBottomNav';
+import { BajujuProfileButton } from '../../src/components/navigation/BajujuProfileButton';
 import { EXPERIENCE_CREATION_CATEGORIES } from '../../src/constants/experienceCategories';
 import {
   BajujuGroupCard,
@@ -444,6 +445,7 @@ export default function CreateExperienceScreen() {
             <Ionicons name="arrow-back" size={22} color={BAJUJU_COLORS.plum} />
           </Pressable>
           <Text style={styles.title}>Nuova esperienza</Text>
+          <BajujuProfileButton />
         </View>
 
         <Pressable

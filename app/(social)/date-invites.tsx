@@ -16,6 +16,7 @@ import { useFocusEffect } from 'expo-router';
 import { supabase } from '../../src/lib/supabase';
 import { sendBajujuPushNotification } from '../../src/utils/bajujuNotifications';
 import { KeyboardAwareScrollView } from '../../src/components/KeyboardAwareScrollView';
+import { BajujuProfileButton } from '../../src/components/navigation/BajujuProfileButton';
 
 type InviteRow = {
   id: string;
@@ -261,7 +262,7 @@ export default function DateInvitesScreen() {
           <Text style={styles.title}>Inviti a uscire</Text>
           <Text style={styles.subtitle}>Inviti, risposte e stato delle richieste</Text>
         </View>
-        <View style={styles.headerSpacer} />
+        <BajujuProfileButton size={44} />
       </View>
 
       {loading ? (
@@ -353,7 +354,6 @@ const styles = StyleSheet.create({
   backButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#f3c6dc', alignItems: 'center', justifyContent: 'center' },
   backText: { color: '#8f1658', fontSize: 36, lineHeight: 38, marginTop: -4 },
   headerText: { flex: 1, alignItems: 'center' },
-  headerSpacer: { width: 44 },
   title: { color: '#e43f98', fontSize: 24, fontWeight: '900' },
   subtitle: { marginTop: 2, color: '#a95d86', fontWeight: '700', fontSize: 12 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },

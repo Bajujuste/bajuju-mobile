@@ -15,6 +15,7 @@ import {
 
 import { BajujuIcon } from '../../src/components/icons/BajujuIcon';
 import { BajujuBottomNav } from '../../src/components/navigation/BajujuBottomNav';
+import { BajujuProfileButton } from '../../src/components/navigation/BajujuProfileButton';
 import { BajujuGroupCard, loadBajujuGroups } from '../../src/lib/bajujuGroups';
 import { supabase } from '../../src/lib/supabase';
 import { BAJUJU_COLORS, BAJUJU_FONTS } from '../../src/theme/bajujuTheme';
@@ -119,7 +120,10 @@ export default function GroupsScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <KeyboardAwareScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        <Text style={styles.screenTitle}>Gruppi</Text>
+        <View style={styles.screenHeader}>
+          <Text style={styles.screenTitle}>Gruppi</Text>
+          <BajujuProfileButton />
+        </View>
         <Text style={styles.subtitle}>Entra in una community e scopri le sue esperienze.</Text>
 
         <View style={styles.searchBox}>
@@ -281,6 +285,7 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: BAJUJU_COLORS.background },
   container: { padding: 16, paddingTop: 20, paddingBottom: 150 },
   pressed: { opacity: 0.85 },
+  screenHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   screenTitle: { color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.bold, fontSize: 28, letterSpacing: -0.5 },
   subtitle: { marginTop: 4, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.medium, fontSize: 14, lineHeight: 19 },
   searchBox: {

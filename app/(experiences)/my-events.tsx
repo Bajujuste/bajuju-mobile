@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BajujuIcon } from '../../src/components/icons/BajujuIcon';
 import { BajujuBottomNav } from '../../src/components/navigation/BajujuBottomNav';
+import { BajujuProfileButton } from '../../src/components/navigation/BajujuProfileButton';
 import { supabase } from '../../src/lib/supabase';
 import {
   BAJUJU_COLORS,
@@ -336,8 +337,11 @@ export default function MyEventsScreen() {
         }
       >
         <View style={styles.header}>
-          <Text style={styles.title}>I miei eventi</Text>
-          <Text style={styles.subtitle}>A cui partecipi o che organizzi</Text>
+          <View style={styles.headerCopy}>
+            <Text style={styles.title}>I miei eventi</Text>
+            <Text style={styles.subtitle}>A cui partecipi o che organizzi</Text>
+          </View>
+          <BajujuProfileButton />
         </View>
 
         {loading ? (
@@ -410,6 +414,12 @@ const styles = StyleSheet.create({
   },
   header: {
     marginBottom: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  headerCopy: {
+    flex: 1,
   },
   title: {
     color: BAJUJU_COLORS.plum,

@@ -8,6 +8,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BajujuBottomNav } from '../../src/components/navigation/BajujuBottomNav';
+import { BajujuProfileButton } from '../../src/components/navigation/BajujuProfileButton';
 import { BAJUJU_COLORS, BAJUJU_FONTS } from '../../src/theme/bajujuTheme';
 
 type GuideItem = {
@@ -98,8 +99,11 @@ export default function HowItWorksScreen() {
         contentContainerStyle={styles.container}
       >
         <View style={styles.header}>
-          <Text style={styles.title}>Come funziona</Text>
-          <Text style={styles.subtitle}>Bajuju in un minuto</Text>
+          <View style={styles.headerCopy}>
+            <Text style={styles.title}>Come funziona</Text>
+            <Text style={styles.subtitle}>Bajuju in un minuto</Text>
+          </View>
+          <BajujuProfileButton />
         </View>
 
         <View style={styles.hero}>
@@ -167,6 +171,12 @@ const styles = StyleSheet.create({
   },
   header: {
     marginBottom: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  headerCopy: {
+    flex: 1,
   },
   title: {
     color: BAJUJU_COLORS.plum,

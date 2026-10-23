@@ -25,6 +25,7 @@ import { getExperienceCategoryIcon, normalizeExperienceCategory } from '@/consta
 import { sendBajujuPushNotification } from '../../src/utils/bajujuNotifications';
 import { BAJUJU_COLORS, BAJUJU_FONTS, BAJUJU_SHADOW } from '../../src/theme/bajujuTheme';
 import { KeyboardAwareScrollView } from '../../src/components/KeyboardAwareScrollView';
+import { BajujuProfileButton } from '../../src/components/navigation/BajujuProfileButton';
 
 const bajujuLogo = require('../../assets/brand/bajuju-logo.png');
 
@@ -1423,6 +1424,8 @@ export default function ExperienceDetailScreen() {
                         <Ionicons name="ellipsis-horizontal" size={19} color={BAJUJU_COLORS.plum} />
                       </Pressable>
                     ) : null}
+
+                    <BajujuProfileButton size={38} />
                   </View>
                 </View>
 
@@ -1975,6 +1978,7 @@ const styles = StyleSheet.create({
   },
   heroTopActions: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
   },
   heroIconButton: {

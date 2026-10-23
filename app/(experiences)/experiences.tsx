@@ -16,6 +16,7 @@ import {
 
 import { BajujuIcon } from '@/components/icons/BajujuIcon';
 import { BajujuBottomNav } from '@/components/navigation/BajujuBottomNav';
+import { BajujuProfileButton } from '@/components/navigation/BajujuProfileButton';
 import { getExperienceCategoryIcon, normalizeExperienceCategory } from '@/constants/experienceCategories';
 import { supabase } from '../../src/lib/supabase';
 import { saveBajujuNotificationCoordinatesIfEnabled } from '../../src/utils/bajujuNotificationLocation';
@@ -425,7 +426,7 @@ export default function ExperiencesScreen() {
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <View style={styles.screenHeader}>
-          <Text style={styles.screenTitle}>Esperienze</Text>
+          <Text style={[styles.screenTitle, styles.screenTitleFill]}>Esperienze</Text>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Trova eventi sulla mappa"
@@ -435,6 +436,7 @@ export default function ExperiencesScreen() {
             <BajujuIcon name="pin" size={20} color="#E43F98" />
             <Text style={styles.mapLabel}>Mappa</Text>
           </Pressable>
+          <BajujuProfileButton />
         </View>
 
         <View style={styles.tabsRow}>
@@ -675,6 +677,7 @@ const styles = StyleSheet.create({
   container: { padding: 16, paddingTop: 20, paddingBottom: 140 },
   pressed: { opacity: 0.85 },
   screenHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  screenTitleFill: { flex: 1 },
   screenTitle: { color: PLUM, fontFamily: 'FredokaBold', fontSize: 28, letterSpacing: -0.5 },
   mapButton: { height: 44, paddingLeft: 12, paddingRight: 16, borderRadius: 999, borderWidth: 1.5, borderColor: LINE, backgroundColor: '#FFFFFF', flexDirection: 'row', alignItems: 'center', gap: 6 },
   mapLabel: { color: '#C2287A', fontFamily: 'FredokaSemiBold', fontSize: 15 },

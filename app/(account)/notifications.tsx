@@ -14,6 +14,7 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 
 import { supabase } from '../../src/lib/supabase';
 import { getBajujuNotificationCategory, BAJUJU_NOTIFICATION_CATEGORY_LABELS, BajujuNotificationCategory } from '../../src/utils/bajujuNotificationCategories';
+import { BajujuProfileButton } from '../../src/components/navigation/BajujuProfileButton';
 
 type NotificationData = Record<string, unknown>;
 
@@ -249,7 +250,7 @@ export default function NotificationsScreen() {
           <Text style={styles.headerTitle}>Notifiche</Text>
           <Text style={styles.headerSubtitle}>Richieste, conversazioni e altre novità</Text>
         </View>
-        <View style={styles.headerSpacer} />
+        <BajujuProfileButton size={44} />
       </View>
 
       {loading ? (
@@ -359,7 +360,6 @@ const styles = StyleSheet.create({
   headerTextBlock: { flex: 1, alignItems: 'center' },
   headerTitle: { fontSize: 24, lineHeight: 28, fontWeight: '900', color: PINK },
   headerSubtitle: { marginTop: 2, fontSize: 12, fontWeight: '800', color: MUTED },
-  headerSpacer: { width: 44 },
   container: { flexGrow: 1, padding: 15, paddingTop: 6, paddingBottom: 34 },
   centerBox: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 30 },
   loadingText: { marginTop: 12, fontSize: 14, fontWeight: '800', color: TEXT },

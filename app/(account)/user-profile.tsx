@@ -16,6 +16,7 @@ import {
   effectiveOrganizerGrade,
   organizerGradeHint,
 } from '../../src/utils/organizerGrade';
+import { BajujuProfileButton } from '../../src/components/navigation/BajujuProfileButton';
 
 const bajujuLogo = require('../../assets/brand/bajuju-logo.png');
 
@@ -412,9 +413,12 @@ export default function UserProfileScreen() {
 
   return (
     <ScrollView style={styles.page} contentContainerStyle={styles.content}>
-      <Pressable style={styles.backButton} onPress={() => router.back()}>
-        <Text style={styles.backText}>← Indietro</Text>
-      </Pressable>
+      <View style={styles.topRow}>
+        <Pressable style={styles.backButton} onPress={() => router.back()}>
+          <Text style={styles.backText}>← Indietro</Text>
+        </Pressable>
+        <BajujuProfileButton />
+      </View>
 
       {loading ? (
         <View style={styles.center}>
@@ -575,9 +579,9 @@ export default function UserProfileScreen() {
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: '#FFF9FC' },
   content: { padding: 22, paddingTop: 58 },
+  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 18 },
   backButton: {
     alignSelf: 'flex-start',
-    marginBottom: 18,
     paddingVertical: 9,
     paddingHorizontal: 13,
     borderRadius: 999,

@@ -24,6 +24,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../../src/lib/supabase';
 import { BAJUJU_COLORS, BAJUJU_FONTS, BAJUJU_SHADOW } from '../../src/theme/bajujuTheme';
 import { KeyboardAwareScrollView } from '../../src/components/KeyboardAwareScrollView';
+import { BajujuProfileButton } from '../../src/components/navigation/BajujuProfileButton';
 
 export default function CreateGroupScreen() {
   const { pickPhoto, photoPickerModal } = useBajujuPhotoPicker();
@@ -210,6 +211,7 @@ export default function CreateGroupScreen() {
             <Ionicons name="arrow-back" size={22} color={BAJUJU_COLORS.plum} />
           </Pressable>
           <Text style={styles.title}>Nuovo gruppo</Text>
+          <BajujuProfileButton />
         </View>
 
         <View style={styles.infoBox}>

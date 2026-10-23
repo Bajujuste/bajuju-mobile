@@ -14,6 +14,7 @@ import { BajujuBottomNav } from '../../src/components/navigation/BajujuBottomNav
 import { supabase } from '../../src/lib/supabase';
 import { trackBajujuEvent } from '../../src/utils/bajujuAnalytics';
 import { sendBajujuPushNotification } from '../../src/utils/bajujuNotifications';
+import { BajujuProfileButton } from '../../src/components/navigation/BajujuProfileButton';
 
 type ActivityRow = {
   id: string;
@@ -261,9 +262,12 @@ export default function ExperienceWaitlistScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        <Pressable style={styles.backButton} onPress={() => router.back()}>
-          <Text style={styles.backText}>← Indietro</Text>
-        </Pressable>
+        <View style={styles.topRow}>
+          <Pressable style={styles.backButton} onPress={() => router.back()}>
+            <Text style={styles.backText}>← Indietro</Text>
+          </Pressable>
+          <BajujuProfileButton />
+        </View>
 
         <View style={styles.card}>
           <Text style={styles.eyebrow}>LISTA D’ATTESA</Text>
@@ -346,7 +350,8 @@ export default function ExperienceWaitlistScreen() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#FFF9FC' },
   container: { flex: 1, padding: 20, paddingTop: 58, paddingBottom: 120 },
-  backButton: { alignSelf: 'flex-start', paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999, backgroundColor: '#fff0f7', borderWidth: 1, borderColor: '#ffd1e6', marginBottom: 14 },
+  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 14 },
+  backButton: { alignSelf: 'flex-start', paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999, backgroundColor: '#fff0f7', borderWidth: 1, borderColor: '#ffd1e6' },
   backText: { color: '#e43f98', fontWeight: '900' },
   card: { borderRadius: 28, padding: 20, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#ffd1e6' },
   eyebrow: { color: '#e43f98', fontWeight: '900', fontSize: 12, letterSpacing: 1 },

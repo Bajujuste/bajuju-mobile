@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import React from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { BajujuProfileButton } from '../../src/components/navigation/BajujuProfileButton';
 
 const PRIVACY_SECTIONS = [
   {
@@ -112,9 +113,12 @@ const PRIVACY_SECTIONS = [
 export default function PrivacyScreen() {
   return (
     <ScrollView contentContainerStyle={styles.page}>
-      <TouchableOpacity style={styles.topBackButton} onPress={() => router.back()}>
-        <Text style={styles.topBackButtonText}>← Indietro</Text>
-      </TouchableOpacity>
+      <View style={styles.topRow}>
+        <TouchableOpacity style={styles.topBackButton} onPress={() => router.back()}>
+          <Text style={styles.topBackButtonText}>← Indietro</Text>
+        </TouchableOpacity>
+        <BajujuProfileButton />
+      </View>
 
       <View style={styles.card}>
         <Text style={styles.kicker}>Bajuju</Text>
@@ -138,6 +142,7 @@ export default function PrivacyScreen() {
 }
 
 const styles = StyleSheet.create({
+  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 12 },
   topBackButton: {
     alignSelf: 'flex-start',
     backgroundColor: '#ffffff',
@@ -146,7 +151,6 @@ const styles = StyleSheet.create({
     borderColor: '#ffd3e6',
     paddingHorizontal: 14,
     paddingVertical: 9,
-    marginBottom: 12,
   },
   topBackButtonText: {
     color: '#e43f98',

@@ -14,6 +14,7 @@ import {
 import { supabase } from '../../src/lib/supabase';
 import { sendBajujuPushNotification } from '../../src/utils/bajujuNotifications';
 import { KeyboardAwareScrollView } from '../../src/components/KeyboardAwareScrollView';
+import { BajujuProfileButton } from '../../src/components/navigation/BajujuProfileButton';
 
 type ContactType = 'telefono' | 'telegram';
 type LooseRow = Record<string, any>;
@@ -307,9 +308,12 @@ export default function ShareContactScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <KeyboardAwareScrollView contentContainerStyle={styles.container}>
-        <Pressable style={styles.backButton} onPress={() => router.back()}>
-          <Text style={styles.backText}>← Indietro</Text>
-        </Pressable>
+        <View style={styles.topRow}>
+          <Pressable style={styles.backButton} onPress={() => router.back()}>
+            <Text style={styles.backText}>← Indietro</Text>
+          </Pressable>
+          <BajujuProfileButton />
+        </View>
 
         <View style={styles.card}>
           <Text style={styles.title}>Invia WhatsApp o Telegram</Text>
@@ -373,7 +377,8 @@ export default function ShareContactScreen() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#FFF9FC' },
   container: { flexGrow: 1, padding: 18 },
-  backButton: { alignSelf: 'flex-start', paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999, backgroundColor: '#fff0f7', borderWidth: 1, borderColor: '#ffd1e6', marginBottom: 14 },
+  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 14 },
+  backButton: { alignSelf: 'flex-start', paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999, backgroundColor: '#fff0f7', borderWidth: 1, borderColor: '#ffd1e6' },
   backText: { color: '#e43f98', fontWeight: '900' },
   card: { backgroundColor: '#ffffff', borderRadius: 26, borderWidth: 1, borderColor: '#f3c6dc', padding: 18 },
   title: { color: '#e43f98', fontSize: 23, fontWeight: '900' },

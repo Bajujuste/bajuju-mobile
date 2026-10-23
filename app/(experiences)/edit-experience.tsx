@@ -21,6 +21,7 @@ import type { ResolvedAddress } from '../../src/lib/addressAutocomplete';
 import { supabase } from '../../src/lib/supabase';
 import { KeyboardAwareScrollView } from '../../src/components/KeyboardAwareScrollView';
 import { BajujuProfileButton } from '../../src/components/navigation/BajujuProfileButton';
+import { BajujuActionBar, BajujuButton } from '../../src/components/BajujuActionBar';
 import { BajujuBackButton } from '../../src/components/navigation/BajujuBackButton';
 
 type ActivityRow = {
@@ -420,11 +421,11 @@ export default function EditExperienceScreen() {
       <View style={styles.flex}>
         <KeyboardAwareScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
           <View style={styles.topRow}>
-            <BajujuBackButton onPress={() => router.back()} accessibilityLabel="Indietro" style={{ alignSelf: 'flex-start' }} />
-            <BajujuProfileButton />
+            <BajujuBackButton onPress={() => router.back()} accessibilityLabel="Indietro" />
+            <Text style={styles.pageTitle} numberOfLines={1}>Modifica evento</Text>
+            <BajujuProfileButton size={38} />
           </View>
 
-          <Text style={styles.pageTitle}>Modifica evento</Text>
           <Text style={styles.subtitle}>
             {authorizedAsAdmin
               ? 'Modalità admin: puoi modificare anche eventi creati da altri account o dalla chat.'
@@ -647,13 +648,19 @@ export default function EditExperienceScreen() {
               ) : null}
 
               <Text style={styles.notice}>Il creatore, i partecipanti, la chat e la galleria restano invariati.</Text>
-
-              <Pressable style={[styles.saveButton, saving && styles.disabledButton]} onPress={saveExperience} disabled={saving || preparingPhoto}>
-                <Text style={styles.saveButtonText}>{saving ? 'Salvataggio...' : 'Salva modifiche'}</Text>
-              </Pressable>
             </View>
           )}
         </KeyboardAwareScrollView>
+        {!loading && !errorText ? (
+          <BajujuActionBar>
+            <BajujuButton label="Annulla" variant="secondary" onPress={() => router.back()} disabled={saving} />
+            <BajujuButton
+              label={saving ? 'Salvataggio...' : 'Salva modifiche'}
+              onPress={saveExperience}
+              disabled={saving || preparingPhoto}
+            />
+          </BajujuActionBar>
+        ) : null}
       </View>
       {photoPickerModal}
     </SafeAreaView>
@@ -675,8 +682,8 @@ const styles = StyleSheet.create({
     borderColor: '#F3C6DC',
   },
   backText: { color: '#4B0C2D', fontFamily: 'FredokaBold' },
-  pageTitle: { fontSize: 32, fontFamily: 'FredokaBold', color: '#E43F98' },
-  subtitle: { marginTop: 7, marginBottom: 18, color: '#8D5E77', fontSize: 15, lineHeight: 21, fontFamily: 'FredokaBold' },
+  pageTitle: { flex: 1, fontSize: 24, fontFamily: 'FredokaBold', color: '#4B0C2D' },
+  subtitle: { marginBottom: 18, color: '#8D5E77', fontSize: 15, lineHeight: 21, fontFamily: 'FredokaRegular' },
   card: {
     borderRadius: 28,
     padding: 18,

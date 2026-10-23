@@ -28,6 +28,8 @@ import {
   sendBajujuPushNotification,
 } from '../../src/utils/bajujuNotifications';
 import { KeyboardAwareScrollView } from '../../src/components/KeyboardAwareScrollView';
+import { BajujuActionBar, BajujuButton } from '../../src/components/BajujuActionBar';
+import { BajujuBottomNav } from '../../src/components/navigation/BajujuBottomNav';
 
 const bajujuLogo = require('../../assets/brand/bajuju-logo.png');
 
@@ -1315,6 +1317,7 @@ export default function ProfileScreen() {
   }
 
   return (
+    <View style={styles.screen}>
     <KeyboardAwareScrollView
       ref={scrollRef}
       style={styles.page}
@@ -1561,10 +1564,6 @@ export default function ProfileScreen() {
         </View>
       </View>
 
-      <Pressable style={[styles.saveButton, saving && styles.profileBackButtonDisabled]} onPress={saveProfile} disabled={saving}>
-        <Text style={styles.saveButtonText}>{saving ? 'Salvataggio...' : 'Salva modifiche'}</Text>
-      </Pressable>
-
       <View
         style={styles.listCard}
         onLayout={(event) => {
@@ -1702,10 +1701,19 @@ export default function ProfileScreen() {
         <Text style={styles.deleteTextButtonText}>Elimina definitivamente account</Text>
       </Pressable>
     </KeyboardAwareScrollView>
+    <BajujuActionBar withBottomNav={profileComplete}>
+      <BajujuButton label={saving ? 'Salvataggio...' : 'Salva modifiche'} onPress={saveProfile} disabled={saving} />
+    </BajujuActionBar>
+    {profileComplete ? <BajujuBottomNav active="profile" /> : null}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: '#FFF9FC',
+  },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',

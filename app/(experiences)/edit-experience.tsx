@@ -20,6 +20,7 @@ import { AddressAutocompleteField } from '../../src/components/AddressAutocomple
 import type { ResolvedAddress } from '../../src/lib/addressAutocomplete';
 import { supabase } from '../../src/lib/supabase';
 import { KeyboardAwareScrollView } from '../../src/components/KeyboardAwareScrollView';
+import { BajujuProfileButton } from '../../src/components/navigation/BajujuProfileButton';
 
 type ActivityRow = {
   id: string;
@@ -417,9 +418,12 @@ export default function EditExperienceScreen() {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.flex}>
         <KeyboardAwareScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-          <Pressable style={styles.backButton} onPress={() => router.back()}>
-            <Text style={styles.backText}>← Indietro</Text>
-          </Pressable>
+          <View style={styles.topRow}>
+            <Pressable style={styles.backButton} onPress={() => router.back()}>
+              <Text style={styles.backText}>← Indietro</Text>
+            </Pressable>
+            <BajujuProfileButton />
+          </View>
 
           <Text style={styles.pageTitle}>Modifica evento</Text>
           <Text style={styles.subtitle}>
@@ -661,6 +665,7 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   safeArea: { flex: 1, backgroundColor: '#FFF9FC' },
   container: { flexGrow: 1, padding: 20, paddingTop: 58, paddingBottom: 40 },
+  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 18 },
   backButton: {
     alignSelf: 'flex-start',
     borderRadius: 999,
@@ -669,7 +674,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF0F7',
     borderWidth: 1,
     borderColor: '#ffd3e7',
-    marginBottom: 18,
   },
   backText: { color: '#9b1f61', fontWeight: '900' },
   pageTitle: { fontSize: 32, fontWeight: '900', color: '#e43f98' },

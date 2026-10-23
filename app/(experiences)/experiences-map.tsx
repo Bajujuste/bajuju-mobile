@@ -14,6 +14,7 @@ import {
 
 import BajujuMap, { BajujuMapItem } from '../../src/components/BajujuMap';
 import { BajujuBottomNav } from '@/components/navigation/BajujuBottomNav';
+import { BajujuProfileButton } from '@/components/navigation/BajujuProfileButton';
 import { normalizeExperienceCategory } from '@/constants/experienceCategories';
 import { BAJUJU_COLORS, BAJUJU_FONTS, BAJUJU_SHADOW } from '@/theme/bajujuTheme';
 import { supabase } from '../../src/lib/supabase';
@@ -481,6 +482,7 @@ export default function ExperiencesMapScreen() {
         </Pressable>
         <Text style={screenStyles.heading}>Mappa esperienze</Text>
         <Text style={screenStyles.count}>{mapItems.length}</Text>
+        <BajujuProfileButton size={38} />
       </View>
 
       <View style={screenStyles.mapArea}>

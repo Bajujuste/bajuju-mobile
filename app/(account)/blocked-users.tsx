@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 
 import { supabase } from '../../src/lib/supabase';
+import { BajujuProfileButton } from '../../src/components/navigation/BajujuProfileButton';
 
 type BlockedUser = {
   user_id: string;
@@ -74,9 +75,12 @@ export default function BlockedUsersScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.page}>
-        <Pressable style={styles.backButton} onPress={() => router.back()}>
-          <Text style={styles.backText}>← Profilo</Text>
-        </Pressable>
+        <View style={styles.topRow}>
+          <Pressable style={styles.backButton} onPress={() => router.back()}>
+            <Text style={styles.backText}>← Profilo</Text>
+          </Pressable>
+          <BajujuProfileButton />
+        </View>
 
         <View style={styles.header}>
           <Text style={styles.kicker}>PRIVACY</Text>
@@ -139,7 +143,8 @@ export default function BlockedUsersScreen() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#FFF9FC' },
   page: { padding: 18, paddingBottom: 40 },
-  backButton: { alignSelf: 'flex-start', paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999, backgroundColor: '#FFF0F7', marginBottom: 12 },
+  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 12 },
+  backButton: { alignSelf: 'flex-start', paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999, backgroundColor: '#FFF0F7' },
   backText: { color: '#E43F98', fontSize: 14, fontWeight: '900' },
   header: { padding: 20, borderRadius: 24, borderWidth: 1, borderColor: '#FFD3E6', backgroundColor: '#fff', marginBottom: 14 },
   kicker: { color: '#E43F98', fontSize: 11, fontWeight: '900', letterSpacing: 1 },

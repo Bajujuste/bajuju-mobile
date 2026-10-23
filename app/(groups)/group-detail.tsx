@@ -18,7 +18,12 @@ import {
   View,
 } from 'react-native';
 
+import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import { BajujuGroupChat } from '../../src/components/groups/BajujuGroupChat';
+import { BajujuBottomNav } from '../../src/components/navigation/BajujuBottomNav';
+import { BajujuProfileButton } from '../../src/components/navigation/BajujuProfileButton';
 import {
   cancelBajujuGroupJoinRequest,
   GROUP_DESCRIPTION_MAX_LENGTH,
@@ -32,7 +37,7 @@ import {
   uploadBajujuGroupCover,
 } from '../../src/lib/bajujuGroups';
 import { supabase } from '../../src/lib/supabase';
-import { BAJUJU_COLORS, BAJUJU_FONTS, BAJUJU_SHADOW } from '../../src/theme/bajujuTheme';
+import { BAJUJU_COLORS, BAJUJU_FONTS } from '../../src/theme/bajujuTheme';
 import { shareBajujuGroup } from '../../src/utils/shareBajuju';
 import { KeyboardAwareScrollView } from '../../src/components/KeyboardAwareScrollView';
 
@@ -87,6 +92,13 @@ export default function GroupDetailScreen() {
   const [nameDraft, setNameDraft] = useState('');
   const [descriptionOpen, setDescriptionOpen] = useState(false);
   const [descriptionLong, setDescriptionLong] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [manageOpen, setManageOpen] = useState(false);
+  const managementY = useRef<number | null>(null);
+  const scrollToManagementOnLayout = useRef(false);
+  // Le sezioni stanno dentro il blocco sotto la copertina: per scorrere serve sommare la sua posizione.
+  const contentY = useRef(0);
+  const insets = useSafeAreaInsets();
 
   const refresh = useCallback(async () => {
     if (!groupId) {
@@ -624,41 +636,88 @@ export default function GroupDetailScreen() {
   const requiresApproval = group.join_approval_required === true;
   const hasPendingJoinRequest = joinState === 'pending';
 
+  const ageLabel = group.min_age !== null && group.min_age !== undefined && group.max_age !== null && group.max_age !== undefined
+    ? `${group.min_age}–${group.max_age} anni`
+    : 'Tutte le età';
+  const infoTiles = [
+    { label: 'Dove', value: place || 'Non indicato', icon: 'location-outline' as const },
+    isPublicGroup
+      ? { label: 'Iscritti', value: `${memberCount} ${memberCount === 1 ? 'iscritto' : 'iscritti'}`, icon: 'people-outline' as const }
+      : { label: 'Stato', value: groupStatus === 'rejected' ? 'Da rivedere' : 'In approvazione', icon: 'time-outline' as const },
+    { label: 'Età', value: ageLabel, icon: 'person-outline' as const },
+    {
+      label: 'Ingresso',
+      value: requiresApproval ? 'Su richiesta' : 'Libero',
+      icon: requiresApproval ? ('lock-closed-outline' as const) : ('lock-open-outline' as const),
+      valueStyle: requiresApproval ? styles.infoValueRequest : styles.infoValueFree,
+    },
+  ];
+  const hasMenuItems = isPublicGroup || canManageGroup;
+
+  function openManagement() {
+    setMenuOpen(false);
+    setManageOpen(true);
+    if (managementY.current !== null) {
+      groupScrollRef.current?.scrollTo({ y: Math.max(0, contentY.current + managementY.current - 12), animated: true });
+    } else {
+      scrollToManagementOnLayout.current = true;
+    }
+  }
+
   return (
     <SafeAreaView style={styles.safeArea}>
       {photoPickerModal}
-      <KeyboardAwareScrollView ref={groupScrollRef} contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        <View style={styles.topBar}>
-          <Pressable
-            style={styles.roundButton}
-            onPress={() => (router.canGoBack() ? router.back() : router.replace('/groups' as any))}
-            accessibilityRole="button"
-            accessibilityLabel="Torna ai gruppi"
-          >
-            <Ionicons name="arrow-back" size={22} color={BAJUJU_COLORS.plum} />
-          </Pressable>
-          {isPublicGroup ? (
-            <Pressable
-              style={styles.shareButton}
-              onPress={() => { void handleShareGroup(); }}
-              accessibilityRole="button"
-              accessibilityLabel="Condividi gruppo"
-            >
-              <Ionicons name="share-social-outline" size={18} color="#C2287A" />
-              <Text style={styles.shareButtonText}>Condividi</Text>
-            </Pressable>
-          ) : null}
-        </View>
-
-        <View style={styles.coverBox}>
+      <KeyboardAwareScrollView
+        ref={groupScrollRef}
+        contentContainerStyle={[styles.container, { paddingBottom: 130 + insets.bottom }]}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.hero}>
           {coverUrl ? (
-            <Image source={{ uri: coverUrl }} style={styles.coverImage} resizeMode="cover" />
+            <Image source={{ uri: coverUrl }} style={styles.heroImage} resizeMode="cover" />
           ) : (
-            <View style={styles.coverPlaceholder}><Ionicons name="people-outline" size={48} color={BAJUJU_COLORS.pink} /></View>
+            <View style={styles.coverPlaceholder}><Ionicons name="people-outline" size={56} color={BAJUJU_COLORS.pink} /></View>
           )}
-          {group.category ? <Text style={styles.categoryChip} numberOfLines={1}>{group.category}</Text> : null}
+          <LinearGradient
+            colors={['rgba(75,12,45,0)', 'rgba(75,12,45,0.78)']}
+            locations={[0.35, 1]}
+            style={StyleSheet.absoluteFill}
+            pointerEvents="none"
+          />
+
+          <View style={styles.heroTopBar}>
+            <Pressable
+              style={styles.heroIconButton}
+              onPress={() => (router.canGoBack() ? router.back() : router.replace('/groups' as any))}
+              accessibilityRole="button"
+              accessibilityLabel="Torna ai gruppi"
+            >
+              <Ionicons name="chevron-back" size={20} color={BAJUJU_COLORS.plum} />
+            </Pressable>
+
+            <View style={styles.heroTopActions}>
+              {hasMenuItems ? (
+                <Pressable
+                  style={styles.heroIconButton}
+                  onPress={() => setMenuOpen(true)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Altre azioni del gruppo"
+                >
+                  <Ionicons name="ellipsis-horizontal" size={19} color={BAJUJU_COLORS.plum} />
+                </Pressable>
+              ) : null}
+              <BajujuProfileButton size={38} />
+            </View>
+          </View>
+
+          <View style={styles.heroText}>
+            {group.category ? <Text style={styles.categoryChip} numberOfLines={1}>{group.category}</Text> : null}
+            <Text style={styles.title} numberOfLines={3}>{group.name}</Text>
+          </View>
         </View>
 
+        <View style={styles.content} onLayout={(event) => { contentY.current = event.nativeEvent.layout.y; }}>
         {!coverUrl && (isOwner || isAdmin) ? (
           <View style={styles.statusCard}>
             <Text style={styles.statusTitle}>Copertina obbligatoria mancante</Text>
@@ -678,52 +737,20 @@ export default function GroupDetailScreen() {
           </View>
         ) : null}
 
-        <Text style={styles.title}>{group.name}</Text>
-
-        <View style={styles.factsCard}>
-          {place ? (
-            <View style={styles.factRow}>
-              <Ionicons name="location-outline" size={18} color="#C2287A" />
-              <Text style={styles.factText} numberOfLines={1}>{place}</Text>
+        <View style={styles.infoGrid}>
+          {infoTiles.map((tile) => (
+            <View key={tile.label} style={styles.infoTile}>
+              <View style={styles.infoLabelRow}>
+                <Ionicons name={tile.icon} size={13} color={BAJUJU_COLORS.pink} />
+                <Text style={styles.infoLabel}>{tile.label}</Text>
+              </View>
+              <Text style={[styles.infoValue, tile.valueStyle]} numberOfLines={1}>{tile.value}</Text>
             </View>
-          ) : null}
-          {isPublicGroup ? (
-            <View style={styles.factRow}>
-              <Ionicons name="people-outline" size={18} color="#C2287A" />
-              <Text style={styles.factText}>{memberCount} {memberCount === 1 ? 'iscritto' : 'iscritti'}</Text>
-            </View>
-          ) : null}
-          <View style={styles.factRow}>
-            <Ionicons name="person-outline" size={18} color="#C2287A" />
-            <Text style={styles.factText}>
-              {group.min_age !== null && group.min_age !== undefined && group.max_age !== null && group.max_age !== undefined
-                ? `Età ${group.min_age}–${group.max_age} anni`
-                : 'Aperto a tutte le età'}
-            </Text>
-          </View>
-          <View style={styles.factRow}>
-            <Ionicons name={requiresApproval ? 'lock-closed-outline' : 'lock-open-outline'} size={18} color="#C2287A" />
-            <Text style={styles.factText}>{requiresApproval ? 'Iscrizione su richiesta' : 'Iscrizione libera'}</Text>
-          </View>
-          <Pressable
-            style={styles.ownerRow}
-            disabled={!group.owner_id}
-            onPress={() => router.push({
-              pathname: '/user-profile' as any,
-              params: { userId: String(group.owner_id || '') },
-            })}
-            accessibilityRole="button"
-            accessibilityLabel={`Apri i dettagli di ${ownerName}`}
-          >
-            <Text style={styles.ownerLabel}>Gestito da</Text>
-            <Text style={styles.ownerName} numberOfLines={1}>{ownerName}</Text>
-            <Ionicons name="chevron-forward" size={16} color={BAJUJU_COLORS.muted} />
-          </Pressable>
+          ))}
         </View>
 
         {group.description ? (
-          <View style={styles.descriptionCard}>
-            <Text style={styles.descriptionTitle}>Il gruppo</Text>
+          <View>
             <Text
               style={styles.description}
               numberOfLines={descriptionOpen ? undefined : DESCRIPTION_PREVIEW_LINES}
@@ -740,6 +767,26 @@ export default function GroupDetailScreen() {
             ) : null}
           </View>
         ) : null}
+
+        <Pressable
+          style={styles.ownerRow}
+          disabled={!group.owner_id}
+          onPress={() => router.push({
+            pathname: '/user-profile' as any,
+            params: { userId: String(group.owner_id || '') },
+          })}
+          accessibilityRole="button"
+          accessibilityLabel={`Apri i dettagli di ${ownerName}`}
+        >
+          <View style={styles.ownerIcon}>
+            <Ionicons name="person" size={18} color={BAJUJU_COLORS.pink} />
+          </View>
+          <View style={styles.ownerCopy}>
+            <Text style={styles.ownerLabel}>Gestito da</Text>
+            <Text style={styles.ownerName} numberOfLines={1}>{isOwner ? `${ownerName} · sei tu` : ownerName}</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={16} color={BAJUJU_COLORS.muted} />
+        </Pressable>
 
         {!isPublicGroup ? (
           <View style={[styles.statusCard, groupStatus === 'rejected' && styles.statusCardRejected]}>
@@ -764,11 +811,8 @@ export default function GroupDetailScreen() {
         ) : null}
 
         {/* L'Admin vede il pulsante come ogni utente: può iscriversi e restare Admin. */}
-        {isOwner ? (
-          <View style={styles.ownerBadge}>
-            <Text style={styles.ownerBadgeText}>Sei il proprietario del gruppo</Text>
-          </View>
-        ) : isPublicGroup ? (
+        {/* Il proprietario si riconosce dalla riga "Gestito da": niente pulsante per lui. */}
+        {isOwner ? null : isPublicGroup ? (
           <>
             <Pressable
               style={[
@@ -809,9 +853,31 @@ export default function GroupDetailScreen() {
         ) : null}
 
         {canManageGroup ? (
-          <View style={styles.managementCard}>
-            <Text style={styles.managementEyebrow}>{isAdmin ? 'GESTIONE ADMIN' : 'GESTIONE GRUPPO'}</Text>
-            <Text style={styles.managementTitle}>Gestisci il gruppo</Text>
+          <View
+            style={styles.managementCard}
+            onLayout={(event) => {
+              managementY.current = event.nativeEvent.layout.y;
+              if (scrollToManagementOnLayout.current) {
+                scrollToManagementOnLayout.current = false;
+                groupScrollRef.current?.scrollTo({ y: Math.max(0, contentY.current + event.nativeEvent.layout.y - 12), animated: true });
+              }
+            }}
+          >
+            <Pressable
+              style={styles.managementHeader}
+              onPress={() => setManageOpen((current) => !current)}
+              accessibilityRole="button"
+              accessibilityState={{ expanded: manageOpen }}
+            >
+              <View>
+                <Text style={styles.managementEyebrow}>{isAdmin ? 'GESTIONE ADMIN' : 'GESTIONE GRUPPO'}</Text>
+                <Text style={styles.managementTitle}>Gestisci il gruppo</Text>
+              </View>
+              <Ionicons name={manageOpen ? 'chevron-up' : 'chevron-down'} size={20} color={BAJUJU_COLORS.brightPink} />
+            </Pressable>
+
+            {manageOpen ? (
+            <View style={styles.managementBody}>
 
             <Text style={styles.fieldLabel}>Iscrizione degli utenti</Text>
             <Text style={styles.approvalHelper}>
@@ -970,13 +1036,15 @@ export default function GroupDetailScreen() {
                 Il creatore può modificare copertina e descrizione. Nome, proprietà ed eliminazione sono riservati agli Admin.
               </Text>
             )}
+            </View>
+            ) : null}
           </View>
         ) : null}
 
         {canManageGroup && isPublicGroup && joinRequests.length > 0 ? (
           <View style={styles.requestsCard} onLayout={(event) => {
             if (params.section === 'requests') {
-              groupScrollRef.current?.scrollTo({ y: Math.max(0, event.nativeEvent.layout.y - 18), animated: true });
+              groupScrollRef.current?.scrollTo({ y: Math.max(0, contentY.current + event.nativeEvent.layout.y - 18), animated: true });
             }
           }}>
             <Pressable
@@ -1150,7 +1218,52 @@ export default function GroupDetailScreen() {
             </View>
           </View>
         )}
+        </View>
       </KeyboardAwareScrollView>
+
+      <BajujuBottomNav active="find" />
+
+      <Modal visible={menuOpen} transparent animationType="slide" onRequestClose={() => setMenuOpen(false)}>
+        <Pressable style={styles.sheetBackdrop} onPress={() => setMenuOpen(false)} />
+        <View style={[styles.sheet, { paddingBottom: 24 + insets.bottom }]}>
+          <View style={styles.sheetHandle} />
+          <Text style={styles.sheetTitle} numberOfLines={1}>{group.name}</Text>
+
+          {isPublicGroup ? (
+            <Pressable
+              style={styles.menuItem}
+              onPress={() => {
+                setMenuOpen(false);
+                void handleShareGroup();
+              }}
+            >
+              <Ionicons name="share-social-outline" size={20} color={BAJUJU_COLORS.pink} />
+              <Text style={styles.menuItemText}>Condividi gruppo</Text>
+            </Pressable>
+          ) : null}
+
+          {canManageGroup ? (
+            <Pressable style={styles.menuItem} onPress={openManagement}>
+              <Ionicons name="settings-outline" size={20} color={BAJUJU_COLORS.pink} />
+              <Text style={styles.menuItemText}>{isAdmin ? 'Gestisci il gruppo · Admin' : 'Gestisci il gruppo'}</Text>
+            </Pressable>
+          ) : null}
+
+          {canManageGroup ? (
+            <Pressable
+              style={[styles.menuItem, coverBusy && styles.disabled]}
+              disabled={coverBusy}
+              onPress={() => {
+                setMenuOpen(false);
+                void handleChangeCover();
+              }}
+            >
+              <Ionicons name="image-outline" size={20} color={BAJUJU_COLORS.pink} />
+              <Text style={styles.menuItemText}>{coverUrl ? 'Cambia foto copertina' : 'Aggiungi foto copertina'}</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      </Modal>
 
       <Modal
         visible={Boolean(selectedMemberPhotoUrl)}
@@ -1175,36 +1288,47 @@ export default function GroupDetailScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: BAJUJU_COLORS.background },
-  container: { padding: 16, paddingTop: 18, paddingBottom: 80 },
+  container: { backgroundColor: BAJUJU_COLORS.background },
+  hero: { height: 270, backgroundColor: BAJUJU_COLORS.softPink, borderBottomLeftRadius: 28, borderBottomRightRadius: 28, overflow: 'hidden' },
+  heroImage: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
+  heroTopBar: { position: 'absolute', top: 12, left: 14, right: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  heroTopActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  heroIconButton: { width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.94)', alignItems: 'center', justifyContent: 'center' },
+  heroText: { position: 'absolute', left: 18, right: 18, bottom: 18, gap: 8 },
+  content: { paddingHorizontal: 16, paddingTop: 16, gap: 14 },
+  infoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  infoTile: { flexBasis: '48%', flexGrow: 1, minWidth: 0, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 18, borderWidth: 1, borderColor: BAJUJU_COLORS.line, backgroundColor: BAJUJU_COLORS.white },
+  infoLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  infoLabel: { color: BAJUJU_COLORS.pink, fontFamily: BAJUJU_FONTS.semiBold, fontSize: 11, letterSpacing: 0.6, textTransform: 'uppercase' },
+  infoValue: { marginTop: 2, color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.semiBold, fontSize: 15 },
+  infoValueFree: { color: '#1F7A52' },
+  infoValueRequest: { color: '#8A5B00' },
+  ownerIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: BAJUJU_COLORS.softPink },
+  ownerCopy: { flex: 1, minWidth: 0 },
+  managementHeader: { minHeight: 68, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  managementBody: { paddingBottom: 18, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: BAJUJU_COLORS.line },
+  sheetBackdrop: { flex: 1, backgroundColor: 'rgba(75,12,45,0.35)' },
+  sheet: { backgroundColor: BAJUJU_COLORS.background, borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 16, paddingTop: 10 },
+  sheetHandle: { alignSelf: 'center', width: 42, height: 5, borderRadius: 3, backgroundColor: BAJUJU_COLORS.line, marginBottom: 14 },
+  sheetTitle: { marginBottom: 4, color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.bold, fontSize: 20 },
+  menuItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: BAJUJU_COLORS.palePink },
+  menuItemText: { color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.semiBold, fontSize: 16 },
   backPill: { alignSelf: 'center', marginTop: 16, minHeight: 44, paddingHorizontal: 18, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff', borderWidth: 1.5, borderColor: BAJUJU_COLORS.line },
   backPillText: { color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.semiBold, fontSize: 14 },
-  topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  roundButton: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff', borderWidth: 1.5, borderColor: BAJUJU_COLORS.line },
-  shareButton: { height: 44, paddingLeft: 12, paddingRight: 16, borderRadius: 999, borderWidth: 1.5, borderColor: BAJUJU_COLORS.line, backgroundColor: '#fff', flexDirection: 'row', alignItems: 'center', gap: 6 },
-  shareButtonText: { color: '#C2287A', fontFamily: BAJUJU_FONTS.semiBold, fontSize: 15 },
-  coverBox: { marginTop: 14, borderRadius: 22, overflow: 'hidden', aspectRatio: 16 / 9, backgroundColor: BAJUJU_COLORS.softPink },
-  coverImage: { width: '100%', height: '100%' },
-  coverPlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  categoryChip: { position: 'absolute', top: 10, left: 10, maxWidth: '70%', overflow: 'hidden', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: '#fff', color: '#9B1F61', fontFamily: BAJUJU_FONTS.semiBold, fontSize: 13 },
-  title: { marginTop: 16, color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.bold, fontSize: 28, lineHeight: 33, letterSpacing: -0.3 },
-  factsCard: { marginTop: 12, paddingHorizontal: 14, paddingTop: 12, paddingBottom: 4, borderRadius: 20, borderWidth: 1, borderColor: BAJUJU_COLORS.line, backgroundColor: '#fff', gap: 8 },
-  factRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  factText: { flex: 1, color: '#6B3652', fontFamily: BAJUJU_FONTS.medium, fontSize: 15 },
-  ownerRow: { minHeight: 44, marginTop: 2, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: BAJUJU_COLORS.line, flexDirection: 'row', alignItems: 'center', gap: 6 },
-  ownerLabel: { color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.medium, fontSize: 14 },
-  ownerName: { flex: 1, color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.semiBold, fontSize: 14 },
-  descriptionCard: { marginTop: 12, padding: 14, borderRadius: 20, borderWidth: 1, borderColor: BAJUJU_COLORS.line, backgroundColor: '#fff' },
-  descriptionTitle: { marginBottom: 6, color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.bold, fontSize: 17 },
-  description: { color: '#4F2A3E', fontFamily: BAJUJU_FONTS.regular, fontSize: 15, lineHeight: 22 },
-  descriptionToggle: { marginTop: 8, color: BAJUJU_COLORS.pink, fontFamily: BAJUJU_FONTS.semiBold, fontSize: 14 },
-  joinButton: { minHeight: 52, marginTop: 14, paddingHorizontal: 22, borderRadius: 26, alignItems: 'center', justifyContent: 'center', backgroundColor: BAJUJU_COLORS.pink },
-  ownerBadge: { minHeight: 46, marginTop: 14, paddingHorizontal: 18, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: BAJUJU_COLORS.softPink },
+  coverPlaceholder: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', backgroundColor: BAJUJU_COLORS.softPink },
+  categoryChip: { alignSelf: 'flex-start', maxWidth: '80%', overflow: 'hidden', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: BAJUJU_COLORS.white, color: BAJUJU_COLORS.pink, fontFamily: BAJUJU_FONTS.semiBold, fontSize: 12 },
+  title: { color: BAJUJU_COLORS.white, fontFamily: BAJUJU_FONTS.bold, fontSize: 26, lineHeight: 30 },
+  ownerRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 20, borderWidth: 1, borderColor: BAJUJU_COLORS.line, backgroundColor: BAJUJU_COLORS.white },
+  ownerLabel: { color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.regular, fontSize: 12 },
+  ownerName: { color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.semiBold, fontSize: 15 },
+  description: { color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.regular, fontSize: 15, lineHeight: 22 },
+  descriptionToggle: { marginTop: 4, color: BAJUJU_COLORS.pink, fontFamily: BAJUJU_FONTS.semiBold, fontSize: 14 },
+  joinButton: { minHeight: 50, paddingHorizontal: 22, borderRadius: 25, alignItems: 'center', justifyContent: 'center', backgroundColor: BAJUJU_COLORS.pink },
   counter: { marginTop: 5, alignSelf: 'flex-end', color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.medium, fontSize: 12 },
   loadingBox: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 28 },
   loadingText: { color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.medium, fontSize: 14 },
   notFoundTitle: { color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.bold, fontSize: 24 },
   statusCard: {
-    marginTop: 12,
     padding: 14,
     borderRadius: 19,
     borderWidth: 1.5,
@@ -1222,13 +1346,12 @@ const styles = StyleSheet.create({
   leaveButtonText: { color: BAJUJU_COLORS.brightPink },
   pendingJoinButton: { backgroundColor: BAJUJU_COLORS.palePink },
   pendingJoinButtonText: { color: BAJUJU_COLORS.brightPink },
-  cancelRequestButton: { minHeight: 40, marginTop: 5, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center' },
+  cancelRequestButton: { minHeight: 40, marginTop: -8, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center' },
   cancelRequestButtonText: { color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.semiBold, fontSize: 12, textDecorationLine: 'underline' },
-  ownerBadgeText: { color: '#C2287A', fontFamily: BAJUJU_FONTS.bold, fontSize: 13 },
   disabled: { opacity: 0.5 },
-  managementCard: { marginTop: 22, padding: 20, borderRadius: 28, borderWidth: 1.5, borderColor: BAJUJU_COLORS.palePink, backgroundColor: '#fff', ...BAJUJU_SHADOW },
+  managementCard: { marginTop: 8, paddingHorizontal: 16, borderRadius: 22, borderWidth: 1, borderColor: BAJUJU_COLORS.line, backgroundColor: '#fff' },
   managementEyebrow: { color: BAJUJU_COLORS.brightPink, fontFamily: BAJUJU_FONTS.bold, fontSize: 11, letterSpacing: 0.9 },
-  managementTitle: { marginTop: 3, color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.bold, fontSize: 23 },
+  managementTitle: { marginTop: 2, color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.bold, fontSize: 18 },
   approvalHelper: { color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.regular, fontSize: 12, lineHeight: 17 },
   approvalModeRow: { flexDirection: 'row', gap: 9, marginBottom: 4 },
   approvalModeButton: { flex: 1, minHeight: 44, paddingHorizontal: 10, borderRadius: 22, borderWidth: 1.5, borderColor: BAJUJU_COLORS.palePink, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' },
@@ -1250,7 +1373,7 @@ const styles = StyleSheet.create({
   deleteButton: { minHeight: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFF0F0', borderWidth: 1.5, borderColor: '#E15A5A' },
   deleteButtonText: { color: '#B82424', fontFamily: BAJUJU_FONTS.bold, fontSize: 14 },
   ownerRuleText: { marginTop: 14, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.regular, fontSize: 12, lineHeight: 17 },
-  requestsCard: { marginTop: 18, borderRadius: 24, borderWidth: 1.5, borderColor: BAJUJU_COLORS.palePink, backgroundColor: '#fff', overflow: 'hidden', ...BAJUJU_SHADOW },
+  requestsCard: { borderRadius: 22, borderWidth: 1, borderColor: BAJUJU_COLORS.line, backgroundColor: '#fff', overflow: 'hidden' },
   requestsHeader: { minHeight: 74, paddingHorizontal: 17, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   requestsEyebrow: { color: BAJUJU_COLORS.brightPink, fontFamily: BAJUJU_FONTS.bold, fontSize: 10, letterSpacing: 0.8 },
   requestsTitle: { marginTop: 2, color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.bold, fontSize: 18 },
@@ -1264,16 +1387,16 @@ const styles = StyleSheet.create({
   rejectRequestText: { color: '#A3345E', fontFamily: BAJUJU_FONTS.bold, fontSize: 12 },
   acceptRequestButton: { flex: 1, minHeight: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: BAJUJU_COLORS.brightPink },
   acceptRequestText: { color: '#fff', fontFamily: BAJUJU_FONTS.bold, fontSize: 12 },
-  section: { marginTop: 26 },
-  sectionTitle: { color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.bold, fontSize: 22 },
+  section: { marginTop: 10 },
+  sectionTitle: { color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.bold, fontSize: 20 },
   privacyText: { marginTop: 4, marginBottom: 11, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.regular, fontSize: 12, lineHeight: 17 },
-  emptyCard: { marginTop: 11, padding: 18, borderRadius: 22, borderWidth: 1.5, borderColor: BAJUJU_COLORS.palePink, backgroundColor: '#fff' },
+  emptyCard: { marginTop: 11, padding: 18, borderRadius: 22, borderWidth: 1, borderColor: BAJUJU_COLORS.line, backgroundColor: '#fff' },
   emptyText: { color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.medium, fontSize: 14, lineHeight: 20 },
-  experienceCard: { marginTop: 11, padding: 17, borderRadius: 22, borderWidth: 1.5, borderColor: BAJUJU_COLORS.palePink, backgroundColor: '#fff', ...BAJUJU_SHADOW },
+  experienceCard: { marginTop: 11, padding: 17, borderRadius: 22, borderWidth: 1, borderColor: BAJUJU_COLORS.line, backgroundColor: '#fff' },
   experienceTitle: { color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.bold, fontSize: 17 },
   experienceMeta: { marginTop: 5, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.medium, fontSize: 12 },
   experienceArrow: { marginTop: 9, color: BAJUJU_COLORS.brightPink, fontFamily: BAJUJU_FONTS.semiBold, fontSize: 12 },
-  membersCard: { borderRadius: 23, overflow: 'hidden', borderWidth: 1.5, borderColor: BAJUJU_COLORS.palePink, backgroundColor: '#fff' },
+  membersCard: { borderRadius: 23, overflow: 'hidden', borderWidth: 1, borderColor: BAJUJU_COLORS.line, backgroundColor: '#fff' },
   memberRow: { minHeight: 72, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center' },
   memberBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: BAJUJU_COLORS.line },
   memberAvatar: { width: 52, height: 52, borderRadius: 26, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: BAJUJU_COLORS.palePink },

@@ -434,7 +434,6 @@ export default function ExperiencesScreen() {
             onPress={() => router.push('/experiences-map')}
           >
             <BajujuIcon name="pin" size={20} color="#E43F98" />
-            <Text style={styles.mapLabel}>Mappa</Text>
           </Pressable>
           <BajujuProfileButton />
         </View>
@@ -679,8 +678,7 @@ const styles = StyleSheet.create({
   screenHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   screenTitleFill: { flex: 1 },
   screenTitle: { color: PLUM, fontFamily: 'FredokaBold', fontSize: 28, letterSpacing: -0.5 },
-  mapButton: { height: 44, paddingLeft: 12, paddingRight: 16, borderRadius: 999, borderWidth: 1.5, borderColor: LINE, backgroundColor: '#FFFFFF', flexDirection: 'row', alignItems: 'center', gap: 6 },
-  mapLabel: { color: '#C2287A', fontFamily: 'FredokaSemiBold', fontSize: 15 },
+  mapButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, borderColor: LINE, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
   tabsRow: { marginTop: 16, marginBottom: 20, flexDirection: 'row', gap: 4, padding: 4, borderRadius: 999, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: LINE },
   tabButton: { flex: 1, height: 40, borderRadius: 999, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 2 },
   tabButtonActive: { backgroundColor: PINK },

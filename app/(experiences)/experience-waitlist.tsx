@@ -280,7 +280,7 @@ export default function ExperienceWaitlistScreen() {
 
           {loading ? (
             <View style={styles.centerBox}>
-              <ActivityIndicator color="#e43f98" />
+              <ActivityIndicator color="#E43F98" />
               <Text style={styles.infoText}>Caricamento…</Text>
             </View>
           ) : errorMessage ? (
@@ -351,20 +351,20 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#FFF9FC' },
   container: { flex: 1, padding: 20, paddingTop: 58, paddingBottom: 120 },
   topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 14 },
-  backButton: { alignSelf: 'flex-start', paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999, backgroundColor: '#fff0f7', borderWidth: 1, borderColor: '#ffd1e6' },
-  backText: { color: '#e43f98', fontWeight: '900' },
-  card: { borderRadius: 28, padding: 20, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#ffd1e6' },
-  eyebrow: { color: '#e43f98', fontWeight: '900', fontSize: 12, letterSpacing: 1 },
-  title: { marginTop: 7, color: '#4b1430', fontSize: 25, lineHeight: 30, fontWeight: '900' },
-  meta: { marginTop: 7, color: '#8f5573', fontSize: 13, lineHeight: 19, fontWeight: '700' },
+  backButton: { alignSelf: 'flex-start', paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999, backgroundColor: '#FFF0F7', borderWidth: 1, borderColor: '#F3C6DC' },
+  backText: { color: '#E43F98', fontFamily: 'FredokaBold' },
+  card: { borderRadius: 28, padding: 20, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#F3C6DC' },
+  eyebrow: { color: '#E43F98', fontFamily: 'FredokaBold', fontSize: 12, letterSpacing: 1 },
+  title: { marginTop: 7, color: '#4B0C2D', fontSize: 25, lineHeight: 30, fontFamily: 'FredokaBold' },
+  meta: { marginTop: 7, color: '#8f5573', fontSize: 13, lineHeight: 19, fontFamily: 'FredokaBold' },
   centerBox: { paddingVertical: 34, alignItems: 'center', gap: 10 },
-  noticeBox: { marginTop: 20, padding: 18, borderRadius: 22, backgroundColor: '#FFF9FC', borderWidth: 1, borderColor: '#ffd9ea' },
+  noticeBox: { marginTop: 20, padding: 18, borderRadius: 22, backgroundColor: '#FFF9FC', borderWidth: 1, borderColor: '#F3C6DC' },
   priorityBox: { marginTop: 20, padding: 18, borderRadius: 22, backgroundColor: '#fff7dc', borderWidth: 1, borderColor: '#e4bf4f' },
-  noticeTitle: { color: '#4b1430', fontSize: 19, fontWeight: '900', textAlign: 'center' },
-  positionText: { marginTop: 10, color: '#e43f98', fontSize: 27, fontWeight: '900', textAlign: 'center' },
-  infoText: { marginTop: 9, color: '#6b3652', fontSize: 14, lineHeight: 20, fontWeight: '700', textAlign: 'center' },
-  mainButton: { marginTop: 16, minHeight: 50, borderRadius: 999, backgroundColor: '#e43f98', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18 },
-  mainButtonText: { color: '#ffffff', fontSize: 15, fontWeight: '900' },
-  secondaryButton: { marginTop: 10, minHeight: 46, borderRadius: 999, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#e43f98', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18 },
-  secondaryButtonText: { color: '#e43f98', fontSize: 14, fontWeight: '900' },
+  noticeTitle: { color: '#4B0C2D', fontSize: 19, fontFamily: 'FredokaBold', textAlign: 'center' },
+  positionText: { marginTop: 10, color: '#E43F98', fontSize: 27, fontFamily: 'FredokaBold', textAlign: 'center' },
+  infoText: { marginTop: 9, color: '#8D5E77', fontSize: 14, lineHeight: 20, fontFamily: 'FredokaBold', textAlign: 'center' },
+  mainButton: { marginTop: 16, minHeight: 50, borderRadius: 999, backgroundColor: '#E43F98', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18 },
+  mainButtonText: { color: '#ffffff', fontSize: 15, fontFamily: 'FredokaBold' },
+  secondaryButton: { marginTop: 10, minHeight: 46, borderRadius: 999, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#E43F98', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18 },
+  secondaryButtonText: { color: '#E43F98', fontSize: 14, fontFamily: 'FredokaBold' },
 });

@@ -268,7 +268,7 @@ export default function AdminScreen() {
     <SafeAreaView style={styles.safeArea}>
       <ScrollView
         contentContainerStyle={styles.page}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#e43f98" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#E43F98" />}
       >
         <View style={styles.headerCard}>
           <Text style={styles.kicker}>Bajuju</Text>
@@ -284,7 +284,7 @@ export default function AdminScreen() {
 
         {loading ? (
           <View style={styles.loadingCard}>
-            <ActivityIndicator color="#e43f98" />
+            <ActivityIndicator color="#E43F98" />
             <Text style={styles.loadingText}>Carico dati admin...</Text>
           </View>
         ) : null}
@@ -406,39 +406,39 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     padding: 20,
     borderWidth: 1,
-    borderColor: '#ffd3e6',
+    borderColor: '#F3C6DC',
   },
-  kicker: { color: '#ef2d82', fontSize: 14, fontWeight: '900', marginBottom: 8 },
-  title: { color: '#e43f98', fontSize: 31, fontWeight: '900', marginBottom: 8 },
-  text: { color: '#4b1430', fontSize: 15, lineHeight: 22, fontWeight: '700', marginBottom: 16 },
+  kicker: { color: '#E43F98', fontSize: 14, fontFamily: 'FredokaBold', marginBottom: 8 },
+  title: { color: '#E43F98', fontSize: 31, fontFamily: 'FredokaBold', marginBottom: 8 },
+  text: { color: '#4B0C2D', fontSize: 15, lineHeight: 22, fontFamily: 'FredokaBold', marginBottom: 16 },
   backButton: {
     alignSelf: 'flex-start',
-    backgroundColor: '#fff0f7',
+    backgroundColor: '#FFF0F7',
     borderRadius: 999,
     paddingVertical: 10,
     paddingHorizontal: 14,
     borderWidth: 1,
-    borderColor: '#ffd3e6',
+    borderColor: '#F3C6DC',
   },
-  backButtonText: { color: '#9b1f61', fontSize: 14, fontWeight: '900' },
+  backButtonText: { color: '#4B0C2D', fontSize: 14, fontFamily: 'FredokaBold' },
   loadingCard: {
     backgroundColor: '#ffffff',
     borderRadius: 20,
     padding: 18,
     borderWidth: 1,
-    borderColor: '#ffd3e6',
+    borderColor: '#F3C6DC',
     alignItems: 'center',
     gap: 8,
   },
-  loadingText: { color: '#7b4960', fontWeight: '800' },
+  loadingText: { color: '#8D5E77', fontFamily: 'FredokaBold' },
   menuCard: {
     backgroundColor: '#ffffff',
     borderRadius: 24,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#ffd3e6',
+    borderColor: '#F3C6DC',
   },
-  sectionTitle: { color: '#4b1430', fontSize: 21, fontWeight: '900', marginBottom: 12 },
+  sectionTitle: { color: '#4B0C2D', fontSize: 21, fontFamily: 'FredokaBold', marginBottom: 12 },
   menuRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -446,7 +446,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#ffd3e6',
+    borderColor: '#F3C6DC',
     marginBottom: 10,
     gap: 12,
   },
@@ -458,19 +458,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  menuIcon: { fontSize: 22 },
+  menuIcon: { fontFamily: 'FredokaRegular', fontSize: 22 },
   menuTextBox: { flex: 1 },
-  menuTitle: { color: '#4b1430', fontSize: 16, fontWeight: '900', marginBottom: 3 },
-  menuSubtitle: { color: '#7b4960', fontSize: 13, lineHeight: 18, fontWeight: '700' },
+  menuTitle: { color: '#4B0C2D', fontSize: 16, fontFamily: 'FredokaBold', marginBottom: 3 },
+  menuSubtitle: { color: '#8D5E77', fontSize: 13, lineHeight: 18, fontFamily: 'FredokaBold' },
   countPill: {
     minWidth: 42,
     height: 34,
     borderRadius: 17,
-    backgroundColor: '#ef2d82',
+    backgroundColor: '#E43F98',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 10,
   },
-  countText: { color: '#ffffff', fontSize: 15, fontWeight: '900' },
-  arrow: { color: '#e43f98', fontSize: 28, fontWeight: '900' },
+  countText: { color: '#ffffff', fontSize: 15, fontFamily: 'FredokaBold' },
+  arrow: { color: '#E43F98', fontSize: 28, fontFamily: 'FredokaBold' },
 });

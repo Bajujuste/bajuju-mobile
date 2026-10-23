@@ -245,7 +245,7 @@ const styles = StyleSheet.create({
   },
   badgeText: { color: '#fff', fontFamily: BAJUJU_FONTS.bold, fontSize: 13 },
   name: { color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.bold, fontSize: 28, marginBottom: 6 },
-  description: { color: '#6b3652', fontFamily: BAJUJU_FONTS.medium, fontSize: 15, lineHeight: 21, marginBottom: 6 },
+  description: { color: '#8D5E77', fontFamily: BAJUJU_FONTS.medium, fontSize: 15, lineHeight: 21, marginBottom: 6 },
   linksRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 10, marginBottom: 4 },
   linkButton: {
     width: 50,

@@ -250,7 +250,7 @@ const styles = StyleSheet.create({
   threadCardUnread: { borderColor: BAJUJU_COLORS.brightPink, backgroundColor: '#FFF7FB' },
   avatar: { width: 56, height: 56, borderRadius: 19, backgroundColor: BAJUJU_COLORS.softPink },
   avatarFallback: { width: 56, height: 56, borderRadius: 19, backgroundColor: BAJUJU_COLORS.softPink, alignItems: 'center', justifyContent: 'center' },
-  avatarFallbackText: { fontSize: 24 },
+  avatarFallbackText: { fontFamily: 'FredokaRegular', fontSize: 24 },
   threadCopy: { flex: 1, minWidth: 0 },
   threadTopRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   threadName: { flex: 1, color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.bold, fontSize: 17 },

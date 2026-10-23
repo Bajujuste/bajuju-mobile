@@ -20,7 +20,7 @@ type PhotoOptions = { aspect?: [number, number]; quality?: number };
 type PendingPhoto = PhotoResult & { aspect?: [number, number] };
 type Position = { x: number; y: number };
 
-const PINK = '#e43f98';
+const PINK = '#E43F98';
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
 /**
@@ -257,21 +257,21 @@ export function useBajujuPhotoPicker() {
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: '#fff9fc', paddingHorizontal: 20 },
+  page: { flex: 1, backgroundColor: '#FFF9FC', paddingHorizontal: 20 },
   header: { paddingTop: 22, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  title: { color: '#4b1430', fontSize: 23, fontWeight: '900', flexShrink: 1 },
+  title: { color: '#4B0C2D', fontSize: 23, fontFamily: 'FredokaBold', flexShrink: 1 },
   cancel: { paddingVertical: 12, paddingHorizontal: 14, borderRadius: 12, backgroundColor: '#fce5f1' },
-  cancelText: { color: '#852d59', fontSize: 15, fontWeight: '800' },
-  hint: { marginTop: 18, color: '#54263e', fontSize: 15, textAlign: 'center', lineHeight: 21 },
+  cancelText: { color: '#852d59', fontSize: 15, fontFamily: 'FredokaBold' },
+  hint: { marginTop: 18, color: '#54263e', fontFamily: 'FredokaRegular', fontSize: 15, textAlign: 'center', lineHeight: 21 },
   stage: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   frame: { overflow: 'hidden', backgroundColor: '#21151d', borderWidth: 3, borderColor: PINK, borderRadius: 12 },
   zoomRow: { marginTop: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 20 },
   zoomButton: { height: 48, width: 54, borderRadius: 12, backgroundColor: '#fce5f1', alignItems: 'center', justifyContent: 'center' },
-  zoomText: { color: '#742646', fontWeight: '900', fontSize: 28 },
-  zoomLabel: { color: '#54263e', fontSize: 14, fontWeight: '700' },
+  zoomText: { color: '#742646', fontFamily: 'FredokaBold', fontSize: 28 },
+  zoomLabel: { color: '#54263e', fontSize: 14, fontFamily: 'FredokaBold' },
   footer: { paddingTop: 8, paddingBottom: 22 },
   confirm: { backgroundColor: PINK, minHeight: 60, borderRadius: 16, alignItems: 'center', justifyContent: 'center', elevation: 3 },
-  confirmText: { color: '#fff', fontWeight: '900', fontSize: 18 },
+  confirmText: { color: '#fff', fontFamily: 'FredokaBold', fontSize: 18 },
   disabled: { opacity: 0.65 },
-  footerNote: { color: '#765b68', textAlign: 'center', marginTop: 10, fontSize: 12 },
+  footerNote: { color: '#765b68', textAlign: 'center', marginTop: 10, fontFamily: 'FredokaRegular', fontSize: 12 },
 });

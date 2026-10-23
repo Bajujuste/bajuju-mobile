@@ -38,9 +38,9 @@ const COLORS = {
   myEvents: '#168C9E',
   line: '#F3C6DC',
   plum: '#4B0C2D',
-  muted: '#A95D86',
+  muted: '#8D5E77',
   accentText: '#C2287A',
-  bodyText: '#6B3652',
+  bodyText: '#8D5E77',
 };
 
 type NextExperience = {
@@ -412,8 +412,8 @@ const styles = StyleSheet.create({
   heroBlobTop: { left: -25, top: -24, transform: [{ rotate: '-18deg' }] },
   heroBlobBottom: { right: -34, bottom: -28, transform: [{ rotate: '18deg' }] },
   doodle: { position: 'absolute', zIndex: 2, color: COLORS.brightPink, fontFamily: 'FredokaBold' },
-  doodleLeft: { left: 34, top: 84, fontSize: 25, transform: [{ rotate: '-8deg' }] },
-  doodleRight: { right: 29, top: 27, fontSize: 24, transform: [{ rotate: '8deg' }] },
+  doodleLeft: { left: 34, top: 84, fontFamily: 'FredokaRegular', fontSize: 25, transform: [{ rotate: '-8deg' }] },
+  doodleRight: { right: 29, top: 27, fontFamily: 'FredokaRegular', fontSize: 24, transform: [{ rotate: '8deg' }] },
   claimTop: { zIndex: 1, color: COLORS.plum, fontFamily: 'FredokaBold', fontSize: 42, lineHeight: 43, letterSpacing: -1.2 },
   claimBottom: { zIndex: 1, marginTop: -1, color: COLORS.brightPink, fontFamily: 'FredokaBold', fontSize: 55, lineHeight: 54, letterSpacing: -1.2 },
   heroCopy: { zIndex: 1, marginTop: 8, color: COLORS.plum, fontFamily: 'FredokaMedium', fontSize: 16, lineHeight: 20, textAlign: 'center' },
@@ -457,9 +457,9 @@ const styles = StyleSheet.create({
   eventImage: { width: '100%', height: '100%' },
   eventPlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   imageChip: { position: 'absolute', overflow: 'hidden', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, fontFamily: 'FredokaSemiBold', fontSize: 13 },
-  categoryChip: { top: 10, left: 10, maxWidth: '60%', backgroundColor: COLORS.white, color: '#9B1F61' },
+  categoryChip: { top: 10, left: 10, maxWidth: '60%', backgroundColor: COLORS.white, color: '#4B0C2D' },
   distanceChip: { top: 10, right: 10, backgroundColor: 'rgba(75, 12, 45, 0.82)', color: COLORS.white },
-  joinedChip: { top: 8, left: 8, backgroundColor: COLORS.green, color: COLORS.white, fontSize: 12 },
+  joinedChip: { top: 8, left: 8, backgroundColor: COLORS.green, color: COLORS.white, fontFamily: 'FredokaRegular', fontSize: 12 },
   eventBody: { paddingHorizontal: 14, paddingTop: 12, paddingBottom: 14, gap: 8 },
   eventTitle: { color: COLORS.plum, fontFamily: 'FredokaBold', fontSize: 18, lineHeight: 22 },
   eventFooter: { flexDirection: 'row', alignItems: 'center', gap: 8 },
@@ -486,7 +486,7 @@ const styles = StyleSheet.create({
   bottomNav: { position: 'absolute', left: 15, right: 15, bottom: 13, height: 94, paddingHorizontal: 4, flexDirection: 'row', alignItems: 'center', borderRadius: 31, borderWidth: 1.4, borderColor: '#F4C4DC', backgroundColor: COLORS.white, shadowColor: '#761046', shadowOpacity: 0.22, shadowRadius: 20, shadowOffset: { width: 0, height: 13 }, elevation: 11 },
   navItem: { position: 'relative', flex: 1, height: 76, alignItems: 'center', justifyContent: 'center', gap: 4 },
   navLabel: { color: COLORS.plum, fontFamily: 'FredokaMedium', fontSize: 13 },
-  navLabelCompact: { fontSize: 11.5, letterSpacing: -0.15 },
+  navLabelCompact: { fontFamily: 'FredokaRegular', fontSize: 11.5, letterSpacing: -0.15 },
   howNavItem: {
     height: 68,
     marginHorizontal: 3,

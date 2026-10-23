@@ -23,7 +23,7 @@ import { BajujuLocation, loadBajujuLocation } from '../../src/lib/bajujuLocation
 const bajujuLogo = require('../../assets/brand/bajuju-logo.png');
 
 const BAJUJU_CREATOR_EMAIL = 'royaleventi@gmail.com';
-const BAJUJU_PINK = '#e43f98';
+const BAJUJU_PINK = '#E43F98';
 
 type LooseRow = Record<string, any>;
 
@@ -453,7 +453,7 @@ export default function UserProfileScreen() {
               params: { targetUserId: userId, activityId },
             })}
           >
-            <Text style={{ color: '#ffffff', fontWeight: '900' }}>Invita a uscire</Text>
+            <Text style={{ color: '#ffffff', fontFamily: 'FredokaBold' }}>Invita a uscire</Text>
           </Pressable>
   
           <Pressable
@@ -463,16 +463,16 @@ export default function UserProfileScreen() {
               paddingVertical: 12,
               paddingHorizontal: 16,
               alignItems: 'center',
-              backgroundColor: '#fff0f7',
+              backgroundColor: '#FFF0F7',
               borderWidth: 1,
-              borderColor: '#ffd1e6',
+              borderColor: '#F3C6DC',
             }}
             onPress={() => router.push({
               pathname: '/share-contact' as any,
               params: { targetUserId: userId, activityId },
             })}
           >
-            <Text style={{ color: BAJUJU_PINK, fontWeight: '900' }}>Invia WhatsApp o Telegram</Text>
+            <Text style={{ color: BAJUJU_PINK, fontFamily: 'FredokaBold' }}>Invia WhatsApp o Telegram</Text>
           </Pressable>
         </View>
       ) : null}
@@ -605,9 +605,9 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: '#ffd3e7',
+    borderColor: '#F3C6DC',
   },
-  backText: { fontSize: 14, fontWeight: '900', color: '#9b1f61' },
+  backText: { fontSize: 14, fontFamily: 'FredokaBold', color: '#4B0C2D' },
   center: {
     marginTop: 60,
     alignItems: 'center',
@@ -615,8 +615,8 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 12,
-    color: '#9b1f61',
-    fontWeight: '800',
+    color: '#4B0C2D',
+    fontFamily: 'FredokaBold',
   },
   card: {
     width: '100%',
@@ -624,7 +624,7 @@ const styles = StyleSheet.create({
     padding: 22,
     backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: '#ffd3e7',
+    borderColor: '#F3C6DC',
     alignItems: 'center',
     marginBottom: 16,
   },
@@ -649,18 +649,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: BAJUJU_PINK,
   },
-  adminMessageButtonText: { color: '#fff', fontSize: 15, fontWeight: '900' },
+  adminMessageButtonText: { color: '#fff', fontSize: 15, fontFamily: 'FredokaBold' },
   photoFrameGold: { borderWidth: 3, borderColor: '#d9a441' },
   photo: {
     width: '100%',
     height: '100%',
     borderRadius: 61,
-    backgroundColor: '#fff0f7',
+    backgroundColor: '#FFF0F7',
   },
   name: {
     fontSize: 28,
-    fontWeight: '900',
-    color: '#e43f98',
+    fontFamily: 'FredokaBold',
+    color: '#E43F98',
     textAlign: 'center',
     marginBottom: 12,
   },
@@ -678,8 +678,8 @@ const styles = StyleSheet.create({
   gradeBadgeGold: { backgroundColor: '#fff7db', borderColor: '#ead58a' },
   gradeText: {
     fontSize: 14,
-    fontWeight: '900',
-    color: '#6b3652',
+    fontFamily: 'FredokaBold',
+    color: '#8D5E77',
   },
   premiumBadge: {
     borderRadius: 999,
@@ -693,20 +693,20 @@ const styles = StyleSheet.create({
   premiumBadgeText: {
     color: '#6e31a8',
     fontSize: 13,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   gradeHint: {
     fontSize: 14,
     lineHeight: 20,
-    fontWeight: '700',
-    color: '#6b3652',
+    fontFamily: 'FredokaBold',
+    color: '#8D5E77',
     textAlign: 'center',
   },
   premiumHint: {
     marginTop: 4,
     fontSize: 13,
     lineHeight: 18,
-    fontWeight: '800',
+    fontFamily: 'FredokaBold',
     color: '#6e31a8',
     textAlign: 'center',
   },
@@ -716,14 +716,14 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingVertical: 10,
     paddingHorizontal: 16,
-    backgroundColor: '#fff0f7',
+    backgroundColor: '#FFF0F7',
     borderWidth: 1,
-    borderColor: '#ffd3e7',
+    borderColor: '#F3C6DC',
   },
   reportUserText: {
-    color: '#9b1f61',
+    color: '#4B0C2D',
     fontSize: 13,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   blockUserButton: {
     marginTop: 10,
@@ -732,12 +732,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: '#ffd3e7',
+    borderColor: '#F3C6DC',
   },
   blockUserText: {
-    color: '#7b4960',
+    color: '#8D5E77',
     fontSize: 13,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   statsGrid: {
     flexDirection: 'row',
@@ -749,28 +749,28 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: '#ffd3e7',
+    borderColor: '#F3C6DC',
     padding: 16,
     alignItems: 'center',
   },
   statNumber: {
     fontSize: 30,
-    fontWeight: '900',
-    color: '#e43f98',
+    fontFamily: 'FredokaBold',
+    color: '#E43F98',
     marginBottom: 4,
   },
   statLabel: {
     fontSize: 13,
     lineHeight: 17,
-    fontWeight: '900',
-    color: '#9b1f61',
+    fontFamily: 'FredokaBold',
+    color: '#4B0C2D',
     textAlign: 'center',
   },
   sectionTitle: {
     width: '100%',
     fontSize: 20,
-    fontWeight: '900',
-    color: '#e43f98',
+    fontFamily: 'FredokaBold',
+    color: '#E43F98',
     marginBottom: 14,
   },
   infoBox: {
@@ -778,31 +778,31 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     backgroundColor: '#FFF9FC',
     borderWidth: 1,
-    borderColor: '#ffd3e7',
+    borderColor: '#F3C6DC',
     padding: 14,
     marginBottom: 10,
   },
   label: {
     fontSize: 13,
-    fontWeight: '900',
-    color: '#9b1f61',
+    fontFamily: 'FredokaBold',
+    color: '#4B0C2D',
     marginBottom: 4,
   },
   value: {
     fontSize: 16,
-    fontWeight: '800',
-    color: '#5f2445',
+    fontFamily: 'FredokaBold',
+    color: '#4B0C2D',
   },
   errorTitle: {
     fontSize: 22,
-    fontWeight: '900',
-    color: '#e43f98',
+    fontFamily: 'FredokaBold',
+    color: '#E43F98',
     marginBottom: 8,
   },
   errorText: {
     fontSize: 15,
-    fontWeight: '700',
-    color: '#6b3652',
+    fontFamily: 'FredokaBold',
+    color: '#8D5E77',
     textAlign: 'center',
   },
 });

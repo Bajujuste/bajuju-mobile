@@ -192,7 +192,7 @@ export default function DirectContactsScreen() {
 
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator color="#e43f98" />
+          <ActivityIndicator color="#E43F98" />
         </View>
       ) : (
         <ScrollView
@@ -262,30 +262,30 @@ export default function DirectContactsScreen() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#FFF9FC' },
   header: { minHeight: 76, paddingHorizontal: 15, flexDirection: 'row', alignItems: 'center' },
-  backButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#f3c6dc', alignItems: 'center', justifyContent: 'center' },
-  backText: { color: '#8f1658', fontSize: 36, lineHeight: 38, marginTop: -4 },
+  backButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#F3C6DC', alignItems: 'center', justifyContent: 'center' },
+  backText: { color: '#4B0C2D', fontFamily: 'FredokaRegular', fontSize: 36, lineHeight: 38, marginTop: -4 },
   headerText: { flex: 1, alignItems: 'center' },
-  title: { color: '#e43f98', fontSize: 24, fontWeight: '900' },
-  subtitle: { marginTop: 2, color: '#a95d86', fontWeight: '700', fontSize: 11, textAlign: 'center' },
+  title: { color: '#E43F98', fontSize: 24, fontFamily: 'FredokaBold' },
+  subtitle: { marginTop: 2, color: '#8D5E77', fontFamily: 'FredokaBold', fontSize: 11, textAlign: 'center' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   container: { padding: 15, paddingBottom: 36 },
-  emptyCard: { padding: 26, borderRadius: 24, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#f3c6dc', alignItems: 'center' },
-  emptyTitle: { color: '#e43f98', fontSize: 19, fontWeight: '900' },
-  emptyText: { marginTop: 7, color: '#6b3652', lineHeight: 20, textAlign: 'center', fontWeight: '700' },
-  card: { marginBottom: 12, padding: 16, borderRadius: 23, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#f3c6dc' },
-  directionLabel: { color: '#a95d86', fontSize: 10, fontWeight: '900', letterSpacing: 1 },
-  cardTitle: { marginTop: 4, color: '#4b1430', fontSize: 18, fontWeight: '900' },
-  typeLabel: { marginTop: 7, color: '#e43f98', fontWeight: '900' },
-  status: { marginTop: 8, alignSelf: 'flex-start', paddingHorizontal: 9, paddingVertical: 5, borderRadius: 999, backgroundColor: '#FFF0F7', color: '#8f1658', fontWeight: '900', fontSize: 12 },
+  emptyCard: { padding: 26, borderRadius: 24, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#F3C6DC', alignItems: 'center' },
+  emptyTitle: { color: '#E43F98', fontSize: 19, fontFamily: 'FredokaBold' },
+  emptyText: { marginTop: 7, color: '#8D5E77', lineHeight: 20, textAlign: 'center', fontFamily: 'FredokaBold' },
+  card: { marginBottom: 12, padding: 16, borderRadius: 23, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#F3C6DC' },
+  directionLabel: { color: '#8D5E77', fontSize: 10, fontFamily: 'FredokaBold', letterSpacing: 1 },
+  cardTitle: { marginTop: 4, color: '#4B0C2D', fontSize: 18, fontFamily: 'FredokaBold' },
+  typeLabel: { marginTop: 7, color: '#E43F98', fontFamily: 'FredokaBold' },
+  status: { marginTop: 8, alignSelf: 'flex-start', paddingHorizontal: 9, paddingVertical: 5, borderRadius: 999, backgroundColor: '#FFF0F7', color: '#4B0C2D', fontFamily: 'FredokaBold', fontSize: 12 },
   statusAccepted: { backgroundColor: '#ecfdf3', color: '#18794e' },
-  message: { marginTop: 10, color: '#6b3652', lineHeight: 20, fontWeight: '700' },
-  valueBox: { marginTop: 12, padding: 13, borderRadius: 16, backgroundColor: '#FFF9FC', borderWidth: 1, borderColor: '#f3c6dc' },
-  valueLabel: { color: '#a95d86', fontWeight: '800', fontSize: 11 },
-  valueText: { marginTop: 4, color: '#4b1430', fontWeight: '900', fontSize: 17 },
-  hiddenText: { marginTop: 12, color: '#a95d86', fontWeight: '700', fontSize: 12 },
+  message: { marginTop: 10, color: '#8D5E77', lineHeight: 20, fontFamily: 'FredokaBold' },
+  valueBox: { marginTop: 12, padding: 13, borderRadius: 16, backgroundColor: '#FFF9FC', borderWidth: 1, borderColor: '#F3C6DC' },
+  valueLabel: { color: '#8D5E77', fontFamily: 'FredokaBold', fontSize: 11 },
+  valueText: { marginTop: 4, color: '#4B0C2D', fontFamily: 'FredokaBold', fontSize: 17 },
+  hiddenText: { marginTop: 12, color: '#8D5E77', fontFamily: 'FredokaBold', fontSize: 12 },
   actionsRow: { marginTop: 14, flexDirection: 'row', gap: 9 },
-  acceptButton: { flex: 1, height: 46, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: '#e43f98' },
-  acceptText: { color: '#ffffff', fontWeight: '900' },
-  rejectButton: { flex: 1, height: 46, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#f3c6dc' },
-  rejectText: { color: '#8f1658', fontWeight: '900' },
+  acceptButton: { flex: 1, height: 46, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: '#E43F98' },
+  acceptText: { color: '#ffffff', fontFamily: 'FredokaBold' },
+  rejectButton: { flex: 1, height: 46, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#F3C6DC' },
+  rejectText: { color: '#4B0C2D', fontFamily: 'FredokaBold' },
 });

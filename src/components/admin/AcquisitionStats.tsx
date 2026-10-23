@@ -27,4 +27,4 @@ export default function AcquisitionStats({ days, refreshKey }: { days: number; r
     </>}
   </View>;
 }
-const styles = StyleSheet.create({card:{padding:17,borderRadius:24,backgroundColor:'#fff',borderWidth:1,borderColor:'#ffd3e6',gap:12},title:{color:'#4b1430',fontSize:19,fontWeight:'900'},note:{color:'#745068',fontSize:13,lineHeight:19},row:{flexDirection:'row',gap:12,borderTopWidth:1,borderTopColor:'#ffe5f0',paddingTop:10},label:{flex:1,color:'#6b3652',fontSize:14},value:{color:'#e43f98',fontSize:20,fontWeight:'900'}});
+const styles = StyleSheet.create({card:{padding:17,borderRadius:24,backgroundColor:'#fff',borderWidth:1,borderColor:'#F3C6DC',gap:12},title:{color:'#4B0C2D',fontSize:19,fontFamily: 'FredokaBold'},note:{color:'#745068',fontFamily: 'FredokaRegular', fontSize:13,lineHeight:19},row:{flexDirection:'row',gap:12,borderTopWidth:1,borderTopColor:'#ffe5f0',paddingTop:10},label:{flex:1,color:'#8D5E77',fontFamily: 'FredokaRegular', fontSize:14},value:{color:'#E43F98',fontSize:20,fontFamily: 'FredokaBold'}});

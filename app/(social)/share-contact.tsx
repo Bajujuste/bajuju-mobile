@@ -321,7 +321,7 @@ export default function ShareContactScreen() {
 
           {loading ? (
             <View style={styles.loadingBox}>
-              <ActivityIndicator color="#e43f98" />
+              <ActivityIndicator color="#E43F98" />
               <Text style={styles.helper}>Controllo esperienza e permessi…</Text>
             </View>
           ) : !allowed ? (
@@ -378,22 +378,22 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#FFF9FC' },
   container: { flexGrow: 1, padding: 18 },
   topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 14 },
-  backButton: { alignSelf: 'flex-start', paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999, backgroundColor: '#fff0f7', borderWidth: 1, borderColor: '#ffd1e6' },
-  backText: { color: '#e43f98', fontWeight: '900' },
-  card: { backgroundColor: '#ffffff', borderRadius: 26, borderWidth: 1, borderColor: '#f3c6dc', padding: 18 },
-  title: { color: '#e43f98', fontSize: 23, fontWeight: '900' },
-  subtitle: { marginTop: 7, color: '#6b3652', fontSize: 14, lineHeight: 20, fontWeight: '700' },
+  backButton: { alignSelf: 'flex-start', paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999, backgroundColor: '#FFF0F7', borderWidth: 1, borderColor: '#F3C6DC' },
+  backText: { color: '#E43F98', fontFamily: 'FredokaBold' },
+  card: { backgroundColor: '#ffffff', borderRadius: 26, borderWidth: 1, borderColor: '#F3C6DC', padding: 18 },
+  title: { color: '#E43F98', fontSize: 23, fontFamily: 'FredokaBold' },
+  subtitle: { marginTop: 7, color: '#8D5E77', fontSize: 14, lineHeight: 20, fontFamily: 'FredokaBold' },
   loadingBox: { minHeight: 130, alignItems: 'center', justifyContent: 'center', gap: 10 },
-  warningBox: { marginTop: 18, borderRadius: 18, padding: 14, backgroundColor: '#FFF0F7', borderWidth: 1, borderColor: '#f3c6dc' },
-  warningText: { color: '#6b3652', fontWeight: '800', lineHeight: 20 },
+  warningBox: { marginTop: 18, borderRadius: 18, padding: 14, backgroundColor: '#FFF0F7', borderWidth: 1, borderColor: '#F3C6DC' },
+  warningText: { color: '#8D5E77', fontFamily: 'FredokaBold', lineHeight: 20 },
   typeRow: { marginTop: 18, flexDirection: 'row', gap: 8 },
-  typeButton: { flex: 1, minHeight: 48, paddingHorizontal: 10, borderRadius: 16, borderWidth: 1, borderColor: '#f3c6dc', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFF9FC' },
-  typeButtonActive: { backgroundColor: '#e43f98', borderColor: '#e43f98' },
-  typeText: { color: '#6b3652', fontWeight: '900', textAlign: 'center', fontSize: 13 },
+  typeButton: { flex: 1, minHeight: 48, paddingHorizontal: 10, borderRadius: 16, borderWidth: 1, borderColor: '#F3C6DC', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFF9FC' },
+  typeButtonActive: { backgroundColor: '#E43F98', borderColor: '#E43F98' },
+  typeText: { color: '#8D5E77', fontFamily: 'FredokaBold', textAlign: 'center', fontSize: 13 },
   typeTextActive: { color: '#ffffff' },
-  input: { marginTop: 16, height: 54, borderWidth: 1, borderColor: '#f3c6dc', borderRadius: 18, paddingHorizontal: 14, color: '#4b1430', backgroundColor: '#FFF9FC', fontSize: 15 },
-  helper: { marginTop: 9, color: '#a95d86', fontSize: 12, lineHeight: 17, fontWeight: '700' },
-  sendButton: { marginTop: 18, height: 52, borderRadius: 18, backgroundColor: '#e43f98', alignItems: 'center', justifyContent: 'center' },
-  sendText: { color: '#ffffff', fontWeight: '900', fontSize: 16 },
+  input: { marginTop: 16, height: 54, borderWidth: 1, borderColor: '#F3C6DC', borderRadius: 18, paddingHorizontal: 14, color: '#4B0C2D', backgroundColor: '#FFF9FC', fontFamily: 'FredokaRegular', fontSize: 15 },
+  helper: { marginTop: 9, color: '#8D5E77', fontSize: 12, lineHeight: 17, fontFamily: 'FredokaBold' },
+  sendButton: { marginTop: 18, height: 52, borderRadius: 18, backgroundColor: '#E43F98', alignItems: 'center', justifyContent: 'center' },
+  sendText: { color: '#ffffff', fontFamily: 'FredokaBold', fontSize: 16 },
   disabled: { opacity: 0.6 },
 });

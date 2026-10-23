@@ -381,7 +381,7 @@ export default function BajujuMap({
           initialRegion={initialRegion}
           mapType="standard"
           loadingEnabled
-          loadingIndicatorColor="#e43f98"
+          loadingIndicatorColor="#E43F98"
           loadingBackgroundColor="#fff8fb"
           onMapReady={() => {
             setMapReady(true);
@@ -616,7 +616,7 @@ const legacyStyles = StyleSheet.create({
     borderRadius: 24,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#ffd3e6',
+    borderColor: '#F3C6DC',
     gap: 12,
     overflow: 'hidden',
   },
@@ -631,27 +631,27 @@ const legacyStyles = StyleSheet.create({
     minWidth: 0,
   },
   title: {
-    color: '#4b1430',
+    color: '#4B0C2D',
     fontSize: 20,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   subtitle: {
-    color: '#7b4960',
+    color: '#8D5E77',
     fontSize: 13,
     lineHeight: 18,
-    fontWeight: '800',
+    fontFamily: 'FredokaBold',
     marginTop: 2,
   },
   count: {
-    color: '#e43f98',
+    color: '#E43F98',
     fontSize: 26,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   emptyText: {
-    color: '#7b4960',
+    color: '#8D5E77',
     fontSize: 14,
     lineHeight: 20,
-    fontWeight: '800',
+    fontFamily: 'FredokaBold',
   },
   mapShell: {
     position: 'relative',
@@ -659,7 +659,7 @@ const legacyStyles = StyleSheet.create({
     borderRadius: 22,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#ffd3e6',
+    borderColor: '#F3C6DC',
     backgroundColor: '#fff8fb',
   },
   map: {
@@ -670,12 +670,12 @@ const legacyStyles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#e43f98',
+    backgroundColor: '#E43F98',
     borderWidth: 4,
     borderColor: '#ffffff',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#4b1430',
+    shadowColor: '#4B0C2D',
     shadowOpacity: 0.35,
     shadowRadius: 8,
     shadowOffset: {
@@ -692,6 +692,7 @@ const legacyStyles = StyleSheet.create({
     borderWidth: 5,
   },
   markerIcon: {
+    fontFamily: 'FredokaRegular',
     fontSize: 20,
   },
   preview: {
@@ -703,8 +704,8 @@ const legacyStyles = StyleSheet.create({
     borderRadius: 20,
     padding: 12,
     borderWidth: 1,
-    borderColor: '#ffd3e6',
-    shadowColor: '#4b1430',
+    borderColor: '#F3C6DC',
+    shadowColor: '#4B0C2D',
     shadowOpacity: 0.22,
     shadowRadius: 12,
     shadowOffset: {
@@ -722,13 +723,14 @@ const legacyStyles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#fff0f7',
+    backgroundColor: '#FFF0F7',
     borderWidth: 1,
-    borderColor: '#ffd3e6',
+    borderColor: '#F3C6DC',
     alignItems: 'center',
     justifyContent: 'center',
   },
   previewIcon: {
+    fontFamily: 'FredokaRegular',
     fontSize: 19,
   },
   previewText: {
@@ -736,28 +738,28 @@ const legacyStyles = StyleSheet.create({
     minWidth: 0,
   },
   previewKicker: {
-    color: '#e43f98',
+    color: '#E43F98',
     fontSize: 12,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
     marginBottom: 2,
   },
   previewTitle: {
-    color: '#4b1430',
+    color: '#4B0C2D',
     fontSize: 15,
     lineHeight: 19,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
   previewMeta: {
-    color: '#7b4960',
+    color: '#8D5E77',
     fontSize: 12,
     lineHeight: 17,
-    fontWeight: '800',
+    fontFamily: 'FredokaBold',
     marginTop: 5,
   },
   previewAction: {
-    color: '#e43f98',
+    color: '#E43F98',
     fontSize: 12,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
     marginTop: 8,
   },
 });
@@ -768,9 +770,9 @@ const styles = StyleSheet.create({
   fullScreenCard: { flex: 1, padding: 0, gap: 0, borderWidth: 0, borderRadius: 0, overflow: 'hidden' },
   fullScreenMapShell: { flex: 1, height: undefined, borderWidth: 0, borderRadius: 0 },
   topOverlay: { position: 'absolute', top: 12, left: 12, right: 12 },
-  locationButton: { position: 'absolute', bottom: 18, right: 16, width: 50, height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF', elevation: 6, shadowColor: '#4B1430', shadowOpacity: 0.2, shadowRadius: 8 },
+  locationButton: { position: 'absolute', bottom: 18, right: 16, width: 50, height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF', elevation: 6, shadowColor: '#4B0C2D', shadowOpacity: 0.2, shadowRadius: 8 },
   externalMapActions: { position: 'absolute', right: 12, flexDirection: 'row', gap: 8 },
-  externalMapButton: { height: 48, paddingHorizontal: 11, borderRadius: 24, flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#F4C4DC', elevation: 5, shadowColor: '#4B1430', shadowOpacity: 0.16, shadowRadius: 7 },
+  externalMapButton: { height: 48, paddingHorizontal: 11, borderRadius: 24, flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#F4C4DC', elevation: 5, shadowColor: '#4B0C2D', shadowOpacity: 0.16, shadowRadius: 7 },
   externalMapLabel: { color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.semiBold, fontSize: 12 },
   previewPhoto: { width: '100%', height: 94, borderRadius: 14, marginBottom: 9 },
   locationPreview: { borderColor: '#D9C2F2' },
@@ -872,7 +874,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: BAJUJU_COLORS.white,
     backgroundColor: BAJUJU_COLORS.brightPink,
-    shadowColor: '#4B1430',
+    shadowColor: '#4B0C2D',
     shadowOpacity: 0.28,
     shadowRadius: 5,
     shadowOffset: { width: 0, height: 3 },
@@ -886,6 +888,7 @@ const styles = StyleSheet.create({
     borderColor: BAJUJU_COLORS.plum,
   },
   mapMarkerIcon: {
+    fontFamily: 'FredokaRegular',
     fontSize: 15,
   },
   duplicateBadge: {
@@ -922,7 +925,7 @@ const styles = StyleSheet.create({
     backgroundColor: BAJUJU_COLORS.white,
     borderWidth: 1.5,
     borderColor: BAJUJU_COLORS.palePink,
-    shadowColor: '#4B1430',
+    shadowColor: '#4B0C2D',
     shadowOpacity: 0.18,
     shadowRadius: 5,
     shadowOffset: { width: 0, height: 3 },
@@ -966,6 +969,7 @@ const styles = StyleSheet.create({
     backgroundColor: BAJUJU_COLORS.softPink,
   },
   previewIcon: {
+    fontFamily: 'FredokaRegular',
     fontSize: 19,
   },
   previewText: {

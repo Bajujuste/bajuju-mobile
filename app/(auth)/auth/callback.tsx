@@ -92,7 +92,7 @@ export default function AuthCallbackScreen() {
           </>
         ) : (
           <>
-            <ActivityIndicator size="large" color="#e43f98" />
+            <ActivityIndicator size="large" color="#E43F98" />
             <Text style={styles.title}>Verifica del link</Text>
             <Text style={styles.message}>
               Stiamo completando la verifica del tuo account.
@@ -116,22 +116,22 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: '#ffd3e7',
+    borderColor: '#F3C6DC',
     alignItems: 'center',
   },
   title: {
     marginTop: 16,
-    color: '#e43f98',
+    color: '#E43F98',
     fontSize: 24,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
     textAlign: 'center',
   },
   message: {
     marginTop: 10,
-    color: '#6b3652',
+    color: '#8D5E77',
     fontSize: 15,
     lineHeight: 22,
-    fontWeight: '700',
+    fontFamily: 'FredokaBold',
     textAlign: 'center',
   },
   button: {
@@ -139,11 +139,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 14,
     borderRadius: 18,
-    backgroundColor: '#e43f98',
+    backgroundColor: '#E43F98',
   },
   buttonText: {
     color: '#ffffff',
     fontSize: 15,
-    fontWeight: '900',
+    fontFamily: 'FredokaBold',
   },
 });

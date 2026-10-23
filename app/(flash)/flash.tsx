@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as Location from 'expo-location';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -2165,7 +2166,9 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
                 </Pressable>
 
                 <Pressable
-                  style={[styles.shareFlashButton, styles.flashActionButton]}
+                  style={styles.shareFlashButton}
+                  accessibilityRole="button"
+                  accessibilityLabel="Condividi Flash"
                   onPress={() =>
                     shareBajujuFlash({
                       title: flashTitle(row),
@@ -2176,7 +2179,7 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
                     })
                   }
                 >
-                  <Text style={styles.shareFlashButtonText}>Condividi</Text>
+                  <Ionicons name="share-outline" size={19} color={BAJUJU_COLORS.plum} />
                 </Pressable>
               </View>
 
@@ -3275,13 +3278,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   shareFlashButton: {
-    borderRadius: 999,
-    backgroundColor: '#FFF9FC',
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#f4b3d1',
-    paddingVertical: 10,
+    borderColor: '#F3C6DC',
     alignItems: 'center',
-    minHeight: 42,
     justifyContent: 'center',
   },
   shareFlashButtonText: {

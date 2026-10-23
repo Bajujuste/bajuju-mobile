@@ -22,6 +22,7 @@ import {
   BajujuIcon,
   BajujuIconName,
 } from '../icons/BajujuIcon';
+import { BajujuRoundIconButton } from '../navigation/BajujuBackButton';
 
 const bajujuLogo = require('../../../assets/brand/bajuju-logo.png');
 
@@ -129,6 +130,7 @@ export function BajujuHomeView({
           </View>
 
           <View style={styles.headerActions}>
+            <BajujuRoundIconButton icon="share-outline" accessibilityLabel="Condividi Bajuju" onPress={onShare} style={styles.headerIconButton} />
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Apri il profilo"
@@ -279,17 +281,6 @@ export function BajujuHomeView({
             })}
           </ScrollView>
 
-          <View style={styles.footer}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Condividi Bajuju"
-              onPress={onShare}
-              style={({ pressed }) => [styles.shareButton, pressed && styles.pressed]}
-            >
-              <BajujuIcon name="share" size={22} color={COLORS.white} />
-              <Text style={styles.shareText}>Condividi Bajuju</Text>
-            </Pressable>
-          </View>
         </View>
       </ScrollView>
 
@@ -480,9 +471,7 @@ const styles = StyleSheet.create({
   infoItem: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 14 },
   infoIcon: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.softPink },
   infoText: { flex: 1, color: COLORS.plum, fontFamily: 'FredokaSemiBold', fontSize: 16, lineHeight: 21 },
-  footer: { alignItems: 'center', paddingTop: 18, paddingBottom: 20 },
-  shareButton: { minHeight: 58, paddingHorizontal: 28, borderRadius: 29, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, backgroundColor: COLORS.brightPink, shadowColor: '#9B1A5B', shadowOpacity: 0.18, shadowRadius: 13, shadowOffset: { width: 0, height: 8 }, elevation: 4 },
-  shareText: { color: COLORS.white, fontFamily: 'FredokaBold', fontSize: 17 },
+  headerIconButton: { width: 42, height: 42, borderRadius: 21 },
   bottomNav: { position: 'absolute', left: 15, right: 15, bottom: 13, height: 94, paddingHorizontal: 4, flexDirection: 'row', alignItems: 'center', borderRadius: 31, borderWidth: 1.4, borderColor: '#F4C4DC', backgroundColor: COLORS.white, shadowColor: '#761046', shadowOpacity: 0.22, shadowRadius: 20, shadowOffset: { width: 0, height: 13 }, elevation: 11 },
   navItem: { position: 'relative', flex: 1, height: 76, alignItems: 'center', justifyContent: 'center', gap: 4 },
   navLabel: { color: COLORS.plum, fontFamily: 'FredokaMedium', fontSize: 13 },

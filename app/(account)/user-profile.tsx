@@ -19,7 +19,9 @@ import {
 import { BajujuProfileButton } from '../../src/components/navigation/BajujuProfileButton';
 import { LocationProfileView } from '../../src/components/location/LocationProfileView';
 import { BajujuLocation, loadBajujuLocation } from '../../src/lib/bajujuLocations';
-import { BajujuBackButton } from '../../src/components/navigation/BajujuBackButton';
+import { BajujuBackButton, BajujuRoundIconButton } from '../../src/components/navigation/BajujuBackButton';
+import { BajujuActionBar, BajujuButton } from '../../src/components/BajujuActionBar';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const bajujuLogo = require('../../assets/brand/bajuju-logo.png');
 
@@ -502,38 +504,69 @@ export default function UserProfileScreen() {
     </>
   ) : null;
 
-  return (
-    <ScrollView style={styles.page} contentContainerStyle={styles.content}>
-      <View style={styles.topRow}>
-        <BajujuBackButton onPress={() => router.back()} accessibilityLabel="Indietro" style={{ alignSelf: 'flex-start' }} />
-        <BajujuProfileButton />
-      </View>
+  const isOtherUser = Boolean(currentUserId && currentUserId !== userId);
+  const canInvite = isOtherUser && canUsePostExperienceActions && Boolean(activityId);
 
-      {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator />
-          <Text style={styles.loadingText}>Carico il profilo...</Text>
-        </View>
-      ) : errorText ? (
-        <View style={styles.card}>
-          <Text style={styles.errorTitle}>Profilo</Text>
-          <Text style={styles.errorText}>{errorText}</Text>
-        </View>
-      ) : location ? (
-        <LocationProfileView
-          location={location}
-          isOwner={currentUserId === userId}
-          footer={<View style={styles.locationActions}>{profileActions}</View>}
-        />
-      ) : (
-        <>
-          <View style={styles.card}>
+  function openProfileMenu() {
+    const options: { text: string; style?: 'destructive' | 'cancel'; onPress?: () => void }[] = [];
+    if (viewerIsOfficialAdmin) {
+      options.push({
+        text: 'Scrivi come Bajuju Admin',
+        onPress: () => router.push({ pathname: '/admin-private-chat' as any, params: { userId } }),
+      });
+    }
+    options.push({ text: 'Segnala utente', onPress: () => { void reportUser(); } });
+    if (!isAdminOrCreator) {
+      options.push({
+        text: isBlockedByMe ? 'Sblocca utente' : 'Blocca utente',
+        style: 'destructive',
+        onPress: () => { void blockUser(); },
+      });
+    }
+    options.push({ text: 'Annulla', style: 'cancel' });
+    Alert.alert(name || 'Profilo', undefined, options);
+  }
+
+  const infoTiles = [
+    { label: 'Organizzati', value: `${organizedCount} ${organizedCount === 1 ? 'evento' : 'eventi'}` },
+    { label: 'Partecipati', value: `${participatedCount} ${participatedCount === 1 ? 'evento' : 'eventi'}` },
+    { label: 'Di dove', value: homeCity || 'Non indicato' },
+    { label: 'Età', value: age || 'Non indicata' },
+    { label: 'Genere', value: gender || 'Non indicato' },
+  ];
+
+  if (!loading && !errorText && !location) {
+    return (
+      <View style={styles.page}>
+        <ScrollView contentContainerStyle={styles.personContent}>
+          <View style={styles.cover}>
+            <LinearGradient
+              colors={['#B98EA3', '#4B0C2D']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={StyleSheet.absoluteFill}
+            />
+            <View style={styles.coverTopBar}>
+              <BajujuBackButton onPress={() => router.back()} accessibilityLabel="Indietro" style={styles.coverButton} />
+              <View style={styles.coverActions}>
+                {isOtherUser && (reportingUser || blockingUser) ? (
+                  <View style={styles.coverButtonPlain}><ActivityIndicator color="#4B0C2D" /></View>
+                ) : isOtherUser ? (
+                  <BajujuRoundIconButton
+                    icon="ellipsis-horizontal"
+                    accessibilityLabel="Altre azioni"
+                    onPress={openProfileMenu}
+                    style={styles.coverButton}
+                  />
+                ) : null}
+                <BajujuProfileButton size={38} />
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.identity}>
             <View style={[styles.photoFrame, photoFrameStyle]}>
-              <Image
-                source={photo ? { uri: photo } : bajujuLogo}
-                style={styles.photo}
-                resizeMode="cover"
-              />
+              <Image source={photo ? { uri: photo } : bajujuLogo} style={styles.photo} resizeMode="cover" />
             </View>
 
             <Text style={styles.name}>{name}</Text>
@@ -553,47 +586,85 @@ export default function UserProfileScreen() {
             {!isAdminOrCreator && isPremium ? (
               <Text style={styles.premiumHint}>Premium verificato direttamente da Bajuju.</Text>
             ) : null}
-
-            {profileActions}
           </View>
 
-          <View style={styles.statsGrid}>
-            <View style={styles.statBox}>
-              <Text style={styles.statNumber}>{organizedCount}</Text>
-              <Text style={styles.statLabel}>Eventi organizzati</Text>
-            </View>
-
-            <View style={styles.statBox}>
-              <Text style={styles.statNumber}>{participatedCount}</Text>
-              <Text style={styles.statLabel}>Eventi partecipati</Text>
-            </View>
+          <View style={styles.infoGrid}>
+            {infoTiles.map((tile) => (
+              <View key={tile.label} style={styles.infoTile}>
+                <Text style={styles.infoLabel}>{tile.label}</Text>
+                <Text style={styles.infoValue} numberOfLines={1}>{tile.value}</Text>
+              </View>
+            ))}
           </View>
+        </ScrollView>
 
-          <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Informazioni</Text>
+        {canInvite ? (
+          <BajujuActionBar>
+            <BajujuButton
+              label="WhatsApp o Telegram"
+              variant="secondary"
+              onPress={() => router.push({ pathname: '/share-contact' as any, params: { targetUserId: userId, activityId } })}
+            />
+            <BajujuButton
+              label="Invita a uscire"
+              onPress={() => router.push({ pathname: '/invite-out' as any, params: { targetUserId: userId, activityId } })}
+            />
+          </BajujuActionBar>
+        ) : null}
+      </View>
+    );
+  }
 
-            <View style={styles.infoBox}>
-              <Text style={styles.label}>Di dove sei</Text>
-              <Text style={styles.value}>{homeCity || 'Non indicato'}</Text>
-            </View>
+  return (
+    <ScrollView style={styles.page} contentContainerStyle={styles.content}>
+      <View style={styles.topRow}>
+        <BajujuBackButton onPress={() => router.back()} accessibilityLabel="Indietro" />
+        <BajujuProfileButton size={38} />
+      </View>
 
-            <View style={styles.infoBox}>
-              <Text style={styles.label}>Età</Text>
-              <Text style={styles.value}>{age || 'Non indicata'}</Text>
-            </View>
-
-            <View style={styles.infoBox}>
-              <Text style={styles.label}>Genere</Text>
-              <Text style={styles.value}>{gender || 'Non indicato'}</Text>
-            </View>
-          </View>
-        </>
-      )}
+      {loading ? (
+        <View style={styles.center}>
+          <ActivityIndicator />
+          <Text style={styles.loadingText}>Carico il profilo...</Text>
+        </View>
+      ) : errorText ? (
+        <View style={styles.card}>
+          <Text style={styles.errorTitle}>Profilo</Text>
+          <Text style={styles.errorText}>{errorText}</Text>
+        </View>
+      ) : location ? (
+        <LocationProfileView
+          location={location}
+          isOwner={currentUserId === userId}
+          footer={<View style={styles.locationActions}>{profileActions}</View>}
+        />
+      ) : null}
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
+  personContent: { paddingBottom: 32 },
+  cover: { height: 170, overflow: 'hidden', borderBottomLeftRadius: 28, borderBottomRightRadius: 28 },
+  coverTopBar: { position: 'absolute', top: 52, left: 14, right: 14, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  coverActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  coverButton: { borderWidth: 0, backgroundColor: 'rgba(255,255,255,0.94)' },
+  coverButtonPlain: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.94)' },
+  identity: { alignItems: 'center', marginTop: -66, paddingHorizontal: 22 },
+  infoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingHorizontal: 18, marginTop: 18 },
+  infoTile: {
+    flexBasis: '45%',
+    flexGrow: 1,
+    minWidth: 0,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#F3C6DC',
+    borderRadius: 18,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  infoLabel: { fontFamily: 'FredokaSemiBold', fontSize: 11, letterSpacing: 0.6, textTransform: 'uppercase', color: '#E43F98' },
+  infoValue: { marginTop: 2, fontFamily: 'FredokaSemiBold', fontSize: 15, color: '#4B0C2D' },
   page: { flex: 1, backgroundColor: '#FFF9FC' },
   content: { padding: 22, paddingTop: 58 },
   topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 18 },
@@ -657,9 +728,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF0F7',
   },
   name: {
-    fontSize: 28,
+    fontSize: 26,
     fontFamily: 'FredokaBold',
-    color: '#E43F98',
+    color: '#4B0C2D',
     textAlign: 'center',
     marginBottom: 12,
   },

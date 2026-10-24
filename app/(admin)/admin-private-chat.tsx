@@ -1,10 +1,8 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -17,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../../src/lib/supabase';
 import { BAJUJU_COLORS, BAJUJU_FONTS, BAJUJU_SHADOW } from '../../src/theme/bajujuTheme';
 import { BajujuBackButton } from '../../src/components/navigation/BajujuBackButton';
+import { useKeyboardOverlap } from '../../src/components/KeyboardAwareScrollView';
 
 type ChatMessage = {
   id: string;
@@ -40,6 +39,14 @@ function formatMessageTime(value: string) {
 
 export default function AdminPrivateChatScreen() {
   const insets = useSafeAreaInsets();
+  const screenRef = useRef<View | null>(null);
+  const messagesRef = useRef<ScrollView | null>(null);
+  const keyboardOverlap = useKeyboardOverlap(screenRef);
+
+  useEffect(() => {
+    // Con la tastiera aperta l'ultimo messaggio resta visibile sopra il campo.
+    if (keyboardOverlap > 0) requestAnimationFrame(() => messagesRef.current?.scrollToEnd({ animated: true }));
+  }, [keyboardOverlap]);
   const params = useLocalSearchParams<{ userId?: string; threadId?: string }>();
   const requestedUserId = String(params.userId || '').trim();
   const requestedThreadId = String(params.threadId || '').trim();
@@ -294,11 +301,7 @@ export default function AdminPrivateChatScreen() {
   const adminViewingUser = isAdmin && targetUserId && targetUserId !== currentUserId;
 
   return (
-    <KeyboardAvoidingView
-      style={styles.screen}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}
-    >
+    <View ref={screenRef} style={[styles.screen, { paddingBottom: keyboardOverlap }]}>
       <View style={styles.header}>
         <BajujuBackButton onPress={() => router.back()} accessibilityLabel="Indietro" />
         <View style={styles.headerCopy}>
@@ -310,6 +313,7 @@ export default function AdminPrivateChatScreen() {
       </View>
 
       <ScrollView
+        ref={messagesRef}
         style={styles.messages}
         contentContainerStyle={styles.messagesContent}
         keyboardShouldPersistTaps="handled"
@@ -354,7 +358,8 @@ export default function AdminPrivateChatScreen() {
       <View
         style={[
           styles.composer,
-          { paddingBottom: Math.max(12, insets.bottom) },
+          // A tastiera aperta la barra di sistema è sotto la tastiera: niente spazio extra.
+          { paddingBottom: keyboardOverlap > 0 ? 12 : Math.max(12, insets.bottom) },
         ]}
       >
         <TextInput
@@ -375,7 +380,7 @@ export default function AdminPrivateChatScreen() {
           <Text style={styles.sendText}>{sending ? 'Invio...' : 'Invia'}</Text>
         </Pressable>
       </View>
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 

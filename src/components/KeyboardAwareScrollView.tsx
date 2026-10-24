@@ -13,6 +13,7 @@ import {
   type NativeSyntheticEvent,
   type ScrollViewProps,
 } from 'react-native';
+import { initialWindowMetrics } from 'react-native-safe-area-context';
 
 // Spazio libero che lasciamo tra il campo attivo e la tastiera.
 const EXTRA_SPACE = 24;
@@ -20,6 +21,65 @@ const EXTRA_SPACE = 24;
 function assignRef<T>(ref: ForwardedRef<T>, value: T | null) {
   if (typeof ref === 'function') ref(value);
   else if (ref) ref.current = value;
+}
+
+/**
+ * Bordo superiore della tastiera, nelle stesse coordinate di measureInWindow.
+ * Su Android (edge-to-edge) l'altezza della tastiera e a volte anche screenY non contano la barra
+ * di navigazione sotto la tastiera: la tastiera risultava più bassa del vero e copriva metà del campo.
+ * Prendiamo la stima più alta tra le due, così il campo resta sempre sopra.
+ */
+export function getKeyboardTop(event: KeyboardEvent, bottomInset = initialWindowMetrics?.insets.bottom ?? 0) {
+  const { screenY, height } = event.endCoordinates;
+  if (Platform.OS === 'ios') return screenY > 0 ? screenY : Dimensions.get('window').height - height;
+  const fromHeight = Dimensions.get('screen').height - height - bottomInset;
+  return screenY > 0 ? Math.min(screenY, fromHeight) : fromHeight;
+}
+
+/**
+ * Spazio in basso che la tastiera copre su una vista (0 a tastiera chiusa).
+ * Per le schermate di chat con il campo fisso in fondo: va messo come paddingBottom
+ * della vista che contiene messaggi e campo.
+ */
+export function useKeyboardOverlap(viewRef: { current: View | null }) {
+  const [overlap, setOverlap] = useState(0);
+
+  useEffect(() => {
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    let keyboardTop: number | null = null;
+
+    const measure = () => {
+      const view = viewRef.current;
+      if (keyboardTop == null || !view) return;
+      const top = keyboardTop;
+      view.measureInWindow((_x, y, _w, h) => {
+        // Il paddingBottom non cambia il riquadro esterno della vista: la misura resta stabile.
+        setOverlap(Math.max(0, Math.round(y + h - top)));
+      });
+    };
+
+    const onShow = (event: KeyboardEvent) => {
+      keyboardTop = getKeyboardTop(event);
+      measure();
+      timers.push(setTimeout(measure, 350));
+    };
+    const onHide = () => {
+      keyboardTop = null;
+      setOverlap(0);
+    };
+
+    const subs =
+      Platform.OS === 'ios'
+        ? [Keyboard.addListener('keyboardWillShow', onShow), Keyboard.addListener('keyboardWillHide', onHide)]
+        : [Keyboard.addListener('keyboardDidShow', onShow), Keyboard.addListener('keyboardDidHide', onHide)];
+
+    return () => {
+      subs.forEach((sub) => sub.remove());
+      timers.forEach(clearTimeout);
+    };
+  }, [viewRef]);
+
+  return overlap;
 }
 
 /**
@@ -114,8 +174,7 @@ export const KeyboardAwareScrollView = forwardRef<ScrollView, ScrollViewProps>(f
 
   useEffect(() => {
     const onShow = (event: KeyboardEvent) => {
-      const { screenY, height } = event.endCoordinates;
-      keyboardTop.current = screenY > 0 ? screenY : Dimensions.get('window').height - height;
+      keyboardTop.current = getKeyboardTop(event);
       updateSpacer();
       later(revealFocusedInput, Platform.OS === 'ios' ? 60 : 120);
       // Seconda passata: su Android la finestra può ridimensionarsi dopo l'evento.

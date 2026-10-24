@@ -439,6 +439,21 @@
       "whatsapp",
       "created_at",
       "updated_at"
+    ],
+    "group_polls": [
+      "id",
+      "group_id",
+      "created_by",
+      "question",
+      "options",
+      "closed_at",
+      "created_at"
+    ],
+    "group_poll_votes": [
+      "poll_id",
+      "user_id",
+      "option_index",
+      "updated_at"
     ]
   },
   "functions": [
@@ -458,6 +473,7 @@
     "cancel_group_join_request",
     "claim_push_token_for_current_user",
     "consume_edge_rate_limit",
+    "create_group_poll",
     "current_user_is_admin",
     "enforce_one_time_direct_contact_request",
     "get_activity_join_requests",
@@ -467,6 +483,7 @@
     "get_group_join_state",
     "get_group_member_count",
     "get_group_member_profiles",
+    "get_group_polls",
     "get_my_activity_waitlist",
     "guard_flash_participant_insert",
     "guard_participant_block_conflict",
@@ -482,6 +499,7 @@
     "join_activity_waitlist",
     "join_standard_activity",
     "leave_activity_waitlist",
+    "manage_group_poll",
     "mark_admin_private_thread_read",
     "mark_waitlist_joined_after_participant_insert",
     "master_get_acquisition_summary",
@@ -512,6 +530,7 @@
     "resubmit_group_for_approval",
     "review_activity_join_request",
     "review_group_join_request",
-    "set_updated_at"
+    "set_updated_at",
+    "vote_group_poll"
   ]
 }

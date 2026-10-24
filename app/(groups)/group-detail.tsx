@@ -22,6 +22,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BajujuGroupChat } from '../../src/components/groups/BajujuGroupChat';
+import { BajujuGroupPolls } from '../../src/components/groups/BajujuGroupPolls';
 import { BajujuBottomNav } from '../../src/components/navigation/BajujuBottomNav';
 import { BajujuProfileButton } from '../../src/components/navigation/BajujuProfileButton';
 import {
@@ -1139,6 +1140,12 @@ export default function GroupDetailScreen() {
 
         {isPublicGroup ? (
           <>
+        <BajujuGroupPolls
+          groupId={groupId}
+          currentUserId={currentUserId}
+          canUsePolls={joined || isOwner || isAdmin}
+        />
+
         <BajujuGroupChat
           groupId={groupId}
           currentUserId={currentUserId}

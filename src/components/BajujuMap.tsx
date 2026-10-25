@@ -63,7 +63,7 @@ export type BajujuMapLocation = {
   category: string;
   addressText: string;
   photoUrl?: string;
-  events: { id: string; title: string; dateText: string }[];
+  events: { id: string; title: string; dateText: string; byLocation?: boolean }[];
 };
 
 type BajujuMapProps = {
@@ -529,7 +529,10 @@ export default function BajujuMap({
                 {selectedLocation.events.slice(0, 3).map((event) => (
                   <Pressable key={event.id} style={styles.locationEventRow} onPress={() => onOpenLocationEvent?.(event.id)}>
                     <View style={styles.locationEventCopy}>
-                      <Text style={styles.locationEventTitle} numberOfLines={1}>{event.title}</Text>
+                      <View style={styles.locationEventTitleRow}>
+                        <Text style={styles.locationEventTitle} numberOfLines={1}>{event.title}</Text>
+                        {event.byLocation ? <Text style={styles.locationEventTag}>Del locale</Text> : null}
+                      </View>
                       <Text style={styles.locationEventMeta} numberOfLines={1}>{event.dateText}</Text>
                     </View>
                     <Ionicons name="chevron-forward" size={16} color={BAJUJU_COLORS.muted} />
@@ -783,7 +786,18 @@ const styles = StyleSheet.create({
   locationEvents: { marginTop: 10, borderTopWidth: 1, borderTopColor: '#F1E6FA' },
   locationEventRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#F1E6FA' },
   locationEventCopy: { flex: 1, minWidth: 0 },
-  locationEventTitle: { color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.semiBold, fontSize: 14 },
+  locationEventTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  locationEventTitle: { flexShrink: 1, color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.semiBold, fontSize: 14 },
+  locationEventTag: {
+    overflow: 'hidden',
+    backgroundColor: LOCATION_PURPLE,
+    borderRadius: 8,
+    paddingHorizontal: 7,
+    paddingVertical: 1,
+    color: BAJUJU_COLORS.white,
+    fontFamily: BAJUJU_FONTS.semiBold,
+    fontSize: 11,
+  },
   locationEventMeta: { marginTop: 1, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.medium, fontSize: 12 },
   locationMoreText: { marginTop: 6, color: LOCATION_PURPLE, fontFamily: BAJUJU_FONTS.semiBold, fontSize: 12 },
   locationEmptyText: { marginTop: 10, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.medium, fontSize: 13 },

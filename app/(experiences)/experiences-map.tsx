@@ -454,7 +454,12 @@ export default function ExperiencesMapScreen() {
     photoUrl: location.photos[0],
     events: filteredRows
       .filter((row) => String(row.location_owner_id || '') === location.ownerId)
-      .map((row) => ({ id: activityId(row), title: activityTitle(row), dateText: formatDate(row) }))
+      .map((row) => ({
+        id: activityId(row),
+        title: activityTitle(row),
+        dateText: formatDate(row),
+        byLocation: String(row.creator_id || '') === location.ownerId,
+      }))
       .filter((event) => event.id),
   })), [filteredRows, locations]);
 

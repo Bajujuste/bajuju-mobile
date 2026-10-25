@@ -23,6 +23,7 @@ import { saveBajujuNotificationCoordinatesIfEnabled } from '../../src/utils/baju
 import { refreshBajujuPushRegistrationIfAuthorized } from '../../src/utils/bajujuNotifications';
 import { trackBajujuEvent } from '../../src/utils/bajujuAnalytics';
 import { experienceDateLabel } from '../../src/utils/experienceDateLabel';
+import { LOCATION_COLOR } from '../../src/lib/bajujuLocations';
 
 const bajujuLogo = require('../../assets/brand/bajuju-logo.png');
 const PAGE_SIZE = 20;
@@ -34,6 +35,7 @@ type Mode = 'nearby' | 'joined' | 'organized' | 'past';
 type ActivityRow = {
   id?: string;
   creator_id?: string | null;
+  location_owner_id?: string | null;
   title?: string | null;
   category?: string | null;
   city?: string | null;
@@ -225,7 +227,7 @@ export default function ExperiencesScreen() {
       ).toISOString().slice(0, 10);
 
       const today = new Date().toISOString().slice(0, 10);
-      const selectedColumns = 'id,creator_id,title,category,city,province,activity_date,activity_time,created_at,max_participants,join_approval_required,min_age,max_age,is_flash,photo_url,deleted_at,status,latitude,longitude';
+      const selectedColumns = 'id,creator_id,title,category,city,province,activity_date,activity_time,created_at,max_participants,join_approval_required,min_age,max_age,is_flash,photo_url,deleted_at,status,latitude,longitude,location_owner_id';
 
       // Gli eventi passati non devono occupare i 500 posti riservati ai prossimi appuntamenti.
       const [upcomingResult, recentPastResult] = await Promise.all([
@@ -615,6 +617,11 @@ type ExperienceCardProps = {
   onOpenPoster: (url: string) => void;
 };
 
+// Evento creato dal proprietario del locale in cui si svolge.
+function isLocationOwnEvent(item: ActivityRow) {
+  return Boolean(item.location_owner_id && String(item.creator_id || '') === String(item.location_owner_id));
+}
+
 function ExperienceCard({ item, width, distance, organizedByMe, participants, action, onOpen, onOpenPoster }: ExperienceCardProps) {
   const poster = imageUrl(item);
   const title = item.title || 'Esperienza Bajuju';
@@ -633,7 +640,11 @@ function ExperienceCard({ item, width, distance, organizedByMe, participants, ac
           {getExperienceCategoryIcon(item.category)} {normalizeExperienceCategory(item.category)}
         </Text>
         {distance !== null ? <Text style={[styles.imageChip, styles.distanceChip]}>{formatDistance(distance)}</Text> : null}
-        {organizedByMe ? <Text style={[styles.imageChip, styles.organizerChip]}>Organizzi tu</Text> : null}
+        {organizedByMe ? (
+          <Text style={[styles.imageChip, styles.organizerChip]}>Organizzi tu</Text>
+        ) : isLocationOwnEvent(item) ? (
+          <Text style={[styles.imageChip, styles.locationChip]}>🏠 Del locale</Text>
+        ) : null}
       </Pressable>
       <View style={styles.cardBody}>
         <Text style={styles.cardTitle} numberOfLines={2}>{title}</Text>
@@ -698,6 +709,7 @@ const styles = StyleSheet.create({
   imageChip: { position: 'absolute', overflow: 'hidden', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, fontFamily: 'FredokaSemiBold', fontSize: 13 },
   categoryChip: { top: 10, left: 10, maxWidth: '60%', backgroundColor: '#FFFFFF', color: '#4B0C2D' },
   distanceChip: { top: 10, right: 10, backgroundColor: 'rgba(75, 12, 45, 0.82)', color: '#FFFFFF' },
+  locationChip: { bottom: 10, left: 10, backgroundColor: LOCATION_COLOR, color: '#FFFFFF', fontSize: 12 },
   organizerChip: { bottom: 10, left: 10, backgroundColor: PINK, color: '#FFFFFF', fontFamily: 'FredokaRegular', fontSize: 12 },
   cardBody: { paddingHorizontal: 14, paddingTop: 12, paddingBottom: 14, gap: 6 },
   cardTitle: { color: PLUM, fontFamily: 'FredokaBold', fontSize: 18, lineHeight: 22, marginBottom: 2 },

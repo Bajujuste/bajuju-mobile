@@ -1298,6 +1298,10 @@ export default function ExperienceDetailScreen() {
   const description = experience?.description || 'Descrizione non ancora disponibile.';
   const showBottomBar = !!experience && !loading && !errorMessage && !chatFocused;
 
+  const isOfficialLocationEvent = Boolean(
+    eventLocation && experience?.creator_id && experience.creator_id === eventLocation.ownerId
+  );
+
   const infoTiles = experience
     ? [
         {
@@ -1455,6 +1459,14 @@ export default function ExperienceDetailScreen() {
                 </View>
 
                 <View style={styles.heroText}>
+                  {isOfficialLocationEvent && eventLocation ? (
+                    <View style={styles.officialBadge}>
+                      <Ionicons name="home" size={13} color={C.white} />
+                      <Text style={styles.officialBadgeText} numberOfLines={1}>
+                        Evento ufficiale · {eventLocation.name}
+                      </Text>
+                    </View>
+                  ) : null}
                   <Text style={styles.category}>
                     {getExperienceCategoryIcon(experience.category)} {normalizeExperienceCategory(experience.category)}
                   </Text>
@@ -1477,22 +1489,30 @@ export default function ExperienceDetailScreen() {
 
                 {eventLocation ? (
                   <Pressable
-                    style={styles.locationCard}
+                    style={[styles.locationCard, isOfficialLocationEvent && styles.locationCardOfficial]}
                     onPress={() => router.push({ pathname: '/user-profile' as any, params: { userId: eventLocation.ownerId } })}
                     accessibilityRole="button"
                     accessibilityLabel={`Apri la pagina di ${eventLocation.name}`}
                   >
                     {eventLocation.photos[0] ? (
-                      <Image source={{ uri: eventLocation.photos[0] }} style={styles.locationCardPhoto} resizeMode="cover" />
+                      <Image
+                        source={{ uri: eventLocation.photos[0] }}
+                        style={[styles.locationCardPhoto, isOfficialLocationEvent && styles.locationCardPhotoOfficial]}
+                        resizeMode="cover"
+                      />
                     ) : null}
                     <View style={styles.locationCardCopy}>
-                      <Text style={styles.locationCardKicker}>Si svolge da</Text>
-                      <Text style={styles.locationCardName} numberOfLines={1}>{eventLocation.name}</Text>
-                      <Text style={styles.locationCardMeta} numberOfLines={1}>
+                      <Text style={[styles.locationCardKicker, isOfficialLocationEvent && styles.locationCardTextOfficial]}>
+                        {isOfficialLocationEvent ? 'Organizzato da' : 'Si svolge da'}
+                      </Text>
+                      <Text style={[styles.locationCardName, isOfficialLocationEvent && styles.locationCardTextOfficial]} numberOfLines={1}>
+                        {eventLocation.name}
+                      </Text>
+                      <Text style={[styles.locationCardMeta, isOfficialLocationEvent && styles.locationCardMetaOfficial]} numberOfLines={1}>
                         {eventLocation.category} · {locationAddressLine(eventLocation)}
                       </Text>
                     </View>
-                    <Ionicons name="chevron-forward" size={18} color={LOCATION_COLOR} />
+                    <Ionicons name="chevron-forward" size={18} color={isOfficialLocationEvent ? C.white : LOCATION_COLOR} />
                   </Pressable>
                 ) : null}
 
@@ -2075,7 +2095,25 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E4D2F5',
   },
+  locationCardOfficial: { backgroundColor: LOCATION_COLOR, borderColor: LOCATION_COLOR },
   locationCardPhoto: { width: 54, height: 54, borderRadius: 14 },
+  locationCardPhotoOfficial: { borderWidth: 2, borderColor: C.white },
+  locationCardTextOfficial: { color: C.white },
+  locationCardMetaOfficial: { color: 'rgba(255,255,255,0.85)' },
+  officialBadge: {
+    alignSelf: 'flex-start',
+    maxWidth: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: LOCATION_COLOR,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: C.white,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  officialBadgeText: { flexShrink: 1, fontFamily: F.semiBold, fontSize: 13, color: C.white },
   locationCardCopy: { flex: 1, minWidth: 0 },
   locationCardKicker: {
     fontFamily: F.semiBold,

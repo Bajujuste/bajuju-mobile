@@ -23,6 +23,7 @@ import {
   BajujuIconName,
 } from '../icons/BajujuIcon';
 import { BajujuRoundIconButton } from '../navigation/BajujuBackButton';
+import { LOCATION_COLOR } from '../../lib/bajujuLocations';
 
 const bajujuLogo = require('../../../assets/brand/bajuju-logo.png');
 
@@ -58,6 +59,7 @@ export type HomeNearbyExperience = {
   city: string;
   date: string;
   photoUrl: string;
+  byLocation?: boolean;
   distanceKm: number;
 };
 
@@ -215,6 +217,7 @@ export function BajujuHomeView({
                 <View style={styles.eventImageBox}>
                   {event.photoUrl ? <Image source={{ uri: event.photoUrl }} style={styles.eventImage} resizeMode="cover" /> : <View style={styles.eventPlaceholder}><BajujuIcon name="pin" size={44} color={COLORS.pink} /></View>}
                   <Text style={[styles.imageChip, styles.categoryChip]} numberOfLines={1}>{getExperienceCategoryIcon(event.category)} {normalizeExperienceCategory(event.category)}</Text>
+                  {event.byLocation ? <Text style={[styles.imageChip, styles.locationChip]}>🏠 Del locale</Text> : null}
                   <Text style={[styles.imageChip, styles.distanceChip]}>{event.distanceKm < 1 ? `${Math.round(event.distanceKm * 1000)} m` : `${event.distanceKm.toFixed(1).replace('.', ',')} km`}</Text>
                 </View>
                 <View style={styles.eventBody}>
@@ -474,6 +477,7 @@ const styles = StyleSheet.create({
   imageChip: { position: 'absolute', overflow: 'hidden', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, fontFamily: 'FredokaSemiBold', fontSize: 13 },
   categoryChip: { top: 10, left: 10, maxWidth: '60%', backgroundColor: COLORS.white, color: '#4B0C2D' },
   distanceChip: { top: 10, right: 10, backgroundColor: 'rgba(75, 12, 45, 0.82)', color: COLORS.white },
+  locationChip: { bottom: 10, left: 10, backgroundColor: LOCATION_COLOR, color: COLORS.white, fontSize: 12 },
   joinedChip: { top: 8, left: 8, backgroundColor: COLORS.green, color: COLORS.white, fontFamily: 'FredokaRegular', fontSize: 12 },
   eventBody: { paddingHorizontal: 14, paddingTop: 12, paddingBottom: 14, gap: 8 },
   eventTitle: { color: COLORS.plum, fontFamily: 'FredokaBold', fontSize: 18, lineHeight: 22 },

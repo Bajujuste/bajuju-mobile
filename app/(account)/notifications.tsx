@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -15,7 +15,7 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { supabase } from '../../src/lib/supabase';
 import { getBajujuNotificationCategory, BAJUJU_NOTIFICATION_CATEGORY_LABELS, BajujuNotificationCategory } from '../../src/utils/bajujuNotificationCategories';
 import { BajujuProfileButton } from '../../src/components/navigation/BajujuProfileButton';
-import { BajujuBackButton, BajujuRoundIconButton } from '../../src/components/navigation/BajujuBackButton';
+import { BajujuBackButton } from '../../src/components/navigation/BajujuBackButton';
 import { BajujuBottomNav } from '../../src/components/navigation/BajujuBottomNav';
 
 type NotificationData = Record<string, unknown>;
@@ -69,6 +69,8 @@ export default function NotificationsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [selecting, setSelecting] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const counts = useMemo(() => notifications.reduce<Record<BajujuNotificationCategory, number>>((acc, notification) => {
     if (!notification.is_read) acc[getBajujuNotificationCategory(notification.notification_type, notification.data)] += 1;
     return acc;
@@ -214,24 +216,33 @@ export default function NotificationsScreen() {
     ]);
   }, []);
 
-  const deleteAllNotifications = useCallback(() => {
-    Alert.alert('Elimina tutte', 'Vuoi eliminare tutte le notifiche?', [
+  useEffect(() => {
+    setSelecting(false);
+    setSelectedIds(new Set());
+  }, [activeTab]);
+
+  const toggleSelected = useCallback((notificationId: string) => {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.has(notificationId)) next.delete(notificationId);
+      else next.add(notificationId);
+      return next;
+    });
+  }, []);
+
+  const deleteSelectedNotifications = useCallback(() => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+
+    Alert.alert('Elimina', ids.length === 1 ? 'Vuoi eliminare la notifica selezionata?' : `Vuoi eliminare le ${ids.length} notifiche selezionate?`, [
       { text: 'Annulla', style: 'cancel' },
       {
-        text: 'Elimina tutte', style: 'destructive', onPress: () => {
+        text: 'Elimina', style: 'destructive', onPress: () => {
           void (async () => {
-            const { data: userData, error: userError } = await supabase.auth.getUser();
-            const userId = userData.user?.id;
-
-            if (userError || !userId) {
-              Alert.alert('Errore', 'Utente non autenticato.');
-              return;
-            }
-
             const { data: deletedRows, error } = await supabase
               .from('push_notification_logs')
               .delete()
-              .eq('user_id', userId)
+              .in('id', ids)
               .select('id');
 
             if (error) {
@@ -241,27 +252,73 @@ export default function NotificationsScreen() {
 
             const deletedIds = new Set((deletedRows || []).map((row) => String(row.id)));
             setNotifications((current) => current.filter((item) => !deletedIds.has(item.id)));
+            setSelectedIds(new Set());
+            setSelecting(false);
           })();
         },
       },
     ]);
-  }, []);
+  }, [selectedIds]);
+
+  const deleteAllNotifications = useCallback(() => {
+    const label = BAJUJU_NOTIFICATION_CATEGORY_LABELS[activeTab];
+    Alert.alert('Cancella tutte', `Vuoi cancellare tutte le notifiche di "${label}"?`, [
+      { text: 'Annulla', style: 'cancel' },
+      {
+        text: 'Cancella tutte', style: 'destructive', onPress: () => {
+          void (async () => {
+            const { data: userData, error: userError } = await supabase.auth.getUser();
+            const userId = userData.user?.id;
+
+            if (userError || !userId) {
+              Alert.alert('Errore', 'Utente non autenticato.');
+              return;
+            }
+
+            // Prende tutte le notifiche dell'utente (non solo le 100 mostrate),
+            // così si azzerano anche i contatori della Home per questa sezione.
+            const { data: allRows, error: listError } = await supabase
+              .from('push_notification_logs')
+              .select('id, notification_type, data')
+              .eq('user_id', userId);
+
+            if (listError) {
+              Alert.alert('Errore', 'Non sono riuscito a cancellare le notifiche.');
+              return;
+            }
+
+            const idsToDelete = (allRows || [])
+              .filter((row) => getBajujuNotificationCategory(row.notification_type, row.data as NotificationData | null) === activeTab)
+              .map((row) => String(row.id));
+
+            const deletedIds = new Set<string>();
+            for (let index = 0; index < idsToDelete.length; index += 100) {
+              const { data: deletedRows, error } = await supabase
+                .from('push_notification_logs')
+                .delete()
+                .eq('user_id', userId)
+                .in('id', idsToDelete.slice(index, index + 100))
+                .select('id');
+
+              if (error) {
+                Alert.alert('Errore', 'Non sono riuscito a cancellare tutte le notifiche.');
+                break;
+              }
+              (deletedRows || []).forEach((row) => deletedIds.add(String(row.id)));
+            }
+
+            setNotifications((current) => current.filter((item) => !deletedIds.has(item.id)));
+          })();
+        },
+      },
+    ]);
+  }, [activeTab]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
         <BajujuBackButton onPress={() => router.back()} accessibilityLabel="Torna indietro" />
         <Text style={styles.headerTitle} numberOfLines={1}>Notifiche</Text>
-        {visibleNotifications.length > 0 ? (
-          <BajujuRoundIconButton
-            icon="ellipsis-horizontal"
-            accessibilityLabel="Altre azioni"
-            onPress={() => Alert.alert('Notifiche', undefined, [
-              { text: 'Elimina tutte', style: 'destructive', onPress: deleteAllNotifications },
-              { text: 'Annulla', style: 'cancel' },
-            ])}
-          />
-        ) : null}
         <BajujuProfileButton size={38} />
       </View>
       <Text style={styles.headerSubtitle}>Richieste, conversazioni e altre novità</Text>
@@ -308,14 +365,76 @@ export default function NotificationsScreen() {
             </View>
           ) : (
             <>
+              {selecting ? (
+                <View style={styles.actionsRow}>
+                  <Pressable
+                    style={styles.actionButton}
+                    onPress={() => setSelectedIds(
+                      selectedIds.size === visibleNotifications.length
+                        ? new Set()
+                        : new Set(visibleNotifications.map((item) => item.id))
+                    )}
+                    accessibilityRole="button"
+                  >
+                    <Text style={styles.actionButtonText}>
+                      {selectedIds.size === visibleNotifications.length ? 'Deseleziona' : 'Seleziona tutte'}
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    style={styles.actionButton}
+                    onPress={() => { setSelecting(false); setSelectedIds(new Set()); }}
+                    accessibilityRole="button"
+                  >
+                    <Text style={styles.actionButtonText}>Annulla</Text>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.actionButton, styles.deleteSelectedButton, selectedIds.size === 0 && styles.disabledButton]}
+                    onPress={deleteSelectedNotifications}
+                    disabled={selectedIds.size === 0}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Elimina ${selectedIds.size} notifiche selezionate`}
+                  >
+                    <Text style={[styles.actionButtonText, styles.deleteSelectedButtonText]}>🗑️ Elimina ({selectedIds.size})</Text>
+                  </Pressable>
+                </View>
+              ) : (
+                <View style={styles.actionsRow}>
+                  <Pressable
+                    style={styles.actionButton}
+                    onPress={() => setSelecting(true)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Seleziona le notifiche da eliminare"
+                  >
+                    <Text style={styles.actionButtonText}>☑️ Seleziona</Text>
+                  </Pressable>
+                  <Pressable
+                    style={styles.actionButton}
+                    onPress={deleteAllNotifications}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Cancella tutte le notifiche di ${BAJUJU_NOTIFICATION_CATEGORY_LABELS[activeTab]}`}
+                  >
+                    <Text style={styles.actionButtonText}>🗑️ Cancella tutte</Text>
+                  </Pressable>
+                </View>
+              )}
               {visibleNotifications.map((notification) => (
                 <Pressable
                   key={notification.id}
-                  style={[styles.notificationCard, !notification.is_read && styles.unreadCard]}
-                  onPress={() => void handleNotificationPress(notification)}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Apri notifica: ${notification.title}`}
+                  style={[
+                    styles.notificationCard,
+                    !notification.is_read && styles.unreadCard,
+                    selecting && selectedIds.has(notification.id) && styles.selectedCard,
+                  ]}
+                  onPress={() => selecting ? toggleSelected(notification.id) : void handleNotificationPress(notification)}
+                  accessibilityRole={selecting ? 'checkbox' : 'button'}
+                  accessibilityState={selecting ? { checked: selectedIds.has(notification.id) } : undefined}
+                  accessibilityLabel={selecting ? `Seleziona notifica: ${notification.title}` : `Apri notifica: ${notification.title}`}
                 >
+                  {selecting ? (
+                    <View style={[styles.checkCircle, selectedIds.has(notification.id) && styles.checkCircleOn]}>
+                      {selectedIds.has(notification.id) ? <Text style={styles.checkMark}>✓</Text> : null}
+                    </View>
+                  ) : null}
                   <View style={styles.iconBox}>
                     <Text style={styles.iconText}>{notificationIcon(notification.notification_type)}</Text>
                   </View>
@@ -329,6 +448,7 @@ export default function NotificationsScreen() {
                     <Text style={styles.notificationDate}>{formatNotificationDate(notification.sent_at)}</Text>
                   </View>
 
+                  {selecting ? null : (
                   <Pressable
                     style={styles.deleteNotificationButton}
                     onPress={(event) => { event.stopPropagation(); deleteNotification(notification.id); }}
@@ -337,6 +457,7 @@ export default function NotificationsScreen() {
                   >
                     <Text style={styles.deleteNotificationButtonText}>Elimina</Text>
                   </Pressable>
+                  )}
                 </Pressable>
               ))}
             </>
@@ -382,8 +503,16 @@ const styles = StyleSheet.create({
   emptyIcon: { fontFamily: 'FredokaRegular', fontSize: 48 },
   emptyTitle: { marginTop: 12, fontSize: 22, fontFamily: 'FredokaBold', color: PINK },
   emptyText: { maxWidth: 290, marginTop: 8, fontSize: 14, lineHeight: 21, fontFamily: 'FredokaBold', color: TEXT, textAlign: 'center' },
-  deleteAllButton: { alignSelf: 'flex-end', marginBottom: 10, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8, backgroundColor: WHITE, borderWidth: 1, borderColor: BORDER },
-  deleteAllButtonText: { fontSize: 12, fontFamily: 'FredokaBold', color: PINK_DARK },
+  actionsRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 8, marginBottom: 10 },
+  actionButton: { borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8, backgroundColor: WHITE, borderWidth: 1, borderColor: BORDER },
+  actionButtonText: { fontSize: 12, fontFamily: 'FredokaBold', color: PINK_DARK },
+  deleteSelectedButton: { backgroundColor: PINK, borderColor: PINK },
+  deleteSelectedButtonText: { color: WHITE },
+  disabledButton: { opacity: 0.45 },
+  selectedCard: { borderColor: PINK, borderWidth: 2 },
+  checkCircle: { width: 26, height: 26, marginTop: 10, marginRight: 10, borderRadius: 999, alignItems: 'center', justifyContent: 'center', backgroundColor: WHITE, borderWidth: 2, borderColor: BORDER },
+  checkCircleOn: { backgroundColor: PINK, borderColor: PINK },
+  checkMark: { fontSize: 15, lineHeight: 18, fontFamily: 'FredokaBold', color: WHITE },
   notificationCard: { marginBottom: 10, borderRadius: 24, padding: 14, flexDirection: 'row', alignItems: 'flex-start', backgroundColor: WHITE, borderWidth: 1, borderColor: BORDER },
   unreadCard: { backgroundColor: SOFT, borderColor: PINK },
   iconBox: { width: 46, height: 46, borderRadius: 999, alignItems: 'center', justifyContent: 'center', backgroundColor: WHITE, borderWidth: 1, borderColor: BORDER },

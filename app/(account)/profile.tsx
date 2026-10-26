@@ -18,7 +18,7 @@ import {
     View,
 } from 'react-native';
 import { ProfileAdminChatRow } from '../../src/components/admin/AdminPrivateChatEntry';
-import { loadBajujuLocation, LOCATION_COLOR } from '../../src/lib/bajujuLocations';
+import { loadBajujuLocation, LOCATION_COLOR, LOCATION_COLOR_SOFT } from '../../src/lib/bajujuLocations';
 import { supabase } from '../../src/lib/supabase';
 import { BAJUJU_COLORS, BAJUJU_FONTS } from '../../src/theme/bajujuTheme';
 import { refreshBajujuNotificationLocation } from '../../src/utils/bajujuNotificationLocation';
@@ -426,6 +426,8 @@ export default function ProfileScreen() {
   const [profile, setProfile] = useState<LooseRow | null>(null);
   // null = non è una Location; '' = Location senza pagina del locale; altrimenti il nome del locale.
   const [myLocationName, setMyLocationName] = useState<string | null>(null);
+  // Per chi non è Location: null = nessuna richiesta, altrimenti stato della richiesta "Diventa Location".
+  const [myLocationRequest, setMyLocationRequest] = useState<'pending' | 'rejected' | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
 
   const cleanUserEmail = (user?.email || '').trim().toLowerCase();
@@ -744,11 +746,17 @@ export default function ProfileScreen() {
       const currentProfile = await tryReadOneProfile(String(currentUser.id));
       setProfile(currentProfile);
       setPhotoLoadError(false);
+      const myLocation = await loadBajujuLocation(String(currentUser.id)).catch(() => null);
       if (currentProfile?.is_location_organizer === true) {
-        const myLocation = await loadBajujuLocation(String(currentUser.id)).catch(() => null);
         setMyLocationName(myLocation?.name || '');
+        setMyLocationRequest(null);
       } else {
         setMyLocationName(null);
+        setMyLocationRequest(
+          myLocation?.requestStatus === 'pending' || myLocation?.requestStatus === 'rejected'
+            ? myLocation.requestStatus
+            : null
+        );
       }
 
       setProfileName(firstText(currentProfile, ['nickname', 'username', 'display_name', 'full_name', 'name', 'nome'], ''));
@@ -1435,7 +1443,28 @@ export default function ProfileScreen() {
           </View>
           <Ionicons name="chevron-forward" size={20} color="#ffffff" />
         </Pressable>
-      ) : null}
+      ) : (
+        <Pressable
+          style={({ pressed }) => [styles.becomeLocationRow, pressed && styles.rowPressed]}
+          onPress={() => router.push('/my-location' as any)}
+          accessibilityRole="button"
+        >
+          <Ionicons name="storefront-outline" size={22} color={LOCATION_COLOR} />
+          <View style={styles.locationRowCopy}>
+            <Text style={styles.becomeLocationTitle}>
+              {myLocationRequest === 'pending' ? 'Richiesta Location inviata' : 'Diventa Location'}
+            </Text>
+            <Text style={styles.becomeLocationHint} numberOfLines={2}>
+              {myLocationRequest === 'pending'
+                ? 'Bajuju la sta controllando'
+                : myLocationRequest === 'rejected'
+                  ? 'Non approvata: controlla i dati e reinviala'
+                  : 'Hai un locale? Mettilo sulla mappa di Bajuju, gratis'}
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={LOCATION_COLOR} />
+        </Pressable>
+      )}
 
       {isAdminOrCreator ? (
         <Pressable
@@ -1788,6 +1817,29 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   locationRowCopy: { flex: 1, minWidth: 0 },
+  becomeLocationRow: {
+    minHeight: 62,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: '#D9C2F2',
+    backgroundColor: LOCATION_COLOR_SOFT,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  becomeLocationTitle: {
+    color: LOCATION_COLOR,
+    fontFamily: BAJUJU_FONTS.bold,
+    fontSize: 16,
+  },
+  becomeLocationHint: {
+    marginTop: 2,
+    color: BAJUJU_COLORS.plum,
+    fontFamily: BAJUJU_FONTS.medium,
+    fontSize: 13,
+  },
   locationRowHint: {
     marginTop: 2,
     color: '#F3EAFC',

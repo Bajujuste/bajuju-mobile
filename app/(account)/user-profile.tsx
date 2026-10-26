@@ -200,9 +200,12 @@ export default function UserProfileScreen() {
       setProfile(loadedProfile);
 
       // Un profilo attivato come Location con la pagina compilata si mostra come locale.
+      // Una richiesta "Diventa Location" in attesa la vedono solo il proprietario e gli admin
+      // (lo garantisce la policy SELECT): così l'Admin controlla la pagina prima di approvarla.
+      const loadedLocation = await loadBajujuLocation(userId).catch(() => null);
       setLocation(
-        loadedProfile.is_location_organizer === true
-          ? await loadBajujuLocation(userId).catch(() => null)
+        loadedProfile.is_location_organizer === true || loadedLocation?.requestStatus === 'pending'
+          ? loadedLocation
           : null
       );
 

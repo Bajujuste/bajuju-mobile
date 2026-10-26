@@ -438,7 +438,10 @@
       "phone",
       "whatsapp",
       "created_at",
-      "updated_at"
+      "updated_at",
+      "request_status",
+      "requested_at",
+      "reviewed_at"
     ],
     "group_polls": [
       "id",
@@ -464,6 +467,7 @@
     "admin_get_pending_deleted_profiles",
     "admin_remove_participant",
     "admin_review_group",
+    "admin_review_location",
     "bajuju_activity_visible_to_current_user",
     "bajuju_current_user_access_status",
     "bajuju_get_or_create_support_thread",

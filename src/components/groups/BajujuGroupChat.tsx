@@ -26,6 +26,7 @@ type GroupMessageRow = {
   user_id?: string | null;
   message?: string | null;
   created_at?: string | null;
+  deleted_at?: string | null;
 };
 
 type Props = {
@@ -110,7 +111,7 @@ export function BajujuGroupChat({ groupId, currentUserId, canUseChat, members }:
     try {
       const result = await supabase
         .from('group_messages')
-        .select('id,group_id,user_id,message,created_at')
+        .select('id,group_id,user_id,message,created_at,deleted_at')
         .eq('group_id', groupId)
         .order('created_at', { ascending: false })
         .limit(PAGE_SIZE);
@@ -142,7 +143,7 @@ export function BajujuGroupChat({ groupId, currentUserId, canUseChat, members }:
     try {
       const result = await supabase
         .from('group_messages')
-        .select('id,group_id,user_id,message,created_at')
+        .select('id,group_id,user_id,message,created_at,deleted_at')
         .eq('group_id', groupId)
         .lt('created_at', oldestCreatedAt)
         .order('created_at', { ascending: false })
@@ -195,6 +196,18 @@ export function BajujuGroupChat({ groupId, currentUserId, canUseChat, members }:
           }
         }
       )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'group_messages',
+          filter: `group_id=eq.${groupId}`,
+        },
+        (payload) => {
+          setMessages((current) => mergeMessages(current, [payload.new as GroupMessageRow]));
+        }
+      )
       .subscribe();
 
     return () => {
@@ -215,7 +228,7 @@ export function BajujuGroupChat({ groupId, currentUserId, canUseChat, members }:
           user_id: currentUserId,
           message: cleanMessage,
         })
-        .select('id,group_id,user_id,message,created_at')
+        .select('id,group_id,user_id,message,created_at,deleted_at')
         .single();
 
       if (result.error) throw result.error;
@@ -232,6 +245,31 @@ export function BajujuGroupChat({ groupId, currentUserId, canUseChat, members }:
     } finally {
       setSending(false);
     }
+  }
+
+  function confirmDeleteMessage(row: GroupMessageRow) {
+    const id = messageId(row);
+    if (!id || row.deleted_at || String(row.user_id || '') !== currentUserId) return;
+
+    Alert.alert('Eliminare il messaggio?', 'Al suo posto resterà la scritta “Messaggio eliminato”.', [
+      { text: 'Annulla', style: 'cancel' },
+      {
+        text: 'Elimina',
+        style: 'destructive',
+        onPress: () => {
+          void (async () => {
+            const result = await supabase.rpc('bajuju_delete_my_message', { p_chat: 'group', p_message_id: id });
+            if (result.error) {
+              Alert.alert('Messaggio non eliminato', 'Riprova tra poco.');
+              return;
+            }
+            setMessages((current) =>
+              mergeMessages(current, [{ ...row, message: '', deleted_at: new Date().toISOString() }])
+            );
+          })();
+        },
+      },
+    ]);
   }
 
   function handleScroll(event: NativeSyntheticEvent<NativeScrollEvent>) {
@@ -324,6 +362,7 @@ export function BajujuGroupChat({ groupId, currentUserId, canUseChat, members }:
                   const senderId = String(row.user_id || '');
                   const mine = senderId === currentUserId;
                   const senderName = mine ? 'Tu' : nicknameById[senderId] || 'Utente Bajuju';
+                  const deleted = Boolean(row.deleted_at);
 
                   return (
                     <View
@@ -332,12 +371,19 @@ export function BajujuGroupChat({ groupId, currentUserId, canUseChat, members }:
                     >
                       <View style={[styles.bubble, mine ? styles.bubbleMine : styles.bubbleOther]}>
                         <Text style={[styles.senderName, mine && styles.senderNameMine]}>{senderName}</Text>
-                        <Text style={[styles.messageText, mine && styles.messageTextMine]}>
-                          {String(row.message || '')}
+                        <Text style={[styles.messageText, mine && styles.messageTextMine, deleted && styles.messageTextDeleted]}>
+                          {deleted ? 'Messaggio eliminato' : String(row.message || '')}
                         </Text>
-                        <Text style={[styles.messageTime, mine && styles.messageTimeMine]}>
-                          {formatMessageTime(row.created_at)}
-                        </Text>
+                        <View style={styles.messageFooter}>
+                          {mine && !deleted ? (
+                            <Pressable onPress={() => confirmDeleteMessage(row)} hitSlop={8} accessibilityLabel="Elimina messaggio">
+                              <Text style={styles.deleteMessageText}>Elimina</Text>
+                            </Pressable>
+                          ) : null}
+                          <Text style={[styles.messageTime, mine && styles.messageTimeMine]}>
+                            {formatMessageTime(row.created_at)}
+                          </Text>
+                        </View>
                       </View>
                     </View>
                   );
@@ -399,7 +445,10 @@ const styles = StyleSheet.create({
   senderNameMine: { color: '#fff' },
   messageText: { color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.medium, fontSize: 14, lineHeight: 19 },
   messageTextMine: { color: '#fff' },
-  messageTime: { marginTop: 5, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.regular, fontSize: 9, textAlign: 'right' },
+  messageTextDeleted: { fontStyle: 'italic', opacity: 0.75 },
+  messageFooter: { marginTop: 5, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 10 },
+  deleteMessageText: { color: '#FFFFFFCC', fontFamily: BAJUJU_FONTS.bold, fontSize: 9, textDecorationLine: 'underline' },
+  messageTime: { color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.regular, fontSize: 9, textAlign: 'right' },
   messageTimeMine: { color: '#FFFFFFCC' },
   composer: { padding: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: BAJUJU_COLORS.line, backgroundColor: '#fff', flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
   composerInput: { flex: 1, minHeight: 44, maxHeight: 96, paddingHorizontal: 13, paddingTop: 11, paddingBottom: 10, borderRadius: 18, borderWidth: 1.5, borderColor: BAJUJU_COLORS.palePink, color: BAJUJU_COLORS.plum, backgroundColor: BAJUJU_COLORS.white, fontFamily: BAJUJU_FONTS.medium, fontSize: 14 },

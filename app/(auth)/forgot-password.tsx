@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
@@ -18,7 +18,8 @@ import { BajujuBackButton } from '../../src/components/navigation/BajujuBackButt
 const bajujuLogo = require('../../assets/brand/bajuju-logo.png');
 
 export default function ForgotPasswordScreen() {
-  const [email, setEmail] = useState('');
+  const params = useLocalSearchParams<{ email?: string }>();
+  const [email, setEmail] = useState(typeof params.email === 'string' ? params.email : '');
   const [loading, setLoading] = useState(false);
   const [resetSent, setResetSent] = useState(false);
   const [messageTitle, setMessageTitle] = useState('');

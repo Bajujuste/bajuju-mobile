@@ -2,6 +2,17 @@ import React, { useEffect, useState } from 'react';
 import { Text, View, StyleSheet } from 'react-native';
 import { supabase } from '../../lib/supabase';
 type Summary = Record<string, any>;
+const ERROR_REASONS: Record<string, string> = {
+  email_gia_usata: 'Email già registrata (doveva accedere)',
+  nome_gia_usato: 'Nome utente già preso',
+  dati_mancanti: 'Campi lasciati vuoti',
+  nome_corto: 'Nome utente troppo corto',
+  password_corta: 'Password troppo corta',
+  termini: 'Termini non accettati',
+  errore_server: 'Errore del server',
+  errore_rete: 'Connessione assente',
+  '': 'Motivo non registrato (versioni precedenti)',
+};
 export default function AcquisitionStats({ days, refreshKey }: { days: number; refreshKey: number }) {
   const [data, setData] = useState<Summary | null>(null);
   const [error, setError] = useState(false);
@@ -19,6 +30,11 @@ export default function AcquisitionStats({ days, refreshKey }: { days: number; r
     {error ? <Text>Impossibile caricare questi dati. Aggiorna per riprovare.</Text> : !data ? <Text>Caricamento…</Text> : <>
       <Text style={styles.note}>Visite e clic raccolti da {data.tracking_since ? new Date(data.tracking_since).toLocaleString('it-IT') : 'quando arriverà la prima visita'}. Le iscrizioni provengono dal database e includono anche lo storico.</Text>
       {rows.map(([label,key]) => <View key={key} style={styles.row}><Text style={styles.label}>{label}</Text><Text style={styles.value}>{Number(data[key] || 0)}</Text></View>)}
+      {(data.register_error_reasons || []).length > 0 && <>
+        <Text style={styles.title}>Errori di registrazione per tipo</Text>
+        {(data.register_error_reasons || []).map((r: any) => <View key={r.reason} style={styles.row}><Text style={styles.label}>{ERROR_REASONS[r.reason] ?? r.reason}</Text><Text style={styles.value}>{Number(r.errors || 0)}</Text></View>)}
+        <Text style={styles.note}>Un errore viene contato ogni volta che si preme Registrati e qualcosa non va: la stessa persona può contarne più di uno.</Text>
+      </>}
       <Text style={styles.note}>I clic non misurano le installazioni. Visite web e iscrizioni sono contatori separati: non identificano la stessa persona attraverso lo store. Instagram è riconosciuto solo quando comunica la provenienza o dal link con utm_source=instagram.</Text>
       <Text style={styles.title}>Domini</Text>
       {(data.domains || []).map((r: any) => <Text key={r.domain}>{r.domain}: {r.sessions} sessioni · {r.views} pagine</Text>)}

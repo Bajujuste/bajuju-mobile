@@ -101,6 +101,13 @@ export default function RegisterScreen() {
   const [loading, setLoading] = useState(false);
   const [messageTitle, setMessageTitle] = useState('');
   const [messageText, setMessageText] = useState('');
+  const [emailAlreadyRegistered, setEmailAlreadyRegistered] = useState(false);
+
+  function showEmailAlreadyRegistered() {
+    setEmailAlreadyRegistered(true);
+    setMessageTitle('Hai già un account Bajuju');
+    setMessageText('Questa email è già registrata. Accedi con la tua password oppure, se non la ricordi, impostane una nuova.');
+  }
 
   async function handleRegister() {
     if (loading) return;
@@ -110,30 +117,31 @@ export default function RegisterScreen() {
 
     setMessageTitle('');
     setMessageText('');
+    setEmailAlreadyRegistered(false);
 
     if (!cleanProfileName || !cleanEmail || !password) {
-      trackAcquisition('register_error');
+      trackAcquisition('register_error', 'dati_mancanti');
       setMessageTitle('Dati mancanti');
       setMessageText('Inserisci nome utente, email e password.');
       return;
     }
 
     if (cleanProfileName.length < 3) {
-      trackAcquisition('register_error');
+      trackAcquisition('register_error', 'nome_corto');
       setMessageTitle('Nome troppo corto');
       setMessageText('Il nome utente deve avere almeno 3 caratteri.');
       return;
     }
 
     if (!acceptedTerms) {
-      trackAcquisition('register_error');
+      trackAcquisition('register_error', 'termini');
       setMessageTitle('Accettazione richiesta');
       setMessageText('Per registrarti devi accettare Termini, Privacy e le regole di tolleranza zero contro abusi e contenuti offensivi.');
       return;
     }
 
     if (password.length < 6) {
-      trackAcquisition('register_error');
+      trackAcquisition('register_error', 'password_corta');
       setMessageTitle('Password troppo corta');
       setMessageText('Usa almeno 6 caratteri.');
       return;
@@ -177,21 +185,20 @@ export default function RegisterScreen() {
         const errorMessage = signupErrorMessage(payload, `Errore registrazione (${response.status}).`);
 
         if (isDuplicateNicknameError(errorMessage)) {
-          trackAcquisition('register_error');
+          trackAcquisition('register_error', 'nome_gia_usato');
           setMessageTitle('Nome utente non disponibile');
           setMessageText('Questo nome utente è già stato scelto. Scegline un altro.');
           return;
         }
 
         if (isEmailAlreadyRegisteredError(errorMessage)) {
-          trackAcquisition('register_error');
-          setMessageTitle('Email già utilizzata');
-          setMessageText('Questa email è già registrata. Accedi oppure usa un’altra email.');
+          trackAcquisition('register_error', 'email_gia_usata');
+          showEmailAlreadyRegistered();
           return;
         }
 
         // Non mostrare mai all’utente errori tecnici di database, constraint o trigger.
-        trackAcquisition('register_error');
+        trackAcquisition('register_error', 'errore_server');
         setMessageTitle('Registrazione non riuscita');
         setMessageText('Non siamo riusciti a completare la registrazione. Riprova tra poco.');
         return;
@@ -201,16 +208,15 @@ export default function RegisterScreen() {
       const identities = payload.user?.identities || payload.identities;
 
       if (!newUserId) {
-        trackAcquisition('register_error');
+        trackAcquisition('register_error', 'errore_server');
         setMessageTitle('Registrazione non riuscita');
         setMessageText('Supabase non ha restituito il nuovo account. Riprova tra poco.');
         return;
       }
 
       if (Array.isArray(identities) && identities.length === 0) {
-        trackAcquisition('register_error');
-        setMessageTitle('Email già utilizzata');
-        setMessageText('Questa email è già registrata. Accedi oppure usa un’altra email.');
+        trackAcquisition('register_error', 'email_gia_usata');
+        showEmailAlreadyRegistered();
         return;
       }
 
@@ -241,8 +247,8 @@ export default function RegisterScreen() {
       await new Promise((resolve) => setTimeout(resolve, 1600));
       router.replace('/login');
     } catch (error: unknown) {
-      trackAcquisition('register_error');
       const errorMessage = unknownErrorMessage(error);
+      trackAcquisition('register_error', isDuplicateNicknameError(errorMessage) ? 'nome_gia_usato' : 'errore_rete');
 
       if (isDuplicateNicknameError(errorMessage)) {
         setMessageTitle('Nome utente non disponibile');
@@ -353,6 +359,22 @@ export default function RegisterScreen() {
               <View style={styles.messageBox}>
                 <Text style={styles.messageTitle}>{messageTitle}</Text>
                 <Text style={styles.messageText}>{messageText}</Text>
+                {emailAlreadyRegistered && (
+                  <View style={styles.messageActions}>
+                    <Pressable
+                      style={styles.messageButton}
+                      onPress={() => router.push({ pathname: '/login', params: { email: email.trim().toLowerCase() } })}
+                    >
+                      <Text style={styles.messageButtonText}>Accedi</Text>
+                    </Pressable>
+                    <Pressable
+                      style={[styles.messageButton, styles.messageButtonSecondary]}
+                      onPress={() => router.push({ pathname: '/forgot-password', params: { email: email.trim().toLowerCase() } })}
+                    >
+                      <Text style={[styles.messageButtonText, styles.messageButtonSecondaryText]}>Password dimenticata</Text>
+                    </Pressable>
+                  </View>
+                )}
               </View>
             )}
 
@@ -544,6 +566,21 @@ const styles = StyleSheet.create({
     fontFamily: 'FredokaBold',
     lineHeight: 19,
   },
+  messageActions: { marginTop: 12, gap: 8 },
+  messageButton: {
+    height: 46,
+    borderRadius: 16,
+    backgroundColor: '#E43F98',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  messageButtonSecondary: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#E43F98',
+  },
+  messageButtonText: { color: '#ffffff', fontSize: 15, fontFamily: 'FredokaBold' },
+  messageButtonSecondaryText: { color: '#E43F98' },
   switchLink: { marginTop: 18, alignItems: 'center' },
   switchLinkText: {
     color: '#E43F98',

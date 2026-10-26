@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Ti sei appena trasferito? 8 modi concreti per conoscere persone nuove in una nuova città: gruppi di cammino, sport, volontariato, corsi, cene e attività dal vivo.">
+<meta property="og:title" content="Come conoscere persone nuove in una nuova città: 8 modi che funzionano">
+<title>Come conoscere persone nuove in una nuova città | Bajuju</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700&display=swap">
+<style>
+/* Layout: articolo del blog bajuju.it, colonna di lettura stretta, schede idea numerate, chiusura rosa con i pulsanti store */
+:root{
+  --pink:#E43F98; --plum:#4B0C2D; --muted:#8D5E77; --line:#F3C6DC; --bg:#FFF9FC; --white:#FFFFFF; --pink-soft:#FDE8F3;
+  --display:"Fredoka","Nunito",system-ui,sans-serif;
+  --body:"Nunito",system-ui,-apple-system,"Segoe UI",sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--plum);font-family:var(--body);font-size:17px;line-height:1.65}
+.wrap{max-width:720px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header.top{background:var(--white);border-bottom:1px solid var(--line)}
+header.top .wrap{display:flex;align-items:center;justify-content:space-between;padding-block:14px;gap:12px}
+.logo{font-family:var(--display);font-weight:700;font-size:26px;color:var(--pink);letter-spacing:-.5px;text-decoration:none}
+.top-cta{font-family:var(--display);font-weight:600;font-size:15px;background:var(--pink);color:var(--white);padding:8px 16px;border-radius:999px;text-decoration:none;white-space:nowrap}
+.hero{background:var(--pink);color:var(--white)}
+.hero .wrap{padding-block:48px 56px;display:flex;flex-direction:column;gap:14px}
+.eyebrow{font-family:var(--display);font-weight:600;font-size:13px;letter-spacing:.12em;text-transform:uppercase;opacity:.85}
+h1{font-family:var(--display);font-weight:700;font-size:clamp(32px,6vw,48px);line-height:1.1;margin:0;text-wrap:balance}
+.lead{font-size:19px;margin:0;max-width:60ch;opacity:.95}
+.meta{font-size:14px;opacity:.8}
+main .wrap{padding-block:40px 24px;display:flex;flex-direction:column;gap:20px}
+.intro{margin:0;max-width:65ch}
+.idea{background:var(--white);border:1px solid var(--line);border-radius:20px;padding:22px 22px 20px;display:grid;grid-template-columns:auto 1fr;gap:6px 16px;align-items:start}
+.num{grid-row:span 2;font-family:var(--display);font-weight:700;font-size:20px;width:44px;height:44px;border-radius:50%;background:var(--pink-soft);color:var(--pink);display:flex;align-items:center;justify-content:center}
+.idea h2{font-family:var(--display);font-weight:600;font-size:22px;margin:6px 0 0;line-height:1.25;text-wrap:balance}
+.idea p{margin:0;grid-column:2;color:var(--plum)}
+.tag{grid-column:2;justify-self:start;margin-top:8px;font-size:13px;font-weight:700;color:var(--muted);background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:3px 12px}
+.cta{background:var(--plum);color:var(--white);margin-top:24px}
+.cta .wrap{padding-block:48px;display:flex;flex-direction:column;gap:16px}
+.cta h2{font-family:var(--display);font-weight:700;font-size:clamp(26px,5vw,36px);margin:0;line-height:1.15;text-wrap:balance}
+.cta p{margin:0;max-width:60ch;opacity:.92}
+.points{list-style:none;padding:0;margin:4px 0 0;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.points li{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);border-radius:16px;padding:14px 16px;font-size:15px}
+.points b{display:block;font-family:var(--display);font-weight:600;font-size:17px;color:var(--line)}
+.stores{display:flex;flex-wrap:wrap;gap:12px;margin-top:8px}
+.store{font-family:var(--display);font-weight:600;font-size:16px;background:var(--pink);color:var(--white);padding:14px 22px;border-radius:999px;text-decoration:none}
+.store.alt{background:var(--white);color:var(--plum)}
+.store:focus-visible,.top-cta:focus-visible{outline:3px solid var(--line);outline-offset:3px}
+.tagline{font-family:var(--display);font-weight:600;color:var(--line);font-size:18px}
+footer{padding-block:24px;text-align:center;font-size:13px;color:var(--muted)}
+@media (max-width:480px){.idea{grid-template-columns:1fr}.num{grid-row:auto}.idea p,.tag{grid-column:1}}
+</style>
+</head>
+<body>
+
+<header class="top"><div class="wrap">
+  <a class="logo" href="https://bajuju.it">bajuju</a>
+  <a class="top-cta" href="/scarica/">Scarica l'app</a>
+</div></header>
+
+<section class="hero"><div class="wrap">
+  <span class="eyebrow">Nuova città · Persone nuove</span>
+  <h1>Come conoscere persone nuove in una nuova città: 8 modi che funzionano</h1>
+  <p class="lead">Ti sei trasferito per lavoro, per studio o per scelta. La città è bella, ma il sabato sera il telefono resta muto. Succede a tutti, e si risolve.</p>
+  <span class="meta">Lettura di 3 minuti</span>
+</div></section>
+
+<main><div class="wrap">
+  <p class="intro">Arrivare in una città dove non conosci nessuno è difficile. Gli amici di scuola e università sono lontani, i colleghi a fine giornata tornano alla loro vita. La buona notizia è che le amicizie da adulti nascono quasi sempre allo stesso modo: facendo qualcosa insieme, più volte. Ecco 8 modi concreti per cominciare.</p>
+
+  <article class="idea"><span class="num">1</span><h2>Unisciti a un gruppo di cammino o trekking</h2>
+    <p>Quasi ogni città ha gruppi che organizzano camminate e uscite in montagna ogni settimana, dalla sezione CAI alle associazioni di quartiere. Camminare fianco a fianco rende facile parlare, anche con chi non conosci, e dopo due o tre uscite i volti diventano familiari.</p><span class="tag">Camminata</span></article>
+
+  <article class="idea"><span class="num">2</span><h2>Scegli uno sport di squadra</h2>
+    <p>Calcetto, pallavolo, basket, corsa di gruppo: molte squadre amatoriali cercano sempre qualcuno per completare la formazione. Lo sport crea un appuntamento fisso, e la birra dopo la partita fa il resto.</p><span class="tag">Sport</span></article>
+
+  <article class="idea"><span class="num">3</span><h2>Fai volontariato</h2>
+    <p>Mense, canili, Pro Loco, eventi di quartiere: il volontariato ti mette accanto a persone con cui condividi qualcosa di importante. In più conosci la città da dentro, non da turista.</p><span class="tag">Volontariato</span></article>
+
+  <article class="idea"><span class="num">4</span><h2>Iscriviti a un corso</h2>
+    <p>Cucina, ceramica, fotografia, lingue, ballo. Un corso ti fa vedere le stesse persone ogni settimana, ed è proprio la ripetizione a trasformare dei volti in amici.</p><span class="tag">Corsi</span></article>
+
+  <article class="idea"><span class="num">5</span><h2>Vai alle serate a tema</h2>
+    <p>Quiz nei pub, serate di giochi da tavolo, cineforum, presentazioni di libri in libreria. Sono serate pensate per chi arriva da solo, e c'è sempre un argomento pronto per rompere il ghiaccio.</p><span class="tag">Serate</span></article>
+
+  <article class="idea"><span class="num">6</span><h2>Organizza tu una cena</h2>
+    <p>Non serve conoscere già tante persone: basta invitarne tre o quattro, colleghi o vicini, e chiedere a ognuno di portare un amico. Un tavolo pieno di mezzi sconosciuti è il modo più veloce per allargare il giro.</p><span class="tag">Cena</span></article>
+
+  <article class="idea"><span class="num">7</span><h2>Dì sempre sì al primo invito</h2>
+    <p>Nei primi mesi ogni invito vale doppio, anche quello che non ti entusiasma. La persona conosciuta a un aperitivo noioso può essere quella che ti porta alla gita più bella dell'anno.</p><span class="tag">Atteggiamento</span></article>
+
+  <article class="idea"><span class="num">8</span><h2>Proponi tu un'attività</h2>
+    <p>Hai voglia di fare un giro in bici, visitare una mostra o salire su un colle? Probabilmente in città c'è qualcun altro che ha la stessa idea e nessuno con cui farla. Proporla in pubblico è il modo più semplice per trovarlo.</p><span class="tag">Attività</span></article>
+
+  <p class="intro">Il segreto è uno solo: la costanza. Un'uscita non basta, tre o quattro con le stesse persone sì. Scegli una o due di queste idee e falle diventare un'abitudine.</p>
+</div></main>
+
+<section class="cta"><div class="wrap">
+  <h2>Non sai da dove cominciare? C'è Bajuju</h2>
+  <p>Bajuju è l'app gratuita per organizzare attività dal vivo con persone nuove. Trovi camminate, aperitivi, cene, partite e gite già organizzate da altri nella tua città, oppure ne crei una tua in un minuto e vedi chi si unisce.</p>
+  <ul class="points">
+    <li><b>Gratis</b>Nessun abbonamento, nessun pagamento.</li>
+    <li><b>Qualsiasi attività</b>Dal trekking al cinema, dal calcetto alla cena.</li>
+    <li><b>Ci si incontra davvero</b>Niente chat infinite, si esce.</li>
+    <li><b>Non è un'app di incontri</b>È fatta per stare in compagnia.</li>
+  </ul>
+  <div class="stores">
+    <a class="store" href="https://apps.apple.com/it/app/bajuju/id6790152821">Scarica da App Store</a>
+    <a class="store alt" href="https://play.google.com/store/apps/details?id=it.bajuju.mobile">Scarica da Google Play</a>
+  </div>
+  <span class="tagline">Dal vivo è meglio.</span>
+</div></section>
+
+<footer>© Bajuju · bajuju.it</footer>
+</body>
+</html>

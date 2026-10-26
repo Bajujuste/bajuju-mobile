@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -26,7 +26,9 @@ const SAVED_EMAIL_KEY = 'bajuju_saved_email';
 const LEGACY_SAVED_PASSWORD_KEY = 'bajuju_saved_password';
 
 export default function LoginScreen() {
-  const [email, setEmail] = useState('');
+  const params = useLocalSearchParams<{ email?: string }>();
+  const emailFromRegister = typeof params.email === 'string' ? params.email : '';
+  const [email, setEmail] = useState(emailFromRegister);
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberEmail, setRememberEmail] = useState(false);
@@ -46,7 +48,7 @@ export default function LoginScreen() {
 
         if (!mounted) return;
 
-        if (savedEmail) {
+        if (savedEmail && !emailFromRegister) {
           setEmail(savedEmail);
           setRememberEmail(true);
         }
@@ -60,7 +62,7 @@ export default function LoginScreen() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [emailFromRegister]);
 
   async function updateSavedLogin(cleanEmail: string) {
     try {

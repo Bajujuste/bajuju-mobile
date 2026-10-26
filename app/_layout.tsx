@@ -30,7 +30,7 @@ function openPushNotification(data: Record<string, unknown>) {
 
   switch (screen) {
     case 'group-detail':
-      router.push(groupId ? ({ pathname: '/group-detail', params: { id: groupId, section: 'requests' } } as any) : '/groups');
+      router.push(groupId ? ({ pathname: '/group-detail', params: { id: groupId, section: section || 'requests' } } as any) : '/groups');
       break;
     case 'experience':
       router.push(activityId ? ({ pathname: '/experience-detail', params: { id: activityId, section: section || undefined } } as any) : '/experiences');

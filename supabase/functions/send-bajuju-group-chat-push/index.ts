@@ -9,14 +9,6 @@ function jsonResponse(body: unknown, status = 200) {
   });
 }
 
-function participantStatusIsActive(value: unknown) {
-  const status = String(value || '').trim().toLowerCase();
-  return ![
-    'rejected','rifiutato','declined','annullato','annullata',
-    'deleted','eliminato','eliminata','removed','cancellato','cancellata',
-  ].includes(status);
-}
-
 function messagePreview(value: string) {
   const clean = value.replace(/\s+/g, ' ').trim();
   return clean.length <= 100 ? clean : `${clean.slice(0, 97)}...`;

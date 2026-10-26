@@ -26,6 +26,7 @@ import {
   LOCATION_DESCRIPTION_MAX_LENGTH,
   LOCATION_MAX_PHOTOS,
   LOCATION_NAME_MAX_LENGTH,
+  type LocationRequestStatus,
   loadBajujuLocation,
   normalizeFacebookUrl,
   normalizeInstagramUrl,
@@ -47,6 +48,8 @@ export default function MyLocationScreen() {
   const [userId, setUserId] = useState('');
   const [isLocationActive, setIsLocationActive] = useState(false);
   const [alreadyPublished, setAlreadyPublished] = useState(false);
+  // Stato della richiesta "Diventa Location" per chi non è ancora attivo.
+  const [requestStatus, setRequestStatus] = useState<LocationRequestStatus | null>(null);
 
   const [name, setName] = useState('');
   const [category, setCategory] = useState('');
@@ -79,6 +82,7 @@ export default function MyLocationScreen() {
 
       const location = await loadBajujuLocation(id);
       setAlreadyPublished(Boolean(location));
+      setRequestStatus(location?.requestStatus ?? null);
 
       if (!location) {
         // Il testo scritto dall'Admin diventa la prima bozza della descrizione.
@@ -147,7 +151,7 @@ export default function MyLocationScreen() {
     photos.length === 0 ? 'almeno una foto' : '',
   ].filter(Boolean);
 
-  const canSave = isLocationActive && missingFields.length === 0 && linksAreValid && !saving;
+  const canSave = missingFields.length === 0 && linksAreValid && !saving;
 
   async function addPhoto() {
     if (photos.length >= LOCATION_MAX_PHOTOS) return;
@@ -237,6 +241,19 @@ export default function MyLocationScreen() {
       });
 
       setPhotos(uploadedPhotos.map((uri) => ({ uri, uploaded: true })));
+
+      if (!isLocationActive) {
+        // La riga resta privata finché l'Admin non approva la richiesta.
+        setAlreadyPublished(true);
+        setRequestStatus('pending');
+        Alert.alert(
+          'Richiesta inviata',
+          'Bajuju controlla i dati del tuo locale e ti avvisa appena la pagina è approvata. Poi comparirai sulla mappa.',
+          [{ text: 'OK', onPress: () => (router.canGoBack() ? router.back() : router.replace('/profile')) }]
+        );
+        return;
+      }
+
       const firstTime = !alreadyPublished;
       setAlreadyPublished(true);
 
@@ -281,14 +298,28 @@ export default function MyLocationScreen() {
           >
             <Ionicons name="chevron-back" size={20} color={BAJUJU_COLORS.plum} />
           </Pressable>
-          <Text style={styles.title}>Il mio locale</Text>
+          <Text style={styles.title}>{isLocationActive ? 'Il mio locale' : 'Diventa Location'}</Text>
         </View>
 
-        {!isLocationActive ? (
+        {!isLocationActive && requestStatus === 'pending' ? (
           <View style={styles.notice}>
-            <Text style={styles.noticeTitle}>Location non attiva</Text>
+            <Text style={styles.noticeTitle}>Richiesta inviata</Text>
             <Text style={styles.noticeText}>
-              La pagina del locale è disponibile solo per i profili attivati come Location da Bajuju.
+              Bajuju sta controllando la pagina del tuo locale e ti avvisa appena è approvata. Intanto puoi ancora modificare i dati.
+            </Text>
+          </View>
+        ) : !isLocationActive && requestStatus === 'rejected' ? (
+          <View style={styles.notice}>
+            <Text style={styles.noticeTitle}>Richiesta non approvata</Text>
+            <Text style={styles.noticeText}>
+              Controlla i dati del locale e reinvia la richiesta, oppure scrivici da “Chiedi a Bajuju”.
+            </Text>
+          </View>
+        ) : !isLocationActive ? (
+          <View style={styles.notice}>
+            <Text style={styles.noticeTitle}>Hai un locale o un’associazione?</Text>
+            <Text style={styles.noticeText}>
+              Compila la pagina e invia la richiesta: è gratis. Bajuju la controlla e, appena approvata, il locale compare sulla mappa, al posto del tuo nome si vede il nome del locale e le tue serate diventano “Evento ufficiale”. Servono nome, tipo di posto, indirizzo completo con numero civico e almeno una foto.
             </Text>
           </View>
         ) : !alreadyPublished ? (
@@ -458,11 +489,15 @@ export default function MyLocationScreen() {
           disabled={!canSave}
         >
           <Text style={styles.mainButtonText}>
-            {saving ? 'Salvataggio...' : alreadyPublished ? 'Salva modifiche' : 'Pubblica il locale'}
+            {saving
+              ? 'Salvataggio...'
+              : !isLocationActive
+                ? requestStatus === 'pending' ? 'Aggiorna la richiesta' : 'Invia la richiesta'
+                : alreadyPublished ? 'Salva modifiche' : 'Pubblica il locale'}
           </Text>
         </Pressable>
 
-        {isLocationActive && !saving && missingFields.length > 0 ? (
+        {!saving && missingFields.length > 0 ? (
           <Text style={styles.missingText}>Mancano: {missingFields.join(', ')}</Text>
         ) : null}
       </KeyboardAwareScrollView>

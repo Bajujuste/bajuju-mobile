@@ -24,6 +24,9 @@ export const LOCATION_CATEGORIES = [
   'Altro',
 ] as const;
 
+// pending = richiesta inviata da "Diventa Location", in attesa dell'Admin.
+export type LocationRequestStatus = 'pending' | 'approved' | 'rejected';
+
 export type BajujuLocation = {
   ownerId: string;
   name: string;
@@ -42,12 +45,13 @@ export type BajujuLocation = {
   websiteUrl: string;
   phone: string;
   whatsapp: string;
+  requestStatus: LocationRequestStatus;
 };
 
 type LocationRow = Record<string, any>;
 
 const LOCATION_COLUMNS =
-  'owner_id,name,category,description,street,street_number,city,province,formatted_address,latitude,longitude,photos,instagram_url,facebook_url,website_url,phone,whatsapp';
+  'owner_id,name,category,description,street,street_number,city,province,formatted_address,latitude,longitude,photos,instagram_url,facebook_url,website_url,phone,whatsapp,request_status';
 
 function clean(value: unknown) {
   return typeof value === 'string' ? value.trim() : '';
@@ -80,6 +84,7 @@ function mapLocation(row: LocationRow | null | undefined): BajujuLocation | null
     websiteUrl: clean(row.website_url),
     phone: clean(row.phone),
     whatsapp: clean(row.whatsapp),
+    requestStatus: row.request_status === 'pending' || row.request_status === 'rejected' ? row.request_status : 'approved',
   };
 }
 
@@ -163,7 +168,7 @@ export async function loadPublicBajujuLocations(): Promise<BajujuLocation[]> {
   return Object.values(map).sort((a, b) => a.name.localeCompare(b.name, 'it'));
 }
 
-export type SaveBajujuLocationInput = Omit<BajujuLocation, 'ownerId'>;
+export type SaveBajujuLocationInput = Omit<BajujuLocation, 'ownerId' | 'requestStatus'>;
 
 export async function saveBajujuLocation(ownerId: string, input: SaveBajujuLocationInput) {
   const payload = {
@@ -194,6 +199,37 @@ export async function saveBajujuLocation(ownerId: string, input: SaveBajujuLocat
 }
 
 // Accetta "@nomelocale", "instagram.com/nomelocale" o il link completo.
+// Richieste "Diventa Location" da controllare (solo admin: la policy SELECT le mostra a loro).
+export async function loadPendingLocationRequests(): Promise<BajujuLocation[]> {
+  const result = await supabase
+    .from('bajuju_locations' as any)
+    .select(LOCATION_COLUMNS)
+    .eq('request_status', 'pending')
+    .order('requested_at', { ascending: true })
+    .limit(200);
+
+  if (result.error) throw result.error;
+  return ((result.data || []) as LocationRow[])
+    .map(mapLocation)
+    .filter((location): location is BajujuLocation => Boolean(location));
+}
+
+export async function countPendingLocationRequests() {
+  const result = await supabase
+    .from('bajuju_locations' as any)
+    .select('owner_id', { count: 'exact', head: true })
+    .eq('request_status', 'pending');
+  return result.error ? 0 : result.count || 0;
+}
+
+export async function reviewLocationRequest(ownerId: string, action: 'approve' | 'reject') {
+  const result = await supabase.rpc('admin_review_location' as any, {
+    p_owner_id: ownerId,
+    p_action: action,
+  });
+  if (result.error) throw result.error;
+}
+
 export function normalizeInstagramUrl(value: string) {
   const text = value.trim();
   if (!text) return '';

@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 
+import { countPendingLocationRequests } from '../../src/lib/bajujuLocations';
 import { supabase } from '../../src/lib/supabase';
 import { BajujuBackButton } from '../../src/components/navigation/BajujuBackButton';
 
@@ -20,6 +21,7 @@ type AdminStats = {
   reports: number;
   chatReports: number;
   groupApprovals: number;
+  locationRequests: number;
   supportUnread: number;
 };
 
@@ -219,20 +221,22 @@ export default function AdminScreen() {
     reports: 0,
     chatReports: 0,
     groupApprovals: 0,
+    locationRequests: 0,
     supportUnread: 0,
   });
 
   const loadStats = useCallback(async () => {
-    const [users, activities, reports, chatReports, groupApprovals, supportUnread] = await Promise.all([
+    const [users, activities, reports, chatReports, groupApprovals, locationRequests, supportUnread] = await Promise.all([
       countActiveUsers(),
       countAvailableActivities(),
       countReports(),
       countChatReports(),
       countPendingGroups(),
+      countPendingLocationRequests().catch(() => 0),
       countSupportUnread(),
     ]);
 
-    setStats({ users, activities, reports, chatReports, groupApprovals, supportUnread });
+    setStats({ users, activities, reports, chatReports, groupApprovals, locationRequests, supportUnread });
   }, []);
 
   useEffect(() => {
@@ -319,6 +323,14 @@ export default function AdminScreen() {
             subtitle="Controlla le nuove richieste e scegli se pubblicarle."
             count={stats.groupApprovals}
             onPress={() => router.push('/admin-groups' as any)}
+          />
+
+          <AdminRow
+            icon="🏠"
+            title="Location da approvare"
+            subtitle="Locali che hanno chiesto di diventare Location: controlla la pagina e approva."
+            count={stats.locationRequests}
+            onPress={() => router.push('/admin-locations' as any)}
           />
 
           <AdminRow

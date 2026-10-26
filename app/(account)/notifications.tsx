@@ -57,6 +57,8 @@ function notificationIcon(type: string) {
     case 'waitlist_spot_available': return '🎟️';
     case 'location_activated': return '🏠';
     case 'location_new_event': return '🏠';
+    case 'location_request': return '🏠';
+    case 'location_rejected': return '🏠';
     default: return '🔔';
   }
 }
@@ -175,6 +177,9 @@ export default function NotificationsScreen() {
         return;
       case 'my-location':
         router.push('/my-location' as any);
+        return;
+      case 'admin-locations':
+        router.push('/admin-locations' as any);
         return;
       case 'profile':
         if (section) router.push({ pathname: '/profile' as any, params: { section } });

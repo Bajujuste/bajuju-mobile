@@ -122,6 +122,7 @@ type MessageRow = {
   content?: string | null;
   body?: string | null;
   created_at?: string | null;
+  deleted_at?: string | null;
 };
 
 function formatDateItalian(value: string | null | undefined) {
@@ -1059,6 +1060,30 @@ export default function ExperienceDetailScreen() {
     }
   }
 
+  function confirmDeleteMessage(item: MessageRow) {
+    const messageId = String(item.id || '').trim();
+    const authorId = String(item.user_id || item.sender_id || '').trim();
+    if (!experienceId || !messageId || item.deleted_at || !currentUserId || authorId !== currentUserId) return;
+
+    Alert.alert('Eliminare il messaggio?', 'Al suo posto resterà la scritta “Messaggio eliminato”.', [
+      { text: 'Annulla', style: 'cancel' },
+      {
+        text: 'Elimina',
+        style: 'destructive',
+        onPress: () => {
+          void (async () => {
+            const result = await supabase.rpc('bajuju_delete_my_message', { p_chat: 'activity', p_message_id: messageId });
+            if (result.error) {
+              Alert.alert('Messaggio non eliminato', 'Riprova tra poco.');
+              return;
+            }
+            await loadMessages(experienceId);
+          })();
+        },
+      },
+    ]);
+  }
+
   const loadAlbumPhotos = useCallback(async () => {
     if (!experienceId) {
       setAlbumPhotos([]);
@@ -1686,6 +1711,7 @@ export default function ExperienceDetailScreen() {
                             const name = isMine
                               ? 'Tu'
                               : profileName(profiles[userId], index);
+                            const deleted = Boolean(item.deleted_at);
 
                             return (
                               <View
@@ -1696,14 +1722,21 @@ export default function ExperienceDetailScreen() {
                                 ]}
                               >
                                 <Text style={[styles.messageAuthor, isMine && styles.messageAuthorMine]}>{name}</Text>
-                                <Text style={[styles.messageBody, isMine && styles.messageBodyMine]}>{messageText(item)}</Text>
+                                <Text style={[styles.messageBody, isMine && styles.messageBodyMine, deleted && styles.messageBodyDeleted]}>
+                                  {deleted ? 'Messaggio eliminato' : messageText(item)}
+                                </Text>
                                 <View style={styles.messageFooter}>
                                   <Text style={[styles.messageTime, isMine && styles.messageTimeMine]}>
                                     {formatMessageTime(item.created_at)}
                                   </Text>
-                                  {!isMine ? (
+                                  {!isMine && !deleted ? (
                                     <Pressable onPress={() => reportMessage(item)} hitSlop={8}>
                                       <Text style={styles.reportMessageText}>Segnala</Text>
+                                    </Pressable>
+                                  ) : null}
+                                  {isMine && !deleted ? (
+                                    <Pressable onPress={() => confirmDeleteMessage(item)} hitSlop={8} accessibilityLabel="Elimina messaggio">
+                                      <Text style={[styles.reportMessageText, styles.deleteMessageTextMine]}>Elimina</Text>
                                     </Pressable>
                                   ) : null}
                                 </View>
@@ -2385,6 +2418,10 @@ const styles = StyleSheet.create({
   messageBodyMine: {
     color: C.white,
   },
+  messageBodyDeleted: {
+    fontStyle: 'italic',
+    opacity: 0.75,
+  },
   messageFooter: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -2405,6 +2442,10 @@ const styles = StyleSheet.create({
     color: C.muted,
     fontSize: 11,
     textDecorationLine: 'underline',
+  },
+  deleteMessageTextMine: {
+    color: C.white,
+    opacity: 0.85,
   },
   chatInputRow: {
     alignItems: 'flex-end',

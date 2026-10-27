@@ -341,6 +341,29 @@ export default function FlashDetailScreen() {
     }
   }
 
+  function confirmDeleteMessage(item: LooseRow) {
+    const messageId = String(firstValue(item, ['id'], '') || '').trim();
+    if (!flashId || !messageId || item.deleted_at || !currentUserId || messageSenderId(item) !== currentUserId) return;
+
+    Alert.alert('Eliminare il messaggio?', 'Al suo posto resterà la scritta “Messaggio eliminato”.', [
+      { text: 'Annulla', style: 'cancel' },
+      {
+        text: 'Elimina',
+        style: 'destructive',
+        onPress: () => {
+          void (async () => {
+            const result = await supabase.rpc('bajuju_delete_my_message', { p_chat: 'activity', p_message_id: messageId });
+            if (result.error) {
+              Alert.alert('Messaggio non eliminato', 'Riprova tra poco.');
+              return;
+            }
+            await loadMessages(flashId);
+          })();
+        },
+      },
+    ]);
+  }
+
   return (
     <KeyboardAwareScrollView contentContainerStyle={styles.page}>
       <View style={styles.card}>
@@ -435,11 +458,20 @@ export default function FlashDetailScreen() {
             messages.map((item, index) => {
               const senderId = messageSenderId(item);
               const profile = profiles[senderId] || null;
+              const deleted = Boolean(item.deleted_at);
+              const isMine = Boolean(currentUserId) && senderId === currentUserId;
 
               return (
                 <View key={`${firstValue(item, ['id'], index)}-${index}`} style={styles.messageBox}>
                   <Text style={styles.messageAuthor}>{profileName(profile)}</Text>
-                  <Text style={styles.messageText}>{messageText(item)}</Text>
+                  <Text style={[styles.messageText, deleted && styles.messageTextDeleted]}>
+                    {deleted ? 'Messaggio eliminato' : messageText(item)}
+                  </Text>
+                  {isMine && !deleted ? (
+                    <Pressable onPress={() => confirmDeleteMessage(item)} hitSlop={8} accessibilityLabel="Elimina messaggio">
+                      <Text style={styles.deleteMessageText}>Elimina</Text>
+                    </Pressable>
+                  ) : null}
                 </View>
               );
             })
@@ -625,6 +657,18 @@ const styles = StyleSheet.create({
     fontFamily: 'FredokaRegular',
     fontSize: 15,
     lineHeight: 21,
+  },
+  messageTextDeleted: {
+    fontStyle: 'italic',
+    opacity: 0.7,
+  },
+  deleteMessageText: {
+    alignSelf: 'flex-end',
+    color: '#7a1f4f',
+    fontFamily: 'FredokaRegular',
+    fontSize: 11,
+    marginTop: 4,
+    textDecorationLine: 'underline',
   },
   chatComposer: {
     gap: 10,

@@ -251,7 +251,8 @@
       "activity_id",
       "sender_id",
       "message",
-      "created_at"
+      "created_at",
+      "deleted_at"
     ],
     "activity_waitlist": [
       "id",
@@ -401,7 +402,8 @@
       "group_id",
       "user_id",
       "message",
-      "created_at"
+      "created_at",
+      "deleted_at"
     ],
     "group_join_requests": [
       "group_id",
@@ -470,6 +472,7 @@
     "admin_review_location",
     "bajuju_activity_visible_to_current_user",
     "bajuju_current_user_access_status",
+    "bajuju_delete_my_message",
     "bajuju_get_or_create_support_thread",
     "bajuju_get_users_blocked_by_me",
     "bajuju_main_admin_id",

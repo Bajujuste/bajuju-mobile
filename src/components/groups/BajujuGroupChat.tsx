@@ -4,6 +4,7 @@ import {
   Alert,
   NativeScrollEvent,
   NativeSyntheticEvent,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -227,6 +228,17 @@ export function BajujuGroupChat({ groupId, currentUserId, canUseChat, members }:
       requestAnimationFrame(() => {
         scrollRef.current?.scrollToEnd({ animated: true });
       });
+
+      if (Platform.OS !== 'web') {
+        void supabase.functions
+          .invoke('send-bajuju-group-chat-push', { body: { groupId } })
+          .then(({ error }) => {
+            if (error) console.log('Push chat gruppo non inviata.');
+          })
+          .catch(() => {
+            console.log('Push chat gruppo non disponibile.');
+          });
+      }
     } catch (error: any) {
       Alert.alert('Messaggio non inviato', String(error?.message || 'Riprova tra poco.'));
     } finally {

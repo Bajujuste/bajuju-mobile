@@ -46,6 +46,7 @@ function notificationIcon(type: string) {
     case 'new_flash': return '⚡';
     case 'new_participant': return '🙋';
     case 'chat_message': return '💬';
+    case 'group_chat_message': return '💬';
     case 'support_message': return '💬';
     case 'experience_join_accepted': return '✅';
     case 'group_join_request': return '🙋';
@@ -152,7 +153,7 @@ export default function NotificationsScreen() {
 
     switch (screen) {
       case 'group-detail':
-        if (groupId) router.push({ pathname: '/group-detail' as any, params: { id: groupId, section: 'requests' } });
+        if (groupId) router.push({ pathname: '/group-detail' as any, params: { id: groupId, section: section || 'requests' } });
         else router.push('/groups' as any);
         return;
       case 'experience':

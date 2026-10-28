@@ -486,7 +486,8 @@ export default function ExperiencesScreen() {
           </View>
         ) : (
           <>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.cardsRow}>
+            {/* key per scheda: cambiando scheda la lista riparte dall'inizio, altrimenti resta scorsa dove eri e sembra vuota. */}
+            <ScrollView key={mode} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.cardsRow}>
               {visibleActivities.map((item) => {
                 const activityId = String(item.id || '');
                 const organizedByMe = Boolean(currentUserId && String(item.creator_id || '') === currentUserId);

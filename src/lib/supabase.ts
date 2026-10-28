@@ -2,7 +2,7 @@ import 'react-native-url-polyfill/auto';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
-import { Platform } from 'react-native';
+import { AppState, Platform } from 'react-native';
 
 const supabaseUrl = 'https://xwcbmsfsirggozpcskcz.supabase.co';
 const supabaseAnonKey = 'sb_publishable_Kg74KvC--sJpim0_tY7K0Q_YJcMqf9g';
@@ -230,3 +230,15 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 supabase.auth.onAuthStateChange((_event, session) => {
   if (session?.user?.id) scheduleNetworkErrorFlush();
 });
+// Su mobile il rinnovo automatico del token si ferma in secondo piano: senza questo, al rientro
+// il token può essere scaduto e il realtime delle chat smette di ricevere i messaggi.
+if (Platform.OS !== 'web') {
+  if (AppState.currentState === 'active') supabase.auth.startAutoRefresh();
+  AppState.addEventListener('change', (state) => {
+    if (state === 'active') {
+      supabase.auth.startAutoRefresh();
+    } else {
+      supabase.auth.stopAutoRefresh();
+    }
+  });
+}

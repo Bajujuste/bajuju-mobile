@@ -33,6 +33,7 @@ import { getExperienceCategoryIcon, normalizeExperienceCategory } from '@/consta
 import { sendBajujuPushNotification } from '../../src/utils/bajujuNotifications';
 import { BAJUJU_COLORS, BAJUJU_FONTS, BAJUJU_SHADOW } from '../../src/theme/bajujuTheme';
 import { KeyboardAwareScrollView } from '../../src/components/KeyboardAwareScrollView';
+import { useChatLiveRefresh } from '../../src/hooks/useChatLiveRefresh';
 import { BajujuProfileButton } from '../../src/components/navigation/BajujuProfileButton';
 
 const bajujuLogo = require('../../assets/brand/bajuju-logo.png');
@@ -369,6 +370,8 @@ export default function ExperienceDetailScreen() {
   const canUseChat = isOrganizer || isParticipant;
   const canShowInviteOut = canUseChat && canInviteOutAfterExperience(experience);
 
+  useChatLiveRefresh(experienceId && canUseChat ? () => void loadMessages(experienceId) : null);
+
   useEffect(() => {
     chatAutoScrollDoneRef.current = false;
   }, [experienceId, requestedSection]);
@@ -451,10 +454,8 @@ export default function ExperienceDetailScreen() {
       .order('created_at', { ascending: false })
       .limit(100);
 
-    if (messagesResult.error) {
-      setMessages([]);
-      return;
-    }
+    // In caso di errore (es. rete assente) si tengono i messaggi già mostrati.
+    if (messagesResult.error) return;
 
     setMessages(((messagesResult.data || []) as MessageRow[]).reverse());
   }, []);
@@ -592,7 +593,10 @@ export default function ExperienceDetailScreen() {
           void loadMessages(experienceId);
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        // Dopo una riconnessione recupera i messaggi arrivati mentre il canale era giù.
+        if (status === 'SUBSCRIBED') void loadMessages(experienceId);
+      });
 
     return () => {
       void supabase.removeChannel(channel);

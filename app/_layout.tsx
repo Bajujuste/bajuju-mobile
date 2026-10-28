@@ -11,6 +11,7 @@ import 'react-native-reanimated';
 import { AdminPrivateChatEntry } from '../src/components/admin/AdminPrivateChatEntry';
 import { supabase } from '../src/lib/supabase';
 import { useAppUpdatePrompt } from '../src/utils/appUpdatePrompt';
+import { useOtaAutoUpdate } from '../src/utils/otaAutoUpdate';
 import { hasCompleteRequiredProfile } from '../src/utils/profileCompletion';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -84,6 +85,7 @@ export default function RootLayout() {
   });
 
   useAppUpdatePrompt();
+  useOtaAutoUpdate();
 
   useEffect(() => {
     const allowedPaths = new Set([

@@ -16,6 +16,7 @@ import { supabase } from '../../src/lib/supabase';
 import { BAJUJU_COLORS, BAJUJU_FONTS, BAJUJU_SHADOW } from '../../src/theme/bajujuTheme';
 import { BajujuBackButton } from '../../src/components/navigation/BajujuBackButton';
 import { useKeyboardOverlap } from '../../src/components/KeyboardAwareScrollView';
+import { useChatLiveRefresh } from '../../src/hooks/useChatLiveRefresh';
 
 type ChatMessage = {
   id: string;
@@ -183,12 +184,17 @@ export default function AdminPrivateChatScreen() {
           void loadMessages(threadId).catch(() => undefined);
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        // Dopo una riconnessione recupera i messaggi arrivati mentre il canale era giù.
+        if (status === 'SUBSCRIBED') void loadMessages(threadId).catch(() => undefined);
+      });
 
     return () => {
       void supabase.removeChannel(channel);
     };
   }, [loadMessages, threadId]);
+
+  useChatLiveRefresh(threadId ? () => void loadMessages(threadId).catch(() => undefined) : null);
 
   const canSend = useMemo(() => {
     const clean = draft.trim();

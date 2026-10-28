@@ -3,6 +3,7 @@ import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View 
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { supabase } from '../../src/lib/supabase';
 import { KeyboardAwareScrollView } from '../../src/components/KeyboardAwareScrollView';
+import { useChatLiveRefresh } from '../../src/hooks/useChatLiveRefresh';
 
 type LooseRow = Record<string, any>;
 
@@ -130,10 +131,8 @@ export default function FlashDetailScreen() {
       .order('created_at', { ascending: false })
       .limit(100);
 
-    if (messagesResult.error) {
-      setMessages([]);
-      return;
-    }
+    // In caso di errore (es. rete assente) si tengono i messaggi già mostrati.
+    if (messagesResult.error) return;
 
     setMessages(((messagesResult.data || []) as LooseRow[]).reverse());
   }, []);
@@ -249,7 +248,10 @@ export default function FlashDetailScreen() {
           void loadMessages(flashId);
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        // Dopo una riconnessione recupera i messaggi arrivati mentre il canale era giù.
+        if (status === 'SUBSCRIBED') void loadMessages(flashId);
+      });
 
     return () => {
       void supabase.removeChannel(channel);
@@ -289,6 +291,8 @@ export default function FlashDetailScreen() {
   );
 
   const canUseChat = isOrganizer || isParticipant;
+
+  useChatLiveRefresh(flashId && canUseChat ? () => void loadMessages(flashId) : null);
 
   async function sendChatMessage() {
     if (!flashId || sendingMessage) return;

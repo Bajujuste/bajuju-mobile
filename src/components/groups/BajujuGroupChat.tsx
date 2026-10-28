@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 
+import { useChatLiveRefresh } from '../../hooks/useChatLiveRefresh';
 import { supabase } from '../../lib/supabase';
 import { BAJUJU_COLORS, BAJUJU_FONTS, BAJUJU_SHADOW } from '../../theme/bajujuTheme';
 
@@ -131,6 +132,28 @@ export function BajujuGroupChat({ groupId, currentUserId, canUseChat, members }:
     }
   }, [canUseChat, groupId]);
 
+  // Ricarica gli ultimi messaggi senza spinner e senza perdere quelli più vecchi già caricati.
+  const refreshLatest = useCallback(async () => {
+    if (!groupId || !canUseChat) return;
+
+    const result = await supabase
+      .from('group_messages')
+      .select('id,group_id,user_id,message,created_at,deleted_at')
+      .eq('group_id', groupId)
+      .order('created_at', { ascending: false })
+      .limit(PAGE_SIZE);
+
+    if (result.error) return;
+
+    setMessages((current) => mergeMessages(current, (result.data || []) as GroupMessageRow[]));
+
+    if (atBottomRef.current) {
+      requestAnimationFrame(() => {
+        scrollRef.current?.scrollToEnd({ animated: true });
+      });
+    }
+  }, [canUseChat, groupId]);
+
   const loadOlder = useCallback(async () => {
     if (!groupId || !canUseChat || loadingOlder || !hasOlder || messages.length === 0) return;
 
@@ -209,12 +232,17 @@ export function BajujuGroupChat({ groupId, currentUserId, canUseChat, members }:
           setMessages((current) => mergeMessages(current, [payload.new as GroupMessageRow]));
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        // Dopo una riconnessione recupera i messaggi arrivati mentre il canale era giù.
+        if (status === 'SUBSCRIBED') void refreshLatest();
+      });
 
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [canUseChat, currentUserId, groupId]);
+  }, [canUseChat, currentUserId, groupId, refreshLatest]);
+
+  useChatLiveRefresh(groupId && canUseChat ? () => void refreshLatest() : null);
 
   async function sendMessage() {
     const cleanMessage = draft.trim();

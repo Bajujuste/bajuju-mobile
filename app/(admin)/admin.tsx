@@ -328,7 +328,7 @@ export default function AdminScreen() {
           <AdminRow
             icon="🏠"
             title="Location da approvare"
-            subtitle="Locali che hanno chiesto di diventare Location: controlla la pagina e approva."
+            subtitle="Approva i locali che hanno chiesto di diventare Location, oppure crea tu una location."
             count={stats.locationRequests}
             onPress={() => router.push('/admin-locations' as any)}
           />

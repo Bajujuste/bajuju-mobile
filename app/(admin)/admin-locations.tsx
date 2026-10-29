@@ -17,6 +17,7 @@ import {
   type BajujuLocation,
   LOCATION_COLOR,
   LOCATION_COLOR_SOFT,
+  loadManagedLocations,
   loadPendingLocationRequests,
   locationAddressLine,
   reviewLocationRequest,
@@ -27,14 +28,16 @@ import { BajujuBackButton } from '../../src/components/navigation/BajujuBackButt
 
 export default function AdminLocationsScreen() {
   const [items, setItems] = useState<BajujuLocation[]>([]);
+  const [managedItems, setManagedItems] = useState<BajujuLocation[]>([]);
   const [ownerNames, setOwnerNames] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [busyId, setBusyId] = useState('');
 
   const load = useCallback(async () => {
-    const rows = await loadPendingLocationRequests();
+    const [rows, managed] = await Promise.all([loadPendingLocationRequests(), loadManagedLocations()]);
     setItems(rows);
+    setManagedItems(managed);
 
     const ownerIds = rows.map((row) => row.ownerId);
     if (ownerIds.length === 0) {
@@ -133,6 +136,13 @@ export default function AdminLocationsScreen() {
           <Text style={styles.subtitle}>
             Locali che hanno compilato la pagina da “Diventa Location”. Finché non approvi, nessuno li vede.
           </Text>
+          <Pressable
+            style={styles.createButton}
+            onPress={() => router.push({ pathname: '/my-location' as any, params: { create: '1' } })}
+            accessibilityRole="button"
+          >
+            <Text style={styles.createButtonText}>＋ Crea location</Text>
+          </Pressable>
         </View>
 
         {loading ? (
@@ -199,6 +209,32 @@ export default function AdminLocationsScreen() {
             );
           })
         )}
+
+        {managedItems.length > 0 ? (
+          <>
+            <Text style={styles.sectionTitle}>Location create da te</Text>
+            {managedItems.map((item) => (
+              <View key={item.ownerId} style={styles.card}>
+                <Text style={styles.cardTitle}>{item.name}</Text>
+                <Text style={styles.meta}>{item.category} · {locationAddressLine(item)}</Text>
+                <View style={styles.actions}>
+                  <Pressable
+                    style={styles.openButtonFlex}
+                    onPress={() => router.push({ pathname: '/user-profile' as any, params: { userId: item.ownerId } })}
+                  >
+                    <Text style={styles.openButtonText}>Apri</Text>
+                  </Pressable>
+                  <Pressable
+                    style={styles.approveButton}
+                    onPress={() => router.push({ pathname: '/my-location' as any, params: { ownerId: item.ownerId } })}
+                  >
+                    <Text style={styles.approveText}>Modifica</Text>
+                  </Pressable>
+                </View>
+              </View>
+            ))}
+          </>
+        ) : null}
       </ScrollView>
     </SafeAreaView>
   );
@@ -236,4 +272,8 @@ const styles = StyleSheet.create({
   approveButton: { flex: 1, minHeight: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: LOCATION_COLOR },
   approveText: { color: '#fff', fontFamily: BAJUJU_FONTS.bold, fontSize: 14 },
   disabled: { opacity: 0.45 },
+  createButton: { marginTop: 14, minHeight: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: LOCATION_COLOR },
+  createButtonText: { color: '#fff', fontFamily: BAJUJU_FONTS.bold, fontSize: 15 },
+  sectionTitle: { marginTop: 10, marginBottom: 10, marginLeft: 4, color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.bold, fontSize: 19 },
+  openButtonFlex: { flex: 1, minHeight: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: LOCATION_COLOR_SOFT },
 });

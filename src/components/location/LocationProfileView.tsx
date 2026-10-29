@@ -78,10 +78,12 @@ export function openLocationInMaps(location: BajujuLocation) {
 type Props = {
   location: BajujuLocation;
   isOwner: boolean;
+  // L'Admin che guarda una location creata da lui con "Crea location".
+  canAdminEdit?: boolean;
   footer?: React.ReactNode;
 };
 
-export function LocationProfileView({ location, isOwner, footer }: Props) {
+export function LocationProfileView({ location, isOwner, canAdminEdit = false, footer }: Props) {
   const { width } = useWindowDimensions();
   const [events, setEvents] = useState<EventRow[]>([]);
   const [photoIndex, setPhotoIndex] = useState(0);
@@ -168,6 +170,13 @@ export function LocationProfileView({ location, isOwner, footer }: Props) {
           {isOwner ? (
             <Pressable style={styles.secondaryButton} onPress={() => router.push('/my-location' as any)}>
               <Text style={styles.secondaryButtonText}>Modifica il mio locale</Text>
+            </Pressable>
+          ) : canAdminEdit ? (
+            <Pressable
+              style={styles.secondaryButton}
+              onPress={() => router.push({ pathname: '/my-location' as any, params: { ownerId: location.ownerId } })}
+            >
+              <Text style={styles.secondaryButtonText}>Modifica location</Text>
             </Pressable>
           ) : null}
 

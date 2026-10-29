@@ -130,6 +130,7 @@ export default function UserProfileScreen() {
   const [profile, setProfile] = useState<LooseRow | null>(null);
   const [currentUserId, setCurrentUserId] = useState('');
   const [viewerIsOfficialAdmin, setViewerIsOfficialAdmin] = useState(false);
+  const [viewerIsAdmin, setViewerIsAdmin] = useState(false);
   const [reportingUser, setReportingUser] = useState(false);
   const [blockingUser, setBlockingUser] = useState(false);
   const [isBlockedByMe, setIsBlockedByMe] = useState(false);
@@ -158,6 +159,10 @@ export default function UserProfileScreen() {
       setViewerIsOfficialAdmin(
         Boolean(authUserId && !mainAdminResult.error && mainAdminResult.data === authUserId)
       );
+      const viewerResult = authUserId
+        ? await supabase.from('profiles').select('is_admin').eq('id', authUserId).maybeSingle()
+        : { data: null };
+      setViewerIsAdmin((viewerResult.data as LooseRow | null)?.is_admin === true);
 
       if (authUserId && userId && authUserId !== userId) {
         const blockResult = await supabase
@@ -643,6 +648,7 @@ export default function UserProfileScreen() {
         <LocationProfileView
           location={location}
           isOwner={currentUserId === userId}
+          canAdminEdit={viewerIsAdmin && location.managedByAdmin}
           footer={<View style={styles.locationActions}>{profileActions}</View>}
         />
       ) : null}

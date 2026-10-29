@@ -21,11 +21,13 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { BajujuGroupBoard, BajujuGroupPhotos } from '../../src/components/groups/BajujuGroupBoard';
 import { BajujuGroupChat } from '../../src/components/groups/BajujuGroupChat';
+import { BajujuGroupMembers } from '../../src/components/groups/BajujuGroupMembers';
+import { groupInitials } from '../../src/components/groups/GroupColorPicker';
 import { BajujuGroupPolls } from '../../src/components/groups/BajujuGroupPolls';
 import { BajujuBottomNav } from '../../src/components/navigation/BajujuBottomNav';
 import { BajujuProfileButton } from '../../src/components/navigation/BajujuProfileButton';
-import { BajujuAdminRing } from '../../src/components/profile/BajujuAdminRing';
 import { useBajujuAdminIds } from '../../src/hooks/useBajujuAdminIds';
 import {
   cancelBajujuGroupJoinRequest,
@@ -39,19 +41,34 @@ import {
   reviewBajujuGroupJoinRequest,
   uploadBajujuGroupCover,
 } from '../../src/lib/bajujuGroups';
+import {
+  GroupBan,
+  GroupMemberWithRole,
+  GroupRole,
+  groupErrorMessage,
+  loadGroupBans,
+  loadGroupMembersWithRoles,
+  loadMyGroupRole,
+  unbanGroupUser,
+} from '../../src/lib/bajujuGroupBoard';
 import { supabase } from '../../src/lib/supabase';
 import { withLocationIdentity } from '../../src/lib/bajujuLocations';
 import { BAJUJU_COLORS, BAJUJU_FONTS } from '../../src/theme/bajujuTheme';
 import { shareBajujuGroup } from '../../src/utils/shareBajuju';
 import { KeyboardAwareScrollView } from '../../src/components/KeyboardAwareScrollView';
+import { needsOutline, resolveGroupTheme } from '../../src/utils/groupColors';
 
-type MemberRow = {
-  user_id?: string | null;
-  nickname?: string | null;
-  avatar_url?: string | null;
-  age_range?: string | null;
-  origin?: string | null;
-};
+type GroupTab = 'board' | 'events' | 'chat' | 'members' | 'photos';
+
+const GROUP_TABS: { key: GroupTab; label: string }[] = [
+  { key: 'board', label: 'Bacheca' },
+  { key: 'events', label: 'Eventi' },
+  { key: 'chat', label: 'Chat' },
+  { key: 'members', label: 'Membri' },
+  { key: 'photos', label: 'Foto' },
+];
+
+const GROUP_BASE_COLUMNS = 'id,name,description,city,province,category,cover_url,owner_id,status,review_note,join_approval_required,min_age,max_age';
 
 type ExperienceRow = {
   id?: string | null;
@@ -62,7 +79,7 @@ type ExperienceRow = {
   activity_time?: string | null;
 };
 
-const DESCRIPTION_PREVIEW_LINES = 6;
+const DESCRIPTION_PREVIEW_LINES = 3;
 
 export default function GroupDetailScreen() {
   const { pickPhoto, photoPickerModal } = useBajujuPhotoPicker();
@@ -78,15 +95,19 @@ export default function GroupDetailScreen() {
   const [isAdmin, setIsAdmin] = useState(false);
   const adminIds = useBajujuAdminIds();
   const [group, setGroup] = useState<any>(null);
-  const [ownerName, setOwnerName] = useState('Bajuju');
-  const [members, setMembers] = useState<MemberRow[]>([]);
+  const [members, setMembers] = useState<GroupMemberWithRole[]>([]);
+  const [myRole, setMyRole] = useState<GroupRole | null>(null);
+  const [myName, setMyName] = useState('');
+  const [myAvatar, setMyAvatar] = useState('');
+  const [bans, setBans] = useState<GroupBan[]>([]);
+  const [unbanBusyUserId, setUnbanBusyUserId] = useState('');
+  const [tab, setTab] = useState<GroupTab>(params.section === 'requests' ? 'members' : 'board');
   const [selectedMemberPhotoUrl, setSelectedMemberPhotoUrl] = useState<string | null>(null);
   const [memberCount, setMemberCount] = useState(0);
   const [experiences, setExperiences] = useState<ExperienceRow[]>([]);
   const [joined, setJoined] = useState(false);
   const [joinState, setJoinState] = useState<GroupJoinState>('none');
   const [joinRequests, setJoinRequests] = useState<GroupJoinRequest[]>([]);
-  const [requestsOpen, setRequestsOpen] = useState(params.section === 'requests');
   const [reviewBusyUserId, setReviewBusyUserId] = useState('');
   const [approvalModeBusy, setApprovalModeBusy] = useState(false);
   const [ageModeBusy, setAgeModeBusy] = useState(false);
@@ -104,6 +125,7 @@ export default function GroupDetailScreen() {
   // Le sezioni stanno dentro il blocco sotto la copertina: per scorrere serve sommare la sua posizione.
   const contentY = useRef(0);
   const insets = useSafeAreaInsets();
+  const ownerMember = members.find((member) => member.role === 'owner');
 
   const refresh = useCallback(async () => {
     if (!groupId) {
@@ -118,20 +140,26 @@ export default function GroupDetailScreen() {
       const userId = authResult.data.user?.id || '';
       setCurrentUserId(userId);
 
-      const [groupResult, profileResult] = await Promise.all([
+      const [firstGroupResult, profileResult] = await Promise.all([
         supabase
           .from('groups')
-          .select('id,name,description,city,province,category,cover_url,owner_id,status,review_note,join_approval_required,min_age,max_age')
+          .select(`${GROUP_BASE_COLUMNS},color_primary,color_secondary`)
           .eq('id', groupId)
           .maybeSingle(),
         userId
-          ? supabase.from('profiles').select('is_admin').eq('id', userId).maybeSingle()
+          ? supabase.from('profiles').select('is_admin,nickname,avatar_url').eq('id', userId).maybeSingle()
           : Promise.resolve({ data: null, error: null } as any),
       ]);
 
+      // Database senza le colonne dei colori: si carica il gruppo come prima.
+      const groupResult: any = firstGroupResult.error
+        ? await supabase.from('groups').select(GROUP_BASE_COLUMNS).eq('id', groupId).maybeSingle()
+        : firstGroupResult;
       if (groupResult.error) throw groupResult.error;
       if (profileResult.error) throw profileResult.error;
       setIsAdmin(profileResult.data?.is_admin === true);
+      setMyName(String(profileResult.data?.nickname || ''));
+      setMyAvatar(String(profileResult.data?.avatar_url || '').trim());
 
       if (!groupResult.data) {
         setGroup(null);
@@ -149,8 +177,12 @@ export default function GroupDetailScreen() {
       setMaxAgeDraft(hasAgeRestriction ? String(groupResult.data.max_age) : '80');
 
       const ownerId = String(groupResult.data.owner_id || '');
+      const role: GroupRole | null = userId
+        ? await loadMyGroupRole(groupId).catch(() => (ownerId === userId ? 'owner' : null))
+        : null;
+      setMyRole(role);
       const canManageJoinRequests = Boolean(
-        userId && (ownerId === userId || profileResult.data?.is_admin === true)
+        userId && (role === 'owner' || role === 'admin' || ownerId === userId || profileResult.data?.is_admin === true)
       );
       const [currentJoinState, pendingJoinRequests] = await Promise.all([
         userId ? loadBajujuGroupJoinState(groupId) : Promise.resolve('none' as GroupJoinState),
@@ -163,49 +195,17 @@ export default function GroupDetailScreen() {
         avatarKey: 'avatar_url',
       }));
 
-      const [ownerResult, membersResult, linksResult, memberCountResult] = await Promise.all([
-        ownerId
-          ? supabase.from('profiles').select('nickname').eq('id', ownerId).maybeSingle()
-          : Promise.resolve({ data: null, error: null } as any),
-        supabase.rpc('get_group_member_profiles', { p_group_id: groupId }),
+      const [safeMembers, linksResult, memberCountResult, groupBans] = await Promise.all([
+        loadGroupMembersWithRoles(groupId, ownerId),
         supabase.from('group_activities').select('activity_id').eq('group_id', groupId),
         supabase.rpc('get_group_member_count' as any, { p_group_id: groupId }),
+        canManageJoinRequests ? loadGroupBans(groupId).catch(() => [] as GroupBan[]) : Promise.resolve([] as GroupBan[]),
       ]);
 
-      if (membersResult.error) throw membersResult.error;
       if (linksResult.error) throw linksResult.error;
 
-      setOwnerName(String(ownerResult.data?.nickname || 'Bajuju'));
-      const safeMembers = (membersResult.data || []) as MemberRow[];
-      const memberIds = safeMembers
-        .map((member) => String(member.user_id || '').trim())
-        .filter(Boolean);
-
-      const avatarsResult = memberIds.length
-        ? await supabase.from('profiles').select('id,avatar_url').in('id', memberIds)
-        : ({ data: [], error: null } as any);
-
-      if (avatarsResult.error) throw avatarsResult.error;
-
-      const avatarByUserId = new Map<string, string>(
-        (avatarsResult.data || []).map(
-          (profile: any): [string, string] => [
-            String(profile.id || ''),
-            String(profile.avatar_url || '').trim(),
-          ]
-        )
-      );
-
-      const membersWithPhotos = safeMembers.map((member) => ({
-        ...member,
-        avatar_url: avatarByUserId.get(String(member.user_id || '')) || null,
-      }));
-
-      setMembers(await withLocationIdentity(membersWithPhotos, {
-        idKey: 'user_id',
-        nameKeys: ['nickname'],
-        avatarKey: 'avatar_url',
-      }));
+      setMembers(safeMembers);
+      setBans(groupBans);
       // Se la funzione di conteggio non è ancora disponibile si usa la lunghezza dell'elenco.
       setMemberCount(
         !memberCountResult.error && memberCountResult.data !== null && memberCountResult.data !== undefined
@@ -214,7 +214,7 @@ export default function GroupDetailScreen() {
       );
       setJoined(
         currentJoinState === 'joined'
-        || safeMembers.some((member) => String(member.user_id || '') === userId)
+        || safeMembers.some((member) => member.user_id === userId)
       );
 
       const activityIds = [
@@ -306,7 +306,7 @@ export default function GroupDetailScreen() {
       }
       await refresh();
     } catch (error: any) {
-      Alert.alert('Operazione non riuscita', String(error?.message || 'Riprova tra poco.'));
+      Alert.alert('Operazione non riuscita', groupErrorMessage(error));
     } finally {
       setBusy(false);
     }
@@ -415,11 +415,37 @@ export default function GroupDetailScreen() {
       } else if (message.includes('BAJUJU_AGE_RESTRICTED')) {
         Alert.alert('Fuori fascia', 'Questo utente non rientra più nella fascia d’età impostata per il gruppo. La richiesta resta in attesa.');
       } else {
-        Alert.alert('Operazione non riuscita', message || 'Riprova tra poco.');
+        Alert.alert('Operazione non riuscita', groupErrorMessage(error));
       }
     } finally {
       setReviewBusyUserId('');
     }
+  }
+
+  function confirmUnban(ban: GroupBan) {
+    Alert.alert(
+      `Sbloccare ${ban.nickname || 'questo utente'}?`,
+      'Potrà di nuovo entrare nel gruppo o chiedere di entrare.',
+      [
+        { text: 'Annulla', style: 'cancel' },
+        {
+          text: 'Sblocca',
+          onPress: () => {
+            void (async () => {
+              setUnbanBusyUserId(ban.user_id);
+              try {
+                await unbanGroupUser(groupId, ban.user_id);
+                setBans((current) => current.filter((item) => item.user_id !== ban.user_id));
+              } catch (error) {
+                Alert.alert('Operazione non riuscita', groupErrorMessage(error));
+              } finally {
+                setUnbanBusyUserId('');
+              }
+            })();
+          },
+        },
+      ]
+    );
   }
 
   async function handleShareGroup() {
@@ -559,7 +585,7 @@ export default function GroupDetailScreen() {
 
     Alert.alert(
       'Prendere possesso del gruppo?',
-      `Il gruppo passerà da ${ownerName} al tuo account Admin. Gli iscritti e le esperienze resteranno invariati.`,
+      `Il gruppo passerà da ${ownerMember?.nickname || 'il proprietario attuale'} al tuo account Admin. Gli iscritti e le esperienze resteranno invariati.`,
       [
         { text: 'Annulla', style: 'cancel' },
         {
@@ -616,7 +642,7 @@ export default function GroupDetailScreen() {
     );
   }
 
-  if (loading) {
+  if (loading && !group) {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.loadingBox}>
@@ -642,30 +668,31 @@ export default function GroupDetailScreen() {
 
   const isOwner = String(group.owner_id || '') === currentUserId;
   const place = String(group.city || '').trim();
+  // Impostazioni del gruppo (descrizione, copertina, iscrizioni): proprietario e Admin di Bajuju.
   const canManageGroup = isOwner || isAdmin;
+  // Bacheca, richieste, membri e colori: anche gli admin del gruppo.
+  const canModerate = canManageGroup || myRole === 'admin';
   const coverUrl = String(group.cover_url || '').trim();
   const groupStatus = String(group.status || 'active').toLowerCase();
   const isPublicGroup = groupStatus === 'active';
   const requiresApproval = group.join_approval_required === true;
   const hasPendingJoinRequest = joinState === 'pending';
+  const isBanned = joinState === 'banned';
+  const theme = resolveGroupTheme(group.color_primary, group.color_secondary);
+  const canInteract = joined || isOwner || isAdmin;
+  const boardLocked = !canInteract && (requiresApproval || isBanned);
 
   const ageLabel = group.min_age !== null && group.min_age !== undefined && group.max_age !== null && group.max_age !== undefined
     ? `${group.min_age}–${group.max_age} anni`
-    : 'Tutte le età';
-  const infoTiles = [
-    { label: 'Dove', value: place || 'Non indicato', icon: 'location-outline' as const },
-    isPublicGroup
-      ? { label: 'Iscritti', value: `${memberCount} ${memberCount === 1 ? 'iscritto' : 'iscritti'}`, icon: 'people-outline' as const }
-      : { label: 'Stato', value: groupStatus === 'rejected' ? 'Da rivedere' : 'In approvazione', icon: 'time-outline' as const },
-    { label: 'Età', value: ageLabel, icon: 'person-outline' as const },
-    {
-      label: 'Ingresso',
-      value: requiresApproval ? 'Su richiesta' : 'Libero',
-      icon: requiresApproval ? ('lock-closed-outline' as const) : ('lock-open-outline' as const),
-      valueStyle: requiresApproval ? styles.infoValueRequest : styles.infoValueFree,
-    },
-  ];
-  const hasMenuItems = isPublicGroup || canManageGroup;
+    : '';
+  const metaLine = [
+    group.category,
+    place,
+    isPublicGroup ? `${memberCount} ${memberCount === 1 ? 'membro' : 'membri'}` : (groupStatus === 'rejected' ? 'Da rivedere' : 'In approvazione'),
+    requiresApproval ? 'Gruppo con approvazione' : 'Ingresso libero',
+    ageLabel,
+  ].filter(Boolean).join(' · ');
+  const hasMenuItems = isPublicGroup || canModerate;
 
   function openManagement() {
     setMenuOpen(false);
@@ -677,6 +704,24 @@ export default function GroupDetailScreen() {
     }
   }
 
+  function openColors() {
+    setMenuOpen(false);
+    router.push({ pathname: '/group-colors' as any, params: { id: groupId } });
+  }
+
+  const joinLabel = busy
+    ? 'Aggiorno...'
+    : joined
+      ? 'Abbandona gruppo'
+      : isBanned
+        ? 'Non puoi entrare in questo gruppo'
+        : hasPendingJoinRequest
+          ? 'Richiesta inviata'
+          : requiresApproval
+            ? (joinState === 'rejected' ? 'Richiedi di nuovo' : 'Richiedi di entrare')
+            : 'Unisciti al gruppo';
+  const joinFilled = !joined && !hasPendingJoinRequest && !isBanned;
+
   return (
     <SafeAreaView style={styles.safeArea}>
       {photoPickerModal}
@@ -686,18 +731,22 @@ export default function GroupDetailScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.hero}>
+        <View style={[styles.hero, { backgroundColor: theme.custom ? theme.primary : BAJUJU_COLORS.softPink }]}>
           {coverUrl ? (
             <Image source={{ uri: coverUrl }} style={styles.heroImage} resizeMode="cover" />
           ) : (
-            <View style={styles.coverPlaceholder}><Ionicons name="people-outline" size={56} color={BAJUJU_COLORS.pink} /></View>
+            <View style={styles.coverPlaceholder}>
+              <Ionicons name="people-outline" size={56} color={theme.custom ? theme.onPrimary : BAJUJU_COLORS.pink} />
+            </View>
           )}
-          <LinearGradient
-            colors={['rgba(75,12,45,0)', 'rgba(75,12,45,0.78)']}
-            locations={[0.35, 1]}
-            style={StyleSheet.absoluteFill}
-            pointerEvents="none"
-          />
+          {coverUrl ? (
+            <LinearGradient
+              colors={theme.custom ? [`${theme.primary}00`, `${theme.primary}99`] : ['rgba(75,12,45,0)', 'rgba(75,12,45,0.45)']}
+              locations={[0.45, 1]}
+              style={StyleSheet.absoluteFill}
+              pointerEvents="none"
+            />
+          ) : null}
 
           <View style={styles.heroTopBar}>
             <Pressable
@@ -723,11 +772,17 @@ export default function GroupDetailScreen() {
               <BajujuProfileButton size={38} />
             </View>
           </View>
+        </View>
+        <View style={[styles.heroStripe, { backgroundColor: theme.secondary }]} />
 
-          <View style={styles.heroText}>
-            {group.category ? <Text style={styles.categoryChip} numberOfLines={1}>{group.category}</Text> : null}
-            <Text style={styles.title} numberOfLines={3}>{group.name}</Text>
+        <View style={styles.headerBlock}>
+          <View style={styles.headerTopRow}>
+            <View style={[styles.logoBox, { backgroundColor: theme.primary, borderColor: theme.custom ? theme.secondary : BAJUJU_COLORS.white }]}>
+              <Text style={[styles.logoText, { color: theme.onPrimary }]}>{groupInitials(String(group.name || ''))}</Text>
+            </View>
           </View>
+          <Text style={styles.title} numberOfLines={3}>{group.name}</Text>
+          <Text style={styles.metaLine}>{metaLine}</Text>
         </View>
 
         <View style={styles.content} onLayout={(event) => { contentY.current = event.nativeEvent.layout.y; }}>
@@ -750,18 +805,6 @@ export default function GroupDetailScreen() {
           </View>
         ) : null}
 
-        <View style={styles.infoGrid}>
-          {infoTiles.map((tile) => (
-            <View key={tile.label} style={styles.infoTile}>
-              <View style={styles.infoLabelRow}>
-                <Ionicons name={tile.icon} size={13} color={BAJUJU_COLORS.pink} />
-                <Text style={styles.infoLabel}>{tile.label}</Text>
-              </View>
-              <Text style={[styles.infoValue, tile.valueStyle]} numberOfLines={1}>{tile.value}</Text>
-            </View>
-          ))}
-        </View>
-
         {group.description ? (
           <View>
             <Text
@@ -775,31 +818,11 @@ export default function GroupDetailScreen() {
             </Text>
             {descriptionLong ? (
               <Pressable onPress={() => setDescriptionOpen((current) => !current)} accessibilityRole="button">
-                <Text style={styles.descriptionToggle}>{descriptionOpen ? 'Mostra meno' : 'Leggi tutto'}</Text>
+                <Text style={[styles.descriptionToggle, { color: theme.accent }]}>{descriptionOpen ? 'Mostra meno' : 'Leggi tutto'}</Text>
               </Pressable>
             ) : null}
           </View>
         ) : null}
-
-        <Pressable
-          style={styles.ownerRow}
-          disabled={!group.owner_id}
-          onPress={() => router.push({
-            pathname: '/user-profile' as any,
-            params: { userId: String(group.owner_id || '') },
-          })}
-          accessibilityRole="button"
-          accessibilityLabel={`Apri i dettagli di ${ownerName}`}
-        >
-          <View style={styles.ownerIcon}>
-            <Ionicons name="person" size={18} color={BAJUJU_COLORS.pink} />
-          </View>
-          <View style={styles.ownerCopy}>
-            <Text style={styles.ownerLabel}>Gestito da</Text>
-            <Text style={styles.ownerName} numberOfLines={1}>{isOwner ? `${ownerName} · sei tu` : ownerName}</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={16} color={BAJUJU_COLORS.muted} />
-        </Pressable>
 
         {!isPublicGroup ? (
           <View style={[styles.statusCard, groupStatus === 'rejected' && styles.statusCardRejected]}>
@@ -824,33 +847,27 @@ export default function GroupDetailScreen() {
         ) : null}
 
         {/* L'Admin vede il pulsante come ogni utente: può iscriversi e restare Admin. */}
-        {/* Il proprietario si riconosce dalla riga "Gestito da": niente pulsante per lui. */}
+        {/* Il proprietario non ha il pulsante: si riconosce nella scheda Membri. */}
         {isOwner ? null : isPublicGroup ? (
           <>
             <Pressable
               style={[
                 styles.joinButton,
-                joined && styles.leaveButton,
-                hasPendingJoinRequest && styles.pendingJoinButton,
+                joinFilled
+                  ? [{ backgroundColor: theme.secondary }, needsOutline(theme.secondary) && styles.outline]
+                  : styles.leaveButton,
+                (hasPendingJoinRequest || isBanned) && styles.pendingJoinButton,
                 busy && styles.disabled,
               ]}
-              disabled={busy || hasPendingJoinRequest}
+              disabled={busy || hasPendingJoinRequest || isBanned}
               onPress={() => { void toggleMembership(); }}
             >
               <Text style={[
                 styles.joinButtonText,
-                joined && styles.leaveButtonText,
-                hasPendingJoinRequest && styles.pendingJoinButtonText,
+                joinFilled ? { color: theme.onSecondary } : styles.leaveButtonText,
+                (hasPendingJoinRequest || isBanned) && styles.pendingJoinButtonText,
               ]}>
-                {busy
-                  ? 'Aggiorno...'
-                  : joined
-                    ? 'Abbandona gruppo'
-                    : hasPendingJoinRequest
-                      ? 'Richiesta inviata'
-                      : requiresApproval
-                        ? (joinState === 'rejected' ? 'Richiedi di nuovo' : 'Richiedi di entrare')
-                        : 'Iscriviti al gruppo'}
+                {joinLabel}
               </Text>
             </Pressable>
             {hasPendingJoinRequest ? (
@@ -865,7 +882,7 @@ export default function GroupDetailScreen() {
           </>
         ) : null}
 
-        {canManageGroup ? (
+        {canModerate && manageOpen ? (
           <View
             style={styles.managementCard}
             onLayout={(event) => {
@@ -878,23 +895,57 @@ export default function GroupDetailScreen() {
           >
             <Pressable
               style={styles.managementHeader}
-              onPress={() => setManageOpen((current) => !current)}
+              onPress={() => setManageOpen(false)}
               accessibilityRole="button"
-              accessibilityState={{ expanded: manageOpen }}
+              accessibilityState={{ expanded: true }}
             >
               <View>
                 <Text style={styles.managementEyebrow}>{isAdmin ? 'GESTIONE ADMIN' : 'GESTIONE GRUPPO'}</Text>
                 <Text style={styles.managementTitle}>Gestisci il gruppo</Text>
               </View>
-              <Ionicons name={manageOpen ? 'chevron-up' : 'chevron-down'} size={20} color={BAJUJU_COLORS.brightPink} />
+              <Ionicons name="chevron-up" size={20} color={BAJUJU_COLORS.brightPink} />
             </Pressable>
 
-            {manageOpen ? (
             <View style={styles.managementBody}>
 
+            <Text style={styles.fieldLabel}>Colori del gruppo</Text>
+            <Pressable style={styles.colorsRow} onPress={openColors} accessibilityRole="button">
+              <View style={styles.colorsDots}>
+                <View style={[styles.colorsDot, { backgroundColor: theme.primary }, styles.outline]} />
+                <View style={[styles.colorsDot, styles.colorsDotSecond, { backgroundColor: theme.secondary }, styles.outline]} />
+              </View>
+              <Text style={styles.colorsRowText}>{theme.custom ? 'Cambia i colori' : 'Scegli i colori (ora standard Bajuju)'}</Text>
+              <Ionicons name="chevron-forward" size={16} color={BAJUJU_COLORS.muted} />
+            </Pressable>
+
+            <Text style={styles.fieldLabel}>Utenti bloccati</Text>
+            {bans.length === 0 ? (
+              <Text style={styles.approvalHelper}>Nessuno. Chi blocchi dalla scheda Membri compare qui.</Text>
+            ) : (
+              bans.map((ban) => (
+                <View key={ban.user_id} style={styles.banRow}>
+                  <View style={styles.banCopy}>
+                    <Text style={styles.memberName} numberOfLines={1}>{ban.nickname || 'Utente Bajuju'}</Text>
+                    {ban.banned_by_nickname ? (
+                      <Text style={styles.memberMeta} numberOfLines={1}>Bloccato da {ban.banned_by_nickname}</Text>
+                    ) : null}
+                  </View>
+                  <Pressable
+                    style={[styles.unbanButton, unbanBusyUserId === ban.user_id && styles.disabled]}
+                    disabled={unbanBusyUserId === ban.user_id}
+                    onPress={() => confirmUnban(ban)}
+                  >
+                    <Text style={styles.unbanText}>Sblocca</Text>
+                  </Pressable>
+                </View>
+              ))
+            )}
+
+            {canManageGroup ? (
+            <>
             <Text style={styles.fieldLabel}>Iscrizione degli utenti</Text>
             <Text style={styles.approvalHelper}>
-              Scegli se gli utenti entrano subito oppure devono essere approvati da chi gestisce il gruppo.
+              Scegli se gli utenti entrano subito oppure devono essere approvati da chi gestisce il gruppo. Con approvazione la bacheca la vedono solo i membri.
             </Text>
             <View style={styles.approvalModeRow}>
               <Pressable
@@ -1015,11 +1066,16 @@ export default function GroupDetailScreen() {
             />
             <Text style={styles.counter}>{descriptionDraft.length}/{GROUP_DESCRIPTION_MAX_LENGTH}</Text>
             <Pressable
-              style={[styles.saveButton, manageBusy && styles.disabled]}
+              style={[
+                styles.saveButton,
+                { backgroundColor: theme.primary },
+                needsOutline(theme.primary) && styles.outline,
+                manageBusy && styles.disabled,
+              ]}
               disabled={manageBusy}
               onPress={() => { void (isAdmin ? saveGroupChanges() : saveDescription()); }}
             >
-              <Text style={styles.saveButtonText}>
+              <Text style={[styles.saveButtonText, { color: theme.onPrimary }]}>
                 {manageBusy ? 'Salvataggio...' : isAdmin ? 'Salva modifiche' : 'Salva descrizione'}
               </Text>
             </Pressable>
@@ -1049,188 +1105,128 @@ export default function GroupDetailScreen() {
                 Il creatore può modificare copertina e descrizione. Nome, proprietà ed eliminazione sono riservati agli Admin.
               </Text>
             )}
+            </>
+            ) : (
+              <Text style={styles.ownerRuleText}>
+                Come admin del gruppo puoi pubblicare in bacheca, gestire richieste e membri e cambiare i colori. Le altre impostazioni le cambia il proprietario.
+              </Text>
+            )}
             </View>
-            ) : null}
-          </View>
-        ) : null}
-
-        {canManageGroup && isPublicGroup && joinRequests.length > 0 ? (
-          <View style={styles.requestsCard} onLayout={(event) => {
-            if (params.section === 'requests') {
-              groupScrollRef.current?.scrollTo({ y: Math.max(0, contentY.current + event.nativeEvent.layout.y - 18), animated: true });
-            }
-          }}>
-            <Pressable
-              style={styles.requestsHeader}
-              onPress={() => setRequestsOpen((current) => !current)}
-            >
-              <View>
-                <Text style={styles.requestsEyebrow}>GESTIONE ISCRIZIONI</Text>
-                <Text style={styles.requestsTitle}>Richieste in attesa · {joinRequests.length}</Text>
-              </View>
-              <Text style={styles.requestsChevron}>{requestsOpen ? '−' : '+'}</Text>
-            </Pressable>
-
-            {requestsOpen ? (
-              <View style={styles.requestsList}>
-                {joinRequests.map((request, index) => {
-                  const requestUserId = String(request.user_id || '').trim();
-                  const avatarUrl = String(request.avatar_url || '').trim();
-                  const requestBusy = reviewBusyUserId === requestUserId;
-                  return (
-                    <View
-                      key={requestUserId || String(index)}
-                      style={[styles.requestRow, index > 0 && styles.requestBorder]}
-                    >
-                      <BajujuAdminRing size={52} isAdmin={adminIds.has(requestUserId)}>
-                        <Pressable
-                          style={styles.memberAvatar}
-                          disabled={!avatarUrl}
-                          onPress={() => {
-                            if (avatarUrl) setSelectedMemberPhotoUrl(avatarUrl);
-                          }}
-                        >
-                          {avatarUrl ? (
-                            <Image source={{ uri: avatarUrl }} style={styles.memberAvatarImage} resizeMode="cover" />
-                          ) : (
-                            <Text style={styles.memberAvatarText}>
-                              {String(request.nickname || '?').slice(0, 1).toUpperCase()}
-                            </Text>
-                          )}
-                        </Pressable>
-                      </BajujuAdminRing>
-
-                      <View style={styles.requestMain}>
-                        <Pressable
-                          disabled={!requestUserId}
-                          onPress={() => {
-                            if (!requestUserId) return;
-                            router.push({ pathname: '/user-profile' as any, params: { userId: requestUserId } });
-                          }}
-                        >
-                          <Text style={styles.memberName}>{request.nickname || 'Utente Bajuju'}</Text>
-                          <Text style={styles.memberMeta}>
-                            {[
-                              request.gender || '',
-                              request.age_range ? `${request.age_range} anni` : '',
-                              request.origin || '',
-                            ].filter(Boolean).join(' · ') || 'Apri il profilo per vedere i dettagli'}
-                          </Text>
-                        </Pressable>
-
-                        <View style={styles.requestActions}>
-                          <Pressable
-                            style={[styles.rejectRequestButton, requestBusy && styles.disabled]}
-                            disabled={requestBusy}
-                            onPress={() => { void reviewJoinRequest(requestUserId, false); }}
-                          >
-                            <Text style={styles.rejectRequestText}>Rifiuta</Text>
-                          </Pressable>
-                          <Pressable
-                            style={[styles.acceptRequestButton, requestBusy && styles.disabled]}
-                            disabled={requestBusy}
-                            onPress={() => { void reviewJoinRequest(requestUserId, true); }}
-                          >
-                            <Text style={styles.acceptRequestText}>{requestBusy ? '...' : 'Accetta'}</Text>
-                          </Pressable>
-                        </View>
-                      </View>
-                    </View>
-                  );
-                })}
-              </View>
-            ) : null}
           </View>
         ) : null}
 
         {isPublicGroup ? (
           <>
-        <BajujuGroupPolls
-          groupId={groupId}
-          currentUserId={currentUserId}
-          canUsePolls={joined || isOwner || isAdmin}
-        />
-
-        <BajujuGroupChat
-          groupId={groupId}
-          currentUserId={currentUserId}
-          canUseChat={joined || isOwner || isAdmin}
-          members={members}
-        />
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Prossime esperienze</Text>
-          {experiences.length === 0 ? (
-            <View style={styles.emptyCard}>
-              <Text style={styles.emptyText}>Nessuna esperienza associata al gruppo al momento.</Text>
-            </View>
-          ) : (
-            experiences.map((experience) => (
-              <Pressable
-                key={String(experience.id)}
-                style={styles.experienceCard}
-                onPress={() => router.push({ pathname: '/experience-detail' as any, params: { id: String(experience.id || '') } })}
-              >
-                <Text style={styles.experienceTitle}>{experience.title || 'Esperienza Bajuju'}</Text>
-                <Text style={styles.experienceMeta}>
-                  {[experience.city || experience.province, experience.activity_date, experience.activity_time?.slice(0, 5)].filter(Boolean).join(' · ')}
-                </Text>
-                <Text style={styles.experienceArrow}>Apri esperienza ›</Text>
-              </Pressable>
-            ))
-          )}
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Iscritti</Text>
-          <Text style={styles.privacyText}>Tocca la foto per ingrandirla oppure il nome per aprire il profilo.</Text>
-          <View style={styles.membersCard}>
-            {members.map((member, index) => {
-              const memberId = String(member.user_id || '').trim();
-              const avatarUrl = String(member.avatar_url || '').trim();
-              return (
-                <View key={memberId || String(index)} style={[styles.memberRow, index > 0 && styles.memberBorder]}>
-                  <BajujuAdminRing size={52} isAdmin={adminIds.has(memberId)}>
-                    <Pressable
-                      style={styles.memberAvatar}
-                      disabled={!avatarUrl}
-                      onPress={() => {
-                        if (avatarUrl) setSelectedMemberPhotoUrl(avatarUrl);
-                      }}
-                      accessibilityRole="button"
-                      accessibilityLabel={avatarUrl ? `Ingrandisci la foto di ${member.nickname || 'questo utente'}` : undefined}
-                    >
-                      {avatarUrl ? (
-                        <Image source={{ uri: avatarUrl }} style={styles.memberAvatarImage} resizeMode="cover" />
-                      ) : (
-                        <Text style={styles.memberAvatarText}>{String(member.nickname || '?').slice(0, 1).toUpperCase()}</Text>
-                      )}
-                    </Pressable>
-                  </BajujuAdminRing>
-
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.tabs}
+              style={styles.tabsBar}
+            >
+              {GROUP_TABS.map((item) => {
+                const active = tab === item.key;
+                const badge = item.key === 'members' && canModerate && joinRequests.length > 0 ? joinRequests.length : 0;
+                return (
                   <Pressable
-                    style={styles.memberCopy}
-                    disabled={!memberId}
-                    onPress={() => {
-                      if (!memberId) return;
-                      router.push({ pathname: '/user-profile' as any, params: { userId: memberId } });
-                    }}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Apri il profilo di ${member.nickname || 'questo utente'}`}
+                    key={item.key}
+                    style={[styles.tab, active && { borderBottomColor: theme.accent }]}
+                    onPress={() => setTab(item.key)}
+                    accessibilityRole="tab"
+                    accessibilityState={{ selected: active }}
                   >
-                    <Text style={styles.memberName}>{member.nickname || 'Utente Bajuju'}</Text>
-                    <Text style={styles.memberMeta}>
-                      {[
-                        member.age_range ? `${member.age_range} anni` : '',
-                        member.origin || '',
-                      ].filter(Boolean).join(' · ') || 'Informazioni non disponibili'}
-                    </Text>
+                    <Text style={[styles.tabText, active && styles.tabTextActive]}>{item.label}</Text>
+                    {badge > 0 ? (
+                      <View style={[styles.tabBadge, { backgroundColor: theme.accent }]}>
+                        <Text style={styles.tabBadgeText}>{badge}</Text>
+                      </View>
+                    ) : null}
                   </Pressable>
+                );
+              })}
+            </ScrollView>
+
+            {tab === 'board' ? (
+              <>
+                <BajujuGroupPolls
+                  groupId={groupId}
+                  currentUserId={currentUserId}
+                  canUsePolls={canInteract}
+                />
+                <BajujuGroupBoard
+                  groupId={groupId}
+                  currentUserId={currentUserId}
+                  currentUserName={myName}
+                  currentUserAvatar={myAvatar}
+                  canManage={canModerate}
+                  canInteract={canInteract}
+                  locked={boardLocked}
+                  theme={theme}
+                  onPhotoPress={setSelectedMemberPhotoUrl}
+                />
+              </>
+            ) : null}
+
+            {tab === 'events' ? (
+              experiences.length === 0 ? (
+                <View style={styles.emptyCard}>
+                  <Text style={styles.emptyText}>Nessuna esperienza associata al gruppo al momento.</Text>
                 </View>
-              );
-            })}
-          </View>
-        </View>
+              ) : (
+                experiences.map((experience) => (
+                  <Pressable
+                    key={String(experience.id)}
+                    style={styles.experienceCard}
+                    onPress={() => router.push({ pathname: '/experience-detail' as any, params: { id: String(experience.id || '') } })}
+                  >
+                    <Text style={styles.experienceTitle}>{experience.title || 'Esperienza Bajuju'}</Text>
+                    <Text style={styles.experienceMeta}>
+                      {[experience.city || experience.province, experience.activity_date, experience.activity_time?.slice(0, 5)].filter(Boolean).join(' · ')}
+                    </Text>
+                    <Text style={[styles.experienceArrow, { color: theme.accent }]}>Apri esperienza ›</Text>
+                  </Pressable>
+                ))
+              )
+            ) : null}
+
+            {tab === 'chat' ? (
+              <BajujuGroupChat
+                groupId={groupId}
+                currentUserId={currentUserId}
+                canUseChat={canInteract}
+                members={members}
+              />
+            ) : null}
+
+            {tab === 'chat' && !canInteract ? (
+              <View style={styles.emptyCard}>
+                <Text style={styles.emptyText}>La chat è riservata ai membri del gruppo.</Text>
+              </View>
+            ) : null}
+
+            {tab === 'members' ? (
+              <BajujuGroupMembers
+                groupId={groupId}
+                currentUserId={currentUserId}
+                myRole={myRole}
+                isSuperAdmin={isAdmin}
+                members={members}
+                joinRequests={joinRequests}
+                reviewBusyUserId={reviewBusyUserId}
+                onReview={(userId, accept) => { void reviewJoinRequest(userId, accept); }}
+                adminIds={adminIds}
+                theme={theme}
+                onChanged={() => { void refresh(); }}
+                onPhotoPress={setSelectedMemberPhotoUrl}
+              />
+            ) : null}
+
+            {tab === 'photos' ? (
+              <BajujuGroupPhotos
+                groupId={groupId}
+                locked={boardLocked}
+                onPhotoPress={setSelectedMemberPhotoUrl}
+              />
+            ) : null}
           </>
         ) : (
           <View style={styles.section}>
@@ -1265,10 +1261,17 @@ export default function GroupDetailScreen() {
             </Pressable>
           ) : null}
 
-          {canManageGroup ? (
+          {canModerate ? (
             <Pressable style={styles.menuItem} onPress={openManagement}>
               <Ionicons name="settings-outline" size={20} color={BAJUJU_COLORS.pink} />
               <Text style={styles.menuItemText}>{isAdmin ? 'Gestisci il gruppo · Admin' : 'Gestisci il gruppo'}</Text>
+            </Pressable>
+          ) : null}
+
+          {canModerate ? (
+            <Pressable style={styles.menuItem} onPress={openColors}>
+              <Ionicons name="color-palette-outline" size={20} color={BAJUJU_COLORS.pink} />
+              <Text style={styles.menuItemText}>Colori del gruppo</Text>
             </Pressable>
           ) : null}
 
@@ -1312,7 +1315,30 @@ export default function GroupDetailScreen() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: BAJUJU_COLORS.background },
   container: { backgroundColor: BAJUJU_COLORS.background },
-  hero: { height: 270, backgroundColor: BAJUJU_COLORS.softPink, borderBottomLeftRadius: 28, borderBottomRightRadius: 28, overflow: 'hidden' },
+  hero: { height: 200, overflow: 'hidden' },
+  heroStripe: { height: 7 },
+  headerBlock: { paddingHorizontal: 16, backgroundColor: BAJUJU_COLORS.background },
+  headerTopRow: { flexDirection: 'row', alignItems: 'flex-end', marginTop: -38 },
+  logoBox: { width: 76, height: 76, borderRadius: 22, borderWidth: 4, alignItems: 'center', justifyContent: 'center' },
+  logoText: { fontFamily: BAJUJU_FONTS.bold, fontSize: 24 },
+  metaLine: { marginTop: 3, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.medium, fontSize: 13, lineHeight: 18 },
+  outline: { borderWidth: 1, borderColor: 'rgba(0,0,0,0.14)' },
+  tabsBar: { marginHorizontal: -16, borderBottomWidth: 1, borderBottomColor: BAJUJU_COLORS.line },
+  tabs: { paddingHorizontal: 16, gap: 20 },
+  tab: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 46, borderBottomWidth: 3, borderBottomColor: 'transparent' },
+  tabText: { color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.semiBold, fontSize: 15 },
+  tabTextActive: { color: BAJUJU_COLORS.plum },
+  tabBadge: { minWidth: 20, height: 20, paddingHorizontal: 5, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  tabBadgeText: { color: '#fff', fontFamily: BAJUJU_FONTS.bold, fontSize: 11 },
+  colorsRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 50, paddingHorizontal: 12, borderRadius: 16, borderWidth: 1.5, borderColor: BAJUJU_COLORS.palePink, backgroundColor: BAJUJU_COLORS.white },
+  colorsDots: { flexDirection: 'row' },
+  colorsDot: { width: 22, height: 22, borderRadius: 11 },
+  colorsDotSecond: { marginLeft: -7 },
+  colorsRowText: { flex: 1, color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.semiBold, fontSize: 14 },
+  banRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
+  banCopy: { flex: 1, minWidth: 0 },
+  unbanButton: { minHeight: 38, paddingHorizontal: 16, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: BAJUJU_COLORS.palePink },
+  unbanText: { color: BAJUJU_COLORS.brightPink, fontFamily: BAJUJU_FONTS.bold, fontSize: 13 },
   heroImage: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
   heroTopBar: { position: 'absolute', top: 12, left: 14, right: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   heroTopActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
@@ -1340,7 +1366,7 @@ const styles = StyleSheet.create({
   backPillText: { color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.semiBold, fontSize: 14 },
   coverPlaceholder: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', backgroundColor: BAJUJU_COLORS.softPink },
   categoryChip: { alignSelf: 'flex-start', maxWidth: '80%', overflow: 'hidden', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: BAJUJU_COLORS.white, color: BAJUJU_COLORS.pink, fontFamily: BAJUJU_FONTS.semiBold, fontSize: 12 },
-  title: { color: BAJUJU_COLORS.white, fontFamily: BAJUJU_FONTS.bold, fontSize: 26, lineHeight: 30 },
+  title: { marginTop: 10, color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.bold, fontSize: 24, lineHeight: 28 },
   ownerRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 20, borderWidth: 1, borderColor: BAJUJU_COLORS.line, backgroundColor: BAJUJU_COLORS.white },
   ownerLabel: { color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.regular, fontSize: 12 },
   ownerName: { color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.semiBold, fontSize: 15 },

@@ -1,6 +1,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
-const CHAT_COOLDOWN_SECONDS = 60;
+// 0 = nessun limite: ogni messaggio manda la sua notifica (richiesto da stefano il 2026-10-29).
+const CHAT_COOLDOWN_SECONDS = 0;
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {

@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -20,6 +20,7 @@ import { KeyboardAwareScrollView } from '../../src/components/KeyboardAwareScrol
 import { useBajujuPhotoPicker } from '../../src/components/useBajujuPhotoPicker';
 import type { ResolvedAddress } from '../../src/lib/addressAutocomplete';
 import {
+  type BajujuLocation,
   LOCATION_CATEGORIES,
   LOCATION_COLOR,
   LOCATION_COLOR_SOFT,
@@ -27,12 +28,14 @@ import {
   LOCATION_MAX_PHOTOS,
   LOCATION_NAME_MAX_LENGTH,
   type LocationRequestStatus,
+  createManagedLocation,
   loadBajujuLocation,
   normalizeFacebookUrl,
   normalizeInstagramUrl,
   normalizePhone,
   normalizeWebsiteUrl,
   saveBajujuLocation,
+  updateBajujuLocationAsAdmin,
 } from '../../src/lib/bajujuLocations';
 import { supabase } from '../../src/lib/supabase';
 import { BAJUJU_COLORS, BAJUJU_FONTS } from '../../src/theme/bajujuTheme';
@@ -42,6 +45,11 @@ type LocationPhoto = { uri: string; uploaded: boolean };
 
 export default function MyLocationScreen() {
   const { pickPhoto, photoPickerModal } = useBajujuPhotoPicker();
+  // Admin: create=1 apre "Crea location", ownerId modifica una location creata da lui.
+  const params = useLocalSearchParams<{ create?: string; ownerId?: string }>();
+  const adminCreate = String(params.create || '') === '1';
+  const adminOwnerId = String(params.ownerId || '').trim();
+  const adminMode = adminCreate || Boolean(adminOwnerId);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -72,6 +80,21 @@ export default function MyLocationScreen() {
       setUserId(id);
       if (!id) return;
 
+      if (adminMode) {
+        const adminResult = await supabase.from('profiles').select('is_admin').eq('id', id).maybeSingle();
+        if ((adminResult.data as Record<string, any> | null)?.is_admin !== true) {
+          throw new Error('Solo l’Admin può creare location.');
+        }
+        setIsLocationActive(true);
+        if (adminCreate) return;
+
+        const managed = await loadBajujuLocation(adminOwnerId);
+        if (!managed) throw new Error('Location non trovata.');
+        setAlreadyPublished(true);
+        fillForm(managed);
+        return;
+      }
+
       const profileResult = await supabase
         .from('profiles')
         .select('is_location_organizer,location_profile_text')
@@ -91,28 +114,7 @@ export default function MyLocationScreen() {
         return;
       }
 
-      setName(location.name);
-      setCategory(location.category);
-      setDescription(location.description);
-      setAddressText(location.formattedAddress);
-      setResolvedAddress({
-        placeId: '',
-        formattedAddress: location.formattedAddress,
-        shortFormattedAddress: location.formattedAddress,
-        street: location.street,
-        streetNumber: location.streetNumber,
-        city: location.city,
-        province: location.province,
-        provinceCode: '',
-        latitude: location.latitude,
-        longitude: location.longitude,
-      });
-      setPhotos(location.photos.map((uri) => ({ uri, uploaded: true })));
-      setInstagram(location.instagramUrl);
-      setFacebook(location.facebookUrl);
-      setWebsite(location.websiteUrl);
-      setPhone(location.phone);
-      setWhatsapp(location.whatsapp);
+      fillForm(location);
     } catch (error: unknown) {
       Alert.alert(
         'Il mio locale',
@@ -121,7 +123,32 @@ export default function MyLocationScreen() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [adminCreate, adminMode, adminOwnerId]);
+
+  function fillForm(location: BajujuLocation) {
+    setName(location.name);
+    setCategory(location.category);
+    setDescription(location.description);
+    setAddressText(location.formattedAddress);
+    setResolvedAddress({
+      placeId: '',
+      formattedAddress: location.formattedAddress,
+      shortFormattedAddress: location.formattedAddress,
+      street: location.street,
+      streetNumber: location.streetNumber,
+      city: location.city,
+      province: location.province,
+      provinceCode: '',
+      latitude: location.latitude,
+      longitude: location.longitude,
+    });
+    setPhotos(location.photos.map((uri) => ({ uri, uploaded: true })));
+    setInstagram(location.instagramUrl);
+    setFacebook(location.facebookUrl);
+    setWebsite(location.websiteUrl);
+    setPhone(location.phone);
+    setWhatsapp(location.whatsapp);
+  }
 
   useEffect(() => {
     void load();
@@ -221,7 +248,7 @@ export default function MyLocationScreen() {
         uploadedPhotos.push(await uploadPhoto(photos[index], index));
       }
 
-      await saveBajujuLocation(userId, {
+      const input = {
         name,
         category,
         description,
@@ -238,7 +265,22 @@ export default function MyLocationScreen() {
         websiteUrl: websiteUrl || '',
         phone: phoneValue || '',
         whatsapp: whatsappValue || '',
-      });
+      };
+
+      if (adminMode) {
+        const ownerId = adminCreate ? await createManagedLocation(input) : adminOwnerId;
+        if (!adminCreate) await updateBajujuLocationAsAdmin(ownerId, input);
+        Alert.alert(
+          adminCreate ? 'Location creata' : 'Location aggiornata',
+          adminCreate
+            ? 'È già sulla mappa. La ritrovi in Admin → Location per modificarla.'
+            : 'Le modifiche sono visibili a tutti.',
+          [{ text: 'Vedi la pagina', onPress: () => router.replace({ pathname: '/user-profile' as any, params: { userId: ownerId } }) }]
+        );
+        return;
+      }
+
+      await saveBajujuLocation(userId, input);
 
       setPhotos(uploadedPhotos.map((uri) => ({ uri, uploaded: true })));
 
@@ -279,7 +321,7 @@ export default function MyLocationScreen() {
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.center}>
           <ActivityIndicator color={LOCATION_COLOR} />
-          <Text style={styles.helperLast}>Carico il tuo locale...</Text>
+          <Text style={styles.helperLast}>{adminMode ? 'Carico la location...' : 'Carico il tuo locale...'}</Text>
         </View>
       </SafeAreaView>
     );
@@ -298,10 +340,19 @@ export default function MyLocationScreen() {
           >
             <Ionicons name="chevron-back" size={20} color={BAJUJU_COLORS.plum} />
           </Pressable>
-          <Text style={styles.title}>{isLocationActive ? 'Il mio locale' : 'Diventa Location'}</Text>
+          <Text style={styles.title}>
+            {adminCreate ? 'Crea location' : adminMode ? 'Modifica location' : isLocationActive ? 'Il mio locale' : 'Diventa Location'}
+          </Text>
         </View>
 
-        {!isLocationActive && requestStatus === 'pending' ? (
+        {adminCreate ? (
+          <View style={styles.notice}>
+            <Text style={styles.noticeTitle}>Una location gestita da Bajuju</Text>
+            <Text style={styles.noticeText}>
+              Il tuo account resta un utente normale: la pagina del locale è separata e la modifichi tu da Admin → Location. Appena salvi compare sulla mappa.
+            </Text>
+          </View>
+        ) : adminMode ? null : !isLocationActive && requestStatus === 'pending' ? (
           <View style={styles.notice}>
             <Text style={styles.noticeTitle}>Richiesta inviata</Text>
             <Text style={styles.noticeText}>
@@ -491,7 +542,9 @@ export default function MyLocationScreen() {
           <Text style={styles.mainButtonText}>
             {saving
               ? 'Salvataggio...'
-              : !isLocationActive
+              : adminCreate
+                ? 'Crea la location'
+                : !isLocationActive
                 ? requestStatus === 'pending' ? 'Aggiorna la richiesta' : 'Invia la richiesta'
                 : alreadyPublished ? 'Salva modifiche' : 'Pubblica il locale'}
           </Text>

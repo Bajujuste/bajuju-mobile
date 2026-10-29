@@ -46,12 +46,16 @@ export type BajujuLocation = {
   phone: string;
   whatsapp: string;
   requestStatus: LocationRequestStatus;
+  // Creato dall'Admin con "Crea location": lo gestisce Bajuju, non un utente vero.
+  managedByAdmin: boolean;
 };
 
 type LocationRow = Record<string, any>;
 
 const LOCATION_COLUMNS =
   'owner_id,name,category,description,street,street_number,city,province,formatted_address,latitude,longitude,photos,instagram_url,facebook_url,website_url,phone,whatsapp,request_status';
+// managed_by_admin esiste solo dopo la migrazione "Crea location".
+const LOCATION_COLUMNS_WITH_MANAGED = `${LOCATION_COLUMNS},managed_by_admin`;
 
 function clean(value: unknown) {
   return typeof value === 'string' ? value.trim() : '';
@@ -85,6 +89,7 @@ function mapLocation(row: LocationRow | null | undefined): BajujuLocation | null
     phone: clean(row.phone),
     whatsapp: clean(row.whatsapp),
     requestStatus: row.request_status === 'pending' || row.request_status === 'rejected' ? row.request_status : 'approved',
+    managedByAdmin: row.managed_by_admin === true,
   };
 }
 
@@ -105,11 +110,19 @@ export async function loadBajujuLocation(ownerId: string): Promise<BajujuLocatio
   const id = ownerId.trim();
   if (!id) return null;
 
-  const result = await supabase
+  let result = await supabase
     .from('bajuju_locations' as any)
-    .select(LOCATION_COLUMNS)
+    .select(LOCATION_COLUMNS_WITH_MANAGED)
     .eq('owner_id', id)
     .maybeSingle();
+
+  if (result.error && !isMissingTableError(result.error)) {
+    result = await supabase
+      .from('bajuju_locations' as any)
+      .select(LOCATION_COLUMNS)
+      .eq('owner_id', id)
+      .maybeSingle();
+  }
 
   if (result.error) {
     if (isMissingTableError(result.error)) return null;
@@ -168,11 +181,10 @@ export async function loadPublicBajujuLocations(): Promise<BajujuLocation[]> {
   return Object.values(map).sort((a, b) => a.name.localeCompare(b.name, 'it'));
 }
 
-export type SaveBajujuLocationInput = Omit<BajujuLocation, 'ownerId' | 'requestStatus'>;
+export type SaveBajujuLocationInput = Omit<BajujuLocation, 'ownerId' | 'requestStatus' | 'managedByAdmin'>;
 
-export async function saveBajujuLocation(ownerId: string, input: SaveBajujuLocationInput) {
-  const payload = {
-    owner_id: ownerId,
+function locationPayload(input: SaveBajujuLocationInput) {
+  return {
     name: input.name.trim().slice(0, LOCATION_NAME_MAX_LENGTH),
     category: input.category.trim(),
     description: input.description.trim().slice(0, LOCATION_DESCRIPTION_MAX_LENGTH) || null,
@@ -190,12 +202,52 @@ export async function saveBajujuLocation(ownerId: string, input: SaveBajujuLocat
     phone: input.phone || null,
     whatsapp: input.whatsapp || null,
   };
+}
 
+export async function saveBajujuLocation(ownerId: string, input: SaveBajujuLocationInput) {
   const result = await supabase
     .from('bajuju_locations' as any)
-    .upsert(payload, { onConflict: 'owner_id' });
+    .upsert({ owner_id: ownerId, ...locationPayload(input) }, { onConflict: 'owner_id' });
 
   if (result.error) throw result.error;
+}
+
+// L'Admin modifica un locale esistente non suo (l'upsert passerebbe dalla regola di inserimento).
+export async function updateBajujuLocationAsAdmin(ownerId: string, input: SaveBajujuLocationInput) {
+  const result = await supabase
+    .from('bajuju_locations' as any)
+    .update(locationPayload(input))
+    .eq('owner_id', ownerId)
+    .select('owner_id');
+
+  if (result.error) throw result.error;
+  if (!result.data || result.data.length === 0) throw new Error('Locale non trovato.');
+}
+
+// "Crea location": il server crea un profilo tecnico per il locale, l'Admin resta un utente normale.
+export async function createManagedLocation(input: SaveBajujuLocationInput): Promise<string> {
+  const result = await supabase.rpc('admin_create_managed_location' as any, {
+    p_location: locationPayload(input),
+  });
+  if (result.error) throw result.error;
+  const ownerId = typeof result.data === 'string' ? result.data : '';
+  if (!ownerId) throw new Error('Locale non creato.');
+  return ownerId;
+}
+
+// Locali creati dall'Admin, per ritrovarli e modificarli.
+export async function loadManagedLocations(): Promise<BajujuLocation[]> {
+  const result = await supabase
+    .from('bajuju_locations' as any)
+    .select(LOCATION_COLUMNS_WITH_MANAGED)
+    .eq('managed_by_admin', true)
+    .order('name', { ascending: true })
+    .limit(200);
+
+  if (result.error) return [];
+  return ((result.data || []) as LocationRow[])
+    .map(mapLocation)
+    .filter((location): location is BajujuLocation => Boolean(location));
 }
 
 // Accetta "@nomelocale", "instagram.com/nomelocale" o il link completo.

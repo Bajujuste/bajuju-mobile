@@ -21,11 +21,11 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { BajujuGroupBoard, BajujuGroupPhotos } from '../../src/components/groups/BajujuGroupBoard';
+import { BajujuGroupBoard, BajujuGroupBoardHandle, BajujuGroupPhotos } from '../../src/components/groups/BajujuGroupBoard';
 import { BajujuGroupChat } from '../../src/components/groups/BajujuGroupChat';
 import { BajujuGroupMembers } from '../../src/components/groups/BajujuGroupMembers';
 import { groupInitials } from '../../src/components/groups/GroupColorPicker';
-import { BajujuGroupPolls } from '../../src/components/groups/BajujuGroupPolls';
+import { BajujuGroupPolls, BajujuGroupPollsHandle } from '../../src/components/groups/BajujuGroupPolls';
 import { BajujuBottomNav } from '../../src/components/navigation/BajujuBottomNav';
 import { BajujuProfileButton } from '../../src/components/navigation/BajujuProfileButton';
 import { useBajujuAdminIds } from '../../src/hooks/useBajujuAdminIds';
@@ -49,7 +49,9 @@ import {
   loadGroupBans,
   loadGroupMembersWithRoles,
   loadMyGroupRole,
+  saveGroupLogo,
   unbanGroupUser,
+  uploadGroupLogo,
 } from '../../src/lib/bajujuGroupBoard';
 import { supabase } from '../../src/lib/supabase';
 import { withLocationIdentity } from '../../src/lib/bajujuLocations';
@@ -98,6 +100,9 @@ export default function GroupDetailScreen() {
   const [busy, setBusy] = useState(false);
   const [manageBusy, setManageBusy] = useState(false);
   const [coverBusy, setCoverBusy] = useState(false);
+  const [logoBusy, setLogoBusy] = useState(false);
+  const pollsRef = useRef<BajujuGroupPollsHandle>(null);
+  const boardRef = useRef<BajujuGroupBoardHandle>(null);
   const [currentUserId, setCurrentUserId] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
   const adminIds = useBajujuAdminIds();
@@ -154,7 +159,7 @@ export default function GroupDetailScreen() {
       const [firstGroupResult, profileResult] = await Promise.all([
         supabase
           .from('groups')
-          .select(`${GROUP_BASE_COLUMNS},color_primary,color_secondary`)
+          .select(`${GROUP_BASE_COLUMNS},color_primary,color_secondary,logo_url`)
           .eq('id', groupId)
           .maybeSingle(),
         userId
@@ -162,10 +167,18 @@ export default function GroupDetailScreen() {
           : Promise.resolve({ data: null, error: null } as any),
       ]);
 
-      // Database senza le colonne dei colori: si carica il gruppo come prima.
-      const groupResult: any = firstGroupResult.error
-        ? await supabase.from('groups').select(GROUP_BASE_COLUMNS).eq('id', groupId).maybeSingle()
-        : firstGroupResult;
+      // Database senza la colonna del logo (o dei colori): si carica il gruppo con meno colonne.
+      let groupResult: any = firstGroupResult;
+      if (groupResult.error) {
+        groupResult = await supabase
+          .from('groups')
+          .select(`${GROUP_BASE_COLUMNS},color_primary,color_secondary`)
+          .eq('id', groupId)
+          .maybeSingle();
+      }
+      if (groupResult.error) {
+        groupResult = await supabase.from('groups').select(GROUP_BASE_COLUMNS).eq('id', groupId).maybeSingle();
+      }
       if (groupResult.error) throw groupResult.error;
       if (profileResult.error) throw profileResult.error;
       setIsAdmin(profileResult.data?.is_admin === true);
@@ -518,6 +531,59 @@ export default function GroupDetailScreen() {
     }
   }
 
+  async function handleChangeLogo() {
+    if (!group || !currentUserId || logoBusy) return;
+
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert('Logo del gruppo', 'Autorizza l’accesso alle immagini per scegliere il logo del gruppo.');
+        return;
+      }
+
+      const picked = await pickPhoto({ aspect: [1, 1], quality: 0.9 });
+      if (!picked) return;
+
+      setLogoBusy(true);
+      const resized = await ImageManipulator.manipulateAsync(
+        picked.uri,
+        [{ resize: { width: 512 } }],
+        { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG }
+      );
+
+      const logoUrl = await uploadGroupLogo({ groupId, userId: currentUserId, localUri: resized.uri });
+      await saveGroupLogo(groupId, logoUrl);
+      await refresh();
+    } catch (error: unknown) {
+      Alert.alert('Logo non aggiornato', groupErrorMessage(error, 'Non sono riuscito ad aggiornare il logo.'));
+    } finally {
+      setLogoBusy(false);
+    }
+  }
+
+  function removeLogo() {
+    Alert.alert('Togli il logo', 'Al posto della foto torneranno le iniziali del gruppo.', [
+      { text: 'Annulla', style: 'cancel' },
+      {
+        text: 'Togli logo',
+        style: 'destructive',
+        onPress: () => {
+          void (async () => {
+            setLogoBusy(true);
+            try {
+              await saveGroupLogo(groupId, null);
+              await refresh();
+            } catch (error: unknown) {
+              Alert.alert('Logo non aggiornato', groupErrorMessage(error));
+            } finally {
+              setLogoBusy(false);
+            }
+          })();
+        },
+      },
+    ]);
+  }
+
   async function saveDescription() {
     const cleanDescription = descriptionDraft.trim();
     if (!groupId || manageBusy || cleanDescription.length < 10) {
@@ -684,6 +750,7 @@ export default function GroupDetailScreen() {
   // Bacheca, richieste, membri e colori: anche gli admin del gruppo.
   const canModerate = canManageGroup || myRole === 'admin';
   const coverUrl = String(group.cover_url || '').trim();
+  const logoUrl = String(group.logo_url || '').trim();
   const groupStatus = String(group.status || 'active').toLowerCase();
   const isPublicGroup = groupStatus === 'active';
   const requiresApproval = group.join_approval_required === true;
@@ -788,9 +855,28 @@ export default function GroupDetailScreen() {
 
         <View style={styles.headerBlock}>
           <View style={styles.headerTopRow}>
-            <View style={[styles.logoBox, { backgroundColor: theme.primary, borderColor: theme.custom ? theme.secondary : BAJUJU_COLORS.white }]}>
-              <Text style={[styles.logoText, { color: theme.onPrimary }]}>{groupInitials(String(group.name || ''))}</Text>
-            </View>
+            <Pressable
+              style={[styles.logoBox, { backgroundColor: theme.primary, borderColor: theme.custom ? theme.secondary : BAJUJU_COLORS.white }]}
+              disabled={!canModerate || logoBusy}
+              onPress={() => { void handleChangeLogo(); }}
+              accessibilityRole={canModerate ? 'button' : 'image'}
+              accessibilityLabel={canModerate ? 'Cambia logo del gruppo' : 'Logo del gruppo'}
+            >
+              {logoUrl ? (
+                <Image source={{ uri: logoUrl }} style={styles.logoImage} resizeMode="cover" />
+              ) : (
+                <Text style={[styles.logoText, { color: theme.onPrimary }]}>{groupInitials(String(group.name || ''))}</Text>
+              )}
+              {logoBusy ? (
+                <View style={styles.logoBusy}>
+                  <ActivityIndicator color={BAJUJU_COLORS.white} />
+                </View>
+              ) : canModerate ? (
+                <View style={[styles.logoEditBadge, { backgroundColor: theme.secondary }]}>
+                  <Ionicons name="camera" size={13} color={theme.onSecondary} />
+                </View>
+              ) : null}
+            </Pressable>
           </View>
           <Text style={styles.title} numberOfLines={3}>{group.name}</Text>
           <Text style={styles.metaLine}>{metaLine}</Text>
@@ -1158,12 +1244,46 @@ export default function GroupDetailScreen() {
 
             {tab === 'board' ? (
               <>
+                {canInteract ? (
+                  <View style={styles.boardActions}>
+                    {[
+                      { key: 'poll', label: 'Crea\nsondaggio', icon: 'stats-chart' as const, show: true, onPress: () => pollsRef.current?.openCreate() },
+                      { key: 'post', label: 'Annuncio\no foto', icon: 'images' as const, show: canModerate, onPress: () => boardRef.current?.openComposer() },
+                      {
+                        key: 'event',
+                        label: 'Crea\nevento',
+                        icon: 'calendar' as const,
+                        // Gli eventi si collegano solo ai gruppi di cui si è proprietari (come nel tasto + verde).
+                        show: isOwner,
+                        onPress: () => router.push({ pathname: '/create-experience' as any, params: { groupId } }),
+                      },
+                    ].filter((item) => item.show).map((item) => (
+                      <Pressable
+                        key={item.key}
+                        style={({ pressed }) => [
+                          styles.boardActionTile,
+                          { backgroundColor: theme.primary },
+                          needsOutline(theme.primary) && styles.outline,
+                          pressed && styles.boardActionPressed,
+                        ]}
+                        onPress={item.onPress}
+                        accessibilityRole="button"
+                        accessibilityLabel={item.label.replace('\n', ' ')}
+                      >
+                        <Ionicons name={item.icon} size={24} color={theme.onPrimary} />
+                        <Text style={[styles.boardActionText, { color: theme.onPrimary }]} numberOfLines={2}>{item.label}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                ) : null}
                 <BajujuGroupPolls
+                  ref={pollsRef}
                   groupId={groupId}
                   currentUserId={currentUserId}
                   canUsePolls={canInteract}
                 />
                 <BajujuGroupBoard
+                  ref={boardRef}
                   groupId={groupId}
                   currentUserId={currentUserId}
                   currentUserName={myName}
@@ -1286,6 +1406,34 @@ export default function GroupDetailScreen() {
             </Pressable>
           ) : null}
 
+          {canModerate ? (
+            <Pressable
+              style={[styles.menuItem, logoBusy && styles.disabled]}
+              disabled={logoBusy}
+              onPress={() => {
+                setMenuOpen(false);
+                void handleChangeLogo();
+              }}
+            >
+              <Ionicons name="happy-outline" size={20} color={BAJUJU_COLORS.pink} />
+              <Text style={styles.menuItemText}>{logoUrl ? 'Cambia logo del gruppo' : 'Aggiungi logo del gruppo'}</Text>
+            </Pressable>
+          ) : null}
+
+          {canModerate && logoUrl ? (
+            <Pressable
+              style={[styles.menuItem, logoBusy && styles.disabled]}
+              disabled={logoBusy}
+              onPress={() => {
+                setMenuOpen(false);
+                removeLogo();
+              }}
+            >
+              <Ionicons name="close-circle-outline" size={20} color={BAJUJU_COLORS.pink} />
+              <Text style={styles.menuItemText}>Togli logo del gruppo</Text>
+            </Pressable>
+          ) : null}
+
           {canManageGroup ? (
             <Pressable
               style={[styles.menuItem, coverBusy && styles.disabled]}
@@ -1332,6 +1480,13 @@ const styles = StyleSheet.create({
   headerTopRow: { flexDirection: 'row', alignItems: 'flex-end', marginTop: -38 },
   logoBox: { width: 76, height: 76, borderRadius: 22, borderWidth: 4, alignItems: 'center', justifyContent: 'center' },
   logoText: { fontFamily: BAJUJU_FONTS.bold, fontSize: 24 },
+  logoImage: { width: '100%', height: '100%', borderRadius: 18 },
+  logoBusy: { ...StyleSheet.absoluteFillObject, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.35)' },
+  logoEditBadge: { position: 'absolute', right: -8, bottom: -8, width: 26, height: 26, borderRadius: 13, borderWidth: 2, borderColor: BAJUJU_COLORS.white, alignItems: 'center', justifyContent: 'center' },
+  boardActions: { flexDirection: 'row', gap: 10, marginTop: 4 },
+  boardActionTile: { width: '31%', aspectRatio: 1, borderRadius: 20, padding: 10, alignItems: 'center', justifyContent: 'center', gap: 8 },
+  boardActionPressed: { opacity: 0.8 },
+  boardActionText: { fontFamily: BAJUJU_FONTS.bold, fontSize: 13, lineHeight: 16, textAlign: 'center' },
   metaLine: { marginTop: 3, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.medium, fontSize: 13, lineHeight: 18 },
   outline: { borderWidth: 1, borderColor: 'rgba(0,0,0,0.14)' },
   tabsBar: { marginHorizontal: -16, borderBottomWidth: 1, borderBottomColor: BAJUJU_COLORS.line },

@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 
+import { notifyGroupBoard } from '../../lib/bajujuGroupBoard';
 import { supabase } from '../../lib/supabase';
 import { BAJUJU_COLORS, BAJUJU_FONTS } from '../../theme/bajujuTheme';
 import { KeyboardAwareScrollView } from '../KeyboardAwareScrollView';
@@ -168,6 +169,7 @@ export const BajujuGroupPolls = forwardRef<BajujuGroupPollsHandle, Props>(functi
         p_options: options,
       });
       if (result.error) throw result.error;
+      void notifyGroupBoard(groupId, 'poll', String(result.data || ''));
       setCreateOpen(false);
       setQuestionDraft('');
       setOptionDrafts(EMPTY_OPTIONS);

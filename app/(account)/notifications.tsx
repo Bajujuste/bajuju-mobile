@@ -47,6 +47,7 @@ function notificationIcon(type: string) {
     case 'new_participant': return '🙋';
     case 'chat_message': return '💬';
     case 'group_chat_message': return '💬';
+    case 'group_board_post': return '📣';
     case 'support_message': return '💬';
     case 'experience_join_accepted': return '✅';
     case 'group_join_request': return '🙋';

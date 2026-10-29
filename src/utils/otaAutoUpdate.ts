@@ -1,5 +1,5 @@
 import * as Updates from 'expo-updates';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { AppState, Platform } from 'react-native';
 
 // Di serie expo-updates scarica l'OTA in background e lo applica solo al successivo avvio a freddo:
@@ -17,7 +17,32 @@ const NOTIFICATION_GRACE_MS = 60 * 1000;
 // Su iOS/Android il tocco della notifica arriva poco dopo il ritorno in primo piano: si attende un attimo.
 const APPLY_DELAY_MS = 2500;
 
+// Il tempo minimo per far vedere la scritta "Bajuju si sta aggiornando…" prima del ricaricamento,
+// e un limite oltre il quale la scritta sparisce comunque se il ricaricamento non è partito.
+const NOTICE_BEFORE_RELOAD_MS = 700;
+const NOTICE_MAX_VISIBLE_MS = 5 * 1000;
+
 let updateReady = false;
+let applying = false;
+let noticeVisible = false;
+const noticeListeners = new Set<(visible: boolean) => void>();
+
+function setNoticeVisible(visible: boolean) {
+  noticeVisible = visible;
+  noticeListeners.forEach((listener) => listener(visible));
+}
+
+export function useOtaUpdatingNotice() {
+  const [visible, setVisible] = useState(noticeVisible);
+  useEffect(() => {
+    noticeListeners.add(setVisible);
+    return () => {
+      noticeListeners.delete(setVisible);
+    };
+  }, []);
+  return visible;
+}
+
 let checking = false;
 let lastCheckAt = 0;
 let lastNotificationOpenAt = 0;
@@ -31,12 +56,23 @@ function isOtaAvailable() {
 }
 
 async function applyUpdate() {
-  await new Promise((resolve) => setTimeout(resolve, APPLY_DELAY_MS));
-  if (Date.now() - lastNotificationOpenAt < NOTIFICATION_GRACE_MS) return;
+  if (applying) return;
+  applying = true;
+  let hideTimer: ReturnType<typeof setTimeout> | undefined;
   try {
+    await new Promise((resolve) => setTimeout(resolve, APPLY_DELAY_MS));
+    if (Date.now() - lastNotificationOpenAt < NOTIFICATION_GRACE_MS) return;
+    // Se per qualsiasi motivo il ricaricamento non parte, la scritta non resta mai sullo schermo.
+    hideTimer = setTimeout(() => setNoticeVisible(false), NOTICE_MAX_VISIBLE_MS);
+    setNoticeVisible(true);
+    await new Promise((resolve) => setTimeout(resolve, NOTICE_BEFORE_RELOAD_MS));
     await Updates.reloadAsync();
   } catch {
     console.log('Impossibile applicare l’aggiornamento ora.');
+    clearTimeout(hideTimer);
+    setNoticeVisible(false);
+  } finally {
+    applying = false;
   }
 }
 

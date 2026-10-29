@@ -22,6 +22,8 @@ import { BajujuLocation, loadBajujuLocation } from '../../src/lib/bajujuLocation
 import { BajujuBackButton, BajujuRoundIconButton } from '../../src/components/navigation/BajujuBackButton';
 import { BajujuActionBar, BajujuButton } from '../../src/components/BajujuActionBar';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BajujuAdminRing } from '../../src/components/profile/BajujuAdminRing';
+import { BAJUJU_COLORS } from '../../src/theme/bajujuTheme';
 
 const bajujuLogo = require('../../assets/brand/bajuju-logo.png');
 
@@ -568,9 +570,11 @@ export default function UserProfileScreen() {
           </View>
 
           <View style={styles.identity}>
-            <View style={[styles.photoFrame, photoFrameStyle]}>
-              <Image source={photo ? { uri: photo } : bajujuLogo} style={styles.photo} resizeMode="cover" />
-            </View>
+            <BajujuAdminRing size={132} isAdmin={isAdminOrCreator} style={styles.adminRing}>
+              <View style={[styles.photoFrame, photoFrameStyle, isAdminOrCreator && styles.photoFrameInRing]}>
+                <Image source={photo ? { uri: photo } : bajujuLogo} style={styles.photo} resizeMode="cover" />
+              </View>
+            </BajujuAdminRing>
 
             <Text style={styles.name}>{name}</Text>
 
@@ -712,7 +716,9 @@ const styles = StyleSheet.create({
   photoFrameBase: { borderWidth: 3, borderColor: '#e9dfe4' },
   photoFrameGreen: { borderWidth: 3, borderColor: '#2fb36d' },
   photoFrameExpert: { borderWidth: 3, borderColor: '#e44848' },
-  photoFrameAdmin: { borderWidth: 3, borderColor: BAJUJU_PINK },
+  photoFrameAdmin: { borderWidth: 3, borderColor: BAJUJU_COLORS.gold },
+  photoFrameInRing: { marginBottom: 0 },
+  adminRing: { marginBottom: 16 },
   adminMessageButton: {
     width: '100%',
     minHeight: 52,

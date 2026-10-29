@@ -12,6 +12,7 @@ export const BAJUJU_COLORS = {
   muted: '#8D5E77',
   success: '#B5F0D3',
   mapGreen: '#DDF7E9',
+  gold: '#D4A62A',
 } as const;
 
 export const BAJUJU_FONTS = {

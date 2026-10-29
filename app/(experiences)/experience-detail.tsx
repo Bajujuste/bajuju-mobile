@@ -35,6 +35,8 @@ import { BAJUJU_COLORS, BAJUJU_FONTS, BAJUJU_SHADOW } from '../../src/theme/baju
 import { KeyboardAwareScrollView } from '../../src/components/KeyboardAwareScrollView';
 import { useChatLiveRefresh } from '../../src/hooks/useChatLiveRefresh';
 import { BajujuProfileButton } from '../../src/components/navigation/BajujuProfileButton';
+import { BajujuAdminRing } from '../../src/components/profile/BajujuAdminRing';
+import { useBajujuAdminIds } from '../../src/hooks/useBajujuAdminIds';
 
 const bajujuLogo = require('../../assets/brand/bajuju-logo.png');
 
@@ -254,6 +256,7 @@ export default function ExperienceDetailScreen() {
   const requestedSection = params.section;
 
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const adminIds = useBajujuAdminIds();
   const [isCurrentUserAdmin, setIsCurrentUserAdmin] = useState(false);
   const [experience, setExperience] = useState<ActivityRow | null>(null);
   const [eventLocation, setEventLocation] = useState<BajujuLocation | null>(null);
@@ -1377,11 +1380,13 @@ export default function ExperienceDetailScreen() {
         style={styles.participantRow}
         onPress={() => openParticipantProfile(userId)}
       >
-        <Image
-          source={photo ? { uri: photo } : bajujuLogo}
-          style={[styles.participantPhoto, isCreator && styles.participantPhotoOrganizer]}
-          resizeMode="cover"
-        />
+        <BajujuAdminRing size={44} isAdmin={adminIds.has(userId)}>
+          <Image
+            source={photo ? { uri: photo } : bajujuLogo}
+            style={[styles.participantPhoto, isCreator && styles.participantPhotoOrganizer]}
+            resizeMode="cover"
+          />
+        </BajujuAdminRing>
 
         <View style={styles.participantInfo}>
           <Text style={styles.participantName} numberOfLines={1}>{name}</Text>
@@ -1560,17 +1565,23 @@ export default function ExperienceDetailScreen() {
                       {displayedParticipants.slice(0, 5).map((participant, index) => {
                         const userId = String(participant.user_id || '');
                         const photo = profilePhotoUrl(profiles[userId]);
+                        const isAdminUser = adminIds.has(userId);
                         return (
-                          <Image
+                          <BajujuAdminRing
                             key={`${userId}-${index}`}
-                            source={photo ? { uri: photo } : bajujuLogo}
-                            style={[
-                              styles.stackAvatar,
-                              index > 0 && styles.stackAvatarOverlap,
-                              userId === creatorId && styles.stackAvatarOrganizer,
-                            ]}
-                            resizeMode="cover"
-                          />
+                            size={34}
+                            isAdmin={isAdminUser}
+                            style={[index > 0 && styles.stackAvatarOverlap, isAdminUser && styles.stackAvatarAdmin]}
+                          >
+                            <Image
+                              source={photo ? { uri: photo } : bajujuLogo}
+                              style={[
+                                styles.stackAvatar,
+                                userId === creatorId && styles.stackAvatarOrganizer,
+                              ]}
+                              resizeMode="cover"
+                            />
+                          </BajujuAdminRing>
                         );
                       })}
                     </View>
@@ -1629,11 +1640,13 @@ export default function ExperienceDetailScreen() {
                                   router.push({ pathname: '/user-profile' as any, params: { userId: requestUserId } });
                                 }}
                               >
-                                <Image
-                                  source={avatarUrl ? { uri: avatarUrl } : bajujuLogo}
-                                  style={styles.requestAvatar}
-                                  resizeMode="cover"
-                                />
+                                <BajujuAdminRing size={44} isAdmin={adminIds.has(requestUserId)}>
+                                  <Image
+                                    source={avatarUrl ? { uri: avatarUrl } : bajujuLogo}
+                                    style={styles.requestAvatar}
+                                    resizeMode="cover"
+                                  />
+                                </BajujuAdminRing>
                               </Pressable>
 
                               <View style={styles.requestMain}>
@@ -2227,6 +2240,7 @@ const styles = StyleSheet.create({
   },
   avatarStack: {
     flexDirection: 'row',
+    alignItems: 'center',
   },
   stackAvatar: {
     width: 34,
@@ -2241,6 +2255,9 @@ const styles = StyleSheet.create({
   },
   stackAvatarOrganizer: {
     borderColor: C.pink,
+  },
+  stackAvatarAdmin: {
+    zIndex: 1,
   },
   peopleCopy: {
     flex: 1,

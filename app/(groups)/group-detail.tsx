@@ -25,6 +25,8 @@ import { BajujuGroupChat } from '../../src/components/groups/BajujuGroupChat';
 import { BajujuGroupPolls } from '../../src/components/groups/BajujuGroupPolls';
 import { BajujuBottomNav } from '../../src/components/navigation/BajujuBottomNav';
 import { BajujuProfileButton } from '../../src/components/navigation/BajujuProfileButton';
+import { BajujuAdminRing } from '../../src/components/profile/BajujuAdminRing';
+import { useBajujuAdminIds } from '../../src/hooks/useBajujuAdminIds';
 import {
   cancelBajujuGroupJoinRequest,
   GROUP_DESCRIPTION_MAX_LENGTH,
@@ -74,6 +76,7 @@ export default function GroupDetailScreen() {
   const [coverBusy, setCoverBusy] = useState(false);
   const [currentUserId, setCurrentUserId] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
+  const adminIds = useBajujuAdminIds();
   const [group, setGroup] = useState<any>(null);
   const [ownerName, setOwnerName] = useState('Bajuju');
   const [members, setMembers] = useState<MemberRow[]>([]);
@@ -1079,21 +1082,23 @@ export default function GroupDetailScreen() {
                       key={requestUserId || String(index)}
                       style={[styles.requestRow, index > 0 && styles.requestBorder]}
                     >
-                      <Pressable
-                        style={styles.memberAvatar}
-                        disabled={!avatarUrl}
-                        onPress={() => {
-                          if (avatarUrl) setSelectedMemberPhotoUrl(avatarUrl);
-                        }}
-                      >
-                        {avatarUrl ? (
-                          <Image source={{ uri: avatarUrl }} style={styles.memberAvatarImage} resizeMode="cover" />
-                        ) : (
-                          <Text style={styles.memberAvatarText}>
-                            {String(request.nickname || '?').slice(0, 1).toUpperCase()}
-                          </Text>
-                        )}
-                      </Pressable>
+                      <BajujuAdminRing size={52} isAdmin={adminIds.has(requestUserId)}>
+                        <Pressable
+                          style={styles.memberAvatar}
+                          disabled={!avatarUrl}
+                          onPress={() => {
+                            if (avatarUrl) setSelectedMemberPhotoUrl(avatarUrl);
+                          }}
+                        >
+                          {avatarUrl ? (
+                            <Image source={{ uri: avatarUrl }} style={styles.memberAvatarImage} resizeMode="cover" />
+                          ) : (
+                            <Text style={styles.memberAvatarText}>
+                              {String(request.nickname || '?').slice(0, 1).toUpperCase()}
+                            </Text>
+                          )}
+                        </Pressable>
+                      </BajujuAdminRing>
 
                       <View style={styles.requestMain}>
                         <Pressable
@@ -1185,21 +1190,23 @@ export default function GroupDetailScreen() {
               const avatarUrl = String(member.avatar_url || '').trim();
               return (
                 <View key={memberId || String(index)} style={[styles.memberRow, index > 0 && styles.memberBorder]}>
-                  <Pressable
-                    style={styles.memberAvatar}
-                    disabled={!avatarUrl}
-                    onPress={() => {
-                      if (avatarUrl) setSelectedMemberPhotoUrl(avatarUrl);
-                    }}
-                    accessibilityRole="button"
-                    accessibilityLabel={avatarUrl ? `Ingrandisci la foto di ${member.nickname || 'questo utente'}` : undefined}
-                  >
-                    {avatarUrl ? (
-                      <Image source={{ uri: avatarUrl }} style={styles.memberAvatarImage} resizeMode="cover" />
-                    ) : (
-                      <Text style={styles.memberAvatarText}>{String(member.nickname || '?').slice(0, 1).toUpperCase()}</Text>
-                    )}
-                  </Pressable>
+                  <BajujuAdminRing size={52} isAdmin={adminIds.has(memberId)}>
+                    <Pressable
+                      style={styles.memberAvatar}
+                      disabled={!avatarUrl}
+                      onPress={() => {
+                        if (avatarUrl) setSelectedMemberPhotoUrl(avatarUrl);
+                      }}
+                      accessibilityRole="button"
+                      accessibilityLabel={avatarUrl ? `Ingrandisci la foto di ${member.nickname || 'questo utente'}` : undefined}
+                    >
+                      {avatarUrl ? (
+                        <Image source={{ uri: avatarUrl }} style={styles.memberAvatarImage} resizeMode="cover" />
+                      ) : (
+                        <Text style={styles.memberAvatarText}>{String(member.nickname || '?').slice(0, 1).toUpperCase()}</Text>
+                      )}
+                    </Pressable>
+                  </BajujuAdminRing>
 
                   <Pressable
                     style={styles.memberCopy}

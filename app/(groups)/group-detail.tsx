@@ -1240,7 +1240,7 @@ export default function GroupDetailScreen() {
         </View>
       </KeyboardAwareScrollView>
 
-      <BajujuBottomNav active="find" />
+      <BajujuBottomNav active="groups" />
 
       <Modal visible={menuOpen} transparent animationType="slide" onRequestClose={() => setMenuOpen(false)}>
         <Pressable style={styles.sheetBackdrop} onPress={() => setMenuOpen(false)} />

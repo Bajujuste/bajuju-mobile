@@ -20,6 +20,7 @@ import { BajujuActionSheet } from './BajujuActionSheet';
 import {
   addGroupPostComment,
   createGroupPost,
+  notifyGroupBoard,
   deleteGroupPost,
   deleteGroupPostComment,
   formatRelativeTime,
@@ -232,7 +233,8 @@ export const BajujuGroupBoard = forwardRef<BajujuGroupBoardHandle, Props>(functi
       for (let index = 0; index < draftPhotos.length; index += 1) {
         urls.push(await uploadGroupPostPhoto({ groupId, userId: currentUserId, localUri: draftPhotos[index], index }));
       }
-      await createGroupPost(groupId, body, urls);
+      const postId = await createGroupPost(groupId, body, urls);
+      void notifyGroupBoard(groupId, 'post', String(postId || ''));
       setDraft('');
       setDraftPhotos([]);
       setComposerOpen(false);

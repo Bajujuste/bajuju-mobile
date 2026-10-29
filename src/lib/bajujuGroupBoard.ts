@@ -237,6 +237,17 @@ export async function createGroupPost(groupId: string, body: string, imageUrls: 
   return rpc<string>('create_group_post', { p_group_id: groupId, p_body: body, p_image_urls: imageUrls });
 }
 
+// Avvisa gli iscritti di un nuovo annuncio/foto o sondaggio. Se la notifica non parte, il contenuto resta pubblicato.
+export async function notifyGroupBoard(groupId: string, kind: 'post' | 'poll', id: string) {
+  if (!groupId || !id) return;
+  try {
+    const result = await supabase.functions.invoke('notify-group-board', { body: { groupId, kind, id } });
+    if (result.error) console.log('Notifica bacheca non inviata:', result.error);
+  } catch (error) {
+    console.log('Notifica bacheca non inviata:', error);
+  }
+}
+
 export async function setGroupPostPinned(postId: string, pinned: boolean) {
   await rpc<void>('set_group_post_pinned', { p_post_id: postId, p_pinned: pinned });
 }

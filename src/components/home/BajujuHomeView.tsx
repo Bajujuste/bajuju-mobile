@@ -71,6 +71,7 @@ export type HomeGroupPreview = {
   coverUrl: string;
   memberCount: number;
   joinedByMe: boolean;
+  ownedByMe: boolean;
 };
 
 type BajujuHomeViewProps = {
@@ -275,7 +276,11 @@ export function BajujuHomeView({
                 >
                   <View style={styles.groupImageBox}>
                     {group.coverUrl ? <Image source={{ uri: group.coverUrl }} resizeMode="cover" style={styles.groupImage} /> : <BajujuIcon name="group" size={40} color={COLORS.pink} />}
-                    {group.joinedByMe ? <Text style={[styles.imageChip, styles.joinedChip]}>Sei iscritto</Text> : null}
+                    {group.ownedByMe ? (
+                      <Text style={[styles.imageChip, styles.joinedChip, styles.ownerChip]}>Proprietario</Text>
+                    ) : group.joinedByMe ? (
+                      <Text style={[styles.imageChip, styles.joinedChip]}>Sei iscritto</Text>
+                    ) : null}
                   </View>
                   <View style={styles.groupBody}>
                     <Text style={styles.groupName} numberOfLines={1}>{group.name}</Text>
@@ -478,6 +483,7 @@ const styles = StyleSheet.create({
   categoryChip: { top: 10, left: 10, maxWidth: '60%', backgroundColor: COLORS.white, color: '#4B0C2D' },
   distanceChip: { top: 10, right: 10, backgroundColor: 'rgba(75, 12, 45, 0.82)', color: COLORS.white },
   locationChip: { bottom: 10, left: 10, backgroundColor: LOCATION_COLOR, color: COLORS.white, fontSize: 12 },
+  ownerChip: { backgroundColor: COLORS.plum },
   joinedChip: { top: 8, left: 8, backgroundColor: COLORS.green, color: COLORS.white, fontFamily: 'FredokaRegular', fontSize: 12 },
   eventBody: { paddingHorizontal: 14, paddingTop: 12, paddingBottom: 14, gap: 8 },
   eventTitle: { color: COLORS.plum, fontFamily: 'FredokaBold', fontSize: 18, lineHeight: 22 },

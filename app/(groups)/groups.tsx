@@ -21,6 +21,14 @@ import { supabase } from '../../src/lib/supabase';
 import { BAJUJU_COLORS, BAJUJU_FONTS } from '../../src/theme/bajujuTheme';
 import { KeyboardAwareScrollView } from '../../src/components/KeyboardAwareScrollView';
 
+type GroupFilter = 'all' | 'joined' | 'owner';
+
+const GROUP_FILTERS: { key: GroupFilter; label: string }[] = [
+  { key: 'all', label: 'Tutti' },
+  { key: 'joined', label: 'Iscritto' },
+  { key: 'owner', label: 'Proprietario' },
+];
+
 type GroupRequestRow = {
   id: string;
   name?: string | null;
@@ -31,12 +39,12 @@ type GroupRequestRow = {
 
 export default function GroupsScreen() {
   const [groups, setGroups] = useState<BajujuGroupCard[]>([]);
-  const [myGroups, setMyGroups] = useState<BajujuGroupCard[]>([]);
   const [groupRequests, setGroupRequests] = useState<GroupRequestRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
   const [userId, setUserId] = useState('');
   const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState<GroupFilter>('all');
   const { width: screenWidth } = useWindowDimensions();
   const cardWidth = Math.min(320, Math.max(260, screenWidth - 76));
 
@@ -48,7 +56,6 @@ export default function GroupsScreen() {
       const currentUserId = authResult.data.user?.id;
       if (!currentUserId) {
         setGroups([]);
-        setMyGroups([]);
         setGroupRequests([]);
         setUserId('');
         return;
@@ -69,12 +76,10 @@ export default function GroupsScreen() {
 
       if (requestsResult.error) throw requestsResult.error;
       setGroups(loadedGroups);
-      setMyGroups(loadedGroups.filter((group) => group.joinedByMe));
       setGroupRequests((requestsResult.data || []) as GroupRequestRow[]);
     } catch (error) {
       console.log('Errore caricamento gruppi:', error);
       setGroups([]);
-      setMyGroups([]);
       setGroupRequests([]);
     } finally {
       setLoading(false);
@@ -116,6 +121,20 @@ export default function GroupsScreen() {
   }
 
   const hasSearch = search.trim().length > 0;
+  // Iscritto = gruppi di altri dove sono dentro; Proprietario = gruppi che ho creato io.
+  const visibleGroups = groups.filter((group) => {
+    const owned = group.ownerId === userId;
+    if (filter === 'owner') return owned;
+    if (filter === 'joined') return group.joinedByMe && !owned;
+    return true;
+  });
+  const listTitle = hasSearch
+    ? 'Risultati'
+    : filter === 'owner'
+      ? 'I gruppi che hai creato'
+      : filter === 'joined'
+        ? 'Dove sei iscritto'
+        : 'Tutti i gruppi';
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -143,6 +162,33 @@ export default function GroupsScreen() {
             </Pressable>
           ) : null}
         </View>
+
+        <View style={styles.filterRow}>
+          {GROUP_FILTERS.map((item) => {
+            const selected = item.key === filter;
+            return (
+              <Pressable
+                key={item.key}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+                onPress={() => setFilter(item.key)}
+                style={({ pressed }) => [styles.filterChip, selected && styles.filterChipActive, pressed && styles.pressed]}
+              >
+                <Text style={[styles.filterText, selected && styles.filterTextActive]}>{item.label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Crea gruppo"
+          onPress={() => router.push('/create-group' as any)}
+          style={({ pressed }) => [styles.createGroupButton, pressed && styles.pressed]}
+        >
+          <BajujuIcon name="plus" size={20} color="#167A49" />
+          <Text style={styles.createGroupText}>Crea gruppo</Text>
+        </Pressable>
 
         {loading ? (
           <View style={styles.emptyCard}>
@@ -175,38 +221,37 @@ export default function GroupsScreen() {
               </View>
             ) : null}
 
-            {!hasSearch && myGroups.length > 0 ? (
-              <View style={styles.section}>
-                <SectionHeader title="I miei gruppi" count={myGroups.length} />
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.cardsRow}>
-                  {myGroups.map((group) => (
-                    <GroupCard key={`mine-${group.id}`} group={group} width={cardWidth} onPress={() => openGroup(group.id)} />
-                  ))}
-                </ScrollView>
-              </View>
-            ) : null}
-
             <View style={styles.section}>
               <SectionHeader
-                title={hasSearch ? 'Risultati' : 'Tutti i gruppi'}
-                count={groups.length}
-                detail={hasSearch ? '' : 'dal più vicino'}
+                title={listTitle}
+                count={visibleGroups.length}
+                detail={hasSearch || filter !== 'all' ? '' : 'dal più vicino'}
                 loading={searching}
               />
 
-              {groups.length === 0 ? (
+              {visibleGroups.length === 0 ? (
                 <View style={styles.emptyCard}>
-                  <Text style={styles.emptyTitle}>{hasSearch ? 'Nessun gruppo trovato' : 'I primi gruppi stanno arrivando'}</Text>
+                  <Text style={styles.emptyTitle}>
+                    {hasSearch
+                      ? 'Nessun gruppo trovato'
+                      : filter === 'owner'
+                        ? 'Non hai ancora creato gruppi'
+                        : filter === 'joined'
+                          ? 'Non sei iscritto a nessun gruppo'
+                          : 'I primi gruppi stanno arrivando'}
+                  </Text>
                   <Text style={styles.emptyText}>
                     {hasSearch
                       ? 'Prova con un’altra parola.'
-                      : 'Quando verranno approvati nuovi gruppi, li vedrai qui.'}
+                      : filter === 'all'
+                        ? 'Quando verranno approvati nuovi gruppi, li vedrai qui.'
+                        : 'Guarda in Tutti i gruppi.'}
                   </Text>
                 </View>
               ) : (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.cardsRow}>
-                  {groups.map((group) => (
-                    <GroupCard key={group.id} group={group} width={cardWidth} onPress={() => openGroup(group.id)} />
+                <ScrollView key={filter} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.cardsRow}>
+                  {visibleGroups.map((group) => (
+                    <GroupCard key={`${filter}-${group.id}`} group={group} owned={group.ownerId === userId} width={cardWidth} onPress={() => openGroup(group.id)} />
                   ))}
                 </ScrollView>
               )}
@@ -215,8 +260,7 @@ export default function GroupsScreen() {
         )}
       </KeyboardAwareScrollView>
 
-      {/* Come la lista eventi: nessuna scheda evidenziata, così il tasto Home riporta davvero alla Home. */}
-      <BajujuBottomNav active="find" />
+      <BajujuBottomNav active="groups" />
     </SafeAreaView>
   );
 }
@@ -241,7 +285,7 @@ function formatDistance(distanceKm: number | null) {
   return distanceKm < 1 ? '< 1 km' : `${Math.round(distanceKm)} km`;
 }
 
-function GroupCard({ group, width, onPress }: { group: BajujuGroupCard; width: number; onPress: () => void }) {
+function GroupCard({ group, owned, width, onPress }: { group: BajujuGroupCard; owned: boolean; width: number; onPress: () => void }) {
   const distance = formatDistance(group.distanceKm);
   const place = group.city || group.province;
 
@@ -260,7 +304,11 @@ function GroupCard({ group, width, onPress }: { group: BajujuGroupCard; width: n
         )}
         {group.category ? <Text style={[styles.imageChip, styles.categoryChip]} numberOfLines={1}>{group.category}</Text> : null}
         {distance ? <Text style={[styles.imageChip, styles.distanceChip]}>{distance}</Text> : null}
-        {group.joinedByMe ? <Text style={[styles.imageChip, styles.joinedChip]}>Sei iscritto</Text> : null}
+        {owned ? (
+          <Text style={[styles.imageChip, styles.joinedChip, styles.ownerChip]}>Proprietario</Text>
+        ) : group.joinedByMe ? (
+          <Text style={[styles.imageChip, styles.joinedChip]}>Sei iscritto</Text>
+        ) : null}
       </View>
       <View style={styles.cardBody}>
         <Text style={styles.cardTitle} numberOfLines={2}>{group.name}</Text>
@@ -303,6 +351,33 @@ const styles = StyleSheet.create({
   searchInput: { flex: 1, height: 48, color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.medium, fontSize: 16 },
   clearSearch: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   clearSearchText: { color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.bold, fontSize: 22 },
+  filterRow: { flexDirection: 'row', gap: 8, marginTop: 14 },
+  filterChip: {
+    flex: 1,
+    height: 40,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: BAJUJU_COLORS.line,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterChipActive: { backgroundColor: BAJUJU_COLORS.pink, borderColor: BAJUJU_COLORS.pink },
+  filterText: { color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.semiBold, fontSize: 14 },
+  filterTextActive: { color: '#FFFFFF' },
+  createGroupButton: {
+    height: 46,
+    marginTop: 12,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#9EDDBC',
+    backgroundColor: '#F6FCF8',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  createGroupText: { color: '#167A49', fontFamily: BAJUJU_FONTS.semiBold, fontSize: 15 },
   section: { marginTop: 24 },
   sectionHeader: { marginBottom: 12 },
   sectionTitleRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', columnGap: 8 },
@@ -317,6 +392,7 @@ const styles = StyleSheet.create({
   imageChip: { position: 'absolute', overflow: 'hidden', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, fontFamily: BAJUJU_FONTS.semiBold, fontSize: 13 },
   categoryChip: { top: 10, left: 10, maxWidth: '62%', backgroundColor: '#FFFFFF', color: '#4B0C2D' },
   distanceChip: { top: 10, right: 10, backgroundColor: 'rgba(75, 12, 45, 0.82)', color: '#FFFFFF' },
+  ownerChip: { backgroundColor: BAJUJU_COLORS.plum },
   joinedChip: { bottom: 10, left: 10, backgroundColor: BAJUJU_COLORS.pink, color: '#FFFFFF', fontFamily: 'FredokaRegular', fontSize: 12 },
   cardBody: { paddingHorizontal: 14, paddingTop: 12, paddingBottom: 14, gap: 6 },
   cardTitle: { color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.bold, fontSize: 18, lineHeight: 22, marginBottom: 2 },

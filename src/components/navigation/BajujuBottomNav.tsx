@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, usePathname } from 'expo-router';
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,7 +16,6 @@ type BajujuBottomNavProps = {
   active: NavKey;
 };
 
-const HOW_IT_WORKS_PINK = '#F32189';
 const MY_EVENTS_PETROL = '#168C9E';
 
 const ITEMS: {
@@ -24,7 +23,7 @@ const ITEMS: {
   label: string;
   icon: BajujuIconName;
   activeIcon: BajujuIconName;
-  route: '/home' | '/how-it-works' | '/create-experience' | '/my-events' | '/create-group';
+  route: '/home' | '/create-experience' | '/my-events' | '/groups';
 }[] = [
   {
     key: 'home',
@@ -34,11 +33,11 @@ const ITEMS: {
     route: '/home',
   },
   {
-    key: 'how',
-    label: 'Come funziona',
-    icon: 'info',
-    activeIcon: 'info',
-    route: '/how-it-works',
+    key: 'myEvents',
+    label: 'I miei eventi',
+    icon: 'calendar',
+    activeIcon: 'calendar',
+    route: '/my-events',
   },
   {
     key: 'create',
@@ -48,18 +47,11 @@ const ITEMS: {
     route: '/create-experience',
   },
   {
-    key: 'myEvents',
-    label: 'I miei eventi',
-    icon: 'calendar',
-    activeIcon: 'calendar',
-    route: '/my-events',
-  },
-  {
     key: 'groups',
-    label: 'Crea gruppo',
+    label: 'Gruppi',
     icon: 'group',
     activeIcon: 'group',
-    route: '/create-group',
+    route: '/groups',
   },
 ];
 
@@ -79,6 +71,7 @@ export function useBajujuBottomNavSpace() {
 export function BajujuBottomNav({ active }: BajujuBottomNavProps) {
   const insets = useSafeAreaInsets();
   const keyboardVisible = useKeyboardVisible();
+  const pathname = usePathname();
 
   // Con la tastiera aperta la barra coprirebbe i campi: la nascondiamo finché si scrive.
   if (keyboardVisible) return null;
@@ -92,9 +85,7 @@ export function BajujuBottomNav({ active }: BajujuBottomNavProps) {
     >
       {ITEMS.map((item) => {
         const selected = item.key === active;
-        const color = item.key === 'how'
-          ? HOW_IT_WORKS_PINK
-          : item.key === 'myEvents'
+        const color = item.key === 'myEvents'
             ? MY_EVENTS_PETROL
             : selected
               ? BAJUJU_COLORS.brightPink
@@ -107,7 +98,8 @@ export function BajujuBottomNav({ active }: BajujuBottomNavProps) {
             accessibilityLabel={item.label}
             accessibilityState={{ selected }}
             onPress={() => {
-              if (!selected) {
+              // Da dettaglio gruppo o Crea gruppo la voce Gruppi resta evidenziata ma riporta alla lista.
+              if (pathname !== item.route) {
                 // Le typed-routes generate possono restare indietro rispetto alle nuove schermate.
                 router.replace(item.route as any);
               }
@@ -127,10 +119,9 @@ export function BajujuBottomNav({ active }: BajujuBottomNavProps) {
                   minimumFontScale={0.8}
                   style={[
                     styles.navLabel,
-                    item.key === 'how' && styles.howLabel,
                     item.key === 'myEvents' && styles.myEventsLabel,
                     selected && styles.navLabelActive,
-                    selected && item.key !== 'how' && item.key !== 'myEvents' && { color: BAJUJU_COLORS.brightPink },
+                    selected && item.key !== 'myEvents' && { color: BAJUJU_COLORS.brightPink },
                   ]}
                 >
                   {item.label}
@@ -200,9 +191,6 @@ const styles = StyleSheet.create({
     fontFamily: BAJUJU_FONTS.medium,
     fontSize: 12,
     textAlign: 'center',
-  },
-  howLabel: {
-    color: HOW_IT_WORKS_PINK,
   },
   myEventsLabel: {
     color: MY_EVENTS_PETROL,

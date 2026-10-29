@@ -199,6 +199,7 @@ export default function HomeScreen() {
               coverUrl: group.coverUrl,
               memberCount: group.memberCount,
               joinedByMe: group.joinedByMe,
+              ownedByMe: group.ownerId === userId,
             }))
           );
         } catch (error) {

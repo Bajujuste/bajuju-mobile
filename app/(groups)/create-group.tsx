@@ -25,6 +25,8 @@ import { KeyboardAwareScrollView } from '../../src/components/KeyboardAwareScrol
 import { BajujuProfileButton } from '../../src/components/navigation/BajujuProfileButton';
 import { BajujuActionBar, BajujuButton } from '../../src/components/BajujuActionBar';
 import { BajujuBottomNav } from '../../src/components/navigation/BajujuBottomNav';
+import { GroupColorPicker, GroupColorPreview } from '../../src/components/groups/GroupColorPicker';
+import { saveGroupColors } from '../../src/lib/bajujuGroupBoard';
 
 export default function CreateGroupScreen() {
   const { pickPhoto, photoPickerModal } = useBajujuPhotoPicker();
@@ -42,6 +44,9 @@ export default function CreateGroupScreen() {
   const [minAge, setMinAge] = useState('18');
   const [maxAge, setMaxAge] = useState('80');
   const [coverUri, setCoverUri] = useState<string | null>(null);
+  const [colorsOpen, setColorsOpen] = useState(false);
+  const [colorPrimary, setColorPrimary] = useState<string | null>(null);
+  const [colorSecondary, setColorSecondary] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -143,6 +148,12 @@ export default function CreateGroupScreen() {
       });
 
       if (!groupId || !coverUri) throw new Error('Immagine di copertina obbligatoria.');
+      if (colorPrimary || colorSecondary) {
+        // Facoltativi: se non si salvano si possono rimettere dalle impostazioni del gruppo.
+        await saveGroupColors(groupId, colorPrimary, colorSecondary).catch((colorError) => {
+          console.log('Colori gruppo non salvati:', colorError);
+        });
+      }
       try {
         await uploadBajujuGroupCover({ groupId, userId, localUri: coverUri });
       } catch (uploadError: unknown) {
@@ -381,6 +392,39 @@ export default function CreateGroupScreen() {
           </Text>
         </View>
 
+        <View style={styles.card}>
+          <Pressable
+            style={styles.colorsHeader}
+            onPress={() => setColorsOpen((current) => !current)}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: colorsOpen }}
+          >
+            <View style={styles.colorsHeaderCopy}>
+              <Text style={styles.cardTitle}>Colori del gruppo</Text>
+              <Text style={styles.helperLast}>Facoltativo · es. i colori della squadra o del locale</Text>
+            </View>
+            <Ionicons name={colorsOpen ? 'chevron-up' : 'chevron-down'} size={20} color={BAJUJU_COLORS.pink} />
+          </Pressable>
+          {colorsOpen ? (
+            <View style={styles.colorsBody}>
+              <GroupColorPreview
+                name={name.trim()}
+                subtitle={[category, city.trim()].filter(Boolean).join(' · ') || 'Gruppo Bajuju'}
+                primary={colorPrimary}
+                secondary={colorSecondary}
+              />
+              <GroupColorPicker
+                primary={colorPrimary}
+                secondary={colorSecondary}
+                onChange={(next) => {
+                  setColorPrimary(next.primary);
+                  setColorSecondary(next.secondary);
+                }}
+              />
+            </View>
+          ) : null}
+        </View>
+
         {showMissingFields && missingFields.length > 0 ? (
           <Text style={styles.missingText}>Da completare: {missingFields.join(' · ')}</Text>
         ) : null}
@@ -402,6 +446,9 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: BAJUJU_COLORS.background },
   container: { paddingHorizontal: 16, paddingTop: 18, paddingBottom: 32, gap: 16 },
   topBar: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  colorsHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  colorsHeaderCopy: { flex: 1, minWidth: 0 },
+  colorsBody: { marginTop: 14, gap: 14 },
   backButton: {
     width: 44,
     height: 44,

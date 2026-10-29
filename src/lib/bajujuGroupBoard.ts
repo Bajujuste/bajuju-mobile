@@ -74,6 +74,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   BAJUJU_GROUP_ROLE_INVALID: 'Ruolo non valido.',
   BAJUJU_GROUP_ROLE_FORBIDDEN: 'Non puoi cambiare questo ruolo.',
   BAJUJU_GROUP_COLOR_INVALID: 'Colore non valido. Usa il formato #RRGGBB.',
+  BAJUJU_GROUP_LOGO_INVALID: 'Foto del logo non valida. Riprova a caricarla.',
   BAJUJU_POST_EMPTY: 'Scrivi un testo o aggiungi almeno una foto.',
   BAJUJU_POST_TOO_LONG: 'Il testo è troppo lungo (massimo 2000 caratteri).',
   BAJUJU_POST_TOO_MANY_IMAGES: 'Puoi pubblicare al massimo 6 foto per post.',
@@ -193,6 +194,10 @@ export async function saveGroupColors(groupId: string, primary: string | null, s
   await rpc<void>('set_group_colors', { p_group_id: groupId, p_primary: primary, p_secondary: secondary });
 }
 
+export async function saveGroupLogo(groupId: string, logoUrl: string | null) {
+  await rpc<void>('set_group_logo', { p_group_id: groupId, p_logo_url: logoUrl });
+}
+
 function mapPost(row: any): GroupPost {
   return {
     id: clean(row.id),
@@ -280,6 +285,22 @@ export async function uploadGroupPostPhoto(input: { groupId: string; userId: str
 
   const publicUrl = supabase.storage.from('event-photos').getPublicUrl(filePath).data.publicUrl;
   if (!publicUrl) throw new Error('URL pubblico della foto non disponibile.');
+  return publicUrl;
+}
+
+// Logo del gruppo (riquadro quadrato sotto la copertina), stessa cartella delle foto della bacheca.
+export async function uploadGroupLogo(input: { groupId: string; userId: string; localUri: string }) {
+  const photoResponse = await fetch(input.localUri);
+  const photoBuffer = await photoResponse.arrayBuffer();
+  const filePath = `groups/${input.groupId}/${input.userId}-logo-${Date.now()}.jpg`;
+
+  const uploadResult = await supabase.storage
+    .from('event-photos')
+    .upload(filePath, photoBuffer, { contentType: 'image/jpeg', upsert: false });
+  if (uploadResult.error) throw uploadResult.error;
+
+  const publicUrl = supabase.storage.from('event-photos').getPublicUrl(filePath).data.publicUrl;
+  if (!publicUrl) throw new Error('URL pubblico del logo non disponibile.');
   return publicUrl;
 }
 

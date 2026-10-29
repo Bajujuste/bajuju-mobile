@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -35,6 +35,10 @@ type Props = {
   canUsePolls: boolean;
 };
 
+export type BajujuGroupPollsHandle = {
+  openCreate: () => void;
+};
+
 const MAX_OPTIONS = 4;
 const QUESTION_MAX_LENGTH = 140;
 const OPTION_MAX_LENGTH = 80;
@@ -44,7 +48,11 @@ function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : String((error as any)?.message || 'Riprova tra poco.');
 }
 
-export function BajujuGroupPolls({ groupId, currentUserId, canUsePolls }: Props) {
+// Il tasto "Sondaggio" sta nella fila di tasti della pagina gruppo e apre la creazione tramite ref.
+export const BajujuGroupPolls = forwardRef<BajujuGroupPollsHandle, Props>(function BajujuGroupPolls(
+  { groupId, currentUserId, canUsePolls },
+  ref,
+) {
   const [polls, setPolls] = useState<PollRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [voteBusyId, setVoteBusyId] = useState('');
@@ -52,6 +60,12 @@ export function BajujuGroupPolls({ groupId, currentUserId, canUsePolls }: Props)
   const [createBusy, setCreateBusy] = useState(false);
   const [questionDraft, setQuestionDraft] = useState('');
   const [optionDrafts, setOptionDrafts] = useState<string[]>(EMPTY_OPTIONS);
+
+  useImperativeHandle(ref, () => ({
+    openCreate: () => {
+      if (canUsePolls) setCreateOpen(true);
+    },
+  }), [canUsePolls]);
 
   const loadPolls = useCallback(async () => {
     if (!groupId || !currentUserId || !canUsePolls) {
@@ -169,8 +183,12 @@ export function BajujuGroupPolls({ groupId, currentUserId, canUsePolls }: Props)
 
   return (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>Sondaggi</Text>
-      <Text style={styles.helper}>Vota toccando una risposta. Puoi cambiare idea finché è aperto.</Text>
+      {polls.length > 0 ? (
+        <>
+          <Text style={styles.sectionTitle}>Sondaggi</Text>
+          <Text style={styles.helper}>Vota toccando una risposta. Puoi cambiare idea finché è aperto.</Text>
+        </>
+      ) : null}
 
       {loading && polls.length === 0 ? (
         <ActivityIndicator style={styles.loader} color={BAJUJU_COLORS.brightPink} />
@@ -227,10 +245,6 @@ export function BajujuGroupPolls({ groupId, currentUserId, canUsePolls }: Props)
           </View>
         );
       })}
-
-      <Pressable style={styles.createButton} onPress={() => setCreateOpen(true)} accessibilityRole="button">
-        <Text style={styles.createButtonText}>+ Crea un sondaggio</Text>
-      </Pressable>
 
       <Modal visible={createOpen} animationType="slide" onRequestClose={closeCreate}>
         <SafeAreaView style={styles.modalSafeArea}>
@@ -290,7 +304,7 @@ export function BajujuGroupPolls({ groupId, currentUserId, canUsePolls }: Props)
       </Modal>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   section: { marginTop: 10 },
@@ -311,8 +325,6 @@ const styles = StyleSheet.create({
   optionTextSelected: { fontFamily: BAJUJU_FONTS.bold },
   optionPercent: { color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.medium, fontSize: 14 },
   pollMeta: { marginTop: 4, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.medium, fontSize: 12 },
-  createButton: { minHeight: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center', backgroundColor: BAJUJU_COLORS.brightPink },
-  createButtonText: { color: '#fff', fontFamily: BAJUJU_FONTS.bold, fontSize: 15 },
   modalSafeArea: { flex: 1, backgroundColor: BAJUJU_COLORS.background },
   modalContent: { paddingHorizontal: 16, paddingTop: 18, paddingBottom: 40 },
   modalTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },

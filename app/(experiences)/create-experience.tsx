@@ -105,8 +105,10 @@ function resolvedAddressFromLocation(location: BajujuLocation): ResolvedAddress 
 
 export default function CreateExperienceScreen() {
   const { pickPhoto, photoPickerModal } = useBajujuPhotoPicker();
-  const params = useLocalSearchParams<{ locationId?: string }>();
+  const params = useLocalSearchParams<{ locationId?: string; groupId?: string }>();
   const initialLocationId = String(params.locationId || '').trim();
+  // Aperto dal tasto "Crea evento" della pagina gruppo: quel gruppo è già selezionato.
+  const initialGroupId = String(params.groupId || '').trim();
   const [selectedLocation, setSelectedLocation] = useState<BajujuLocation | null>(null);
   const [locationOptions, setLocationOptions] = useState<BajujuLocation[]>([]);
   const [locationSearch, setLocationSearch] = useState('');
@@ -196,7 +198,11 @@ export default function CreateExperienceScreen() {
         if (!userId) return;
 
         const groups = await loadOwnedBajujuGroups(userId);
-        if (active) setOwnedGroups(groups);
+        if (!active) return;
+        setOwnedGroups(groups);
+        if (initialGroupId && groups.some((group) => group.id === initialGroupId)) {
+          setSelectedGroupIds([initialGroupId]);
+        }
       } catch (error) {
         console.log('Gruppi proprietario non caricati:', error);
         if (active) setOwnedGroups([]);
@@ -204,7 +210,7 @@ export default function CreateExperienceScreen() {
     })();
 
     return () => { active = false; };
-  }, []);
+  }, [initialGroupId]);
 
   const isoDate = buildIsoDate(day, month, year);
   const cleanTime = buildTime(hour, minute);

@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -52,6 +52,10 @@ type Props = {
   locked: boolean;
   theme: GroupTheme;
   onPhotoPress: (url: string) => void;
+};
+
+export type BajujuGroupBoardHandle = {
+  openComposer: () => void;
 };
 
 function Avatar({ name, url, size = 38 }: { name: string | null; url: string | null; size?: number }) {
@@ -106,7 +110,8 @@ function PhotoGrid({ urls, onPress }: { urls: string[]; onPress: (url: string) =
   );
 }
 
-export function BajujuGroupBoard({
+// Il tasto "Annuncio" sta nella fila di tasti della pagina gruppo e apre il composer tramite ref.
+export const BajujuGroupBoard = forwardRef<BajujuGroupBoardHandle, Props>(function BajujuGroupBoard({
   groupId,
   currentUserId,
   currentUserName,
@@ -116,7 +121,7 @@ export function BajujuGroupBoard({
   locked,
   theme,
   onPhotoPress,
-}: Props) {
+}, ref) {
   const [posts, setPosts] = useState<GroupPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -128,6 +133,12 @@ export function BajujuGroupBoard({
   const [publishing, setPublishing] = useState(false);
   const [menuPost, setMenuPost] = useState<GroupPost | null>(null);
   const [commentsPost, setCommentsPost] = useState<GroupPost | null>(null);
+
+  useImperativeHandle(ref, () => ({
+    openComposer: () => {
+      if (canManage) setComposerOpen(true);
+    },
+  }), [canManage]);
   const [comments, setComments] = useState<GroupPostComment[]>([]);
   const [commentsLoading, setCommentsLoading] = useState(false);
   const [commentDraft, setCommentDraft] = useState('');
@@ -354,13 +365,6 @@ export function BajujuGroupBoard({
 
   return (
     <View style={styles.wrap}>
-      {canManage ? (
-        <Pressable style={styles.composerBar} onPress={() => setComposerOpen(true)} accessibilityRole="button">
-          <Avatar name={currentUserName} url={currentUserAvatar || null} size={36} />
-          <Text style={styles.composerPlaceholder}>Pubblica un annuncio o delle foto…</Text>
-          <Ionicons name="images-outline" size={22} color={theme.accent} />
-        </Pressable>
-      ) : null}
 
       {loading ? (
         <View style={styles.stateBox}>
@@ -606,7 +610,7 @@ export function BajujuGroupBoard({
       </Modal>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   outline: { borderWidth: 1, borderColor: 'rgba(0,0,0,0.14)' },
@@ -616,8 +620,6 @@ const styles = StyleSheet.create({
   avatarImage: { width: '100%', height: '100%' },
   avatarText: { color: BAJUJU_COLORS.brightPink, fontFamily: BAJUJU_FONTS.bold, fontSize: 15 },
   roleBadge: { overflow: 'hidden', paddingHorizontal: 7, paddingVertical: 1, borderRadius: 6, fontFamily: BAJUJU_FONTS.semiBold, fontSize: 11 },
-  composerBar: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 12, borderRadius: 18, borderWidth: 1, borderColor: BAJUJU_COLORS.line, backgroundColor: BAJUJU_COLORS.white },
-  composerPlaceholder: { flex: 1, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.medium, fontSize: 14 },
   stateBox: { padding: 24, alignItems: 'center' },
   emptyCard: { padding: 18, gap: 6, borderRadius: 22, borderWidth: 1, borderColor: BAJUJU_COLORS.line, backgroundColor: BAJUJU_COLORS.white, alignItems: 'flex-start' },
   emptyTitle: { color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.bold, fontSize: 16 },

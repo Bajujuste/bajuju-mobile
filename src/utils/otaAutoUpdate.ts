@@ -11,6 +11,11 @@ import { AppState, Platform } from 'react-native';
 //   così non si ricarica mai sotto le dita di chi la sta usando.
 const RELOAD_RIGHT_AWAY_WINDOW_MS = 15 * 1000;
 const MIN_CHECK_INTERVAL_MS = 10 * 60 * 1000;
+// Il ricaricamento azzera la navigazione: se l'app è stata appena aperta toccando una notifica,
+// l'utente finirebbe in Home invece che nella chat. In quel caso l'OTA aspetta il rientro successivo.
+const NOTIFICATION_GRACE_MS = 60 * 1000;
+// Su iOS/Android il tocco della notifica arriva poco dopo il ritorno in primo piano: si attende un attimo.
+const APPLY_DELAY_MS = 2500;
 
 // Il tempo minimo per far vedere la scritta "Bajuju si sta aggiornando…" prima del ricaricamento,
 // e un limite oltre il quale la scritta sparisce comunque se il ricaricamento non è partito.
@@ -40,6 +45,11 @@ export function useOtaUpdatingNotice() {
 
 let checking = false;
 let lastCheckAt = 0;
+let lastNotificationOpenAt = 0;
+
+export function noteNotificationOpened() {
+  lastNotificationOpenAt = Date.now();
+}
 
 function isOtaAvailable() {
   return !__DEV__ && Updates.isEnabled && (Platform.OS === 'android' || Platform.OS === 'ios');
@@ -48,9 +58,12 @@ function isOtaAvailable() {
 async function applyUpdate() {
   if (applying) return;
   applying = true;
-  // Se per qualsiasi motivo il ricaricamento non parte, la scritta non resta mai sullo schermo.
-  const hideTimer = setTimeout(() => setNoticeVisible(false), NOTICE_MAX_VISIBLE_MS);
+  let hideTimer: ReturnType<typeof setTimeout> | undefined;
   try {
+    await new Promise((resolve) => setTimeout(resolve, APPLY_DELAY_MS));
+    if (Date.now() - lastNotificationOpenAt < NOTIFICATION_GRACE_MS) return;
+    // Se per qualsiasi motivo il ricaricamento non parte, la scritta non resta mai sullo schermo.
+    hideTimer = setTimeout(() => setNoticeVisible(false), NOTICE_MAX_VISIBLE_MS);
     setNoticeVisible(true);
     await new Promise((resolve) => setTimeout(resolve, NOTICE_BEFORE_RELOAD_MS));
     await Updates.reloadAsync();

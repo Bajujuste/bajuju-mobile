@@ -11,7 +11,7 @@ import 'react-native-reanimated';
 import { AdminPrivateChatEntry } from '../src/components/admin/AdminPrivateChatEntry';
 import { supabase } from '../src/lib/supabase';
 import { useAppUpdatePrompt } from '../src/utils/appUpdatePrompt';
-import { useOtaAutoUpdate } from '../src/utils/otaAutoUpdate';
+import { noteNotificationOpened, useOtaAutoUpdate } from '../src/utils/otaAutoUpdate';
 import { hasCompleteRequiredProfile } from '../src/utils/profileCompletion';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -165,6 +165,7 @@ export default function RootLayout() {
           if (!data || typeof data !== 'object') return;
 
           if (responseId) handledPushResponseIdsRef.current.add(responseId);
+          noteNotificationOpened();
 
           // Sempre in coda: se il navigatore è già pronto si apre subito, altrimenti ci pensa
           // l'effetto su rootNavigationReady appena diventa true.

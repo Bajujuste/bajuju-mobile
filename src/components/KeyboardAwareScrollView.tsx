@@ -4,6 +4,7 @@ import {
   Keyboard,
   Platform,
   ScrollView,
+  StatusBar,
   TextInput,
   View,
   type GestureResponderEvent,
@@ -13,7 +14,7 @@ import {
   type NativeSyntheticEvent,
   type ScrollViewProps,
 } from 'react-native';
-import { initialWindowMetrics } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Spazio libero che lasciamo tra il campo attivo e la tastiera.
 const EXTRA_SPACE = 24;
@@ -23,17 +24,29 @@ function assignRef<T>(ref: ForwardedRef<T>, value: T | null) {
   else if (ref) ref.current = value;
 }
 
+type Insets = { top: number; bottom: number };
+
 /**
  * Bordo superiore della tastiera, nelle stesse coordinate di measureInWindow.
- * Su Android (edge-to-edge) l'altezza della tastiera e a volte anche screenY non contano la barra
- * di navigazione sotto la tastiera: la tastiera risultava più bassa del vero e copriva metà del campo.
- * Prendiamo la stima più alta tra le due, così il campo resta sempre sopra.
+ * Su Android i numeri della tastiera sono riferiti allo schermo intero, mentre measureInWindow
+ * è riferito all'area dell'app, che su molti telefoni parte sotto la barra di stato e finisce
+ * sopra la barra dei tasti di sistema. Inoltre l'altezza della tastiera non conta la barra dei tasti.
+ * Per questo il campo restava in parte coperto: qui correggiamo tutte e due le cose
+ * e scegliamo sempre la stima più prudente (tastiera più alta), così la schermata sale abbastanza.
  */
-export function getKeyboardTop(event: KeyboardEvent, bottomInset = initialWindowMetrics?.insets.bottom ?? 0) {
+export function getKeyboardTop(event: KeyboardEvent, insets: Insets) {
   const { screenY, height } = event.endCoordinates;
   if (Platform.OS === 'ios') return screenY > 0 ? screenY : Dimensions.get('window').height - height;
-  const fromHeight = Dimensions.get('screen').height - height - bottomInset;
-  return screenY > 0 ? Math.min(screenY, fromHeight) : fromHeight;
+
+  const screenHeight = Dimensions.get('screen').height;
+  const windowHeight = Dimensions.get('window').height;
+  // Barra dei tasti di sistema: dai margini sicuri se l'app ci disegna sotto, altrimenti dalla differenza schermo/finestra.
+  const navigationBar = Math.max(insets.bottom, screenHeight - windowHeight, 0);
+  const fromHeight = screenHeight - height - navigationBar;
+  const topOnScreen = screenY > 0 ? Math.min(screenY, fromHeight) : fromHeight;
+  // Se l'app parte sotto la barra di stato, le sue coordinate sono spostate di quell'altezza.
+  const appOffset = Math.max(0, (StatusBar.currentHeight ?? 0) - insets.top);
+  return topOnScreen - appOffset;
 }
 
 /**
@@ -43,6 +56,9 @@ export function getKeyboardTop(event: KeyboardEvent, bottomInset = initialWindow
  */
 export function useKeyboardOverlap(viewRef: { current: View | null }) {
   const [overlap, setOverlap] = useState(0);
+  const insets = useSafeAreaInsets();
+  const insetsRef = useRef(insets);
+  insetsRef.current = insets;
 
   useEffect(() => {
     const timers: ReturnType<typeof setTimeout>[] = [];
@@ -59,7 +75,7 @@ export function useKeyboardOverlap(viewRef: { current: View | null }) {
     };
 
     const onShow = (event: KeyboardEvent) => {
-      keyboardTop = getKeyboardTop(event);
+      keyboardTop = getKeyboardTop(event, insetsRef.current);
       measure();
       timers.push(setTimeout(measure, 350));
     };
@@ -110,6 +126,9 @@ export const KeyboardAwareScrollView = forwardRef<ScrollView, ScrollViewProps>(f
   const keyboardTop = useRef<number | null>(null);
   const timers = useRef(new Set<ReturnType<typeof setTimeout>>());
   const [spacer, setSpacer] = useState(0);
+  const insets = useSafeAreaInsets();
+  const insetsRef = useRef(insets);
+  insetsRef.current = insets;
 
   const setRefs = useCallback(
     (node: ScrollView | null) => {
@@ -174,7 +193,7 @@ export const KeyboardAwareScrollView = forwardRef<ScrollView, ScrollViewProps>(f
 
   useEffect(() => {
     const onShow = (event: KeyboardEvent) => {
-      keyboardTop.current = getKeyboardTop(event);
+      keyboardTop.current = getKeyboardTop(event, insetsRef.current);
       updateSpacer();
       later(revealFocusedInput, Platform.OS === 'ios' ? 60 : 120);
       // Seconda passata: su Android la finestra può ridimensionarsi dopo l'evento.

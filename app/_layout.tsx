@@ -9,6 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import 'react-native-reanimated';
 
 import { AdminPrivateChatEntry } from '../src/components/admin/AdminPrivateChatEntry';
+import { OtaUpdatingNotice } from '../src/components/app/OtaUpdatingNotice';
 import { supabase } from '../src/lib/supabase';
 import { useAppUpdatePrompt } from '../src/utils/appUpdatePrompt';
 import { useOtaAutoUpdate } from '../src/utils/otaAutoUpdate';
@@ -233,6 +234,7 @@ export default function RootLayout() {
           <Stack.Screen name="(tabs)" />
         </Stack>
         <AdminPrivateChatEntry />
+        <OtaUpdatingNotice />
       </SafeAreaView>
       <StatusBar style="dark" backgroundColor="#FFF9FC" />
     </ThemeProvider>

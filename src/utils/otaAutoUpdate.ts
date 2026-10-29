@@ -11,16 +11,28 @@ import { AppState, Platform } from 'react-native';
 //   così non si ricarica mai sotto le dita di chi la sta usando.
 const RELOAD_RIGHT_AWAY_WINDOW_MS = 15 * 1000;
 const MIN_CHECK_INTERVAL_MS = 10 * 60 * 1000;
+// Il ricaricamento azzera la navigazione: se l'app è stata appena aperta toccando una notifica,
+// l'utente finirebbe in Home invece che nella chat. In quel caso l'OTA aspetta il rientro successivo.
+const NOTIFICATION_GRACE_MS = 60 * 1000;
+// Su iOS/Android il tocco della notifica arriva poco dopo il ritorno in primo piano: si attende un attimo.
+const APPLY_DELAY_MS = 2500;
 
 let updateReady = false;
 let checking = false;
 let lastCheckAt = 0;
+let lastNotificationOpenAt = 0;
+
+export function noteNotificationOpened() {
+  lastNotificationOpenAt = Date.now();
+}
 
 function isOtaAvailable() {
   return !__DEV__ && Updates.isEnabled && (Platform.OS === 'android' || Platform.OS === 'ios');
 }
 
 async function applyUpdate() {
+  await new Promise((resolve) => setTimeout(resolve, APPLY_DELAY_MS));
+  if (Date.now() - lastNotificationOpenAt < NOTIFICATION_GRACE_MS) return;
   try {
     await Updates.reloadAsync();
   } catch {

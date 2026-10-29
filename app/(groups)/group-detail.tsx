@@ -3,7 +3,7 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import { useBajujuPhotoPicker } from '../../src/components/useBajujuPhotoPicker';
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -81,6 +81,13 @@ type ExperienceRow = {
 
 const DESCRIPTION_PREVIEW_LINES = 3;
 
+// Sezione richiesta da una notifica: 'chat' apre la Chat, 'requests' gli Iscritti, il resto la Bacheca.
+function tabForSection(section?: string): GroupTab {
+  if (section === 'chat') return 'chat';
+  if (section === 'requests') return 'members';
+  return 'board';
+}
+
 export default function GroupDetailScreen() {
   const { pickPhoto, photoPickerModal } = useBajujuPhotoPicker();
   const params = useLocalSearchParams<{ id?: string; section?: string }>();
@@ -101,7 +108,11 @@ export default function GroupDetailScreen() {
   const [myAvatar, setMyAvatar] = useState('');
   const [bans, setBans] = useState<GroupBan[]>([]);
   const [unbanBusyUserId, setUnbanBusyUserId] = useState('');
-  const [tab, setTab] = useState<GroupTab>(params.section === 'requests' ? 'members' : 'board');
+  const [tab, setTab] = useState<GroupTab>(() => tabForSection(params.section));
+  // Una notifica può riaprire il gruppo già aperto con un'altra sezione (es. la chat): la scheda segue il parametro.
+  useEffect(() => {
+    if (params.section) setTab(tabForSection(params.section));
+  }, [params.section]);
   const [selectedMemberPhotoUrl, setSelectedMemberPhotoUrl] = useState<string | null>(null);
   const [memberCount, setMemberCount] = useState(0);
   const [experiences, setExperiences] = useState<ExperienceRow[]>([]);

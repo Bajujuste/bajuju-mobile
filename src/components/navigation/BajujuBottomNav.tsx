@@ -10,7 +10,7 @@ import {
   BajujuIconName,
 } from '../icons/BajujuIcon';
 
-type NavKey = 'home' | 'find' | 'how' | 'groups' | 'create' | 'myEvents' | 'flash' | 'profile';
+type NavKey = 'home' | 'find' | 'how' | 'groups' | 'map' | 'create' | 'myEvents' | 'flash' | 'profile';
 
 type BajujuBottomNavProps = {
   active: NavKey;
@@ -23,7 +23,7 @@ const ITEMS: {
   label: string;
   icon: BajujuIconName;
   activeIcon: BajujuIconName;
-  route: '/home' | '/create-experience' | '/my-events' | '/groups';
+  route: '/home' | '/create-experience' | '/my-events' | '/groups' | '/experiences-map';
 }[] = [
   {
     key: 'home',
@@ -52,6 +52,13 @@ const ITEMS: {
     icon: 'group',
     activeIcon: 'group',
     route: '/groups',
+  },
+  {
+    key: 'map',
+    label: 'Mappa',
+    icon: 'pin',
+    activeIcon: 'pin',
+    route: '/experiences-map',
   },
 ];
 

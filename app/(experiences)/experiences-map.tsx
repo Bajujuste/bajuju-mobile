@@ -540,7 +540,7 @@ export default function ExperiencesMapScreen() {
             </View>}
           />}
       </View>
-      <BajujuBottomNav active="find" />
+      <BajujuBottomNav active="map" />
     </SafeAreaView>
   );
 }

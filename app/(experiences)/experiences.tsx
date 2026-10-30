@@ -34,6 +34,13 @@ const PAST_RETENTION_DAYS = 60;
 
 type Mode = 'nearby' | 'joined' | 'organized' | 'past';
 
+const MODE_OPTIONS: { mode: Mode; label: string }[] = [
+  { mode: 'nearby', label: 'Vicino a te' },
+  { mode: 'joined', label: 'Partecipi' },
+  { mode: 'organized', label: 'Organizzi' },
+  { mode: 'past', label: 'Passati' },
+];
+
 type ActivityRow = {
   id?: string;
   creator_id?: string | null;
@@ -92,6 +99,10 @@ function formatDate(row: ActivityRow) {
 // Giorno in formato YYYY-MM-DD in ora locale, come activity_date.
 function localDayKey(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function formatFilterDayShort(date: Date) {
+  return date.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' });
 }
 
 function formatFilterDay(date: Date) {
@@ -181,6 +192,7 @@ export default function ExperiencesScreen() {
   const [allEventsVisibleCount, setAllEventsVisibleCount] = useState(PAGE_SIZE);
   const [filterDate, setFilterDate] = useState<Date | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showModeMenu, setShowModeMenu] = useState(false);
   const [pendingDate, setPendingDate] = useState<Date>(new Date());
   const [selectedPosterUrl, setSelectedPosterUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -403,12 +415,16 @@ export default function ExperiencesScreen() {
         ? organizedActivities
         : pastActivities;
 
-  const visibleActivities = selectedActivities.slice(0, visibleCount);
+  const filterDayKey = filterDate ? localDayKey(filterDate) : '';
+  const dateFilteredActivities = useMemo(() => {
+    if (!filterDayKey) return selectedActivities;
+    return selectedActivities.filter((row) => String(row.activity_date || '').slice(0, 10) === filterDayKey);
+  }, [selectedActivities, filterDayKey]);
+  const visibleActivities = dateFilteredActivities.slice(0, visibleCount);
   const dateFilteredAllEvents = useMemo(() => {
-    if (!filterDate) return allEventsActivities;
-    const day = localDayKey(filterDate);
-    return allEventsActivities.filter((row) => String(row.activity_date || '').slice(0, 10) === day);
-  }, [allEventsActivities, filterDate]);
+    if (!filterDayKey) return allEventsActivities;
+    return allEventsActivities.filter((row) => String(row.activity_date || '').slice(0, 10) === filterDayKey);
+  }, [allEventsActivities, filterDayKey]);
   const visibleAllEvents = dateFilteredAllEvents.slice(0, allEventsVisibleCount);
 
   function openDatePicker() {
@@ -418,6 +434,7 @@ export default function ExperiencesScreen() {
 
   function applyFilterDate(date: Date | null) {
     setFilterDate(date);
+    setVisibleCount(PAGE_SIZE);
     setAllEventsVisibleCount(PAGE_SIZE);
   }
 
@@ -433,6 +450,10 @@ export default function ExperiencesScreen() {
   }
 
   function selectMode(nextMode: Mode) {
+    setShowModeMenu(false);
+    setShowDatePicker(false);
+    // I passati hanno solo date passate e gli altri solo future: una data scelta prima non varrebbe più.
+    if ((nextMode === 'past') !== (mode === 'past')) setFilterDate(null);
     setMode(nextMode);
     setVisibleCount(PAGE_SIZE);
     setAllEventsVisibleCount(PAGE_SIZE);
@@ -480,17 +501,81 @@ export default function ExperiencesScreen() {
           <BajujuProfileButton />
         </View>
 
-        <View style={styles.tabsRow}>
-          <TabButton active={mode === 'nearby'} label="Vicino" accessibilityLabel="Vicino a te" onPress={() => selectMode('nearby')} />
-          <TabButton active={mode === 'joined'} label="Partecipi" accessibilityLabel="A cui partecipi" onPress={() => selectMode('joined')} />
-          <TabButton active={mode === 'organized'} label="Organizzi" accessibilityLabel="I tuoi eventi" onPress={() => selectMode('organized')} />
-          <TabButton active={mode === 'past'} label="Passati" accessibilityLabel="Eventi passati" onPress={() => selectMode('past')} />
+        <View style={styles.filterBar}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Scegli quali eventi vedere"
+            style={({ pressed }) => [styles.modeSelect, pressed && styles.pressed]}
+            onPress={() => setShowModeMenu(true)}
+          >
+            <Text style={styles.modeSelectText} numberOfLines={1}>{MODE_OPTIONS.find((option) => option.mode === mode)?.label}</Text>
+            <Text style={styles.modeSelectArrow}>▾</Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={filterDate ? 'Cambia data' : 'Scegli una data'}
+            style={({ pressed }) => [styles.dateFilterButton, pressed && styles.pressed]}
+            onPress={openDatePicker}
+          >
+            <BajujuIcon name="calendar" size={18} color="#FFFFFF" />
+            <Text style={styles.dateFilterButtonText} numberOfLines={1}>{filterDate ? formatFilterDayShort(filterDate) : 'Scegli data'}</Text>
+            {filterDate ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Togli la data e mostra tutti gli eventi"
+                hitSlop={10}
+                style={styles.dateFilterClear}
+                onPress={(event) => { event.stopPropagation(); applyFilterDate(null); }}
+              >
+                <Text style={styles.dateFilterClearText}>✕</Text>
+              </Pressable>
+            ) : null}
+          </Pressable>
         </View>
+
+        {showDatePicker ? (
+          Platform.OS === 'ios' ? (
+            <View style={styles.iosPickerContainer}>
+              <DateTimePicker
+                value={pendingDate}
+                mode="date"
+                display="inline"
+                minimumDate={mode === 'past' ? undefined : new Date()}
+              maximumDate={mode === 'past' ? new Date() : undefined}
+                locale="it-IT"
+                onChange={handleFilterDateChange}
+              />
+              <View style={styles.iosPickerActions}>
+                <Pressable onPress={() => setShowDatePicker(false)} style={styles.iosPickerAction}>
+                  <Text style={styles.iosPickerCancelText}>Annulla</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => {
+                    applyFilterDate(pendingDate);
+                    setShowDatePicker(false);
+                  }}
+                  style={styles.iosPickerAction}
+                >
+                  <Text style={styles.iosPickerConfirmText}>Mostra eventi</Text>
+                </Pressable>
+              </View>
+            </View>
+          ) : (
+            <DateTimePicker
+              value={pendingDate}
+              mode="date"
+              display="calendar"
+              minimumDate={mode === 'past' ? undefined : new Date()}
+              maximumDate={mode === 'past' ? new Date() : undefined}
+              onChange={handleFilterDateChange}
+            />
+          )
+        ) : null}
 
         <SectionHeader
           title={mode === 'nearby' ? `Entro ${NEARBY_RADIUS_KM} km` : mode === 'joined' ? 'A cui partecipi' : mode === 'organized' ? 'I tuoi eventi' : 'I tuoi eventi passati'}
-          count={selectedActivities.length}
-          detail={mode === 'nearby' && coordinates ? 'per data di svolgimento' : ''}
+          count={dateFilteredActivities.length}
+          detail={filterDate ? formatFilterDay(filterDate) : mode === 'nearby' && coordinates ? 'per data di svolgimento' : ''}
           hint={mode === 'nearby' && !coordinates ? `Attiva la posizione per vedere gli eventi entro ${NEARBY_RADIUS_KM} km.` : ''}
         />
 
@@ -512,6 +597,11 @@ export default function ExperiencesScreen() {
             <Text style={styles.emptyText}>{errorMessage}</Text>
             <Pressable style={styles.retryButton} onPress={() => void loadAll()}><Text style={styles.retryText}>Riprova</Text></Pressable>
           </View>
+        ) : visibleActivities.length === 0 && filterDate ? (
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyTitle}>Nessun evento in questa data</Text>
+            <Text style={styles.emptyText}>Prova a scegliere un altro giorno.</Text>
+          </View>
         ) : visibleActivities.length === 0 ? (
           <View style={styles.emptyCard}>
             <Text style={styles.emptyTitle}>
@@ -527,7 +617,19 @@ export default function ExperiencesScreen() {
         ) : (
           <>
             {/* key per scheda: cambiando scheda la lista riparte dall'inizio, altrimenti resta scorsa dove eri e sembra vuota. */}
-            <ScrollView key={mode} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.cardsRow}>
+            <ScrollView
+              key={`${mode}-${filterDayKey}`}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.cardsRow}
+              scrollEventThrottle={100}
+              onScroll={({ nativeEvent }) => {
+                const { contentOffset, layoutMeasurement, contentSize } = nativeEvent;
+                if (contentOffset.x + layoutMeasurement.width >= contentSize.width - 240) {
+                  setVisibleCount((count) => Math.min(count + PAGE_SIZE, dateFilteredActivities.length));
+                }
+              }}
+            >
               {visibleActivities.map((item) => {
                 const activityId = String(item.id || '');
                 const organizedByMe = Boolean(currentUserId && String(item.creator_id || '') === currentUserId);
@@ -547,81 +649,18 @@ export default function ExperiencesScreen() {
                 );
               })}
             </ScrollView>
-            {visibleCount < selectedActivities.length ? (
-              <Pressable style={styles.moreButton} onPress={() => setVisibleCount((value) => value + PAGE_SIZE)}>
-                <Text style={styles.moreButtonText}>Mostra altri {Math.min(PAGE_SIZE, selectedActivities.length - visibleCount)}</Text>
-              </Pressable>
-            ) : null}
           </>
         )}
 
         {mode === 'nearby' && !loading && !errorMessage ? (
           <View style={{ marginTop: 26 }}>
             <SectionHeader
-              title={filterDate ? `Eventi di ${formatFilterDay(filterDate)}` : 'Tutti gli eventi'}
+              title="Tutti gli eventi"
               count={dateFilteredAllEvents.length}
-              detail={filterDate ? '' : 'per data di svolgimento'}
+              detail={filterDate ? formatFilterDay(filterDate) : 'per data di svolgimento'}
               hint="Scorri verso sinistra per vedere gli altri eventi."
             />
 
-            <View style={styles.dateFilterRow}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Scegli una data"
-                style={({ pressed }) => [styles.dateFilterButton, pressed && styles.pressed]}
-                onPress={openDatePicker}
-              >
-                <BajujuIcon name="calendar" size={18} color="#FFFFFF" />
-                <Text style={styles.dateFilterButtonText}>{filterDate ? 'Cambia data' : 'Scegli data'}</Text>
-              </Pressable>
-              {filterDate ? (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Togli la data e mostra tutti gli eventi"
-                  style={({ pressed }) => [styles.dateFilterClear, pressed && styles.pressed]}
-                  onPress={() => applyFilterDate(null)}
-                >
-                  <Text style={styles.dateFilterClearText}>✕  Tutte le date</Text>
-                </Pressable>
-              ) : null}
-            </View>
-
-            {showDatePicker ? (
-              Platform.OS === 'ios' ? (
-                <View style={styles.iosPickerContainer}>
-                  <DateTimePicker
-                    value={pendingDate}
-                    mode="date"
-                    display="inline"
-                    minimumDate={new Date()}
-                    locale="it-IT"
-                    onChange={handleFilterDateChange}
-                  />
-                  <View style={styles.iosPickerActions}>
-                    <Pressable onPress={() => setShowDatePicker(false)} style={styles.iosPickerAction}>
-                      <Text style={styles.iosPickerCancelText}>Annulla</Text>
-                    </Pressable>
-                    <Pressable
-                      onPress={() => {
-                        applyFilterDate(pendingDate);
-                        setShowDatePicker(false);
-                      }}
-                      style={styles.iosPickerAction}
-                    >
-                      <Text style={styles.iosPickerConfirmText}>Mostra eventi</Text>
-                    </Pressable>
-                  </View>
-                </View>
-              ) : (
-                <DateTimePicker
-                  value={pendingDate}
-                  mode="date"
-                  display="calendar"
-                  minimumDate={new Date()}
-                  onChange={handleFilterDateChange}
-                />
-              )
-            ) : null}
 
             {visibleAllEvents.length === 0 ? (
               <View style={styles.emptyCard}>
@@ -633,7 +672,7 @@ export default function ExperiencesScreen() {
             ) : (
               <>
                 <ScrollView
-                  key={filterDate ? localDayKey(filterDate) : 'all'}
+                  key={filterDayKey || 'all'}
                   horizontal
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={styles.cardsRow}
@@ -672,26 +711,29 @@ export default function ExperiencesScreen() {
 
       <BajujuBottomNav active="find" />
 
+      <Modal visible={showModeMenu} transparent animationType="fade" onRequestClose={() => setShowModeMenu(false)}>
+        <Pressable style={styles.menuBackdrop} onPress={() => setShowModeMenu(false)}>
+          <View style={styles.menuCard}>
+            {MODE_OPTIONS.map((option) => (
+              <Pressable
+                key={option.mode}
+                accessibilityRole="button"
+                style={({ pressed }) => [styles.menuItem, option.mode === mode && styles.menuItemActive, pressed && styles.pressed]}
+                onPress={() => selectMode(option.mode)}
+              >
+                <Text style={[styles.menuItemText, option.mode === mode && styles.menuItemTextActive]}>{option.label}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </Pressable>
+      </Modal>
+
       <Modal visible={Boolean(selectedPosterUrl)} transparent animationType="fade" onRequestClose={() => setSelectedPosterUrl(null)}>
         <Pressable style={styles.modalBackdrop} onPress={() => setSelectedPosterUrl(null)}>
           {selectedPosterUrl ? <Image source={{ uri: selectedPosterUrl }} style={styles.modalImage} resizeMode="contain" /> : null}
         </Pressable>
       </Modal>
     </SafeAreaView>
-  );
-}
-
-function TabButton({ active, label, accessibilityLabel, onPress }: { active: boolean; label: string; accessibilityLabel: string; onPress: () => void }) {
-  return (
-    <Pressable
-      accessibilityRole="tab"
-      accessibilityLabel={accessibilityLabel}
-      accessibilityState={{ selected: active }}
-      style={[styles.tabButton, active && styles.tabButtonActive]}
-      onPress={onPress}
-    >
-      <Text numberOfLines={1} style={[styles.tabText, active && styles.tabTextActive]}>{label}</Text>
-    </Pressable>
   );
 }
 
@@ -793,11 +835,6 @@ const styles = StyleSheet.create({
   screenTitleFill: { flex: 1 },
   screenTitle: { color: PLUM, fontFamily: 'FredokaBold', fontSize: 28, letterSpacing: -0.5 },
   mapButton: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, borderColor: LINE, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
-  tabsRow: { marginTop: 16, marginBottom: 20, flexDirection: 'row', gap: 4, padding: 4, borderRadius: 999, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: LINE },
-  tabButton: { flex: 1, height: 40, borderRadius: 999, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 2 },
-  tabButtonActive: { backgroundColor: PINK },
-  tabText: { color: '#7A3C5E', fontFamily: 'FredokaMedium', fontSize: 14 },
-  tabTextActive: { color: '#FFFFFF', fontFamily: 'FredokaSemiBold' },
   sectionHeader: { marginBottom: 12 },
   sectionTitleRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', columnGap: 8 },
   sectionTitle: { color: PLUM, fontFamily: 'FredokaBold', fontSize: 21 },
@@ -830,18 +867,25 @@ const styles = StyleSheet.create({
   openButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#FFF0F7', alignItems: 'center', justifyContent: 'center' },
   waitlistButton: { borderRadius: 999, backgroundColor: '#FFF0F7', borderWidth: 1, borderColor: PINK, paddingHorizontal: 10, paddingVertical: 8 },
   waitlistButtonText: { color: PINK, fontFamily: 'FredokaSemiBold', fontSize: 12 },
-  dateFilterRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginBottom: 12 },
-  dateFilterButton: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999, backgroundColor: PINK },
-  dateFilterButtonText: { color: '#FFFFFF', fontFamily: 'FredokaSemiBold', fontSize: 14 },
-  dateFilterClear: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: LINE },
-  dateFilterClearText: { color: PLUM, fontFamily: 'FredokaSemiBold', fontSize: 14 },
+  filterBar: { marginTop: 16, marginBottom: 20, flexDirection: 'row', gap: 10 },
+  modeSelect: { flex: 1, height: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 6, paddingHorizontal: 18, borderRadius: 999, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: LINE },
+  modeSelectText: { flexShrink: 1, color: PLUM, fontFamily: 'FredokaSemiBold', fontSize: 16 },
+  modeSelectArrow: { color: PINK, fontSize: 18 },
+  dateFilterButton: { flex: 1, height: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 14, borderRadius: 999, backgroundColor: PINK },
+  dateFilterButtonText: { flexShrink: 1, color: '#FFFFFF', fontFamily: 'FredokaSemiBold', fontSize: 16 },
+  dateFilterClear: { width: 24, height: 24, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.3)', alignItems: 'center', justifyContent: 'center' },
+  dateFilterClearText: { color: '#FFFFFF', fontFamily: 'FredokaBold', fontSize: 13 },
+  menuBackdrop: { flex: 1, backgroundColor: 'rgba(75,12,45,0.35)', justifyContent: 'center', padding: 32 },
+  menuCard: { borderRadius: 22, padding: 8, backgroundColor: '#FFFFFF' },
+  menuItem: { paddingVertical: 14, paddingHorizontal: 16, borderRadius: 16 },
+  menuItemActive: { backgroundColor: '#FFF0F7' },
+  menuItemText: { color: PLUM, fontFamily: 'FredokaMedium', fontSize: 17 },
+  menuItemTextActive: { color: PINK, fontFamily: 'FredokaSemiBold' },
   iosPickerContainer: { marginBottom: 12, padding: 8, borderRadius: 22, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: LINE },
   iosPickerActions: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 8, paddingBottom: 4 },
   iosPickerAction: { paddingHorizontal: 12, paddingVertical: 10 },
   iosPickerCancelText: { color: '#8D5E77', fontFamily: 'FredokaSemiBold', fontSize: 15 },
   iosPickerConfirmText: { color: PINK, fontFamily: 'FredokaBold', fontSize: 15 },
-  moreButton: { marginTop: 14, alignSelf: 'center', paddingHorizontal: 20, paddingVertical: 12, borderRadius: 999, backgroundColor: PINK },
-  moreButtonText: { color: '#ffffff', fontFamily: 'FredokaSemiBold', fontSize: 15 },
   emptyCard: { minHeight: 170, borderRadius: 22, padding: 24, backgroundColor: '#ffffff', borderWidth: 1, borderColor: LINE, alignItems: 'center', justifyContent: 'center' },
   emptyTitle: { color: PINK, fontFamily: 'FredokaBold', fontSize: 18, textAlign: 'center' },
   emptyText: { marginTop: 8, color: '#8D5E77', fontFamily: 'FredokaMedium', fontSize: 14, lineHeight: 20, textAlign: 'center' },

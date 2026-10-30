@@ -254,7 +254,7 @@ export default function EditExperienceScreen() {
         Alert.alert('Foto evento', 'Autorizza l’accesso alle immagini per scegliere la copertina.');
         return;
       }
-      const picked = await pickPhoto({ aspect: [16, 9], quality: 0.9 });
+      const picked = await pickPhoto({ aspect: [16, 9], quality: 0.9, fitWhole: true });
       if (!picked) return;
       const prepared = await ImageManipulator.manipulateAsync(
         picked.uri, [{ resize: { width: 1280 } }],

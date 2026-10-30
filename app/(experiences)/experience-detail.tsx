@@ -265,6 +265,7 @@ export default function ExperienceDetailScreen() {
   const [messages, setMessages] = useState<MessageRow[]>([]);
   const [albumPhotos, setAlbumPhotos] = useState<AlbumPhotoRow[]>([]);
   const [selectedAlbumPhotoIndex, setSelectedAlbumPhotoIndex] = useState<number | null>(null);
+  const [coverPhotoOpen, setCoverPhotoOpen] = useState(false);
   const [uploadingAlbumPhoto, setUploadingAlbumPhoto] = useState(false);
   const albumUploadLockRef = useRef(false);
   const [updatingCoverPhoto, setUpdatingCoverPhoto] = useState(false);
@@ -1236,7 +1237,7 @@ export default function ExperienceDetailScreen() {
         return;
       }
 
-      const picked = await pickPhoto({ aspect: [16, 9], quality: 0.8 });
+      const picked = await pickPhoto({ aspect: [16, 9], quality: 0.8, fitWhole: true });
       if (!picked) return;
 
       setUpdatingCoverPhoto(true);
@@ -1448,11 +1449,29 @@ export default function ExperienceDetailScreen() {
           ) : (
             <>
               <View style={styles.hero}>
-                <Image
-                  source={experiencePhotoUrl(experience) ? { uri: experiencePhotoUrl(experience) } : bajujuLogo}
-                  style={styles.heroImage}
-                  resizeMode="cover"
-                />
+                {experiencePhotoUrl(experience) ? (
+                  <Pressable
+                    style={StyleSheet.absoluteFill}
+                    onPress={() => setCoverPhotoOpen(true)}
+                    accessibilityRole="imagebutton"
+                    accessibilityLabel="Vedi la foto intera"
+                  >
+                    {/* Sfondo sfocato + foto intera sopra: la foto non viene mai tagliata. */}
+                    <Image
+                      source={{ uri: experiencePhotoUrl(experience) }}
+                      style={styles.heroImage}
+                      resizeMode="cover"
+                      blurRadius={18}
+                    />
+                    <Image
+                      source={{ uri: experiencePhotoUrl(experience) }}
+                      style={styles.heroImage}
+                      resizeMode="contain"
+                    />
+                  </Pressable>
+                ) : (
+                  <Image source={bajujuLogo} style={styles.heroImage} resizeMode="cover" />
+                )}
                 <LinearGradient
                   colors={['rgba(75,12,45,0)', 'rgba(75,12,45,0.78)']}
                   locations={[0.35, 1]}
@@ -2002,6 +2021,21 @@ export default function ExperienceDetailScreen() {
             </Pressable>
           ) : null}
         </View>
+      </Modal>
+
+      <Modal visible={coverPhotoOpen} transparent animationType="fade" onRequestClose={() => setCoverPhotoOpen(false)}>
+        <Pressable style={styles.photoModalBackdrop} onPress={() => setCoverPhotoOpen(false)}>
+          <Pressable style={styles.photoModalClose} onPress={() => setCoverPhotoOpen(false)}>
+            <Text style={styles.photoModalCloseText}>Chiudi</Text>
+          </Pressable>
+          {experience && experiencePhotoUrl(experience) ? (
+            <Image
+              source={{ uri: experiencePhotoUrl(experience) }}
+              style={styles.coverModalImage}
+              resizeMode="contain"
+            />
+          ) : null}
+        </Pressable>
       </Modal>
 
       <Modal visible={!!selectedAlbumPhotoUrl} transparent animationType="fade" onRequestClose={closeAlbumPhoto}>
@@ -2764,6 +2798,10 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '72%',
     borderRadius: 22,
+  },
+  coverModalImage: {
+    width: '100%',
+    height: '100%',
   },
   photoModalControls: {
     position: 'absolute',

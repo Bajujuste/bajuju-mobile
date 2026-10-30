@@ -142,7 +142,7 @@ export default function AdminCreateExperienceScreen() {
         return;
       }
 
-      const picked = await pickPhoto({ aspect: [16, 9], quality: 0.9 });
+      const picked = await pickPhoto({ aspect: [16, 9], quality: 0.9, fitWhole: true });
       if (!picked) return;
 
       const resized = await ImageManipulator.manipulateAsync(

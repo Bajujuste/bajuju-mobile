@@ -16,8 +16,9 @@ import {
 } from 'react-native';
 
 type PhotoResult = { uri: string; width: number; height: number };
-type PhotoOptions = { aspect?: [number, number]; quality?: number };
-type PendingPhoto = PhotoResult & { aspect?: [number, number] };
+/** fitWhole: si può ridurre fino a vedere tutta la foto, e si parte da lì. */
+type PhotoOptions = { aspect?: [number, number]; quality?: number; fitWhole?: boolean };
+type PendingPhoto = PhotoResult & { aspect?: [number, number]; fitWhole?: boolean };
 type Position = { x: number; y: number };
 
 const PINK = '#E43F98';
@@ -49,7 +50,10 @@ function PhotoReview({
   const frameHeight = ratio ? frameWidth / ratio : Math.min(frameWidth, viewportHeight * 0.46);
   const sourceWidth = Math.max(1, pending?.width || 1);
   const sourceHeight = Math.max(1, pending?.height || 1);
-  const displayScale = Math.max(frameWidth / sourceWidth, frameHeight / sourceHeight) * zoom;
+  const coverScale = Math.max(frameWidth / sourceWidth, frameHeight / sourceHeight);
+  const fitScale = Math.min(frameWidth / sourceWidth, frameHeight / sourceHeight);
+  const minZoom = pending?.fitWhole ? Math.min(1, fitScale / coverScale) : 1;
+  const displayScale = coverScale * zoom;
   const displayWidth = sourceWidth * displayScale;
   const displayHeight = sourceHeight * displayScale;
   const maxX = Math.max(0, (displayWidth - frameWidth) / 2);
@@ -58,8 +62,9 @@ function PhotoReview({
   useEffect(() => {
     positionRef.current = { x: 0, y: 0 };
     setPosition({ x: 0, y: 0 });
-    setZoom(1);
+    setZoom(minZoom);
     setSaving(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pending?.uri]);
 
   useEffect(() => {
@@ -135,7 +140,9 @@ function PhotoReview({
         </View>
         <Text style={styles.hint}>
           {ratio
-            ? 'Sposta la foto con il dito per scegliere cosa mostrare nel riquadro.'
+            ? pending?.fitWhole
+              ? 'Ora si vede tutta la foto. Se vuoi, ingrandisci e spostala con il dito.'
+              : 'Sposta la foto con il dito per scegliere cosa mostrare nel riquadro.'
             : 'Controlla la foto prima di confermarla.'}
         </Text>
         <View style={styles.stage}>
@@ -164,8 +171,8 @@ function PhotoReview({
             <View style={styles.zoomRow}>
               <Pressable
                 style={styles.zoomButton}
-                disabled={zoom <= 1 || saving}
-                onPress={() => setZoom(value => clamp(Math.round((value - 0.25) * 100) / 100, 1, 3))}
+                disabled={zoom <= minZoom || saving}
+                onPress={() => setZoom(value => clamp(Math.round((value - 0.25) * 100) / 100, minZoom, 3))}
                 accessibilityRole="button"
                 accessibilityLabel="Riduci foto"
               >
@@ -175,7 +182,7 @@ function PhotoReview({
               <Pressable
                 style={styles.zoomButton}
                 disabled={zoom >= 3 || saving}
-                onPress={() => setZoom(value => clamp(Math.round((value + 0.25) * 100) / 100, 1, 3))}
+                onPress={() => setZoom(value => clamp(Math.round((value + 0.25) * 100) / 100, minZoom, 3))}
                 accessibilityRole="button"
                 accessibilityLabel="Ingrandisci foto"
               >
@@ -248,7 +255,7 @@ export function useBajujuPhotoPicker() {
     });
     return await new Promise<PhotoResult | null>(resolve => {
       resolver.current = resolve;
-      setPending({ ...prepared, aspect: options.aspect });
+      setPending({ ...prepared, aspect: options.aspect, fitWhole: options.fitWhole });
     });
   }, []);
 

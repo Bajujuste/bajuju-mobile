@@ -1,3 +1,4 @@
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import * as Location from 'expo-location';
 import { router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
@@ -5,6 +6,7 @@ import {
   ActivityIndicator,
   Image,
   Modal,
+  Platform,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -85,6 +87,15 @@ function activityMoment(row: ActivityRow) {
 
 function formatDate(row: ActivityRow) {
   return experienceDateLabel(activityMoment(row), Boolean(row.activity_time));
+}
+
+// Giorno in formato YYYY-MM-DD in ora locale, come activity_date.
+function localDayKey(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function formatFilterDay(date: Date) {
+  return date.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' });
 }
 
 function formatDistance(distance: number) {
@@ -168,6 +179,9 @@ export default function ExperiencesScreen() {
   const [coordinates, setCoordinates] = useState<Coordinates | null>(null);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [allEventsVisibleCount, setAllEventsVisibleCount] = useState(PAGE_SIZE);
+  const [filterDate, setFilterDate] = useState<Date | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [pendingDate, setPendingDate] = useState<Date>(new Date());
   const [selectedPosterUrl, setSelectedPosterUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
@@ -390,7 +404,33 @@ export default function ExperiencesScreen() {
         : pastActivities;
 
   const visibleActivities = selectedActivities.slice(0, visibleCount);
-  const visibleAllEvents = allEventsActivities.slice(0, allEventsVisibleCount);
+  const dateFilteredAllEvents = useMemo(() => {
+    if (!filterDate) return allEventsActivities;
+    const day = localDayKey(filterDate);
+    return allEventsActivities.filter((row) => String(row.activity_date || '').slice(0, 10) === day);
+  }, [allEventsActivities, filterDate]);
+  const visibleAllEvents = dateFilteredAllEvents.slice(0, allEventsVisibleCount);
+
+  function openDatePicker() {
+    setPendingDate(filterDate || new Date());
+    setShowDatePicker(true);
+  }
+
+  function applyFilterDate(date: Date | null) {
+    setFilterDate(date);
+    setAllEventsVisibleCount(PAGE_SIZE);
+  }
+
+  function handleFilterDateChange(event: DateTimePickerEvent, selectedDate?: Date) {
+    if (Platform.OS === 'ios') {
+      // iOS emette i cambi mentre il calendario è aperto: si applica con "Mostra eventi".
+      if (selectedDate) setPendingDate(selectedDate);
+      return;
+    }
+    setShowDatePicker(false);
+    if (event.type === 'dismissed' || !selectedDate) return;
+    applyFilterDate(selectedDate);
+  }
 
   function selectMode(nextMode: Mode) {
     setMode(nextMode);
@@ -518,20 +558,82 @@ export default function ExperiencesScreen() {
         {mode === 'nearby' && !loading && !errorMessage ? (
           <View style={{ marginTop: 26 }}>
             <SectionHeader
-              title="Tutti gli eventi"
-              count={allEventsActivities.length}
-              detail="per data di svolgimento"
+              title={filterDate ? `Eventi di ${formatFilterDay(filterDate)}` : 'Tutti gli eventi'}
+              count={dateFilteredAllEvents.length}
+              detail={filterDate ? '' : 'per data di svolgimento'}
               hint="Scorri verso sinistra per vedere gli altri eventi."
             />
 
+            <View style={styles.dateFilterRow}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Scegli una data"
+                style={({ pressed }) => [styles.dateFilterButton, pressed && styles.pressed]}
+                onPress={openDatePicker}
+              >
+                <BajujuIcon name="calendar" size={18} color="#FFFFFF" />
+                <Text style={styles.dateFilterButtonText}>{filterDate ? 'Cambia data' : 'Scegli data'}</Text>
+              </Pressable>
+              {filterDate ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Togli la data e mostra tutti gli eventi"
+                  style={({ pressed }) => [styles.dateFilterClear, pressed && styles.pressed]}
+                  onPress={() => applyFilterDate(null)}
+                >
+                  <Text style={styles.dateFilterClearText}>✕  Tutte le date</Text>
+                </Pressable>
+              ) : null}
+            </View>
+
+            {showDatePicker ? (
+              Platform.OS === 'ios' ? (
+                <View style={styles.iosPickerContainer}>
+                  <DateTimePicker
+                    value={pendingDate}
+                    mode="date"
+                    display="inline"
+                    minimumDate={new Date()}
+                    locale="it-IT"
+                    onChange={handleFilterDateChange}
+                  />
+                  <View style={styles.iosPickerActions}>
+                    <Pressable onPress={() => setShowDatePicker(false)} style={styles.iosPickerAction}>
+                      <Text style={styles.iosPickerCancelText}>Annulla</Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => {
+                        applyFilterDate(pendingDate);
+                        setShowDatePicker(false);
+                      }}
+                      style={styles.iosPickerAction}
+                    >
+                      <Text style={styles.iosPickerConfirmText}>Mostra eventi</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              ) : (
+                <DateTimePicker
+                  value={pendingDate}
+                  mode="date"
+                  display="calendar"
+                  minimumDate={new Date()}
+                  onChange={handleFilterDateChange}
+                />
+              )
+            ) : null}
+
             {visibleAllEvents.length === 0 ? (
               <View style={styles.emptyCard}>
-                <Text style={styles.emptyTitle}>Nessun altro evento disponibile</Text>
-                <Text style={styles.emptyText}>Quando verranno pubblicate altre esperienze le troverai qui.</Text>
+                <Text style={styles.emptyTitle}>{filterDate ? 'Nessun evento in questa data' : 'Nessun altro evento disponibile'}</Text>
+                <Text style={styles.emptyText}>
+                  {filterDate ? 'Prova a scegliere un altro giorno.' : 'Quando verranno pubblicate altre esperienze le troverai qui.'}
+                </Text>
               </View>
             ) : (
               <>
                 <ScrollView
+                  key={filterDate ? localDayKey(filterDate) : 'all'}
                   horizontal
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={styles.cardsRow}
@@ -539,7 +641,7 @@ export default function ExperiencesScreen() {
                   onScroll={({ nativeEvent }) => {
                     const { contentOffset, layoutMeasurement, contentSize } = nativeEvent;
                     if (contentOffset.x + layoutMeasurement.width >= contentSize.width - 240) {
-                      setAllEventsVisibleCount((count) => Math.min(count + PAGE_SIZE, allEventsActivities.length));
+                      setAllEventsVisibleCount((count) => Math.min(count + PAGE_SIZE, dateFilteredAllEvents.length));
                     }
                   }}
                 >
@@ -728,6 +830,16 @@ const styles = StyleSheet.create({
   openButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#FFF0F7', alignItems: 'center', justifyContent: 'center' },
   waitlistButton: { borderRadius: 999, backgroundColor: '#FFF0F7', borderWidth: 1, borderColor: PINK, paddingHorizontal: 10, paddingVertical: 8 },
   waitlistButtonText: { color: PINK, fontFamily: 'FredokaSemiBold', fontSize: 12 },
+  dateFilterRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginBottom: 12 },
+  dateFilterButton: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999, backgroundColor: PINK },
+  dateFilterButtonText: { color: '#FFFFFF', fontFamily: 'FredokaSemiBold', fontSize: 14 },
+  dateFilterClear: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: LINE },
+  dateFilterClearText: { color: PLUM, fontFamily: 'FredokaSemiBold', fontSize: 14 },
+  iosPickerContainer: { marginBottom: 12, padding: 8, borderRadius: 22, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: LINE },
+  iosPickerActions: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 8, paddingBottom: 4 },
+  iosPickerAction: { paddingHorizontal: 12, paddingVertical: 10 },
+  iosPickerCancelText: { color: '#8D5E77', fontFamily: 'FredokaSemiBold', fontSize: 15 },
+  iosPickerConfirmText: { color: PINK, fontFamily: 'FredokaBold', fontSize: 15 },
   moreButton: { marginTop: 14, alignSelf: 'center', paddingHorizontal: 20, paddingVertical: 12, borderRadius: 999, backgroundColor: PINK },
   moreButtonText: { color: '#ffffff', fontFamily: 'FredokaSemiBold', fontSize: 15 },
   emptyCard: { minHeight: 170, borderRadius: 22, padding: 24, backgroundColor: '#ffffff', borderWidth: 1, borderColor: LINE, alignItems: 'center', justifyContent: 'center' },

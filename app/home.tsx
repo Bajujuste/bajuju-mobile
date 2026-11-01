@@ -1,7 +1,7 @@
 import * as Location from 'expo-location';
 import React, { useEffect, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Alert } from 'react-native';
+import { Alert, AppState, Linking } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 
 import { BajujuHomeView, HomeGroupPreview, HomeNearbyExperience } from '../src/components/home/BajujuHomeView';
@@ -13,6 +13,7 @@ import { experienceDateLabel } from '../src/utils/experienceDateLabel';
 import { shareBajujuHome } from '../src/utils/shareBajuju';
 import { getBajujuNotificationCategory, BajujuNotificationCategory } from '../src/utils/bajujuNotificationCategories';
 import {
+  getBajujuPushPermission,
   refreshBajujuPushRegistrationIfAuthorized,
   registerForBajujuPushNotifications,
 } from '../src/utils/bajujuNotifications';
@@ -79,6 +80,50 @@ export default function HomeScreen() {
       if (!locationResult.ok) console.log('Posizione per notifiche vicine non aggiornata.');
     }
 
+    // Avviso mostrato una sola volta a chi non riceve le notifiche (No, notifiche spente o permesso negato).
+    async function showNotificationReminder(userId: string) {
+      const reminderKey = `bajuju-notification-reminder-v1:${userId}`;
+      if (await AsyncStorage.getItem(reminderKey)) return;
+      const permission = await getBajujuPushPermission();
+      if (!permission || !active) return;
+      await AsyncStorage.setItem(reminderKey, 'shown');
+
+      Alert.alert(
+        'Non perderti gli eventi vicino a te',
+        'Senza notifiche non sai quando qualcuno organizza qualcosa nella tua zona. Attivale e ti avvisiamo subito.',
+        [
+          { text: 'Non ora', style: 'cancel' },
+          {
+            text: 'Attiva notifiche',
+            onPress: () => {
+              void (async () => {
+                await AsyncStorage.setItem(`bajuju-notification-choice-v2:${userId}`, 'accepted');
+                const saveResult = await supabase.from('notification_preferences').upsert(
+                  { user_id: userId, enabled: true, updated_at: new Date().toISOString() },
+                  { onConflict: 'user_id' }
+                );
+                if (saveResult.error) console.log('Preferenza notifiche Sì non salvata su Supabase.');
+
+                if (permission.granted || permission.canAskAgain) {
+                  await activateNotificationServices(userId);
+                  return;
+                }
+
+                // Il telefono non chiede più il permesso: si accendono dalle impostazioni.
+                // Al ritorno nell'app si registra il telefono.
+                const subscription = AppState.addEventListener('change', (state) => {
+                  if (state !== 'active') return;
+                  subscription.remove();
+                  void activateNotificationServices(userId).catch(() => null);
+                });
+                await Linking.openSettings();
+              })().catch(() => console.log('Attivazione notifiche dall\'avviso non riuscita.'));
+            },
+          },
+        ]
+      );
+    }
+
     async function setupBajujuNotifications() {
       try {
         const authResult = await supabase.auth.getUser();
@@ -105,15 +150,23 @@ export default function HomeScreen() {
           .maybeSingle();
 
         const notificationsEnabledInDb = !preferenceResult.error && preferenceResult.data?.enabled === true;
+        const notificationsDisabledInDb = !preferenceResult.error && preferenceResult.data?.enabled === false;
         if (!active) return;
 
-        if (localChoice === 'accepted' || notificationsEnabledInDb) {
+        if (notificationsEnabledInDb || (localChoice === 'accepted' && !notificationsDisabledInDb)) {
           await AsyncStorage.setItem(localChoiceKey, 'accepted');
           await activateNotificationServices(userId);
+          const permission = await getBajujuPushPermission();
+          if (permission && !permission.granted) await showNotificationReminder(userId);
           return;
         }
 
-        if (localChoice === 'declined' || notificationPromptRunningRef.current) return;
+        if (localChoice === 'declined' || notificationsDisabledInDb) {
+          await showNotificationReminder(userId);
+          return;
+        }
+
+        if (notificationPromptRunningRef.current) return;
 
         notificationPromptRunningRef.current = true;
         Alert.alert(

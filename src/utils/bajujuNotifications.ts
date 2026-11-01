@@ -324,3 +324,12 @@ export async function sendBajujuPushNotification(input: SendBajujuPushInput) {
     data: result.data,
   };
 }
+
+// Stato del permesso notifiche del telefono, senza chiederlo.
+export async function getBajujuPushPermission() {
+  if (Platform.OS === 'web' || isRunningInExpoGo() || !Device.isDevice || __DEV__) return null;
+  const Notifications = await getNotificationsModule();
+  if (!Notifications) return null;
+  const permission = await Notifications.getPermissionsAsync();
+  return { granted: permission.status === 'granted', canAskAgain: permission.canAskAgain !== false };
+}

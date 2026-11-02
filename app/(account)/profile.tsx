@@ -71,6 +71,8 @@ type ActivityItem = {
   raw: LooseRow;
 };
 
+const PROFILE_DRAFT_KEY = 'bajuju-profile-draft-v1';
+
 const GENDER_OPTIONS = [
   { value: 'maschio', label: 'Uomo' },
   { value: 'femmina', label: 'Donna' },
@@ -469,6 +471,31 @@ export default function ProfileScreen() {
   const profileComplete = profileCompletion.complete;
   const preciseAgeRequired = profileCompletion.missing.includes('età');
 
+  // Cosa manca ancora, calcolato da quello che l'utente ha scritto (anche se non ancora salvato).
+  const missingNow = useMemo(() => {
+    const missing: string[] = [];
+    const numericAge = Number(ageRange.trim());
+    if (!photoUrl) missing.push('la foto');
+    if (!homeCity.trim()) missing.push('di dove sei');
+    if (!Number.isInteger(numericAge) || numericAge < 18 || numericAge > 80) missing.push('l’età');
+    if (!GENDER_OPTIONS.some((option) => option.value === gender)) missing.push('il genere');
+    return missing;
+  }, [ageRange, gender, homeCity, photoUrl]);
+
+  // Finché il profilo non è completo teniamo una bozza di quello che l'utente scrive:
+  // caricare la foto, aprire un'altra pagina o aggiornare ricaricano il profilo dal database
+  // e prima cancellavano città, età e genere non ancora salvati.
+  useEffect(() => {
+    if (loading || !user?.id || profileComplete) return;
+    const draft = {
+      homeCity,
+      ageRange,
+      gender,
+      profileName: profileNameLocked ? '' : profileName,
+    };
+    AsyncStorage.setItem(`${PROFILE_DRAFT_KEY}:${user.id}`, JSON.stringify(draft)).catch(() => {});
+  }, [ageRange, gender, homeCity, loading, profileComplete, profileName, profileNameLocked, user?.id]);
+
   const profileIdField = useMemo(() => {
     return 'id';
   }, []);
@@ -817,6 +844,24 @@ export default function ProfileScreen() {
         // Se la tabella non è disponibile, manteniamo il valore predefinito.
       }
 
+      if (!hasCompleteRequiredProfile(currentProfile)) {
+        try {
+          const rawDraft = await AsyncStorage.getItem(`${PROFILE_DRAFT_KEY}:${currentUser.id}`);
+          const draft = rawDraft ? JSON.parse(rawDraft) : null;
+          if (draft && typeof draft === 'object') {
+            if (typeof draft.homeCity === 'string' && draft.homeCity.trim()) setHomeCity(draft.homeCity.slice(0, 25));
+            if (typeof draft.ageRange === 'string' && draft.ageRange.trim()) setAgeRange(draft.ageRange.slice(0, 2));
+            if (typeof draft.gender === 'string' && draft.gender.trim()) setGender(draft.gender);
+            const savedName = firstText(currentProfile, ['nickname', 'username', 'display_name', 'full_name', 'name', 'nome'], '');
+            if (!savedName && typeof draft.profileName === 'string' && draft.profileName.trim()) {
+              setProfileName(draft.profileName);
+            }
+          }
+        } catch {
+          // Bozza non leggibile: restano i dati del database.
+        }
+      }
+
       const admin = await checkAdmin(currentProfile);
       setIsAdmin(admin);
 
@@ -1098,6 +1143,7 @@ export default function ProfileScreen() {
         }
       }
 
+      await AsyncStorage.removeItem(`${PROFILE_DRAFT_KEY}:${user.id}`).catch(() => {});
       await loadAll();
       router.replace('/home');
     } catch (error: unknown) {
@@ -1478,6 +1524,15 @@ export default function ProfileScreen() {
         </Pressable>
       ) : null}
 
+      {!profileComplete && missingNow.length > 0 ? (
+        <View style={styles.missingNotice}>
+          <Text style={styles.requiredAgeNoticeTitle}>Completa il profilo per entrare in Bajuju</Text>
+          <Text style={styles.requiredAgeNoticeText}>
+            Ti mancano: {missingNow.join(', ')}. Puoi compilarli nell’ordine che vuoi, poi tocca Continua.
+          </Text>
+        </View>
+      ) : null}
+
       <View style={styles.card}>
         {preciseAgeRequired ? (
           <View style={styles.requiredAgeNotice}>
@@ -1731,7 +1786,7 @@ export default function ProfileScreen() {
       </Pressable>
     </KeyboardAwareScrollView>
     <BajujuActionBar withBottomNav={profileComplete}>
-      <BajujuButton label={saving ? 'Salvataggio...' : 'Salva modifiche'} onPress={saveProfile} disabled={saving} />
+      <BajujuButton label={saving ? 'Salvataggio...' : profileComplete ? 'Salva modifiche' : 'Continua'} onPress={saveProfile} disabled={saving} />
     </BajujuActionBar>
     {profileComplete ? <BajujuBottomNav active="profile" /> : null}
     </View>
@@ -2388,6 +2443,14 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: 'FredokaBold',
     color: '#8D5E77',
+  },
+  missingNotice: {
+    marginBottom: 14,
+    borderRadius: 18,
+    borderWidth: 2,
+    borderColor: '#E43F98',
+    backgroundColor: '#FFF0F7',
+    padding: 15,
   },
   requiredAgeNotice: {
     marginBottom: 18,

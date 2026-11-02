@@ -235,6 +235,16 @@ export default function RegisterScreen() {
           return;
         }
 
+        // La spunta su Termini e Privacy prima non veniva salvata da nessuna parte.
+        try {
+          await supabase
+            .from('profiles')
+            .update({ terms_accepted_at: new Date().toISOString() })
+            .eq('id', newUserId);
+        } catch {
+          // Non bloccare la registrazione se questo salvataggio non riesce.
+        }
+
         setMessageTitle('Registrazione avvenuta con successo');
         setMessageText('Il tuo account è stato creato. Ora completa il profilo.');
         await new Promise((resolve) => setTimeout(resolve, 1600));

@@ -1,5 +1,7 @@
 import * as Location from 'expo-location';
 
+import { resolveAddressText } from '../lib/addressAutocomplete';
+
 export type BajujuCoordinates = { latitude: number; longitude: number };
 
 // Alcuni Android restituiscono una "ultima posizione" finta a 0,0 (in mezzo all'oceano):
@@ -33,10 +35,14 @@ export async function getUsableDevicePosition(options?: {
   const fromLastKnown = lastKnown ? toUsableCoordinates(lastKnown.coords.latitude, lastKnown.coords.longitude) : null;
   if (fromLastKnown) return fromLastKnown;
 
-  const current = await Location.getCurrentPositionAsync({
-    accuracy: options?.accuracy ?? Location.Accuracy.Balanced,
-  });
-  return toUsableCoordinates(current.coords.latitude, current.coords.longitude);
+  // Su alcuni telefoni il GPS non risponde mai: dopo 10 secondi si passa al ripiego (città del profilo).
+  const current = await Promise.race([
+    Location.getCurrentPositionAsync({
+      accuracy: options?.accuracy ?? Location.Accuracy.Balanced,
+    }),
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), 10000)),
+  ]);
+  return current ? toUsableCoordinates(current.coords.latitude, current.coords.longitude) : null;
 }
 
 // Coordinate della città del profilo, usate quando il telefono non dà una posizione valida.
@@ -45,7 +51,14 @@ export async function geocodeProfilePlace(city: unknown, province: unknown): Pro
   if (!place) return null;
   try {
     const [match] = await Location.geocodeAsync(`${place}, Italia`);
-    return match ? toUsableCoordinates(match.latitude, match.longitude) : null;
+    const fromPhone = match ? toUsableCoordinates(match.latitude, match.longitude) : null;
+    if (fromPhone) return fromPhone;
+  } catch {
+    // Alcuni telefoni non hanno il geocoder di sistema: proviamo con il nostro server.
+  }
+  try {
+    const resolved = await resolveAddressText(`${place}, Italia`);
+    return toUsableCoordinates(resolved.latitude, resolved.longitude);
   } catch {
     return null;
   }

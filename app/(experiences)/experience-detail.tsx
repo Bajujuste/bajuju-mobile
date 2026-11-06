@@ -709,7 +709,8 @@ export default function ExperienceDetailScreen() {
       if (String(data?.status || '') === 'pending') {
         setJoinState('pending');
         const organizerId = getExperienceCreatorId(experience);
-        if (organizerId && organizerId !== currentUserId) {
+        // Se il server ha già avvisato l'organizzatore non mandiamo un secondo avviso.
+        if (organizerId && organizerId !== currentUserId && data?.notified !== true) {
           await sendBajujuPushNotification({
             type: 'experience_join_request',
             targetUserId: organizerId,
@@ -718,7 +719,12 @@ export default function ExperienceDetailScreen() {
             console.log('Errore notifica richiesta partecipazione.');
           });
         }
-        Alert.alert('Richiesta inviata', 'L’organizzatore vedrà la tua richiesta direttamente dentro l’esperienza.');
+        Alert.alert(
+          'Richiesta inviata',
+          data?.notified === true
+            ? 'Abbiamo chiesto all’organizzatore l’autorizzazione per la tua iscrizione.'
+            : 'L’organizzatore vedrà la tua richiesta direttamente dentro l’esperienza.'
+        );
         return;
       }
 
@@ -1381,7 +1387,7 @@ export default function ExperienceDetailScreen() {
         style={styles.participantRow}
         onPress={() => openParticipantProfile(userId)}
       >
-        <BajujuAdminRing size={44} isAdmin={adminIds.has(userId)}>
+        <BajujuAdminRing size={44} isAdmin={adminIds.has(userId)} userId={userId}>
           <Image
             source={photo ? { uri: photo } : bajujuLogo}
             style={[styles.participantPhoto, isCreator && styles.participantPhotoOrganizer]}
@@ -1590,6 +1596,7 @@ export default function ExperienceDetailScreen() {
                             key={`${userId}-${index}`}
                             size={34}
                             isAdmin={isAdminUser}
+                            userId={userId}
                             style={[index > 0 && styles.stackAvatarOverlap, isAdminUser && styles.stackAvatarAdmin]}
                           >
                             <Image
@@ -1659,7 +1666,7 @@ export default function ExperienceDetailScreen() {
                                   router.push({ pathname: '/user-profile' as any, params: { userId: requestUserId } });
                                 }}
                               >
-                                <BajujuAdminRing size={44} isAdmin={adminIds.has(requestUserId)}>
+                                <BajujuAdminRing size={44} isAdmin={adminIds.has(requestUserId)} userId={requestUserId}>
                                   <Image
                                     source={avatarUrl ? { uri: avatarUrl } : bajujuLogo}
                                     style={styles.requestAvatar}

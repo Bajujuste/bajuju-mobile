@@ -23,6 +23,12 @@ import { BajujuBackButton, BajujuRoundIconButton } from '../../src/components/na
 import { BajujuActionBar, BajujuButton } from '../../src/components/BajujuActionBar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BajujuAdminRing } from '../../src/components/profile/BajujuAdminRing';
+import { Ionicons } from '@expo/vector-icons';
+import {
+  addToBajujuBlacklist,
+  removeFromBajujuBlacklist,
+  useIsBajujuBlacklisted,
+} from '../../src/hooks/useBajujuBlacklist';
 import { BAJUJU_COLORS } from '../../src/theme/bajujuTheme';
 
 const bajujuLogo = require('../../assets/brand/bajuju-logo.png');
@@ -133,6 +139,8 @@ export default function UserProfileScreen() {
   const [viewerIsAdmin, setViewerIsAdmin] = useState(false);
   const [reportingUser, setReportingUser] = useState(false);
   const [blockingUser, setBlockingUser] = useState(false);
+  const [blacklistBusy, setBlacklistBusy] = useState(false);
+  const isInMyBlacklist = useIsBajujuBlacklisted(userId);
   const [isBlockedByMe, setIsBlockedByMe] = useState(false);
   const [organizedCount, setOrganizedCount] = useState(0);
   const [participatedCount, setParticipatedCount] = useState(0);
@@ -295,6 +303,29 @@ export default function UserProfileScreen() {
       Alert.alert('Segnalazione inviata', 'Grazie, controlleremo questo profilo.');
     } finally {
       setReportingUser(false);
+    }
+  }
+
+  async function toggleBlacklist() {
+    if (!userId || blacklistBusy) return;
+    if (!currentUserId || currentUserId === userId) return;
+
+    setBlacklistBusy(true);
+    try {
+      if (isInMyBlacklist) {
+        await removeFromBajujuBlacklist(userId);
+        Alert.alert('Tolto dalla blacklist', 'Il cerchio nero non comparirà più.');
+      } else {
+        await addToBajujuBlacklist(userId);
+        Alert.alert(
+          'Messo in blacklist',
+          'Lo vedrai con il cerchio nero. Lo sai solo tu: per entrare nei tuoi eventi e gruppi dovrà chiederti il permesso.'
+        );
+      }
+    } catch (error: any) {
+      Alert.alert('Operazione non riuscita', String(error?.message || 'Riprova tra poco.'));
+    } finally {
+      setBlacklistBusy(false);
     }
   }
 
@@ -511,6 +542,19 @@ export default function UserProfileScreen() {
           </Text>
         </Pressable>
       ) : null}
+
+      {!isAdminOrCreator && currentUserId && currentUserId !== userId ? (
+        <Pressable
+          style={[styles.blacklistButton, isInMyBlacklist && styles.blacklistButtonActive]}
+          onPress={() => { void toggleBlacklist(); }}
+          disabled={blacklistBusy}
+        >
+          <Ionicons name="book" size={16} color={isInMyBlacklist ? '#111111' : '#ffffff'} />
+          <Text style={[styles.blacklistText, isInMyBlacklist && styles.blacklistTextActive]}>
+            {blacklistBusy ? 'Aggiorno...' : isInMyBlacklist ? 'Togli dalla blacklist' : 'Metti in blacklist'}
+          </Text>
+        </Pressable>
+      ) : null}
     </>
   ) : null;
 
@@ -575,8 +619,13 @@ export default function UserProfileScreen() {
           </View>
 
           <View style={styles.identity}>
-            <BajujuAdminRing size={132} isAdmin={isAdminOrCreator} style={styles.adminRing}>
-              <View style={[styles.photoFrame, photoFrameStyle, isAdminOrCreator && styles.photoFrameInRing]}>
+            <BajujuAdminRing
+              size={132}
+              isAdmin={isAdminOrCreator}
+              userId={userId}
+              style={styles.adminRing}
+            >
+              <View style={[styles.photoFrame, photoFrameStyle, (isAdminOrCreator || isInMyBlacklist) && styles.photoFrameInRing]}>
                 <Image source={photo ? { uri: photo } : bajujuLogo} style={styles.photo} resizeMode="cover" />
               </View>
             </BajujuAdminRing>
@@ -823,6 +872,29 @@ const styles = StyleSheet.create({
     color: '#8D5E77',
     fontSize: 13,
     fontFamily: 'FredokaBold',
+  },
+  blacklistButton: {
+    marginTop: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderRadius: 999,
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    backgroundColor: '#1c1c1c',
+    borderWidth: 1,
+    borderColor: '#1c1c1c',
+  },
+  blacklistButtonActive: {
+    backgroundColor: '#ffffff',
+  },
+  blacklistText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontFamily: 'FredokaBold',
+  },
+  blacklistTextActive: {
+    color: '#111111',
   },
   statsGrid: {
     flexDirection: 'row',

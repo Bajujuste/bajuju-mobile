@@ -62,8 +62,11 @@ Deno.serve(async (request) => {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
-  const [mainAdminResult, threadResult, messageResult] = await Promise.all([
-    supabase.rpc('bajuju_main_admin_id'),
+  const [adminsResult, threadResult, messageResult] = await Promise.all([
+    supabase
+      .from('profiles')
+      .select('id,is_deleted')
+      .eq('is_admin', true),
     supabase
       .from('admin_private_threads')
       .select('id,user_id')
@@ -76,14 +79,18 @@ Deno.serve(async (request) => {
       .maybeSingle(),
   ]);
 
-  if (mainAdminResult.error || threadResult.error || messageResult.error) {
+  if (adminsResult.error || threadResult.error || messageResult.error) {
     return jsonResponse({ ok: false, error: 'DATABASE_READ_FAILED' }, 500);
   }
 
-  const mainAdminId = String(mainAdminResult.data || '');
+  // Tutti gli admin attivi leggono e ricevono i messaggi "Chiedi a Bajuju".
+  const adminIds = (adminsResult.data || [])
+    .filter((row: Record<string, unknown>) => row.is_deleted !== true)
+    .map((row: Record<string, unknown>) => String(row.id || ''))
+    .filter(Boolean);
   const threadUserId = String(threadResult.data?.user_id || '');
 
-  if (!mainAdminId || !threadResult.data || !threadUserId) {
+  if (adminIds.length === 0 || !threadResult.data || !threadUserId) {
     return jsonResponse({ ok: false, error: 'THREAD_OR_ADMIN_NOT_FOUND' }, 404);
   }
 
@@ -95,14 +102,15 @@ Deno.serve(async (request) => {
     return jsonResponse({ ok: false, error: 'INVALID_MESSAGE' }, 403);
   }
 
-  const adminToUser = actorUserId === mainAdminId && threadUserId !== mainAdminId;
-  const userToAdmin = actorUserId === threadUserId && actorUserId !== mainAdminId;
+  const actorIsAdmin = adminIds.includes(actorUserId);
+  const adminToUser = actorIsAdmin && threadUserId !== actorUserId;
+  const userToAdmin = actorUserId === threadUserId && !actorIsAdmin;
 
   if (!adminToUser && !userToAdmin) {
     return jsonResponse({ ok: false, error: 'NOT_A_THREAD_PARTICIPANT' }, 403);
   }
 
-  let recipientUserId = '';
+  let recipientIds: string[] = [];
   let notificationType = '';
   let title = '';
 
@@ -111,11 +119,11 @@ Deno.serve(async (request) => {
       return jsonResponse({ ok: false, error: 'INVALID_TARGET_THREAD' }, 403);
     }
 
-    recipientUserId = threadUserId;
+    recipientIds = [threadUserId];
     notificationType = 'admin_message';
     title = 'Messaggio da Bajuju';
   } else {
-    recipientUserId = mainAdminId;
+    recipientIds = adminIds;
     notificationType = 'support_message';
 
     const profileResult = await supabase
@@ -128,18 +136,6 @@ Deno.serve(async (request) => {
     title = `${senderName} ha scritto a Bajuju`;
   }
 
-  const existingLogResult = await supabase
-    .from('push_notification_logs')
-    .select('id')
-    .eq('user_id', recipientUserId)
-    .eq('notification_type', notificationType)
-    .contains('data', { messageId })
-    .limit(1);
-
-  if (!existingLogResult.error && (existingLogResult.data || []).length > 0) {
-    return jsonResponse({ ok: true, sent: 0, duplicate: true });
-  }
-
   const fullMessage = cleanText(messageResult.data.message, 2000);
   const preview = fullMessage.length > 150 ? `${fullMessage.slice(0, 147)}...` : fullMessage;
   const data = {
@@ -149,146 +145,169 @@ Deno.serve(async (request) => {
     messageId,
   };
 
-  const logInsertResult = await supabase
-    .from('push_notification_logs')
-    .insert({
-      user_id: recipientUserId,
-      notification_type: notificationType,
-      type: notificationType,
+  async function deliver(recipientUserId: string): Promise<Record<string, unknown>> {
+    const existingLogResult = await supabase
+      .from('push_notification_logs')
+      .select('id')
+      .eq('user_id', recipientUserId)
+      .eq('notification_type', notificationType)
+      .contains('data', { messageId })
+      .limit(1);
+
+    if (!existingLogResult.error && (existingLogResult.data || []).length > 0) {
+      return { ok: true, sent: 0, duplicate: true };
+    }
+
+    const logInsertResult = await supabase
+      .from('push_notification_logs')
+      .insert({
+        user_id: recipientUserId,
+        notification_type: notificationType,
+        type: notificationType,
+        title,
+        body: preview,
+        data,
+        status: 'in_app',
+        success: null,
+        error: null,
+        is_read: false,
+      })
+      .select('id')
+      .maybeSingle();
+
+    if (logInsertResult.error || !logInsertResult.data?.id) {
+      return { ok: false, sent: 0, error: 'NOTIFICATION_LOG_FAILED' };
+    }
+
+    const logId = String(logInsertResult.data.id);
+
+    const preferenceResult = await supabase
+      .from('notification_preferences')
+      .select('enabled')
+      .eq('user_id', recipientUserId)
+      .maybeSingle();
+
+    const pushEnabled = !preferenceResult.error && preferenceResult.data?.enabled !== false;
+
+    if (!pushEnabled) {
+      await supabase
+        .from('push_notification_logs')
+        .update({
+          status: 'in_app_only',
+          success: false,
+          error: 'Push disattivata nelle preferenze utente.',
+        })
+        .eq('id', logId);
+
+      return { ok: true, sent: 0, inAppRegistered: 1, reason: 'PUSH_DISABLED' };
+    }
+
+    const tokensResult = await supabase
+      .from('push_tokens')
+      .select('expo_push_token')
+      .eq('user_id', recipientUserId)
+      .eq('is_active', true);
+
+    if (tokensResult.error) {
+      return { ok: false, sent: 0, error: tokensResult.error.message };
+    }
+
+    const tokens = [...new Set(
+      (tokensResult.data || [])
+        .map((row: Record<string, unknown>) => String(row.expo_push_token || '').trim())
+        .filter((token: string) => token.startsWith('ExponentPushToken[') || token.startsWith('ExpoPushToken['))
+    )];
+
+    if (tokens.length === 0) {
+      await supabase
+        .from('push_notification_logs')
+        .update({
+          status: 'in_app_only',
+          success: false,
+          error: 'Nessun push token valido.',
+        })
+        .eq('id', logId);
+
+      return { ok: true, sent: 0, inAppRegistered: 1, reason: 'NO_PUSH_TOKEN' };
+    }
+
+    const pushMessages = tokens.map((token) => ({
+      to: token,
+      sound: 'default',
       title,
       body: preview,
+      channelId: 'bajuju-important',
+      priority: 'high',
       data,
-      status: 'in_app',
-      success: null,
-      error: null,
-      is_read: false,
-    })
-    .select('id')
-    .maybeSingle();
+    }));
 
-  if (logInsertResult.error || !logInsertResult.data?.id) {
-    return jsonResponse({ ok: false, error: 'NOTIFICATION_LOG_FAILED' }, 500);
-  }
+    const expoResponse = await fetch('https://exp.host/--/api/v2/push/send', {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Accept-encoding': 'gzip, deflate',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(pushMessages),
+    });
 
-  const logId = String(logInsertResult.data.id);
+    const expoResult = await expoResponse.json().catch(() => null);
 
-  const preferenceResult = await supabase
-    .from('notification_preferences')
-    .select('enabled')
-    .eq('user_id', recipientUserId)
-    .maybeSingle();
-
-  const pushEnabled = !preferenceResult.error && preferenceResult.data?.enabled !== false;
-
-  if (!pushEnabled) {
-    await supabase
-      .from('push_notification_logs')
-      .update({
-        status: 'in_app_only',
-        success: false,
-        error: 'Push disattivata nelle preferenze utente.',
-      })
-      .eq('id', logId);
-
-    return jsonResponse({ ok: true, sent: 0, inAppRegistered: 1, reason: 'PUSH_DISABLED' });
-  }
-
-  const tokensResult = await supabase
-    .from('push_tokens')
-    .select('expo_push_token')
-    .eq('user_id', recipientUserId)
-    .eq('is_active', true);
-
-  if (tokensResult.error) {
-    return jsonResponse({ ok: false, error: tokensResult.error.message }, 500);
-  }
-
-  const tokens = [...new Set(
-    (tokensResult.data || [])
-      .map((row: Record<string, unknown>) => String(row.expo_push_token || '').trim())
-      .filter((token: string) => token.startsWith('ExponentPushToken[') || token.startsWith('ExpoPushToken['))
-  )];
-
-  if (tokens.length === 0) {
-    await supabase
-      .from('push_notification_logs')
-      .update({
-        status: 'in_app_only',
-        success: false,
-        error: 'Nessun push token valido.',
-      })
-      .eq('id', logId);
-
-    return jsonResponse({ ok: true, sent: 0, inAppRegistered: 1, reason: 'NO_PUSH_TOKEN' });
-  }
-
-  const pushMessages = tokens.map((token) => ({
-    to: token,
-    sound: 'default',
-    title,
-    body: preview,
-    channelId: 'bajuju-important',
-    priority: 'high',
-    data,
-  }));
-
-  const expoResponse = await fetch('https://exp.host/--/api/v2/push/send', {
-    method: 'POST',
-    headers: {
-      Accept: 'application/json',
-      'Accept-encoding': 'gzip, deflate',
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(pushMessages),
-  });
-
-  const expoResult = await expoResponse.json().catch(() => null);
-
-  if (!expoResponse.ok) {
-    await supabase
-      .from('push_notification_logs')
-      .update({
-        status: 'push_error',
-        success: false,
-        error: `Expo push HTTP ${expoResponse.status}`,
-      })
-      .eq('id', logId);
-
-    return jsonResponse({ ok: false, error: 'EXPO_PUSH_FAILED', inAppRegistered: 1 }, 502);
-  }
-
-  const tickets = Array.isArray(expoResult?.data) ? expoResult.data : [];
-  let sent = 0;
-
-  for (let index = 0; index < tokens.length; index += 1) {
-    const ticket = tickets[index];
-    if (!ticket || ticket.status === 'ok') {
-      sent += 1;
-      continue;
-    }
-
-    if (ticket?.details?.error === 'DeviceNotRegistered') {
+    if (!expoResponse.ok) {
       await supabase
-        .from('push_tokens')
-        .update({ is_active: false })
-        .eq('expo_push_token', tokens[index]);
+        .from('push_notification_logs')
+        .update({
+          status: 'push_error',
+          success: false,
+          error: `Expo push HTTP ${expoResponse.status}`,
+        })
+        .eq('id', logId);
+
+      return { ok: false, sent: 0, error: 'EXPO_PUSH_FAILED', inAppRegistered: 1 };
     }
+
+    const tickets = Array.isArray(expoResult?.data) ? expoResult.data : [];
+    let sent = 0;
+
+    for (let index = 0; index < tokens.length; index += 1) {
+      const ticket = tickets[index];
+      if (!ticket || ticket.status === 'ok') {
+        sent += 1;
+        continue;
+      }
+
+      if (ticket?.details?.error === 'DeviceNotRegistered') {
+        await supabase
+          .from('push_tokens')
+          .update({ is_active: false })
+          .eq('expo_push_token', tokens[index]);
+      }
+    }
+
+    await supabase
+      .from('push_notification_logs')
+      .update({
+        status: sent > 0 ? 'sent' : 'in_app_only',
+        success: sent > 0,
+        error: sent > 0 ? null : 'Push non consegnata da Expo.',
+      })
+      .eq('id', logId);
+
+    return { ok: true, sent, inAppRegistered: 1 };
   }
 
-  await supabase
-    .from('push_notification_logs')
-    .update({
-      status: sent > 0 ? 'sent' : 'in_app_only',
-      success: sent > 0,
-      error: sent > 0 ? null : 'Push non consegnata da Expo.',
-    })
-    .eq('id', logId);
+  const results = [];
+  for (const recipientUserId of recipientIds) {
+    results.push({ recipientUserId, ...(await deliver(recipientUserId)) });
+  }
+
+  const sent = results.reduce((total, row) => total + Number(row.sent || 0), 0);
 
   return jsonResponse({
-    ok: true,
+    ok: results.some((row) => row.ok === true),
     sent,
-    inAppRegistered: 1,
+    recipients: results.length,
     direction: adminToUser ? 'admin_to_user' : 'user_to_admin',
-    expoResult,
+    results,
   });
 });

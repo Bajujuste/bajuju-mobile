@@ -141,12 +141,18 @@ export default function AdminSupportInboxScreen() {
 
   const summaryByThread = useMemo(() => {
     const summaries: Record<string, { latest?: MessageRow; unread: number }> = {};
+    const threadOwner: Record<string, string> = {};
+    threads.forEach((thread) => {
+      threadOwner[thread.id] = thread.user_id;
+    });
 
     messages.forEach((message) => {
       if (!summaries[message.thread_id]) {
         summaries[message.thread_id] = { latest: message, unread: 0 };
       }
       if (
+        // Conta solo i messaggi dell'utente: le risposte degli altri admin non sono "da leggere".
+        message.sender_id === threadOwner[message.thread_id] &&
         message.sender_id !== currentUserId &&
         !message.read_at
       ) {
@@ -155,7 +161,7 @@ export default function AdminSupportInboxScreen() {
     });
 
     return summaries;
-  }, [currentUserId, messages]);
+  }, [currentUserId, messages, threads]);
 
   return (
     <SafeAreaView style={styles.safeArea}>

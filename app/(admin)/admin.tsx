@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 
 import { countPendingLocationRequests } from '../../src/lib/bajujuLocations';
+import { countSupportUnreadForAdmins } from '../../src/lib/bajujuSupport';
 import { supabase } from '../../src/lib/supabase';
 import { BajujuBackButton } from '../../src/components/navigation/BajujuBackButton';
 
@@ -196,17 +197,7 @@ async function countPendingGroups() {
 
 async function countSupportUnread() {
   try {
-    const authResult = await supabase.auth.getUser();
-    const userId = authResult.data.user?.id || '';
-    if (!userId) return 0;
-
-    const result = await supabase
-      .from('admin_private_messages')
-      .select('id', { count: 'exact', head: true })
-      .neq('sender_id', userId)
-      .is('read_at', null);
-
-    return result.error ? 0 : result.count || 0;
+    return await countSupportUnreadForAdmins();
   } catch {
     return 0;
   }

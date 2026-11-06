@@ -3,19 +3,22 @@ import { router, useGlobalSearchParams, usePathname } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
 
+import { countSupportUnreadForAdmins, isActiveAdmin } from '../../lib/bajujuSupport';
 import { supabase } from '../../lib/supabase';
 import { BAJUJU_COLORS, BAJUJU_FONTS, BAJUJU_SHADOW } from '../../theme/bajujuTheme';
 
 async function loadProfileChatSummary(userId: string) {
-  const mainAdminResult = await supabase.rpc('bajuju_main_admin_id' as any);
-  const isMainAdmin = !mainAdminResult.error && String(mainAdminResult.data || '') === userId;
+  // Ogni admin attivo vede "Messaggi Bajuju" con i messaggi di tutti gli utenti.
+  if (await isActiveAdmin(userId)) {
+    return { isAdmin: true, unread: await countSupportUnreadForAdmins() };
+  }
 
   const threadResult = await supabase
     .from('admin_private_threads')
     .select('id')
     .eq('user_id', userId)
     .maybeSingle();
-  if (threadResult.error || !threadResult.data?.id) return { isMainAdmin, unread: 0 };
+  if (threadResult.error || !threadResult.data?.id) return { isAdmin: false, unread: 0 };
 
   const countResult = await supabase
     .from('admin_private_messages')
@@ -24,7 +27,7 @@ async function loadProfileChatSummary(userId: string) {
     .neq('sender_id', userId)
     .is('read_at', null);
 
-  return { isMainAdmin, unread: countResult.error ? 0 : countResult.count || 0 };
+  return { isAdmin: false, unread: countResult.error ? 0 : countResult.count || 0 };
 }
 
 // Riga "Chiedi a Bajuju" dentro l'elenco del profilo (al posto del pulsante flottante).
@@ -35,7 +38,7 @@ export function ProfileAdminChatRow({ rowStyle, iconColor, labelStyle, chevronCo
   chevronColor: string;
 }) {
   const [unread, setUnread] = useState(0);
-  const [isMainAdmin, setIsMainAdmin] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -47,7 +50,7 @@ export function ProfileAdminChatRow({ rowStyle, iconColor, labelStyle, chevronCo
         if (!userId) return;
         const summary = await loadProfileChatSummary(userId);
         if (active) {
-          setIsMainAdmin(summary.isMainAdmin);
+          setIsAdmin(summary.isAdmin);
           setUnread(summary.unread);
         }
       } catch {
@@ -65,10 +68,10 @@ export function ProfileAdminChatRow({ rowStyle, iconColor, labelStyle, chevronCo
       accessibilityRole="button"
       accessibilityLabel="Apri Messaggi Bajuju"
       style={({ pressed }) => [rowStyle, pressed && styles.pressed]}
-      onPress={() => router.push('/admin-private-chat' as any)}
+      onPress={() => router.push((isAdmin ? '/admin-support-inbox' : '/admin-private-chat') as any)}
     >
       <Ionicons name="chatbubble-ellipses-outline" size={22} color={iconColor} />
-      <Text style={labelStyle}>{isMainAdmin ? 'Messaggi Bajuju' : 'Chiedi a Bajuju'}</Text>
+      <Text style={labelStyle}>{isAdmin ? 'Messaggi Bajuju' : 'Chiedi a Bajuju'}</Text>
       {unread > 0 ? (
         <View style={styles.badge}>
           <Text style={styles.badgeText}>{unread > 99 ? '99+' : unread}</Text>
@@ -99,14 +102,9 @@ export function AdminPrivateChatEntry() {
         const userId = authResult.data.user?.id || '';
         if (!userId || !active) return;
 
-        const mainAdminResult = await supabase.rpc('bajuju_main_admin_id' as any);
+        const admin = await isActiveAdmin(userId);
         if (!active) return;
-        setCanAdminMessage(
-          !mainAdminResult.error &&
-          String(mainAdminResult.data || '') === userId &&
-          Boolean(targetUserId) &&
-          targetUserId !== userId
-        );
+        setCanAdminMessage(admin && Boolean(targetUserId) && targetUserId !== userId);
       } catch {
         if (active) setCanAdminMessage(false);
       }

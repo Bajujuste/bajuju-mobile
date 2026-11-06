@@ -620,7 +620,9 @@ export default function GroupDetailScreen() {
     const cleanName = nameDraft.trim();
     const cleanDescription = descriptionDraft.trim();
 
-    if (!isAdmin || !groupId || manageBusy) return;
+    // Admin e proprietario possono cambiare il nome: il database rifiuta i nomi uguali o troppo simili.
+    const canRename = isAdmin || String(group?.owner_id || '') === currentUserId;
+    if (!canRename || !groupId || manageBusy) return;
     if (cleanName.length < 3) {
       Alert.alert('Nome troppo corto', 'Inserisci almeno 3 caratteri.');
       return;
@@ -1136,7 +1138,7 @@ export default function GroupDetailScreen() {
               </Text>
             </Pressable>
 
-            {isAdmin ? (
+            {isAdmin || isOwner ? (
               <>
                 <Text style={styles.fieldLabel}>Nome gruppo</Text>
                 <TextInput
@@ -1170,10 +1172,10 @@ export default function GroupDetailScreen() {
                 manageBusy && styles.disabled,
               ]}
               disabled={manageBusy}
-              onPress={() => { void (isAdmin ? saveGroupChanges() : saveDescription()); }}
+              onPress={() => { void (isAdmin || isOwner ? saveGroupChanges() : saveDescription()); }}
             >
               <Text style={[styles.saveButtonText, { color: theme.onPrimary }]}>
-                {manageBusy ? 'Salvataggio...' : isAdmin ? 'Salva modifiche' : 'Salva descrizione'}
+                {manageBusy ? 'Salvataggio...' : isAdmin || isOwner ? 'Salva modifiche' : 'Salva descrizione'}
               </Text>
             </Pressable>
 

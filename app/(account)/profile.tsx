@@ -457,10 +457,8 @@ export default function ProfileScreen() {
     return firstText(profile, ['nickname', 'username', 'display_name', 'full_name', 'name', 'nome'], user?.email || 'Profilo Bajuju');
   }, [profile, user]);
 
-  // Il nome scelto non si può cambiare, ma un profilo creato senza nome (es. dal caricamento foto)
-  // deve poterlo impostare: altrimenti il salvataggio resta bloccato su "Nome non valido".
+  // Il nome utente si può cambiare: il database rifiuta solo i nomi già usati da altri.
   const savedProfileName = firstText(profile, ['nickname', 'username', 'display_name', 'full_name', 'name', 'nome'], '');
-  const profileNameLocked = savedProfileName.length > 0;
 
   const photoUrl = useMemo(() => {
     return firstText(profile, ['avatar_url', 'photo_url', 'profile_photo_url', 'profile_image_url', 'image_url', 'foto'], '');
@@ -491,10 +489,10 @@ export default function ProfileScreen() {
       homeCity,
       ageRange,
       gender,
-      profileName: profileNameLocked ? '' : profileName,
+      profileName: savedProfileName ? '' : profileName,
     };
     AsyncStorage.setItem(`${PROFILE_DRAFT_KEY}:${user.id}`, JSON.stringify(draft)).catch(() => {});
-  }, [ageRange, gender, homeCity, loading, profileComplete, profileName, profileNameLocked, user?.id]);
+  }, [ageRange, gender, homeCity, loading, profileComplete, profileName, savedProfileName, user?.id]);
 
   const profileIdField = useMemo(() => {
     return 'id';
@@ -1149,10 +1147,19 @@ export default function ProfileScreen() {
     } catch (error: unknown) {
       console.log('Errore salvataggio profilo:', error);
 
+      const rawError = error as { code?: string; message?: string } | null;
+      const nameTaken =
+        rawError?.code === '23505' || String(rawError?.message || '').includes('profiles_nickname_unique');
+
+      if (nameTaken) {
+        Alert.alert('Nome già usato', 'Questo nome utente è già usato da un’altra persona. Scegline un altro.');
+        return;
+      }
+
       const message =
         error instanceof Error
           ? error.message
-          : 'Non sono riuscito a salvare il profilo.';
+          : String(rawError?.message || 'Non sono riuscito a salvare il profilo.');
 
       Alert.alert('Errore salvataggio', message);
     } finally {
@@ -1548,12 +1555,11 @@ export default function ProfileScreen() {
         <Text style={styles.fieldLabel}>Nome utente</Text>
         <TextInput
           value={profileName}
-          onChangeText={profileNameLocked ? undefined : setProfileName}
-          editable={!profileNameLocked}
-          placeholder={profileNameLocked ? 'Nome scelto in registrazione' : 'Scegli il tuo nome utente'}
+          onChangeText={setProfileName}
+          placeholder="Scegli il tuo nome utente"
           placeholderTextColor={BAJUJU_COLORS.muted}
           maxLength={30}
-          style={[styles.fieldInput, profileNameLocked && styles.inputDisabled]}
+          style={styles.fieldInput}
           autoCapitalize="words"
         />
 

@@ -19,21 +19,13 @@ $$;
 revoke all on function public.bajuju_is_active_admin(uuid) from public, anon;
 grant execute on function public.bajuju_is_active_admin(uuid) to authenticated;
 
-drop policy if exists "Chat Bajuju leggibile da utente o admin principale" on public.admin_private_threads;
-create policy "Chat Bajuju leggibile da utente o admin principale"
-on public.admin_private_threads
-for select
-to authenticated
+alter policy "Chat Bajuju leggibile da utente o admin principale" on public.admin_private_threads
 using (
   user_id = (select auth.uid())
   or public.bajuju_is_active_admin((select auth.uid()))
 );
 
-drop policy if exists "Solo admin principale Bajuju crea thread" on public.admin_private_threads;
-create policy "Solo admin principale Bajuju crea thread"
-on public.admin_private_threads
-for insert
-to authenticated
+alter policy "Solo admin principale Bajuju crea thread" on public.admin_private_threads
 with check (
   created_by_admin = (select auth.uid())
   and public.bajuju_is_active_admin((select auth.uid()))
@@ -44,11 +36,7 @@ with check (
   )
 );
 
-drop policy if exists "Messaggi Bajuju leggibili dai partecipanti" on public.admin_private_messages;
-create policy "Messaggi Bajuju leggibili dai partecipanti"
-on public.admin_private_messages
-for select
-to authenticated
+alter policy "Messaggi Bajuju leggibili dai partecipanti" on public.admin_private_messages
 using (
   exists (
     select 1
@@ -61,11 +49,7 @@ using (
   )
 );
 
-drop policy if exists "Utente o admin principale inviano messaggi Bajuju" on public.admin_private_messages;
-create policy "Utente o admin principale inviano messaggi Bajuju"
-on public.admin_private_messages
-for insert
-to authenticated
+alter policy "Utente o admin principale inviano messaggi Bajuju" on public.admin_private_messages
 with check (
   sender_id = (select auth.uid())
   and exists (

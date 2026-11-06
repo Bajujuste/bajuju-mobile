@@ -9,6 +9,7 @@ import { loadBajujuGroups } from '../src/lib/bajujuGroups';
 import { supabase } from '../src/lib/supabase';
 import { trackBajujuEvent } from '../src/utils/bajujuAnalytics';
 import { refreshBajujuNotificationLocation } from '../src/utils/bajujuNotificationLocation';
+import { geocodeProfilePlace, getUsableDevicePosition, toUsableCoordinates } from '../src/utils/bajujuDeviceLocation';
 import { experienceDateLabel } from '../src/utils/experienceDateLabel';
 import { shareBajujuHome } from '../src/utils/shareBajuju';
 import { getBajujuNotificationCategory, BajujuNotificationCategory } from '../src/utils/bajujuNotificationCategories';
@@ -263,8 +264,10 @@ export default function HomeScreen() {
 
       async function refreshNearbyExperiences(userId: string) {
         const preference = await supabase.from('notification_preferences').select('latitude,longitude').eq('user_id', userId).maybeSingle();
-        let latitude = preference.data?.latitude == null ? NaN : Number(preference.data.latitude);
-        let longitude = preference.data?.longitude == null ? NaN : Number(preference.data.longitude);
+        // Le coordinate 0,0 (posizione finta di alcuni Android) vengono scartate.
+        const saved = toUsableCoordinates(preference.data?.latitude, preference.data?.longitude);
+        let latitude = saved ? saved.latitude : NaN;
+        let longitude = saved ? saved.longitude : NaN;
         try {
           let permission = await Location.getForegroundPermissionsAsync();
           // Chi ha detto No alle notifiche non passa dalla richiesta posizione delle notifiche:
@@ -275,24 +278,20 @@ export default function HomeScreen() {
             permission = await Location.requestForegroundPermissionsAsync();
           }
           if (permission.status === 'granted') {
-            const location = await Location.getLastKnownPositionAsync({ maxAge: 6 * 60 * 60 * 1000 })
-              || await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-            latitude = location.coords.latitude;
-            longitude = location.coords.longitude;
+            const device = await getUsableDevicePosition();
+            if (device) {
+              latitude = device.latitude;
+              longitude = device.longitude;
+            }
           }
         } catch { /* Ultima posizione salvata, se disponibile. */ }
         if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
           // Senza posizione usiamo la città del profilo.
           const profile = await supabase.from('profiles').select('city,province').eq('id', userId).maybeSingle();
-          const place = [profile.data?.city, profile.data?.province].map((value) => String(value || '').trim()).filter(Boolean).join(', ');
-          if (place) {
-            try {
-              const [match] = await Location.geocodeAsync(`${place}, Italia`);
-              if (match) {
-                latitude = match.latitude;
-                longitude = match.longitude;
-              }
-            } catch { /* Città non trovata. */ }
+          const match = await geocodeProfilePlace(profile.data?.city, profile.data?.province);
+          if (match) {
+            latitude = match.latitude;
+            longitude = match.longitude;
           }
         }
         if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {

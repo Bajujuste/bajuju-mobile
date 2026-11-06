@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 
+import { toUsableCoordinates } from '../../src/utils/bajujuDeviceLocation';
 import BajujuMap, { BajujuMapItem, BajujuMapLocation } from '../../src/components/BajujuMap';
 import { BajujuLocation, loadPublicBajujuLocations, locationAddressLine } from '../../src/lib/bajujuLocations';
 import { BajujuBottomNav } from '@/components/navigation/BajujuBottomNav';
@@ -329,7 +330,7 @@ export default function ExperiencesMapScreen() {
           return;
         }
         const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Highest });
-        setViewerCoordinates({ latitude: position.coords.latitude, longitude: position.coords.longitude });
+        setViewerCoordinates(toUsableCoordinates(position.coords.latitude, position.coords.longitude));
         })().catch(() => setViewerCoordinates(null));
 
       // I locali non bloccano la mappa: se non arrivano si vedono solo gli eventi.

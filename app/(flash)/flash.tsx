@@ -11,6 +11,7 @@ import type { ResolvedAddress } from '../../src/lib/addressAutocomplete';
 import { supabase } from '../../src/lib/supabase';
 import { BAJUJU_COLORS, BAJUJU_FONTS } from '../../src/theme/bajujuTheme';
 import { shareBajujuFlash } from '../../src/utils/shareBajuju';
+import { toUsableCoordinates } from '../../src/utils/bajujuDeviceLocation';
 import { sendBajujuPushNotification } from '../../src/utils/bajujuNotifications';
 import { ITALIAN_MUNICIPALITIES_BY_PROVINCE } from '../../src/data/italianMunicipalities';
 import { KeyboardAwareScrollView } from '../../src/components/KeyboardAwareScrollView';
@@ -907,7 +908,7 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
         return;
       }
       const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-      if (active) setViewerCoordinates({ latitude: position.coords.latitude, longitude: position.coords.longitude });
+      if (active) setViewerCoordinates(toUsableCoordinates(position.coords.latitude, position.coords.longitude));
     }
 
     loadViewerLocation().catch(() => {
@@ -989,8 +990,12 @@ export default function FlashScreen({ forcedSection }: FlashScreenProps = {}) {
   }
 
   const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-  const latitude = position.coords.latitude;
-  const longitude = position.coords.longitude;
+  const usable = toUsableCoordinates(position.coords.latitude, position.coords.longitude);
+  if (!usable) {
+    Alert.alert("Posizione non disponibile", "Il telefono non ha ancora trovato la tua posizione. Riprova tra qualche secondo.");
+    return;
+  }
+  const { latitude, longitude } = usable;
   setViewerCoordinates({ latitude, longitude });
 
   const now = new Date();

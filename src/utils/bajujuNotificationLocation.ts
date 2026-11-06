@@ -1,6 +1,7 @@
 import * as Location from 'expo-location';
 
 import { supabase } from '../lib/supabase';
+import { getUsableDevicePosition, isUsableCoordinates } from './bajujuDeviceLocation';
 
 const LAST_KNOWN_MAX_AGE_MS = 6 * 60 * 60 * 1000;
 const LAST_KNOWN_REQUIRED_ACCURACY_METERS = 5000;
@@ -23,23 +24,17 @@ export async function refreshBajujuNotificationLocation(
       return { ok: false, reason: 'Permesso posizione non concesso.' };
     }
 
-    const lastKnown = await Location.getLastKnownPositionAsync({
-      maxAge: LAST_KNOWN_MAX_AGE_MS,
+    // Scarta la posizione finta 0,0 che alcuni Android restituiscono.
+    const position = await getUsableDevicePosition({
+      maxAgeMs: LAST_KNOWN_MAX_AGE_MS,
       requiredAccuracy: LAST_KNOWN_REQUIRED_ACCURACY_METERS,
     });
 
-    const position =
-      lastKnown ||
-      (await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      }));
-
-    const latitude = Number(position.coords.latitude);
-    const longitude = Number(position.coords.longitude);
-
-    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    if (!position) {
       return { ok: false, reason: 'Coordinate non valide.' };
     }
+
+    const { latitude, longitude } = position;
 
     const result = await supabase.from('notification_preferences').upsert(
       {
@@ -71,7 +66,7 @@ export async function saveBajujuNotificationCoordinatesIfEnabled(
 ) {
   const latitude = Number(coordinates.latitude);
   const longitude = Number(coordinates.longitude);
-  if (!userId || !Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+  if (!userId || !isUsableCoordinates(latitude, longitude)) {
     return { ok: false, reason: 'Coordinate non valide.' };
   }
 

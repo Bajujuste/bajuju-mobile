@@ -22,6 +22,7 @@ import { BajujuProfileButton } from '@/components/navigation/BajujuProfileButton
 import { getExperienceCategoryIcon, normalizeExperienceCategory } from '@/constants/experienceCategories';
 import { supabase } from '../../src/lib/supabase';
 import { saveBajujuNotificationCoordinatesIfEnabled } from '../../src/utils/bajujuNotificationLocation';
+import { geocodeProfilePlace, getUsableDevicePosition, toUsableCoordinates } from '../../src/utils/bajujuDeviceLocation';
 import { refreshBajujuPushRegistrationIfAuthorized } from '../../src/utils/bajujuNotifications';
 import { trackBajujuEvent } from '../../src/utils/bajujuAnalytics';
 import { experienceDateLabel } from '../../src/utils/experienceDateLabel';
@@ -221,31 +222,33 @@ export default function ExperiencesScreen() {
           .eq('user_id', userId)
           .maybeSingle();
 
-        const savedLatitude = Number(preferenceResult.data?.latitude);
-        const savedLongitude = Number(preferenceResult.data?.longitude);
-        if (Number.isFinite(savedLatitude) && Number.isFinite(savedLongitude)) {
-          resolvedCoordinates = { latitude: savedLatitude, longitude: savedLongitude };
-        }
+        // Le coordinate 0,0 (posizione finta di alcuni Android) vengono scartate.
+        resolvedCoordinates = toUsableCoordinates(preferenceResult.data?.latitude, preferenceResult.data?.longitude);
       }
 
+      let deviceCoordinates: Coordinates | null = null;
       try {
         const permission = await Location.getForegroundPermissionsAsync();
         if (permission.status === 'granted') {
-          const lastKnown = await Location.getLastKnownPositionAsync({ maxAge: 6 * 60 * 60 * 1000 });
-          const location = lastKnown || await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-          resolvedCoordinates = {
-            latitude: Number(location.coords.latitude),
-            longitude: Number(location.coords.longitude),
-          };
+          deviceCoordinates = await getUsableDevicePosition();
         }
       } catch {
         // Se il GPS non risponde usiamo le ultime coordinate notifiche salvate.
       }
 
+      if (deviceCoordinates) {
+        resolvedCoordinates = deviceCoordinates;
+      } else if (!resolvedCoordinates && userId) {
+        // Senza una posizione valida usiamo la città del profilo, come in Home.
+        const profileResult = await supabase.from('profiles').select('city,province').eq('id', userId).maybeSingle();
+        resolvedCoordinates = await geocodeProfilePlace(profileResult.data?.city, profileResult.data?.province);
+      }
+
       setCoordinates(resolvedCoordinates);
 
-      if (userId && resolvedCoordinates) {
-        await saveBajujuNotificationCoordinatesIfEnabled(userId, resolvedCoordinates).catch(() => ({ ok: false }));
+      // Salviamo per le notifiche solo una posizione vera del telefono, non quella della città.
+      if (userId && deviceCoordinates) {
+        await saveBajujuNotificationCoordinatesIfEnabled(userId, deviceCoordinates).catch(() => ({ ok: false }));
       }
 
       const oldestUsefulDate = new Date(

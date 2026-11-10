@@ -225,3 +225,9 @@ footer p { margin: 4px 0; }
 .doc .step-label { display: inline-block; font-size: 13px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--red-ink); margin-bottom: 6px; }
 .doc .path { font-weight: 600; }
 .doc .mono { font-family: ui-monospace, Menlo, monospace; font-size: 0.92em; background: var(--red-soft); padding: 1px 6px; border-radius: 6px; }
+
+/* BajujuDate: secondo pulsante per chi ha l'iPhone (versione web) */
+.btn.iphone { background: #2A1A20; color: #FFFFFF; }
+.final .btns { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
+.final .btn.iphone { background: #2A1A20; color: #FFFFFF; }
+.final .iphone-tip { margin: 18px auto 0; max-width: 520px; font-size: 15px; line-height: 1.5; opacity: 0.92; }

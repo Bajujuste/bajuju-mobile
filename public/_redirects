@@ -1,0 +1,2 @@
+# BajujuDate per iPhone (versione web): ogni indirizzo sotto /date apre l'app.
+/date/*   /date/index.html   200

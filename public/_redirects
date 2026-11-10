@@ -1,6 +1,2 @@
-# La comunicazione del sito bajuju.it riguarda esclusivamente Bajuju.
-# Le pagine legali dedicate all'altra app restano accessibili tramite i loro URL specifici.
-/bajujudate.html / 301!
-/bajujudate / 301!
-/bajujudate/ / 301!
-/bajuju.html / 301!
+# BajujuDate per iPhone (versione web): ogni indirizzo sotto /date apre l'app.
+/date/*   /date/index.html   200

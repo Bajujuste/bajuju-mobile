@@ -33,6 +33,7 @@ type SignupResponse = {
   message?: string;
   error?: string;
   error_description?: string;
+  error_code?: string;
 };
 
 function signupErrorMessage(payload: SignupResponse, fallback: string) {
@@ -191,7 +192,14 @@ export default function RegisterScreen() {
           return;
         }
 
-        if (isEmailAlreadyRegisteredError(errorMessage)) {
+        // Supabase risponde 422 con error_code "user_already_exists" e msg "User already registered":
+        // il messaggio non contiene "email", quindi va riconosciuto anche dal codice.
+        if (
+          payload.error_code === 'user_already_exists' ||
+          payload.error_code === 'email_exists' ||
+          /already registered|already exists/i.test(errorMessage) ||
+          isEmailAlreadyRegisteredError(errorMessage)
+        ) {
           trackAcquisition('register_error', 'email_gia_usata');
           showEmailAlreadyRegistered();
           return;

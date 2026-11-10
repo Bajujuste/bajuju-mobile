@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert, AppState, Linking } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 
+import { loadEventOrganizerNames } from '../src/lib/eventCards';
 import { BajujuHomeView, HomeGroupPreview, HomeNearbyExperience } from '../src/components/home/BajujuHomeView';
 import { loadBajujuGroups } from '../src/lib/bajujuGroups';
 import { supabase } from '../src/lib/supabase';
@@ -324,6 +325,15 @@ export default function HomeScreen() {
           .slice(0, 80)
           .map(({ startsAt, ...event }) => event);
         if (active) setNearbyExperiences(events);
+        // "Organizzato da …" arriva subito dopo, senza rallentare la comparsa delle schede.
+        const shownIds = new Set(events.map((event) => event.id));
+        const organizerNames = await loadEventOrganizerNames((result.data || []).filter((row: any) => shownIds.has(String(row.id)))).catch(() => ({} as Record<string, string>));
+        const organizerByEvent: Record<string, string> = {};
+        (result.data || []).forEach((row: any) => {
+          const name = organizerNames[String(row.creator_id || '')];
+          if (name && shownIds.has(String(row.id))) organizerByEvent[String(row.id)] = name;
+        });
+        if (active) setNearbyExperiences(events.map((event) => ({ ...event, organizerName: organizerByEvent[event.id] })));
       }
 
       async function refreshNextExperience(userId: string) {

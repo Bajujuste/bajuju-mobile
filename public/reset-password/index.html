@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex,nofollow" />
+<meta name="referrer" content="no-referrer" />
+<title>Nuova password | Bajuju</title>
+<style>
+  :root { color-scheme: light; --pink:#e43f98; --pink-dark:#a61f69; --ink:#351027; --muted:#745468; --soft:#fff5f9; --line:#f1cddd; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--soft); color:var(--ink); font-family:Arial,Helvetica,sans-serif; font-size:17px; line-height:1.5; }
+  main { width:min(100% - 32px, 460px); margin:40px auto; background:#fff; border:1px solid var(--line); border-radius:24px; padding:28px 22px; box-shadow:0 22px 60px rgba(80,8,48,.1); text-align:center; }
+  img { width:96px; height:auto; }
+  h1 { color:var(--pink); font-size:26px; margin:12px 0 6px; }
+  p { color:var(--muted); margin:8px 0; }
+  label { display:block; text-align:left; font-weight:700; margin:16px 0 6px; }
+  input { width:100%; font-size:17px; padding:13px 14px; border:1px solid var(--line); border-radius:14px; }
+  button, .btn { display:block; width:100%; margin-top:20px; padding:15px; border:0; border-radius:16px; background:var(--pink); color:#fff; font-size:17px; font-weight:700; text-decoration:none; cursor:pointer; }
+  button:disabled { opacity:.6; }
+  .msg { margin-top:16px; font-weight:700; }
+  .err { color:#c0143c; }
+  .ok { color:#1a7f4b; }
+  .hidden { display:none; }
+</style>
+</head>
+<body>
+<main>
+  <img src="/img/panda-bajuju.png" alt="Bajuju" />
+  <div id="loading"><h1>Un attimo…</h1><p>Stiamo verificando il link.</p></div>
+
+  <form id="form" class="hidden" autocomplete="off">
+    <h1>Nuova password</h1>
+    <p>Scegli la nuova password per il tuo account Bajuju.</p>
+    <label for="p1">Nuova password</label>
+    <input id="p1" type="password" minlength="6" autocomplete="new-password" required />
+    <label for="p2">Ripeti la password</label>
+    <input id="p2" type="password" minlength="6" autocomplete="new-password" required />
+    <button id="save" type="submit">Salva la password</button>
+    <div id="msg" class="msg"></div>
+  </form>
+
+  <div id="done" class="hidden">
+    <h1>Fatto!</h1>
+    <p>La password è stata cambiata. Ora apri l'app Bajuju e accedi con la nuova password.</p>
+    <a class="btn" href="bajuju://login">Apri Bajuju</a>
+  </div>
+
+  <div id="bad" class="hidden">
+    <h1>Link scaduto</h1>
+    <p>Questo link non è più valido (si può usare una sola volta e scade dopo un po').</p>
+    <p>Apri l'app Bajuju, tocca <b>Password dimenticata</b> e richiedi una nuova email. Poi apri solo l'ultima email ricevuta.</p>
+    <a class="btn" href="bajuju://forgot-password">Apri Bajuju</a>
+  </div>
+</main>
+<script>
+(function () {
+  var SUPABASE_URL = 'https://xwcbmsfsirggozpcskcz.supabase.co';
+  var API_KEY = 'sb_publishable_Kg74KvC--sJpim0_tY7K0Q_YJcMqf9g';
+  var accessToken = null;
+
+  function show(id) {
+    ['loading', 'form', 'done', 'bad'].forEach(function (x) {
+      document.getElementById(x).classList.toggle('hidden', x !== id);
+    });
+  }
+
+  var params = new URLSearchParams(location.search);
+  var hash = new URLSearchParams(location.hash.replace(/^#/, ''));
+  hash.forEach(function (v, k) { if (!params.has(k)) params.set(k, v); });
+  // Toglie i dati del link dalla barra degli indirizzi.
+  try { history.replaceState(null, '', location.pathname); } catch (e) {}
+
+  if (params.get('error') || params.get('error_code')) { show('bad'); return; }
+
+  if (params.get('access_token')) {
+    accessToken = params.get('access_token');
+    show('form');
+  } else if (params.get('token_hash')) {
+    fetch(SUPABASE_URL + '/auth/v1/verify', {
+      method: 'POST',
+      headers: { apikey: API_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: params.get('type') || 'recovery', token_hash: params.get('token_hash') })
+    }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+      .then(function (res) {
+        if (res.ok && res.j.access_token) { accessToken = res.j.access_token; show('form'); }
+        else show('bad');
+      }).catch(function () { show('bad'); });
+  } else {
+    show('bad');
+  }
+
+  document.getElementById('form').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var p1 = document.getElementById('p1').value.trim();
+    var p2 = document.getElementById('p2').value.trim();
+    var msg = document.getElementById('msg');
+    msg.className = 'msg err';
+    if (p1.length < 6) { msg.textContent = 'La password deve avere almeno 6 caratteri.'; return; }
+    if (p1 !== p2) { msg.textContent = 'Le due password non coincidono.'; return; }
+    var btn = document.getElementById('save');
+    btn.disabled = true; msg.textContent = '';
+    fetch(SUPABASE_URL + '/auth/v1/user', {
+      method: 'PUT',
+      headers: { apikey: API_KEY, Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: p1 })
+    }).then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { ok: r.ok, j: j }; }); })
+      .then(function (res) {
+        btn.disabled = false;
+        if (res.ok) { show('done'); return; }
+        var code = res.j.error_code || res.j.code || '';
+        if (code === 'same_password') msg.textContent = 'La nuova password deve essere diversa da quella vecchia.';
+        else if (code === 'weak_password') msg.textContent = 'Password troppo debole, scegline una più lunga.';
+        else if (res.j.msg && /expired|invalid/i.test(res.j.msg)) { show('bad'); }
+        else msg.textContent = 'Non è stato possibile salvare. Riprova o richiedi un nuovo link.';
+      }).catch(function () { btn.disabled = false; msg.textContent = 'Connessione assente. Riprova.'; });
+  });
+})();
+</script>
+</body>
+</html>

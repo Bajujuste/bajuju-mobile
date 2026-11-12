@@ -238,6 +238,12 @@ export default function ExperienceWaitlistScreen() {
         return;
       }
 
+      if (String(data?.status || '') === 'pending') {
+        Alert.alert('Richiesta inviata', 'Abbiamo chiesto all’organizzatore l’autorizzazione per la tua iscrizione.');
+        router.replace({ pathname: '/experience-detail' as any, params: { id: activityId } });
+        return;
+      }
+
       void trackBajujuEvent('experience_joined', {
         activityId,
         source: waitlist?.status === 'notified' ? 'waitlist' : 'waitlist_screen',

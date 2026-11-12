@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 
+import { useIsBajujuBlacklisted } from '../../hooks/useBajujuBlacklist';
 import { BAJUJU_COLORS, BAJUJU_FONTS } from '../../theme/bajujuTheme';
 
 const LABEL = 'ADMIN';
@@ -12,11 +13,32 @@ type BajujuAdminRingProps = {
   isAdmin: boolean;
   children: React.ReactNode;
   style?: StyleProp<ViewStyle>;
+  // Se la persona è nella mia blacklist personale, la foto ha un cerchio nero (lo vedo solo io).
+  userId?: string | null;
 };
 
 // Cerchio oro con "ADMIN" scritto sul bordo e stellina: fa riconoscere gli admin ovunque c'è la loro foto.
 // Se l'utente non è admin restituisce la foto così com'è.
-export function BajujuAdminRing({ size, isAdmin, children, style }: BajujuAdminRingProps) {
+export function BajujuAdminRing({ size, isAdmin, children, style, userId }: BajujuAdminRingProps) {
+  const blacklisted = useIsBajujuBlacklisted(userId);
+
+  if (!isAdmin && blacklisted) {
+    const blackRing = Math.min(8, Math.max(3, Math.round(size * 0.09)));
+    const blackOuter = size + blackRing * 2;
+    return (
+      <View
+        style={[
+          styles.blacklistRing,
+          { width: blackOuter, height: blackOuter, borderRadius: blackOuter / 2 },
+          style,
+        ]}
+        accessibilityLabel="Utente nella tua blacklist"
+      >
+        {children}
+      </View>
+    );
+  }
+
   if (!isAdmin) {
     return style ? <View style={style}>{children}</View> : <>{children}</>;
   }
@@ -76,6 +98,11 @@ export function BajujuAdminRing({ size, isAdmin, children, style }: BajujuAdminR
 }
 
 const styles = StyleSheet.create({
+  blacklistRing: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#111111',
+  },
   ring: {
     alignItems: 'center',
     justifyContent: 'center',

@@ -1778,6 +1778,15 @@ export default function ProfileScreen() {
           <Ionicons name="chevron-forward" size={18} color={CHEVRON_COLOR} />
         </Pressable>
         <Pressable
+          style={({ pressed }) => [styles.listRow, styles.listRowDivider, pressed && styles.rowPressed]}
+          onPress={() => router.push('/blacklist' as any)}
+          accessibilityRole="button"
+        >
+          <Ionicons name="book" size={22} color="#111111" />
+          <Text style={styles.listRowText}>Blacklist</Text>
+          <Ionicons name="chevron-forward" size={18} color={CHEVRON_COLOR} />
+        </Pressable>
+        <Pressable
           style={({ pressed }) => [styles.listRow, pressed && styles.rowPressed]}
           onPress={logout}
           accessibilityRole="button"

@@ -33,9 +33,9 @@ type Props = {
   onPhotoPress: (url: string) => void;
 };
 
-function MemberAvatar({ name, url, isAdmin, onPress }: { name: string | null; url: string | null; isAdmin: boolean; onPress: () => void }) {
+function MemberAvatar({ name, url, isAdmin, userId, onPress }: { name: string | null; url: string | null; isAdmin: boolean; userId?: string; onPress: () => void }) {
   return (
-    <BajujuAdminRing size={48} isAdmin={isAdmin}>
+    <BajujuAdminRing size={48} isAdmin={isAdmin} userId={userId}>
       <Pressable style={styles.avatar} disabled={!url} onPress={onPress}>
         {url ? (
           <Image source={{ uri: url }} style={styles.avatarImage} resizeMode="cover" />
@@ -173,6 +173,7 @@ export function BajujuGroupMembers({
           name={member.nickname}
           url={member.avatar_url}
           isAdmin={adminIds.has(member.user_id)}
+          userId={member.user_id}
           onPress={() => { if (member.avatar_url) onPhotoPress(member.avatar_url); }}
         />
         <Pressable
@@ -243,6 +244,7 @@ export function BajujuGroupMembers({
                       name={request.nickname || null}
                       url={avatarUrl || null}
                       isAdmin={adminIds.has(requestUserId)}
+                      userId={requestUserId}
                       onPress={() => { if (avatarUrl) onPhotoPress(avatarUrl); }}
                     />
                     <Pressable

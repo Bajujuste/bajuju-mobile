@@ -3,7 +3,6 @@ import { router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Image,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -16,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { BajujuIcon } from '../../src/components/icons/BajujuIcon';
 import { BajujuBottomNav } from '../../src/components/navigation/BajujuBottomNav';
 import { BajujuProfileButton } from '../../src/components/navigation/BajujuProfileButton';
+import { EventCardImage } from '../../src/components/events/EventCardImage';
 import { supabase } from '../../src/lib/supabase';
 import {
   BAJUJU_COLORS,
@@ -268,8 +268,9 @@ export default function MyEventsScreen() {
           pressed && styles.pressed,
         ]}
       >
-        <Image
-          source={item.photo_url ? { uri: item.photo_url } : bajujuLogo}
+        <EventCardImage
+          uri={String(item.photo_url || '')}
+          fallback={bajujuLogo}
           resizeMode="cover"
           style={styles.eventImage}
         />

@@ -24,6 +24,7 @@ import {
 } from '../icons/BajujuIcon';
 import { BajujuRoundIconButton } from '../navigation/BajujuBackButton';
 import { LOCATION_COLOR } from '../../lib/bajujuLocations';
+import { EventCardImage } from '../events/EventCardImage';
 
 const bajujuLogo = require('../../../assets/brand/bajuju-logo.png');
 
@@ -60,6 +61,7 @@ export type HomeNearbyExperience = {
   date: string;
   photoUrl: string;
   byLocation?: boolean;
+  organizerName?: string;
   distanceKm: number;
 };
 
@@ -216,13 +218,14 @@ export function BajujuHomeView({
             renderItem={({ item: event }) => (
               <Pressable key={event.id} style={({ pressed }) => [styles.eventCard, pressed && styles.pressed]} onPress={() => onOpenExperience(event.id)} accessibilityRole="button" accessibilityLabel={`Apri esperienza ${event.title}`}>
                 <View style={styles.eventImageBox}>
-                  {event.photoUrl ? <Image source={{ uri: event.photoUrl }} style={styles.eventImage} resizeMode="cover" /> : <View style={styles.eventPlaceholder}><BajujuIcon name="pin" size={44} color={COLORS.pink} /></View>}
+                  {event.photoUrl ? <EventCardImage uri={event.photoUrl} style={styles.eventImage} resizeMode="cover" /> : <View style={styles.eventPlaceholder}><BajujuIcon name="pin" size={44} color={COLORS.pink} /></View>}
                   <Text style={[styles.imageChip, styles.categoryChip]} numberOfLines={1}>{getExperienceCategoryIcon(event.category)} {normalizeExperienceCategory(event.category)}</Text>
                   {event.byLocation ? <Text style={[styles.imageChip, styles.locationChip]}>🏠 Del locale</Text> : null}
                   <Text style={[styles.imageChip, styles.distanceChip]}>{event.distanceKm < 1 ? `${Math.round(event.distanceKm * 1000)} m` : `${event.distanceKm.toFixed(1).replace('.', ',')} km`}</Text>
                 </View>
                 <View style={styles.eventBody}>
                   <Text style={styles.eventTitle} numberOfLines={2}>{event.title}</Text>
+                  {event.organizerName ? <Text style={styles.organizerLine} numberOfLines={1}>Organizzato da <Text style={styles.organizerName}>{event.organizerName}</Text></Text> : null}
                   <View style={styles.eventFooter}>
                     <View style={styles.eventMeta}>
                       <View style={styles.metaRow}>
@@ -487,6 +490,8 @@ const styles = StyleSheet.create({
   joinedChip: { top: 8, left: 8, backgroundColor: COLORS.green, color: COLORS.white, fontFamily: 'FredokaRegular', fontSize: 12 },
   eventBody: { paddingHorizontal: 14, paddingTop: 12, paddingBottom: 14, gap: 8 },
   eventTitle: { color: COLORS.plum, fontFamily: 'FredokaBold', fontSize: 18, lineHeight: 22 },
+  organizerLine: { marginTop: -4, color: COLORS.bodyText, fontFamily: 'FredokaMedium', fontSize: 14 },
+  organizerName: { color: COLORS.plum, fontFamily: 'FredokaSemiBold' },
   eventFooter: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   eventMeta: { flex: 1, gap: 4 },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },

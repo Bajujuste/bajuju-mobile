@@ -27,6 +27,8 @@ import { refreshBajujuPushRegistrationIfAuthorized } from '../../src/utils/bajuj
 import { trackBajujuEvent } from '../../src/utils/bajujuAnalytics';
 import { experienceDateLabel } from '../../src/utils/experienceDateLabel';
 import { LOCATION_COLOR } from '../../src/lib/bajujuLocations';
+import { loadEventOrganizerNames } from '../../src/lib/eventCards';
+import { EventCardImage } from '../../src/components/events/EventCardImage';
 
 const bajujuLogo = require('../../assets/brand/bajuju-logo.png');
 const PAGE_SIZE = 20;
@@ -187,6 +189,7 @@ export default function ExperiencesScreen() {
   const [activities, setActivities] = useState<ActivityRow[]>([]);
   const [myActivityIds, setMyActivityIds] = useState<Set<string>>(new Set());
   const [participantCounts, setParticipantCounts] = useState<Record<string, number>>({});
+  const [organizerNames, setOrganizerNames] = useState<Record<string, string>>({});
   const [currentUserId, setCurrentUserId] = useState('');
   const [coordinates, setCoordinates] = useState<Coordinates | null>(null);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
@@ -285,6 +288,8 @@ export default function ExperiencesScreen() {
         ...((recentPastResult.data || []) as ActivityRow[]),
       ].filter((row) => !isDeleted(row));
       setActivities(cleanActivities);
+      // Nomi degli organizzatori in parallelo: le schede compaiono subito, il nome arriva appena pronto.
+      void loadEventOrganizerNames(cleanActivities).then(setOrganizerNames).catch(() => undefined);
 
       const activityIds = cleanActivities.map((row) => String(row.id || '')).filter(Boolean);
       const participationSet = new Set<string>();
@@ -644,6 +649,7 @@ export default function ExperiencesScreen() {
                     width={cardWidth}
                     distance={'distanceKm' in item && typeof item.distanceKm === 'number' ? item.distanceKm : null}
                     organizedByMe={organizedByMe}
+                    organizerName={organizerNames[String(item.creator_id || '')] || ''}
                     participants={participantInfo(activityId, item, participantCounts)}
                     action={waitlistButton(activityId, item, organizedByMe)}
                     onOpen={() => router.push({ pathname: '/experience-detail' as any, params: { id: activityId } })}
@@ -698,6 +704,7 @@ export default function ExperiencesScreen() {
                         width={cardWidth}
                         distance={typeof item.distanceKm === 'number' ? item.distanceKm : null}
                         organizedByMe={organizedByMe}
+                        organizerName={organizerNames[String(item.creator_id || '')] || ''}
                         participants={participantInfo(activityId, item, participantCounts)}
                         action={waitlistButton(activityId, item, organizedByMe)}
                         onOpen={() => router.push({ pathname: '/experience-detail' as any, params: { id: activityId } })}
@@ -759,6 +766,7 @@ type ExperienceCardProps = {
   width: number;
   distance: number | null;
   organizedByMe: boolean;
+  organizerName: string;
   participants: ParticipantInfo;
   action: React.ReactNode;
   onOpen: () => void;
@@ -770,7 +778,7 @@ function isLocationOwnEvent(item: ActivityRow) {
   return Boolean(item.location_owner_id && String(item.creator_id || '') === String(item.location_owner_id));
 }
 
-function ExperienceCard({ item, width, distance, organizedByMe, participants, action, onOpen, onOpenPoster }: ExperienceCardProps) {
+function ExperienceCard({ item, width, distance, organizedByMe, organizerName, participants, action, onOpen, onOpenPoster }: ExperienceCardProps) {
   const poster = imageUrl(item);
   const title = item.title || 'Esperienza Bajuju';
   const hasAgeRange = item.min_age !== null && item.min_age !== undefined && item.max_age !== null && item.max_age !== undefined;
@@ -783,7 +791,7 @@ function ExperienceCard({ item, width, distance, organizedByMe, participants, ac
       onPress={onOpen}
     >
       <Pressable style={styles.imageBox} onPress={(event) => { event.stopPropagation(); if (poster) onOpenPoster(poster); }}>
-        <Image source={poster ? { uri: poster } : bajujuLogo} style={styles.image} resizeMode="cover" />
+        <EventCardImage uri={poster} fallback={bajujuLogo} style={styles.image} resizeMode="cover" />
         <Text style={[styles.imageChip, styles.categoryChip]} numberOfLines={1}>
           {getExperienceCategoryIcon(item.category)} {normalizeExperienceCategory(item.category)}
         </Text>
@@ -796,6 +804,11 @@ function ExperienceCard({ item, width, distance, organizedByMe, participants, ac
       </Pressable>
       <View style={styles.cardBody}>
         <Text style={styles.cardTitle} numberOfLines={2}>{title}</Text>
+        {organizerName ? (
+          <Text style={styles.organizerLine} numberOfLines={1}>
+            Organizzato da <Text style={styles.organizerName}>{organizerName}</Text>
+          </Text>
+        ) : null}
         <View style={styles.metaRow}>
           <BajujuIcon name="calendar" size={16} color="#C2287A" />
           <Text style={styles.cardMeta} numberOfLines={1}>{formatDate(item)}</Text>
@@ -858,6 +871,8 @@ const styles = StyleSheet.create({
   cardTitle: { color: PLUM, fontFamily: 'FredokaBold', fontSize: 18, lineHeight: 22, marginBottom: 2 },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   cardMeta: { flex: 1, color: '#8D5E77', fontFamily: 'FredokaMedium', fontSize: 14 },
+  organizerLine: { color: '#8D5E77', fontFamily: 'FredokaMedium', fontSize: 14 },
+  organizerName: { color: PLUM, fontFamily: 'FredokaSemiBold' },
   tagsLine: { fontFamily: 'FredokaMedium', fontSize: 13 },
   tagFree: { color: '#22633C' },
   tagRequest: { color: '#8A5B00' },

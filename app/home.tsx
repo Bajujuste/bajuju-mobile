@@ -529,7 +529,7 @@ export default function HomeScreen() {
       onOpenProfile={() => router.push('/profile')}
       onFind={() => {
         void trackBajujuEvent('find_open', { source: 'home' });
-        router.push('/experiences');
+        router.push('/all-events' as any);
       }}
       onOpenHowItWorks={() => router.push('/how-it-works' as any)}
       onCreate={() => router.push('/create-experience')}

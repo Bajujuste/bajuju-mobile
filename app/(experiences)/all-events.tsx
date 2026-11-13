@@ -28,9 +28,9 @@ import { EventCardImage } from '../../src/components/events/EventCardImage';
 const bajujuLogo = require('../../assets/brand/bajuju-logo.png');
 const PAGE_SIZE = 30;
 
-// null = Ovunque (nessun limite di distanza).
+// null = nessun limite di distanza; all'apertura si parte da 5 km.
 const DISTANCE_OPTIONS: { km: number | null; label: string }[] = [
-  { km: null, label: 'Ovunque' },
+  { km: null, label: 'Distanza da te' },
   { km: 5, label: 'Entro 5 km' },
   { km: 10, label: 'Entro 10 km' },
   { km: 25, label: 'Entro 25 km' },
@@ -115,7 +115,7 @@ export default function AllEventsScreen() {
   const [participantCounts, setParticipantCounts] = useState<Record<string, number>>({});
   const [organizerNames, setOrganizerNames] = useState<Record<string, string>>({});
   const [coordinates, setCoordinates] = useState<Coordinates | null>(null);
-  const [maxKm, setMaxKm] = useState<number | null>(null);
+  const [maxKm, setMaxKm] = useState<number | null>(5);
   const [filterDate, setFilterDate] = useState<Date | null>(null);
   const [pendingDate, setPendingDate] = useState<Date>(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -259,7 +259,7 @@ export default function AllEventsScreen() {
     setVisibleCount(PAGE_SIZE);
   }
 
-  const distanceLabel = DISTANCE_OPTIONS.find((option) => option.km === maxKm)?.label || 'Ovunque';
+  const distanceLabel = DISTANCE_OPTIONS.find((option) => option.km === maxKm)?.label || 'Distanza da te';
 
   const listHeader = (
     <View>

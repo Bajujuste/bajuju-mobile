@@ -11,6 +11,7 @@ import {
   SafeAreaView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 
@@ -28,7 +29,7 @@ import { EventCardImage } from '../../src/components/events/EventCardImage';
 const bajujuLogo = require('../../assets/brand/bajuju-logo.png');
 const PAGE_SIZE = 30;
 
-// null = nessun limite di distanza; all'apertura si parte da 5 km.
+// null = nessun limite di distanza; all'apertura si parte da 10 km.
 const DISTANCE_OPTIONS: { km: number | null; label: string }[] = [
   { km: null, label: 'Distanza da te' },
   { km: 5, label: 'Entro 5 km' },
@@ -105,6 +106,11 @@ function rowCoordinates(row: ActivityRow): Coordinates | null {
   return toUsableCoordinates(Number(row.latitude), Number(row.longitude));
 }
 
+// Minuscole e senza accenti, così "cafè" trova anche "cafe".
+function normalizeSearch(value: string) {
+  return value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
 function participantsLabel(current: number, max: number) {
   if (max > 0) return `${current}/${max} partecipanti`;
   return `${current} ${current === 1 ? 'partecipante' : 'partecipanti'}`;
@@ -115,7 +121,8 @@ export default function AllEventsScreen() {
   const [participantCounts, setParticipantCounts] = useState<Record<string, number>>({});
   const [organizerNames, setOrganizerNames] = useState<Record<string, string>>({});
   const [coordinates, setCoordinates] = useState<Coordinates | null>(null);
-  const [maxKm, setMaxKm] = useState<number | null>(5);
+  const [searchText, setSearchText] = useState('');
+  const [maxKm, setMaxKm] = useState<number | null>(10);
   const [filterDate, setFilterDate] = useState<Date | null>(null);
   const [pendingDate, setPendingDate] = useState<Date>(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -210,6 +217,7 @@ export default function AllEventsScreen() {
   useFocusEffect(useCallback(() => { void loadAll(); }, [loadAll]));
 
   const filterDayKey = filterDate ? localDayKey(filterDate) : '';
+  const searchWords = useMemo(() => normalizeSearch(searchText).split(/\s+/).filter(Boolean), [searchText]);
 
   const filteredEvents = useMemo<EventWithDistance[]>(() => {
     const now = Date.now();
@@ -224,12 +232,25 @@ export default function AllEventsScreen() {
       })
       .filter((row) => maxKm === null || (row.distanceKm !== null && row.distanceKm <= maxKm))
       .filter((row) => !filterDayKey || String(row.activity_date || '').slice(0, 10) === filterDayKey)
+      .filter((row) => {
+        if (searchWords.length === 0) return true;
+        // Ogni parola scritta deve comparire in titolo, categoria, città o organizzatore.
+        const haystack = normalizeSearch([
+          row.title,
+          row.category,
+          normalizeExperienceCategory(row.category),
+          row.city,
+          row.province,
+          organizerNames[String(row.creator_id || '')],
+        ].filter(Boolean).join(' '));
+        return searchWords.every((word) => haystack.includes(word));
+      })
       .sort((a, b) => {
         const startA = activityMoment(a)?.getTime() ?? Number.MAX_SAFE_INTEGER;
         const startB = activityMoment(b)?.getTime() ?? Number.MAX_SAFE_INTEGER;
         return startA - startB || Number(a.distanceKm ?? 9999) - Number(b.distanceKm ?? 9999);
       });
-  }, [activities, coordinates, maxKm, filterDayKey]);
+  }, [activities, coordinates, maxKm, filterDayKey, searchWords, organizerNames]);
 
   const visibleEvents = filteredEvents.slice(0, visibleCount);
 
@@ -267,6 +288,24 @@ export default function AllEventsScreen() {
         <BajujuBackButton onPress={() => (router.canGoBack() ? router.back() : router.replace('/experiences'))} />
         <Text style={styles.screenTitle} numberOfLines={1}>Tutti gli eventi</Text>
         <BajujuProfileButton />
+      </View>
+
+      <View style={styles.searchBox}>
+        <BajujuIcon name="search" size={18} color="#8D5E77" />
+        <TextInput
+          value={searchText}
+          onChangeText={(text) => { setSearchText(text); setVisibleCount(PAGE_SIZE); }}
+          placeholder="Cerca eventi"
+          placeholderTextColor="#B48AA0"
+          style={styles.searchInput}
+          returnKeyType="search"
+          autoCorrect={false}
+        />
+        {searchText ? (
+          <Pressable accessibilityRole="button" accessibilityLabel="Cancella la ricerca" hitSlop={10} onPress={() => setSearchText('')}>
+            <Text style={styles.searchClear}>✕</Text>
+          </Pressable>
+        ) : null}
       </View>
 
       <View style={styles.filterBar}>
@@ -338,6 +377,8 @@ export default function AllEventsScreen() {
         contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={listHeader}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         onEndReachedThreshold={0.5}
         onEndReached={() => setVisibleCount((count) => Math.min(count + PAGE_SIZE, filteredEvents.length))}
         ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
@@ -423,7 +464,10 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.85 },
   screenHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   screenTitle: { flex: 1, color: PLUM, fontFamily: 'FredokaBold', fontSize: 26, letterSpacing: -0.5 },
-  filterBar: { marginTop: 16, marginBottom: 14, flexDirection: 'row', gap: 10 },
+  searchBox: { marginTop: 16, height: 48, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, borderRadius: 999, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: LINE },
+  searchInput: { flex: 1, color: PLUM, fontFamily: 'FredokaMedium', fontSize: 16, paddingVertical: 0 },
+  searchClear: { color: '#8D5E77', fontFamily: 'FredokaBold', fontSize: 15 },
+  filterBar: { marginTop: 10, marginBottom: 14, flexDirection: 'row', gap: 10 },
   modeSelect: { flex: 1, height: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 6, paddingHorizontal: 18, borderRadius: 999, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: LINE },
   modeSelectText: { flexShrink: 1, color: PLUM, fontFamily: 'FredokaSemiBold', fontSize: 16 },
   modeSelectArrow: { color: PINK, fontSize: 18 },

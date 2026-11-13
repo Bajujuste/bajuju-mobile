@@ -14,6 +14,7 @@ import {
   type NativeSyntheticEvent,
   type ScrollViewProps,
 } from 'react-native';
+import { KeyboardState, runOnJS, useAnimatedKeyboard, useAnimatedReaction } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Spazio libero che lasciamo tra il campo attivo e la tastiera.
@@ -49,6 +50,93 @@ export function getKeyboardTop(event: KeyboardEvent, insets: Insets) {
   return topOnScreen - appOffset;
 }
 
+/** Bordo superiore della tastiera calcolato dalla sua altezza reale misurata dal fondo dello schermo. */
+function keyboardTopFromHeight(height: number, insets: Insets) {
+  const appOffset = Math.max(0, (StatusBar.currentHeight ?? 0) - insets.top);
+  return Dimensions.get('screen').height - height - appOffset;
+}
+
+/**
+ * Android: altezza VERA della tastiera, aggiornata ogni volta che cambia.
+ * React Native manda "keyboardDidShow" una volta sola, quando la tastiera compare: se poi la tastiera
+ * cresce (barra dei suggerimenti, emoji, appunti, cambio tastiera) non avvisa più, e il campo
+ * restava sotto. Reanimated invece legge direttamente lo spazio occupato dalla tastiera
+ * e ci avvisa a ogni cambio. Restituisce 0 a tastiera chiusa.
+ */
+function useAndroidLiveKeyboardHeight(onChange: (height: number) => void) {
+  const keyboard = useAnimatedKeyboard({ isStatusBarTranslucentAndroid: true, isNavigationBarTranslucentAndroid: true });
+  useAnimatedReaction(
+    () => {
+      const state = keyboard.state.value;
+      if (state === KeyboardState.OPEN) return Math.round(keyboard.height.value);
+      if (state === KeyboardState.CLOSED) return 0;
+      return -1; // in movimento: aspettiamo la fine
+    },
+    (current, previous) => {
+      if (current >= 0 && current !== previous) runOnJS(onChange)(current);
+    },
+  );
+}
+
+function useNoLiveKeyboardHeight(_onChange: (height: number) => void) {}
+
+const useLiveKeyboardHeight = Platform.OS === 'android' ? useAndroidLiveKeyboardHeight : useNoLiveKeyboardHeight;
+
+/**
+ * Segue il bordo superiore della tastiera (coordinate di measureInWindow) e chiama onChange
+ * a ogni cambio: null quando la tastiera è chiusa.
+ * Usa due fonti e sceglie sempre la più prudente (tastiera più alta):
+ * gli eventi di React Native e, su Android, l'altezza reale letta da Reanimated.
+ */
+function useKeyboardTop(onChange: (top: number | null) => void) {
+  const insets = useSafeAreaInsets();
+  const insetsRef = useRef(insets);
+  insetsRef.current = insets;
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+  const eventTop = useRef<number | null>(null);
+  const liveHeight = useRef(0);
+
+  const emit = useCallback(() => {
+    const candidates: number[] = [];
+    if (eventTop.current != null) candidates.push(eventTop.current);
+    if (liveHeight.current > 0) candidates.push(keyboardTopFromHeight(liveHeight.current, insetsRef.current));
+    onChangeRef.current(candidates.length ? Math.min(...candidates) : null);
+  }, []);
+
+  const onLiveHeight = useCallback(
+    (height: number) => {
+      liveHeight.current = height;
+      emit();
+    },
+    [emit],
+  );
+  useLiveKeyboardHeight(onLiveHeight);
+
+  useEffect(() => {
+    const onShow = (event: KeyboardEvent) => {
+      eventTop.current = getKeyboardTop(event, insetsRef.current);
+      emit();
+    };
+    const onHide = () => {
+      eventTop.current = null;
+      liveHeight.current = 0;
+      emit();
+    };
+
+    const subs =
+      Platform.OS === 'ios'
+        ? [
+            Keyboard.addListener('keyboardWillShow', onShow),
+            Keyboard.addListener('keyboardWillChangeFrame', onShow),
+            Keyboard.addListener('keyboardWillHide', onHide),
+          ]
+        : [Keyboard.addListener('keyboardDidShow', onShow), Keyboard.addListener('keyboardDidHide', onHide)];
+
+    return () => subs.forEach((sub) => sub.remove());
+  }, [emit]);
+}
+
 /**
  * Spazio in basso che la tastiera copre su una vista (0 a tastiera chiusa).
  * Per le schermate di chat con il campo fisso in fondo: va messo come paddingBottom
@@ -56,44 +144,48 @@ export function getKeyboardTop(event: KeyboardEvent, insets: Insets) {
  */
 export function useKeyboardOverlap(viewRef: { current: View | null }) {
   const [overlap, setOverlap] = useState(0);
-  const insets = useSafeAreaInsets();
-  const insetsRef = useRef(insets);
-  insetsRef.current = insets;
+  const keyboardTop = useRef<number | null>(null);
+  const timers = useRef(new Set<ReturnType<typeof setTimeout>>());
+
+  const measure = useCallback(() => {
+    const view = viewRef.current;
+    const top = keyboardTop.current;
+    if (top == null) {
+      setOverlap(0);
+      return;
+    }
+    if (!view) return;
+    view.measureInWindow((_x, y, _w, h) => {
+      // Il paddingBottom non cambia il riquadro esterno della vista: la misura resta stabile.
+      setOverlap(Math.max(0, Math.round(y + h - top)));
+    });
+  }, [viewRef]);
+
+  useKeyboardTop(
+    useCallback(
+      (top: number | null) => {
+        keyboardTop.current = top;
+        measure();
+        if (top != null) {
+          // Seconda passata: la finestra può spostarsi dopo l'evento.
+          const timer = setTimeout(() => {
+            timers.current.delete(timer);
+            measure();
+          }, 350);
+          timers.current.add(timer);
+        }
+      },
+      [measure],
+    ),
+  );
 
   useEffect(() => {
-    const timers: ReturnType<typeof setTimeout>[] = [];
-    let keyboardTop: number | null = null;
-
-    const measure = () => {
-      const view = viewRef.current;
-      if (keyboardTop == null || !view) return;
-      const top = keyboardTop;
-      view.measureInWindow((_x, y, _w, h) => {
-        // Il paddingBottom non cambia il riquadro esterno della vista: la misura resta stabile.
-        setOverlap(Math.max(0, Math.round(y + h - top)));
-      });
-    };
-
-    const onShow = (event: KeyboardEvent) => {
-      keyboardTop = getKeyboardTop(event, insetsRef.current);
-      measure();
-      timers.push(setTimeout(measure, 350));
-    };
-    const onHide = () => {
-      keyboardTop = null;
-      setOverlap(0);
-    };
-
-    const subs =
-      Platform.OS === 'ios'
-        ? [Keyboard.addListener('keyboardWillShow', onShow), Keyboard.addListener('keyboardWillHide', onHide)]
-        : [Keyboard.addListener('keyboardDidShow', onShow), Keyboard.addListener('keyboardDidHide', onHide)];
-
+    const pending = timers.current;
     return () => {
-      subs.forEach((sub) => sub.remove());
-      timers.forEach(clearTimeout);
+      pending.forEach(clearTimeout);
+      pending.clear();
     };
-  }, [viewRef]);
+  }, []);
 
   return overlap;
 }
@@ -126,9 +218,6 @@ export const KeyboardAwareScrollView = forwardRef<ScrollView, ScrollViewProps>(f
   const keyboardTop = useRef<number | null>(null);
   const timers = useRef(new Set<ReturnType<typeof setTimeout>>());
   const [spacer, setSpacer] = useState(0);
-  const insets = useSafeAreaInsets();
-  const insetsRef = useRef(insets);
-  insetsRef.current = insets;
 
   const setRefs = useCallback(
     (node: ScrollView | null) => {
@@ -191,38 +280,33 @@ export const KeyboardAwareScrollView = forwardRef<ScrollView, ScrollViewProps>(f
     });
   }, []);
 
-  useEffect(() => {
-    const onShow = (event: KeyboardEvent) => {
-      keyboardTop.current = getKeyboardTop(event, insetsRef.current);
-      updateSpacer();
-      later(revealFocusedInput, Platform.OS === 'ios' ? 60 : 120);
-      // Seconda passata: su Android la finestra può ridimensionarsi dopo l'evento.
-      later(() => {
+  useKeyboardTop(
+    useCallback(
+      (top: number | null) => {
+        keyboardTop.current = top;
+        if (top == null) {
+          setSpacer(0);
+          return;
+        }
         updateSpacer();
-        later(revealFocusedInput, 60);
-      }, 350);
-    };
-    const onHide = () => {
-      keyboardTop.current = null;
-      setSpacer(0);
-    };
+        later(revealFocusedInput, Platform.OS === 'ios' ? 60 : 120);
+        // Seconda passata: su Android la finestra può ridimensionarsi dopo l'evento.
+        later(() => {
+          updateSpacer();
+          later(revealFocusedInput, 60);
+        }, 350);
+      },
+      [later, revealFocusedInput, updateSpacer],
+    ),
+  );
 
-    const subs =
-      Platform.OS === 'ios'
-        ? [
-            Keyboard.addListener('keyboardWillShow', onShow),
-            Keyboard.addListener('keyboardWillChangeFrame', onShow),
-            Keyboard.addListener('keyboardWillHide', onHide),
-          ]
-        : [Keyboard.addListener('keyboardDidShow', onShow), Keyboard.addListener('keyboardDidHide', onHide)];
-
+  useEffect(() => {
     const pending = timers.current;
     return () => {
-      subs.forEach((sub) => sub.remove());
       pending.forEach(clearTimeout);
       pending.clear();
     };
-  }, [later, revealFocusedInput, updateSpacer]);
+  }, []);
 
   const handleScroll = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {

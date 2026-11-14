@@ -333,6 +333,7 @@ export default function ExperienceDetailScreen() {
   );
 
   const canEditExperience = isOrganizer || isCurrentUserAdmin;
+  const canManageJoinRequests = isOrganizer || isCurrentUserAdmin;
 
   const participantCount = displayedParticipants.length;
   const userAlbumPhotoCount = albumPhotos.filter((photo) => albumPhotoOwnerId(photo) === String(currentUserId || '')).length;
@@ -467,7 +468,8 @@ export default function ExperienceDetailScreen() {
   const loadJoinApprovalState = useCallback(async (
     activityId: string,
     userId: string | null,
-    loadedExperience: ActivityRow | null
+    loadedExperience: ActivityRow | null,
+    isAdmin = false
   ) => {
     if (!userId) {
       setJoinState('none');
@@ -476,7 +478,8 @@ export default function ExperienceDetailScreen() {
     }
 
     const organizerId = getExperienceCreatorId(loadedExperience);
-    const canManageRequests = organizerId === userId;
+    // Gli admin gestiscono le richieste di qualsiasi evento, senza diventare organizzatori visibili.
+    const canManageRequests = organizerId === userId || isAdmin;
 
     const [stateResult, requestsResult] = await Promise.all([
       supabase.rpc('get_activity_join_state' as any, { p_activity_id: activityId }),
@@ -515,6 +518,7 @@ export default function ExperienceDetailScreen() {
     const authResult = await supabase.auth.getUser();
     const userId = authResult.data.user?.id || null;
     setCurrentUserId(userId);
+    let userIsAdmin = false;
 
     if (userId) {
       const profileResult = await supabase
@@ -523,11 +527,11 @@ export default function ExperienceDetailScreen() {
         .eq('id', userId)
         .maybeSingle();
 
-      setIsCurrentUserAdmin(
+      userIsAdmin =
         !profileResult.error &&
         profileResult.data?.is_admin === true &&
-        profileResult.data?.is_deleted !== true
-      );
+        profileResult.data?.is_deleted !== true;
+      setIsCurrentUserAdmin(userIsAdmin);
     } else {
       setIsCurrentUserAdmin(false);
     }
@@ -561,7 +565,7 @@ export default function ExperienceDetailScreen() {
     await Promise.all([
       loadParticipants(experienceId, loadedExperience),
       loadMessages(experienceId),
-      loadJoinApprovalState(experienceId, userId, loadedExperience),
+      loadJoinApprovalState(experienceId, userId, loadedExperience, userIsAdmin),
     ]);
 
     setLoading(false);
@@ -778,7 +782,7 @@ export default function ExperienceDetailScreen() {
   }
 
   async function reviewJoinRequest(requestUserId: string, accept: boolean) {
-    if (!experienceId || !currentUserId || !isOrganizer || !requestUserId || reviewBusyUserId) return;
+    if (!experienceId || !currentUserId || !canManageJoinRequests || !requestUserId || reviewBusyUserId) return;
 
     setReviewBusyUserId(requestUserId);
     try {
@@ -791,7 +795,7 @@ export default function ExperienceDetailScreen() {
 
       await Promise.all([
         loadParticipants(experienceId, experience),
-        loadJoinApprovalState(experienceId, currentUserId, experience),
+        loadJoinApprovalState(experienceId, currentUserId, experience, isCurrentUserAdmin),
       ]);
 
       await sendBajujuPushNotification({
@@ -1633,7 +1637,7 @@ export default function ExperienceDetailScreen() {
                   ) : null}
                 </Pressable>
 
-                {isOrganizer && joinRequests.length > 0 ? (
+                {canManageJoinRequests && joinRequests.length > 0 ? (
                   <View style={styles.requestsCard}>
                     <Pressable
                       style={styles.requestsHeader}

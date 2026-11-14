@@ -321,7 +321,13 @@ Deno.serve(async (request) => {
 
     if (error || requestResult.error || participantResult.error) return jsonResponse({ error: 'Errore lettura esito richiesta.' }, 500);
     if (!activity || !requestResult.data) return jsonResponse({ error: 'Richiesta non trovata.' }, 404);
-    if (creatorIdOf(activity) !== actorUserId) return jsonResponse({ error: 'Solo l’organizzatore può inviare questo esito.' }, 403);
+    if (creatorIdOf(activity) !== actorUserId) {
+      // Anche gli admin attivi possono accettare/rifiutare le richieste di qualsiasi evento.
+      const adminResult = await supabase.rpc('bajuju_is_active_admin', { p_user_id: actorUserId });
+      if (adminResult.error || adminResult.data !== true) {
+        return jsonResponse({ error: 'Solo l’organizzatore può inviare questo esito.' }, 403);
+      }
+    }
 
     const expectedStatus = accepted ? 'approved' : 'rejected';
     if (String(requestResult.data.status || '') !== expectedStatus) {

@@ -4,6 +4,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { KeyboardState, runOnJS, useAnimatedKeyboard, useAnimatedReaction } from 'react-native-reanimated';
 import { useBajujuPhotoPicker } from '../../src/components/useBajujuPhotoPicker';
 import {
   Alert,
@@ -255,6 +256,29 @@ export default function ExperienceDetailScreen() {
   const chatScrollRef = useRef<ScrollView | null>(null);
   const chatAtBottomRef = useRef(true);
   const [chatAtBottom, setChatAtBottom] = useState(true);
+
+  // Android: la tastiera si sovrapponeva al campo della chat. Invece di calcolare dove sta la tastiera
+  // (coordinate che cambiano da telefono a telefono), alziamo tutta la schermata della sua altezza vera,
+  // letta da Reanimated. Se il sistema ha già rimpicciolito la schermata, togliamo quella parte.
+  const androidKeyboard = useAnimatedKeyboard({ isStatusBarTranslucentAndroid: true, isNavigationBarTranslucentAndroid: true });
+  const [androidKeyboardHeight, setAndroidKeyboardHeight] = useState(0);
+  const [screenHeight, setScreenHeight] = useState(0);
+  const fullScreenHeightRef = useRef(0);
+  useAnimatedReaction(
+    () => {
+      if (Platform.OS !== 'android') return 0;
+      const state = androidKeyboard.state.value;
+      if (state === KeyboardState.OPEN) return Math.round(androidKeyboard.height.value);
+      if (state === KeyboardState.CLOSED) return 0;
+      return -1;
+    },
+    (current, previous) => {
+      if (current >= 0 && current !== previous) runOnJS(setAndroidKeyboardHeight)(current);
+    },
+  );
+  const systemShrink = Math.max(0, fullScreenHeightRef.current - screenHeight);
+  const androidKeyboardPad =
+    Platform.OS === 'android' && androidKeyboardHeight > 0 ? Math.max(0, androidKeyboardHeight - systemShrink) : 0;
   const params = useLocalSearchParams<{ id?: string; section?: string }>();
   const experienceId = params.id;
   const requestedSection = params.section;
@@ -397,6 +421,13 @@ export default function ExperienceDetailScreen() {
 
     return () => clearTimeout(timeout);
   }, [canUseChat, loading, messages.length, requestedSection]);
+
+  // Quando la schermata si è alzata sopra la tastiera, il campo della chat (in fondo alla pagina) torna visibile.
+  useEffect(() => {
+    if (Platform.OS !== 'android' || !chatFocused || androidKeyboardPad <= 0) return;
+    const timeout = setTimeout(() => pageScrollRef.current?.scrollToEnd({ animated: true }), 80);
+    return () => clearTimeout(timeout);
+  }, [androidKeyboardPad, chatFocused]);
 
   const loadParticipants = useCallback(async (activityId: string, loadedExperience?: ActivityRow | null) => {
     const participantsResult = await supabase
@@ -1444,7 +1475,14 @@ export default function ExperienceDetailScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       {photoPickerModal}
-      <View style={{ flex: 1 }}>
+      <View
+        style={{ flex: 1, paddingBottom: androidKeyboardPad }}
+        onLayout={(event) => {
+          const height = Math.round(event.nativeEvent.layout.height);
+          if (androidKeyboardHeight === 0) fullScreenHeightRef.current = Math.max(fullScreenHeightRef.current, height);
+          setScreenHeight(height);
+        }}
+      >
         <KeyboardAwareScrollView
           ref={pageScrollRef}
           contentContainerStyle={[

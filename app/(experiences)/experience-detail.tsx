@@ -251,6 +251,10 @@ export default function ExperienceDetailScreen() {
   const androidBottomInset = Platform.OS === 'android' ? safeAreaInsets.bottom : 0;
   const pageScrollRef = useRef<any>(null);
   const chatAutoScrollDoneRef = useRef(false);
+  // Riquadro chat ad altezza fissa: scorre al suo interno e si apre sull'ultimo messaggio.
+  const chatScrollRef = useRef<ScrollView | null>(null);
+  const chatAtBottomRef = useRef(true);
+  const [chatAtBottom, setChatAtBottom] = useState(true);
   const params = useLocalSearchParams<{ id?: string; section?: string }>();
   const experienceId = params.id;
   const requestedSection = params.section;
@@ -984,6 +988,9 @@ export default function ExperienceDetailScreen() {
       }
 
       setNewMessage('');
+      // Dopo l'invio si torna in fondo al riquadro per vedere il proprio messaggio.
+      chatAtBottomRef.current = true;
+      setChatAtBottom(true);
       await loadMessages(experienceId);
 
       if (Platform.OS !== 'web') {
@@ -1751,7 +1758,29 @@ export default function ExperienceDetailScreen() {
                       {messages.length === 0 ? (
                         <Text style={styles.emptySmallText}>Ancora nessun messaggio.</Text>
                       ) : (
-                        <View style={styles.messagesList}>
+                        <View style={styles.chatBox}>
+                        <ScrollView
+                          ref={chatScrollRef}
+                          style={styles.chatViewport}
+                          contentContainerStyle={styles.messagesList}
+                          nestedScrollEnabled
+                          showsVerticalScrollIndicator
+                          keyboardShouldPersistTaps="handled"
+                          scrollEventThrottle={50}
+                          onScroll={(event) => {
+                            const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+                            const distanceFromBottom = contentSize.height - (contentOffset.y + layoutMeasurement.height);
+                            const nextAtBottom = distanceFromBottom < 48;
+                            chatAtBottomRef.current = nextAtBottom;
+                            if (nextAtBottom !== chatAtBottom) setChatAtBottom(nextAtBottom);
+                          }}
+                          onContentSizeChange={() => {
+                            // All'apertura e ai nuovi messaggi resta in fondo, se l'utente non sta leggendo più su.
+                            if (chatAtBottomRef.current) {
+                              chatScrollRef.current?.scrollToEnd({ animated: false });
+                            }
+                          }}
+                        >
                           {messages.map((item, index) => {
                             const userId = String(item.user_id || item.sender_id || '');
                             const isMine = currentUserId && userId === currentUserId;
@@ -1790,6 +1819,20 @@ export default function ExperienceDetailScreen() {
                               </View>
                             );
                           })}
+                        </ScrollView>
+                        {!chatAtBottom ? (
+                          <Pressable
+                            style={styles.chatJumpButton}
+                            onPress={() => {
+                              chatAtBottomRef.current = true;
+                              setChatAtBottom(true);
+                              chatScrollRef.current?.scrollToEnd({ animated: true });
+                            }}
+                            accessibilityLabel="Vai agli ultimi messaggi"
+                          >
+                            <Text style={styles.chatJumpButtonText}>↓ Ultimi</Text>
+                          </Pressable>
+                        ) : null}
                         </View>
                       )}
 
@@ -2445,8 +2488,35 @@ const styles = StyleSheet.create({
     padding: 14,
     textAlign: 'center',
   },
+  chatBox: {
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: C.palePink,
+    backgroundColor: '#FFF9FC',
+    overflow: 'hidden',
+  },
+  chatViewport: {
+    maxHeight: 360,
+  },
   messagesList: {
     gap: 8,
+    padding: 10,
+  },
+  chatJumpButton: {
+    position: 'absolute',
+    right: 10,
+    bottom: 10,
+    minHeight: 32,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: C.palePink,
+  },
+  chatJumpButtonText: {
+    color: C.brightPink,
+    fontFamily: BAJUJU_FONTS.bold,
+    fontSize: 12,
   },
   messageBubble: {
     alignSelf: 'flex-start',

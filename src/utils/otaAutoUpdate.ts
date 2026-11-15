@@ -10,7 +10,7 @@ import { AppState, Platform } from 'react-native';
 // - altrimenti resta "in attesa" e si applica la prossima volta che l'app torna in primo piano,
 //   così non si ricarica mai sotto le dita di chi la sta usando.
 const RELOAD_RIGHT_AWAY_WINDOW_MS = 15 * 1000;
-const MIN_CHECK_INTERVAL_MS = 10 * 60 * 1000;
+const MIN_CHECK_INTERVAL_MS = 60 * 1000;
 // Il ricaricamento azzera la navigazione: se l'app è stata appena aperta toccando una notifica,
 // l'utente finirebbe in Home invece che nella chat. In quel caso l'OTA aspetta il rientro successivo.
 const NOTIFICATION_GRACE_MS = 60 * 1000;
@@ -86,11 +86,16 @@ async function downloadUpdate() {
     const check = await Updates.checkForUpdateAsync();
     if (!check.isAvailable) return false;
 
-    const result = await Updates.fetchUpdateAsync();
-    updateReady = result.isNew;
+    // Se c'è una versione più nuova di quella in uso, dopo il download è pronta da applicare.
+    // isNew vale false quando l'app l'aveva già scaricata da sola all'avvio: prima la ignoravamo
+    // e l'aggiornamento restava fermo fino alla chiusura completa dell'app.
+    await Updates.fetchUpdateAsync();
+    updateReady = true;
     return updateReady;
   } catch {
     console.log('Controllo aggiornamento OTA non disponibile.');
+    // Riprova al prossimo rientro (es. controllo già in corso all'avvio), senza aspettare.
+    lastCheckAt = 0;
     return false;
   } finally {
     checking = false;
@@ -98,6 +103,17 @@ async function downloadUpdate() {
 }
 
 export function useOtaAutoUpdate() {
+  // expo-updates all'avvio controlla e scarica l'OTA anche da solo: quando ha finito, isUpdatePending
+  // diventa vero. Lo usiamo come segnale sicuro che l'aggiornamento è pronto.
+  const { isUpdatePending } = Updates.useUpdates();
+  const [mountedAt] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!isOtaAvailable() || !isUpdatePending) return;
+    updateReady = true;
+    if (Date.now() - mountedAt < RELOAD_RIGHT_AWAY_WINDOW_MS) void applyUpdate();
+  }, [isUpdatePending, mountedAt]);
+
   useEffect(() => {
     if (!isOtaAvailable()) return;
 

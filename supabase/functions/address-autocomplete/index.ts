@@ -82,6 +82,78 @@ function resolvedPlaceLocation(place: Record<string, any>) {
   return { latitude: Number(place.location?.latitude), longitude: Number(place.location?.longitude) };
 }
 
+
+// Testo senza accenti, punteggiatura e spazi doppi, per confrontare il Comune scritto con i suggerimenti.
+function normalizeForMatch(value: string) {
+  return value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+// Parte finale di quello che l'utente ha scritto (di solito il Comune): dopo l'ultima virgola,
+// altrimenti l'ultima parola. Es. "Via Garibaldi, 2, Caprino Bergamasco" -> "caprino bergamasco".
+function typedTownHint(input: string) {
+  const parts = input.split(',').map((part) => normalizeForMatch(part)).filter(Boolean);
+  const last = parts.length > 1 ? parts[parts.length - 1] : '';
+  if (last && !/^\d+[a-z]?$/.test(last)) return last;
+  const words = normalizeForMatch(input).split(' ').filter((word) => word.length >= 4 && !/^\d/.test(word));
+  return words.length > 1 ? words[words.length - 1] : '';
+}
+
+type Suggestion = { place_id: string; description: string; main_text: string; secondary_text: string };
+
+// Google Autocomplete a volte ignora il Comune (piccoli paesi) e propone la stessa via in altre città.
+// In quel caso cerchiamo l'indirizzo completo con Text Search, che legge via + civico + Comune insieme.
+async function textSearchSuggestions(query: string): Promise<Suggestion[]> {
+  const response = await fetch('https://places.googleapis.com/v1/places:searchText', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Goog-Api-Key': GOOGLE_PLACES_API_KEY!,
+      'X-Goog-FieldMask': 'places.id,places.formattedAddress,places.addressComponents,places.displayName',
+    },
+    body: JSON.stringify({ textQuery: query, languageCode: 'it', regionCode: 'it', maxResultCount: 5 }),
+  });
+
+  if (!response.ok) {
+    await logProviderError('Google Places text search (suggerimenti) failed', response);
+    return [];
+  }
+
+  const data = await response.json();
+  const places = Array.isArray(data.places) ? data.places : [];
+
+  return places
+    .map((place: Record<string, any>) => {
+      const components = Array.isArray(place.addressComponents) ? place.addressComponents : [];
+      if (addressComponent(components, 'country', 'shortText').toUpperCase() !== 'IT') return null;
+      const placeId = cleanString(place.id, 300);
+      const description = cleanString(place.formattedAddress, 300);
+      if (!placeId || !description) return null;
+      const street = addressComponent(components, 'route');
+      const streetNumber = addressComponent(components, 'street_number');
+      const city =
+        addressComponent(components, 'locality') ||
+        addressComponent(components, 'administrative_area_level_3');
+      const provinceCode = addressComponent(components, 'administrative_area_level_2', 'shortText');
+      const streetText = [street, streetNumber].filter(Boolean).join(', ');
+      const name = cleanString(place.displayName?.text, 200);
+      const isNamedPlace = name && normalizeForMatch(name) !== normalizeForMatch(streetText);
+      return {
+        place_id: placeId,
+        description,
+        main_text: (isNamedPlace ? name : streetText) || description,
+        secondary_text: isNamedPlace
+          ? [streetText, city].filter(Boolean).join(', ')
+          : [city, provinceCode].filter(Boolean).join(', '),
+      };
+    })
+    .filter(Boolean) as Suggestion[];
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -288,9 +360,22 @@ Deno.serve(async (req) => {
           .slice(0, 5)
       : [];
 
+    // Se l'utente ha scritto il Comune ma nessun suggerimento è in quel Comune, cerchiamo il testo completo.
+    const townHint = typedTownHint(input);
+    const townMatches = (item: Suggestion) => normalizeForMatch(item.description).includes(townHint);
+    let finalSuggestions: Suggestion[] = suggestions;
+
+    if (townHint.length >= 4 && !suggestions.some(townMatches)) {
+      const fromText = (await textSearchSuggestions(input)).filter(townMatches);
+      if (fromText.length > 0) {
+        const seen = new Set(fromText.map((item) => item.place_id));
+        finalSuggestions = [...fromText, ...suggestions.filter((item: Suggestion) => !seen.has(item.place_id))].slice(0, 5);
+      }
+    }
+
     return jsonResponse({
       ok: true,
-      suggestions,
+      suggestions: finalSuggestions,
     });
   }
 

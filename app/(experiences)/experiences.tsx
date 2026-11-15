@@ -548,6 +548,7 @@ export default function ExperiencesScreen() {
                 value={pendingDate}
                 mode="date"
                 display="inline"
+                themeVariant="light"
                 minimumDate={mode === 'past' ? undefined : new Date()}
               maximumDate={mode === 'past' ? new Date() : undefined}
                 locale="it-IT"

@@ -705,6 +705,7 @@ export default function CreateExperienceScreen() {
                   value={pendingDate}
                   mode="date"
                   display="inline"
+                  themeVariant="light"
                   onChange={handleDateChange}
                 />
                 <View style={styles.iosPickerActions}>
@@ -733,6 +734,7 @@ export default function CreateExperienceScreen() {
                   value={pendingTime}
                   mode="time"
                   display="spinner"
+                  themeVariant="light"
                   minuteInterval={30}
                   is24Hour
                   onChange={handleTimeChange}

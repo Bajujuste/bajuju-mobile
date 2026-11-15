@@ -343,7 +343,7 @@ export default function AllEventsScreen() {
       {showDatePicker ? (
         Platform.OS === 'ios' ? (
           <View style={styles.iosPickerContainer}>
-            <DateTimePicker value={pendingDate} mode="date" display="inline" minimumDate={new Date()} locale="it-IT" onChange={handleFilterDateChange} />
+            <DateTimePicker value={pendingDate} mode="date" display="inline" themeVariant="light" minimumDate={new Date()} locale="it-IT" onChange={handleFilterDateChange} />
             <View style={styles.iosPickerActions}>
               <Pressable onPress={() => setShowDatePicker(false)} style={styles.iosPickerAction}>
                 <Text style={styles.iosPickerCancelText}>Annulla</Text>

@@ -53,6 +53,17 @@ function activityMoment(row: HomeActivityRow) {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
+// Su alcuni telefoni GPS, permessi o token push a volte non rispondono mai: la Home non deve restare vuota ad aspettarli.
+function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return new Promise<T>((resolve) => {
+    const timer = setTimeout(() => resolve(fallback), ms);
+    promise.then(
+      (value) => { clearTimeout(timer); resolve(value); },
+      () => { clearTimeout(timer); resolve(fallback); }
+    );
+  });
+}
+
 function nextExperienceMeta(row: HomeActivityRow) {
   const dateLabel = experienceDateLabel(activityMoment(row), Boolean(row.activity_time));
   return [dateLabel, row.city || row.province || ''].filter(Boolean).join(' · ');
@@ -217,6 +228,7 @@ export default function HomeScreen() {
     React.useCallback(() => {
       let active = true;
       let channel: ReturnType<typeof supabase.channel> | null = null;
+      let appStateSubscription: ReturnType<typeof AppState.addEventListener> | null = null;
 
       async function refreshUnreadCount(userId: string) {
         const { data, error } = await supabase
@@ -240,9 +252,8 @@ export default function HomeScreen() {
 
       async function refreshGroups(userId: string) {
         try {
-          // Aggiorna la posizione solo se il permesso è già stato concesso:
-          // get_bajuju_groups ordina poi automaticamente i gruppi per distanza.
-          await refreshBajujuNotificationLocation(userId, { requestPermission: false }).catch(() => null);
+          // I gruppi si caricano subito: prima aspettavano l'aggiornamento della posizione
+          // e, se il GPS non rispondeva, la sezione Gruppi restava vuota.
           const loadedGroups = await loadBajujuGroups(userId, { limit: 100 });
           if (!active) return;
           setGroups(
@@ -258,8 +269,8 @@ export default function HomeScreen() {
             }))
           );
         } catch (error) {
+          // In caso di errore restano i gruppi già mostrati.
           console.log('Gruppi Home non aggiornati:', error);
-          if (active) setGroups([]);
         }
       }
 
@@ -269,7 +280,7 @@ export default function HomeScreen() {
         const saved = toUsableCoordinates(preference.data?.latitude, preference.data?.longitude);
         let latitude = saved ? saved.latitude : NaN;
         let longitude = saved ? saved.longitude : NaN;
-        try {
+        const device = await withTimeout((async () => {
           let permission = await Location.getForegroundPermissionsAsync();
           // Chi ha detto No alle notifiche non passa dalla richiesta posizione delle notifiche:
           // la chiediamo qui, una volta per avvio, per poter mostrare gli eventi vicini.
@@ -278,18 +289,17 @@ export default function HomeScreen() {
             homeLocationAskedRef.current = true;
             permission = await Location.requestForegroundPermissionsAsync();
           }
-          if (permission.status === 'granted') {
-            const device = await getUsableDevicePosition();
-            if (device) {
-              latitude = device.latitude;
-              longitude = device.longitude;
-            }
-          }
-        } catch { /* Ultima posizione salvata, se disponibile. */ }
+          return permission.status === 'granted' ? await getUsableDevicePosition() : null;
+        })(), 12000, null);
+        // Senza risposta dal GPS si usa l'ultima posizione salvata, se disponibile.
+        if (device) {
+          latitude = device.latitude;
+          longitude = device.longitude;
+        }
         if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
           // Senza posizione usiamo la città del profilo.
           const profile = await supabase.from('profiles').select('city,province').eq('id', userId).maybeSingle();
-          const match = await geocodeProfilePlace(profile.data?.city, profile.data?.province);
+          const match = await withTimeout(geocodeProfilePlace(profile.data?.city, profile.data?.province), 8000, null);
           if (match) {
             latitude = match.latitude;
             longitude = match.longitude;
@@ -410,10 +420,11 @@ export default function HomeScreen() {
 
       void (async () => {
         try {
-          const authResult = await supabase.auth.getUser();
-          if (authResult.error) throw authResult.error;
+          // getSession legge la sessione salvata sul telefono: getUser chiedeva ogni volta al server.
+          const sessionResult = await supabase.auth.getSession();
+          if (sessionResult.error) throw sessionResult.error;
 
-          const userId = authResult.data.user?.id;
+          const userId = sessionResult.data.session?.user?.id;
           if (!userId || !active) {
             if (active) {
             setNotificationCounts({ requests: 0, chat: 0, other: 0 });
@@ -428,23 +439,36 @@ export default function HomeScreen() {
 
           homeFocusCountRef.current += 1;
           if (homeFocusCountRef.current > 1) {
-            const registrationResult = await refreshBajujuPushRegistrationIfAuthorized(userId);
-            if (!registrationResult.ok) console.log('Token push non aggiornato al focus Home.');
-
-            const locationResult = await refreshBajujuNotificationLocation(userId, { requestPermission: false });
-            if (!locationResult.ok) console.log('Posizione notifiche non aggiornata al focus Home.');
+            // Token push in background: se non risponde, eventi e gruppi si caricano lo stesso.
+            void refreshBajujuPushRegistrationIfAuthorized(userId)
+              .then((result) => { if (!result.ok) console.log('Token push non aggiornato al focus Home.'); })
+              .catch(() => console.log('Token push non aggiornato al focus Home.'));
           }
+          // Posizione in background: quando arriva, i gruppi si riordinano per distanza.
+          void refreshBajujuNotificationLocation(userId, { requestPermission: false })
+            .then((result) => { if (result.ok && active) void refreshGroups(userId); })
+            .catch(() => null);
 
           reloadNearbyRef.current = () => {
             void refreshNearbyExperiences(userId).catch(() => console.log('Eventi vicini non aggiornati.'));
           };
+          // Al ritorno nell'app (es. dopo aver acceso GPS o rete) eventi e gruppi si ricaricano.
+          appStateSubscription = AppState.addEventListener('change', (state) => {
+            if (state !== 'active' || !active) return;
+            void refreshGroups(userId);
+            void refreshNearbyExperiences(userId).catch(() => console.log('Eventi vicini non aggiornati.'));
+          });
 
-          await Promise.all([
+          // Ogni sezione si carica per conto suo: un errore in una non svuota le altre.
+          const results = await Promise.allSettled([
             refreshUnreadCount(userId),
             refreshNextExperience(userId),
             refreshGroups(userId),
             refreshNearbyExperiences(userId),
           ]);
+          results.forEach((result) => {
+            if (result.status === 'rejected') console.log('Sezione Home non aggiornata:', result.reason);
+          });
           if (!active) return;
 
           // Nome univoco per istanza: al ritorno sulla Home il canale precedente può essere ancora in chiusura.
@@ -460,16 +484,13 @@ export default function HomeScreen() {
             .subscribe();
         } catch (error) {
           console.log('Errore aggiornamento Home:', error);
-          if (active) {
-            setNotificationCounts({ requests: 0, chat: 0, other: 0 });
-            setGroups([]);
-          }
         }
       })();
 
       return () => {
         active = false;
         reloadNearbyRef.current = null;
+        appStateSubscription?.remove();
         if (channel) void supabase.removeChannel(channel);
       };
     }, [])

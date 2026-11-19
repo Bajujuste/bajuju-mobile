@@ -38,6 +38,7 @@ import { useChatLiveRefresh } from '../../src/hooks/useChatLiveRefresh';
 import { BajujuProfileButton } from '../../src/components/navigation/BajujuProfileButton';
 import { BajujuAdminRing } from '../../src/components/profile/BajujuAdminRing';
 import { useBajujuAdminIds } from '../../src/hooks/useBajujuAdminIds';
+import { loadPromotedEventIds } from '../../src/lib/promotedEvents';
 
 const bajujuLogo = require('../../assets/brand/bajuju-logo.png');
 
@@ -361,6 +362,14 @@ export default function ExperienceDetailScreen() {
   );
 
   const canEditExperience = isOrganizer || isCurrentUserAdmin;
+  // Evento promozionale Bajuju: il numero di iscritti non si mostra (solo organizzatore e admin lo vedono).
+  const [isPromoted, setIsPromoted] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    void loadPromotedEventIds().then((ids) => { if (alive) setIsPromoted(Boolean(experienceId && ids.has(String(experienceId)))); });
+    return () => { alive = false; };
+  }, [experienceId]);
+  const hideParticipantCount = isPromoted && !canEditExperience;
   const canManageJoinRequests = isOrganizer || isCurrentUserAdmin;
 
   const participantCount = displayedParticipants.length;
@@ -1664,7 +1673,7 @@ export default function ExperienceDetailScreen() {
 
                   <View style={styles.peopleCopy}>
                     <Text style={styles.peopleCount}>
-                      {participantCount}{maxParticipants > 0 ? ` / ${maxParticipants}` : ''} partecipanti
+                      {hideParticipantCount ? 'Partecipanti' : `${participantCount}${maxParticipants > 0 ? ` / ${maxParticipants}` : ''} partecipanti`}
                     </Text>
                     <Text style={styles.peopleMeta} numberOfLines={1}>
                       {displayedParticipants.length === 0
@@ -2017,14 +2026,16 @@ export default function ExperienceDetailScreen() {
               </>
             ) : (
               <>
-                <View style={styles.spotsBox}>
-                  <Text style={styles.spotsValue}>
-                    {freeSpots === null ? participantCount : freeSpots}
-                  </Text>
-                  <Text style={styles.spotsLabel}>
-                    {freeSpots === null ? 'iscritti' : freeSpots === 1 ? 'posto libero' : 'posti liberi'}
-                  </Text>
-                </View>
+                {hideParticipantCount ? null : (
+                  <View style={styles.spotsBox}>
+                    <Text style={styles.spotsValue}>
+                      {freeSpots === null ? participantCount : freeSpots}
+                    </Text>
+                    <Text style={styles.spotsLabel}>
+                      {freeSpots === null ? 'iscritti' : freeSpots === 1 ? 'posto libero' : 'posti liberi'}
+                    </Text>
+                  </View>
+                )}
 
                 {isFull && !approvalRequired ? (
                   <Pressable
@@ -2062,9 +2073,11 @@ export default function ExperienceDetailScreen() {
         <View style={styles.sheet}>
           <View style={styles.sheetHandle} />
           <Text style={styles.sheetTitle}>Persone nell’esperienza</Text>
-          <Text style={styles.sheetSubtitle}>
-            {participantCount}{maxParticipants > 0 ? ` / ${maxParticipants}` : ''} partecipanti
-          </Text>
+          {hideParticipantCount ? null : (
+            <Text style={styles.sheetSubtitle}>
+              {participantCount}{maxParticipants > 0 ? ` / ${maxParticipants}` : ''} partecipanti
+            </Text>
+          )}
           <ScrollView style={styles.sheetScroll} contentContainerStyle={styles.participantsList}>
             {displayedParticipants.map(renderParticipantRow)}
           </ScrollView>

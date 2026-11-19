@@ -6,6 +6,7 @@ import { supabase } from './supabase';
 export const PROMO_GOLD = '#D4A62A';
 export const PROMO_LABEL = '⭐ Evento promozionale Bajuju';
 
+// Negli eventi promozionali il numero di iscritti resta nascosto (lo vedono solo organizzatore e admin).
 export async function loadPromotedEventIds(): Promise<Set<string>> {
   try {
     const result = await supabase.from('app_settings').select('setting_value').eq('setting_key', 'promoted_event_ids').maybeSingle();

@@ -5,6 +5,7 @@ import { Alert, AppState, Linking } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 
 import { loadEventOrganizerNames } from '../src/lib/eventCards';
+import { loadPromotedEventIds } from '../src/lib/promotedEvents';
 import { BajujuHomeView, HomeGroupPreview, HomeNearbyExperience } from '../src/components/home/BajujuHomeView';
 import { loadBajujuGroups } from '../src/lib/bajujuGroups';
 import { supabase } from '../src/lib/supabase';
@@ -305,7 +306,10 @@ export default function HomeScreen() {
             longitude = match.longitude;
           }
         }
-        if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+        // Gli eventi promozionali Bajuju si vedono anche senza posizione.
+        const hasPosition = Number.isFinite(latitude) && Number.isFinite(longitude);
+        const promotedIds = await loadPromotedEventIds();
+        if (!hasPosition && promotedIds.size === 0) {
           if (active) setNearbyExperiences([]);
           return;
         }
@@ -322,16 +326,21 @@ export default function HomeScreen() {
           if (['deleted', 'cancelled', 'canceled', 'annullato', 'archived', 'closed'].includes(String(row.status || '').toLowerCase())) return [];
           const time = new Date(`${row.activity_date}T${row.activity_time || '23:59'}`);
           if (time.getTime() < Date.now()) return [];
-          const dLat = radians(lat - latitude), dLon = radians(lon - longitude);
-          const a = Math.sin(dLat / 2) ** 2 + Math.cos(radians(latitude)) * Math.cos(radians(lat)) * Math.sin(dLon / 2) ** 2;
-          const distanceKm = 6371.0088 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-          if (distanceKm > 25) return [];
+          const promoted = promotedIds.has(String(row.id));
+          let distanceKm = NaN;
+          if (hasPosition) {
+            const dLat = radians(lat - latitude), dLon = radians(lon - longitude);
+            const a = Math.sin(dLat / 2) ** 2 + Math.cos(radians(latitude)) * Math.cos(radians(lat)) * Math.sin(dLon / 2) ** 2;
+            distanceKm = 6371.0088 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+          }
+          // Promozionale: compare a tutti, a prescindere dalla distanza.
+          if (!promoted && !(distanceKm <= 25)) return [];
           return [{ id: String(row.id), title: String(row.title || 'Esperienza Bajuju'), category: String(row.category || ''),
             city: String(row.city || 'Luogo da definire'), date: experienceDateLabel(time, Boolean(row.activity_time)),
-            photoUrl: String(row.photo_url || ''), distanceKm, startsAt: time.getTime(),
+            photoUrl: String(row.photo_url || ''), distanceKm, startsAt: time.getTime(), promoted,
             byLocation: Boolean(row.location_owner_id && String(row.creator_id || '') === String(row.location_owner_id)) }];
         })
-          .sort((a, b) => a.startsAt - b.startsAt || a.id.localeCompare(b.id))
+          .sort((a, b) => Number(b.promoted) - Number(a.promoted) || a.startsAt - b.startsAt || a.id.localeCompare(b.id))
           .slice(0, 80)
           .map(({ startsAt, ...event }) => event);
         if (active) setNearbyExperiences(events);

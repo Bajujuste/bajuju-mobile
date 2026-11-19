@@ -25,6 +25,7 @@ import { geocodeProfilePlace, getUsableDevicePosition, toUsableCoordinates } fro
 import { experienceDateLabel } from '../../src/utils/experienceDateLabel';
 import { loadEventOrganizerNames } from '../../src/lib/eventCards';
 import { EventCardImage } from '../../src/components/events/EventCardImage';
+import { loadPromotedEventIds, PROMO_GOLD, PROMO_LABEL } from '../../src/lib/promotedEvents';
 
 const bajujuLogo = require('../../assets/brand/bajuju-logo.png');
 const PAGE_SIZE = 30;
@@ -57,7 +58,7 @@ type ActivityRow = {
 
 type ParticipantRow = { activity_id?: string | null; user_id?: string | null; status?: string | null };
 type Coordinates = { latitude: number; longitude: number };
-type EventWithDistance = ActivityRow & { distanceKm: number | null };
+type EventWithDistance = ActivityRow & { distanceKm: number | null; promoted: boolean };
 
 function participantIsActive(row: ParticipantRow) {
   return !['annullato', 'annullata', 'rejected', 'rifiutato', 'declined', 'deleted', 'removed']
@@ -123,6 +124,7 @@ export default function AllEventsScreen() {
   const [coordinates, setCoordinates] = useState<Coordinates | null>(null);
   const [searchText, setSearchText] = useState('');
   const [maxKm, setMaxKm] = useState<number | null>(10);
+  const [promotedIds, setPromotedIds] = useState<Set<string>>(new Set());
   const [filterDate, setFilterDate] = useState<Date | null>(null);
   const [pendingDate, setPendingDate] = useState<Date>(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -177,6 +179,7 @@ export default function AllEventsScreen() {
       if (result.error) throw result.error;
 
       const clean = ((result.data || []) as ActivityRow[]).filter((row) => !isDeleted(row));
+      setPromotedIds(await loadPromotedEventIds());
       setActivities(clean);
       void loadEventOrganizerNames(clean).then(setOrganizerNames).catch(() => undefined);
 
@@ -228,9 +231,10 @@ export default function AllEventsScreen() {
       })
       .map((row) => {
         const target = rowCoordinates(row);
-        return { ...row, distanceKm: coordinates && target ? distanceKm(coordinates, target) : null };
+        return { ...row, distanceKm: coordinates && target ? distanceKm(coordinates, target) : null, promoted: promotedIds.has(String(row.id || '')) };
       })
-      .filter((row) => maxKm === null || (row.distanceKm !== null && row.distanceKm <= maxKm))
+      // Gli eventi promozionali Bajuju compaiono a prescindere dalla distanza.
+      .filter((row) => row.promoted || maxKm === null || (row.distanceKm !== null && row.distanceKm <= maxKm))
       .filter((row) => !filterDayKey || String(row.activity_date || '').slice(0, 10) === filterDayKey)
       .filter((row) => {
         if (searchWords.length === 0) return true;
@@ -246,11 +250,12 @@ export default function AllEventsScreen() {
         return searchWords.every((word) => haystack.includes(word));
       })
       .sort((a, b) => {
+        if (a.promoted !== b.promoted) return a.promoted ? -1 : 1;
         const startA = activityMoment(a)?.getTime() ?? Number.MAX_SAFE_INTEGER;
         const startB = activityMoment(b)?.getTime() ?? Number.MAX_SAFE_INTEGER;
         return startA - startB || Number(a.distanceKm ?? 9999) - Number(b.distanceKm ?? 9999);
       });
-  }, [activities, coordinates, maxKm, filterDayKey, searchWords, organizerNames]);
+  }, [activities, coordinates, maxKm, filterDayKey, searchWords, organizerNames, promotedIds]);
 
   const visibleEvents = filteredEvents.slice(0, visibleCount);
 
@@ -409,11 +414,12 @@ export default function AllEventsScreen() {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={`Apri evento ${title}`}
-              style={({ pressed }) => [styles.eventRow, pressed && styles.pressed]}
+              style={({ pressed }) => [styles.eventRow, item.promoted && styles.promoRow, pressed && styles.pressed]}
               onPress={() => router.push({ pathname: '/experience-detail' as any, params: { id } })}
             >
               <EventCardImage uri={String(item.photo_url || '').trim()} fallback={bajujuLogo} style={styles.thumb} resizeMode="cover" />
               <View style={styles.eventBody}>
+                {item.promoted ? <Text style={styles.promoLabel} numberOfLines={1}>{PROMO_LABEL}</Text> : null}
                 <Text style={styles.eventCategory} numberOfLines={1}>
                   {getExperienceCategoryIcon(item.category)} {normalizeExperienceCategory(item.category)}
                 </Text>
@@ -478,6 +484,8 @@ const styles = StyleSheet.create({
   countText: { color: '#8D5E77', fontFamily: 'FredokaMedium', fontSize: 14, marginBottom: 10 },
   hintText: { color: '#8F5573', fontFamily: 'FredokaMedium', fontSize: 13, marginBottom: 10 },
   eventRow: { flexDirection: 'row', gap: 12, padding: 10, borderRadius: 20, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: LINE },
+  promoRow: { borderWidth: 3, borderColor: PROMO_GOLD, backgroundColor: '#FFFBEF' },
+  promoLabel: { alignSelf: 'flex-start', marginBottom: 2, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, overflow: 'hidden', backgroundColor: PROMO_GOLD, color: '#FFFFFF', fontFamily: 'FredokaBold', fontSize: 12 },
   thumb: { width: 96, height: 96, borderRadius: 14, backgroundColor: '#FFF0F7' },
   eventBody: { flex: 1, justifyContent: 'center', gap: 2 },
   eventCategory: { color: '#C2287A', fontFamily: 'FredokaSemiBold', fontSize: 12 },

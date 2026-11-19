@@ -25,6 +25,7 @@ import {
 import { BajujuRoundIconButton } from '../navigation/BajujuBackButton';
 import { LOCATION_COLOR } from '../../lib/bajujuLocations';
 import { EventCardImage } from '../events/EventCardImage';
+import { PROMO_GOLD, PROMO_LABEL } from '../../lib/promotedEvents';
 
 const bajujuLogo = require('../../../assets/brand/bajuju-logo.png');
 
@@ -63,6 +64,7 @@ export type HomeNearbyExperience = {
   byLocation?: boolean;
   organizerName?: string;
   distanceKm: number;
+  promoted?: boolean;
 };
 
 export type HomeGroupPreview = {
@@ -216,13 +218,14 @@ export function BajujuHomeView({
             maxToRenderPerBatch={8}
             windowSize={5}
             renderItem={({ item: event }) => (
-              <Pressable key={event.id} style={({ pressed }) => [styles.eventCard, pressed && styles.pressed]} onPress={() => onOpenExperience(event.id)} accessibilityRole="button" accessibilityLabel={`Apri esperienza ${event.title}`}>
+              <Pressable key={event.id} style={({ pressed }) => [styles.eventCard, event.promoted && styles.promoCard, pressed && styles.pressed]} onPress={() => onOpenExperience(event.id)} accessibilityRole="button" accessibilityLabel={`Apri esperienza ${event.title}`}>
                 <View style={styles.eventImageBox}>
                   {event.photoUrl ? <EventCardImage uri={event.photoUrl} style={styles.eventImage} resizeMode="cover" /> : <View style={styles.eventPlaceholder}><BajujuIcon name="pin" size={44} color={COLORS.pink} /></View>}
                   <Text style={[styles.imageChip, styles.categoryChip]} numberOfLines={1}>{getExperienceCategoryIcon(event.category)} {normalizeExperienceCategory(event.category)}</Text>
                   {event.byLocation ? <Text style={[styles.imageChip, styles.locationChip]}>🏠 Del locale</Text> : null}
-                  <Text style={[styles.imageChip, styles.distanceChip]}>{event.distanceKm < 1 ? `${Math.round(event.distanceKm * 1000)} m` : `${event.distanceKm.toFixed(1).replace('.', ',')} km`}</Text>
+                  {Number.isFinite(event.distanceKm) ? <Text style={[styles.imageChip, styles.distanceChip]}>{event.distanceKm < 1 ? `${Math.round(event.distanceKm * 1000)} m` : `${event.distanceKm.toFixed(1).replace('.', ',')} km`}</Text> : null}
                 </View>
+                {event.promoted ? <Text style={styles.promoBand} numberOfLines={1}>{PROMO_LABEL}</Text> : null}
                 <View style={styles.eventBody}>
                   <Text style={styles.eventTitle} numberOfLines={2}>{event.title}</Text>
                   {event.organizerName ? <Text style={styles.organizerLine} numberOfLines={1}>Organizzato da <Text style={styles.organizerName}>{event.organizerName}</Text></Text> : null}
@@ -479,6 +482,8 @@ const styles = StyleSheet.create({
   horizontalSection: { marginHorizontal: -16 },
   cardsScroll: { paddingHorizontal: 16, paddingBottom: 8, gap: 12 },
   eventCard: { width: 300, borderRadius: 22, overflow: 'hidden', backgroundColor: COLORS.white, borderWidth: 1, borderColor: COLORS.line },
+  promoCard: { borderWidth: 3, borderColor: PROMO_GOLD },
+  promoBand: { backgroundColor: PROMO_GOLD, color: COLORS.white, fontFamily: 'FredokaBold', fontSize: 14, textAlign: 'center', paddingVertical: 5 },
   eventImageBox: { height: 160, backgroundColor: COLORS.softPink },
   eventImage: { width: '100%', height: '100%' },
   eventPlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center' },

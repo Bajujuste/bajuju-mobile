@@ -29,6 +29,7 @@ import { experienceDateLabel } from '../../src/utils/experienceDateLabel';
 import { LOCATION_COLOR } from '../../src/lib/bajujuLocations';
 import { loadEventOrganizerNames } from '../../src/lib/eventCards';
 import { EventCardImage } from '../../src/components/events/EventCardImage';
+import { loadPromotedEventIds, PROMO_GOLD, PROMO_LABEL } from '../../src/lib/promotedEvents';
 
 const bajujuLogo = require('../../assets/brand/bajuju-logo.png');
 const PAGE_SIZE = 20;
@@ -76,7 +77,7 @@ type ParticipantRow = {
 };
 
 type Coordinates = { latitude: number; longitude: number };
-type ExperienceWithDistance = ActivityRow & { distanceKm?: number | null };
+type ExperienceWithDistance = ActivityRow & { distanceKm?: number | null; promoted?: boolean };
 
 function participantIsActive(row: ParticipantRow) {
   return !['annullato', 'annullata', 'rejected', 'rifiutato', 'declined', 'deleted', 'removed']
@@ -190,6 +191,7 @@ export default function ExperiencesScreen() {
   const [myActivityIds, setMyActivityIds] = useState<Set<string>>(new Set());
   const [participantCounts, setParticipantCounts] = useState<Record<string, number>>({});
   const [organizerNames, setOrganizerNames] = useState<Record<string, string>>({});
+  const [promotedIds, setPromotedIds] = useState<Set<string>>(new Set());
   const [currentUserId, setCurrentUserId] = useState('');
   const [coordinates, setCoordinates] = useState<Coordinates | null>(null);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
@@ -287,6 +289,7 @@ export default function ExperiencesScreen() {
         ...((upcomingResult.data || []) as ActivityRow[]),
         ...((recentPastResult.data || []) as ActivityRow[]),
       ].filter((row) => !isDeleted(row));
+      setPromotedIds(await loadPromotedEventIds());
       setActivities(cleanActivities);
       // Nomi degli organizzatori in parallelo: le schede compaiono subito, il nome arriva appena pronto.
       void loadEventOrganizerNames(cleanActivities).then(setOrganizerNames).catch(() => undefined);
@@ -342,7 +345,6 @@ export default function ExperiencesScreen() {
 
   const nearbyActivities = useMemo<ExperienceWithDistance[]>(() => {
     const now = Date.now();
-    if (!coordinates) return [];
     return activities
       .filter((row) => {
         const moment = activityMoment(row);
@@ -350,15 +352,17 @@ export default function ExperiencesScreen() {
       })
       .map((row) => {
         const target = rowCoordinates(row);
-        return { ...row, distanceKm: target ? distanceKm(coordinates, target) : null };
+        return { ...row, distanceKm: coordinates && target ? distanceKm(coordinates, target) : null, promoted: promotedIds.has(String(row.id || '')) };
       })
-      .filter((row) => row.distanceKm !== null && Number(row.distanceKm) <= NEARBY_RADIUS_KM)
+      // Gli eventi promozionali Bajuju compaiono a tutti, a prescindere dalla distanza.
+      .filter((row) => row.promoted || (row.distanceKm !== null && Number(row.distanceKm) <= NEARBY_RADIUS_KM))
       .sort((a, b) => {
+        if (a.promoted !== b.promoted) return a.promoted ? -1 : 1;
         const startA = activityMoment(a)?.getTime() ?? Number.MAX_SAFE_INTEGER;
         const startB = activityMoment(b)?.getTime() ?? Number.MAX_SAFE_INTEGER;
         return startA - startB || Number(a.distanceKm ?? 9999) - Number(b.distanceKm ?? 9999);
       });
-  }, [activities, coordinates]);
+  }, [activities, coordinates, promotedIds]);
 
   const allEventsActivities = useMemo<ExperienceWithDistance[]>(() => {
     const now = Date.now();
@@ -369,14 +373,15 @@ export default function ExperiencesScreen() {
       })
       .map((row) => {
         const target = rowCoordinates(row);
-        return { ...row, distanceKm: coordinates && target ? distanceKm(coordinates, target) : null };
+        return { ...row, distanceKm: coordinates && target ? distanceKm(coordinates, target) : null, promoted: promotedIds.has(String(row.id || '')) };
       })
       .sort((a, b) => {
+        if (a.promoted !== b.promoted) return a.promoted ? -1 : 1;
         const startA = activityMoment(a)?.getTime() ?? Number.MAX_SAFE_INTEGER;
         const startB = activityMoment(b)?.getTime() ?? Number.MAX_SAFE_INTEGER;
         return startA - startB || String(a.id || '').localeCompare(String(b.id || ''));
       });
-  }, [activities, coordinates]);
+  }, [activities, coordinates, promotedIds]);
 
   const joinedActivities = useMemo(() => {
     const now = Date.now();
@@ -650,6 +655,7 @@ export default function ExperiencesScreen() {
                     width={cardWidth}
                     distance={'distanceKm' in item && typeof item.distanceKm === 'number' ? item.distanceKm : null}
                     organizedByMe={organizedByMe}
+                    promoted={Boolean('promoted' in item && item.promoted)}
                     organizerName={organizerNames[String(item.creator_id || '')] || ''}
                     participants={participantInfo(activityId, item, participantCounts)}
                     action={waitlistButton(activityId, item, organizedByMe)}
@@ -705,6 +711,7 @@ export default function ExperiencesScreen() {
                         width={cardWidth}
                         distance={typeof item.distanceKm === 'number' ? item.distanceKm : null}
                         organizedByMe={organizedByMe}
+                        promoted={Boolean(item.promoted)}
                         organizerName={organizerNames[String(item.creator_id || '')] || ''}
                         participants={participantInfo(activityId, item, participantCounts)}
                         action={waitlistButton(activityId, item, organizedByMe)}
@@ -767,6 +774,7 @@ type ExperienceCardProps = {
   width: number;
   distance: number | null;
   organizedByMe: boolean;
+  promoted?: boolean;
   organizerName: string;
   participants: ParticipantInfo;
   action: React.ReactNode;
@@ -779,7 +787,7 @@ function isLocationOwnEvent(item: ActivityRow) {
   return Boolean(item.location_owner_id && String(item.creator_id || '') === String(item.location_owner_id));
 }
 
-function ExperienceCard({ item, width, distance, organizedByMe, organizerName, participants, action, onOpen, onOpenPoster }: ExperienceCardProps) {
+function ExperienceCard({ item, width, distance, organizedByMe, promoted, organizerName, participants, action, onOpen, onOpenPoster }: ExperienceCardProps) {
   const poster = imageUrl(item);
   const title = item.title || 'Esperienza Bajuju';
   const hasAgeRange = item.min_age !== null && item.min_age !== undefined && item.max_age !== null && item.max_age !== undefined;
@@ -788,7 +796,7 @@ function ExperienceCard({ item, width, distance, organizedByMe, organizerName, p
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`Apri esperienza ${title}`}
-      style={({ pressed }) => [styles.experienceCard, { width }, pressed && styles.pressed]}
+      style={({ pressed }) => [styles.experienceCard, { width }, promoted && styles.promoCard, pressed && styles.pressed]}
       onPress={onOpen}
     >
       <Pressable style={styles.imageBox} onPress={(event) => { event.stopPropagation(); if (poster) onOpenPoster(poster); }}>
@@ -803,6 +811,7 @@ function ExperienceCard({ item, width, distance, organizedByMe, organizerName, p
           <Text style={[styles.imageChip, styles.locationChip]}>🏠 Del locale</Text>
         ) : null}
       </Pressable>
+      {promoted ? <Text style={styles.promoBand} numberOfLines={1}>{PROMO_LABEL}</Text> : null}
       <View style={styles.cardBody}>
         <Text style={styles.cardTitle} numberOfLines={2}>{title}</Text>
         {organizerName ? (
@@ -868,6 +877,8 @@ const styles = StyleSheet.create({
   distanceChip: { top: 10, right: 10, backgroundColor: 'rgba(75, 12, 45, 0.82)', color: '#FFFFFF' },
   locationChip: { bottom: 10, left: 10, backgroundColor: LOCATION_COLOR, color: '#FFFFFF', fontSize: 12 },
   organizerChip: { bottom: 10, left: 10, backgroundColor: PINK, color: '#FFFFFF', fontFamily: 'FredokaRegular', fontSize: 12 },
+  promoCard: { borderWidth: 3, borderColor: PROMO_GOLD },
+  promoBand: { backgroundColor: PROMO_GOLD, color: '#FFFFFF', fontFamily: 'FredokaBold', fontSize: 15, textAlign: 'center', paddingVertical: 6 },
   cardBody: { paddingHorizontal: 14, paddingTop: 12, paddingBottom: 14, gap: 6 },
   cardTitle: { color: PLUM, fontFamily: 'FredokaBold', fontSize: 18, lineHeight: 22, marginBottom: 2 },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },

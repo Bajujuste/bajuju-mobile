@@ -429,8 +429,10 @@ export default function AllEventsScreen() {
                   {place}{item.distanceKm !== null ? ` · ${formatDistance(item.distanceKm)}` : ''}
                 </Text>
                 <Text style={styles.eventPeople} numberOfLines={1}>
-                  {participantsLabel(Number(participantCounts[id] || 0), Number(item.max_participants || 0))}
-                  {organizerName ? ` · ${organizerName}` : ''}
+                  {/* Evento promozionale: il numero di iscritti non si mostra. */}
+                  {item.promoted
+                    ? organizerName
+                    : `${participantsLabel(Number(participantCounts[id] || 0), Number(item.max_participants || 0))}${organizerName ? ` · ${organizerName}` : ''}`}
                 </Text>
               </View>
             </Pressable>

@@ -835,8 +835,9 @@ function ExperienceCard({ item, width, distance, organizedByMe, promoted, organi
         </Text>
         <View style={styles.cardFooter}>
           <View style={styles.participantsBox}>
-            <Text style={styles.participantsText} numberOfLines={1}>{participants.label}</Text>
-            {participants.ratio !== null ? (
+            {/* Evento promozionale: il numero di iscritti non si mostra. */}
+            {promoted && !organizedByMe ? null : <Text style={styles.participantsText} numberOfLines={1}>{participants.label}</Text>}
+            {participants.ratio !== null && !(promoted && !organizedByMe) ? (
               <View style={styles.progressTrack}>
                 <View style={[styles.progressFill, { width: `${Math.round(participants.ratio * 100)}%` }]} />
               </View>

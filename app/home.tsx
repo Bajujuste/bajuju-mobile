@@ -1,7 +1,7 @@
 import * as Location from 'expo-location';
 import React, { useEffect, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Alert, AppState, Linking } from 'react-native';
+import { Alert, AppState } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 
 import { loadEventOrganizerNames } from '../src/lib/eventCards';
@@ -18,8 +18,12 @@ import { getBajujuNotificationCategory, BajujuNotificationCategory } from '../sr
 import {
   getBajujuPushPermission,
   refreshBajujuPushRegistrationIfAuthorized,
-  registerForBajujuPushNotifications,
 } from '../src/utils/bajujuNotifications';
+import {
+  activateBajujuNotificationServices,
+  bajujuNotificationChoiceKey,
+  enableBajujuNotificationsFromPrompt,
+} from '../src/utils/bajujuNotificationPrompt';
 
 type ProfileRow = Record<string, unknown>;
 type HomeActivityRow = {
@@ -88,17 +92,10 @@ export default function HomeScreen() {
   useEffect(() => {
     let active = true;
 
-    async function activateNotificationServices(userId: string) {
-      const registerResult = await registerForBajujuPushNotifications(userId);
-      if (!registerResult.ok) console.log('Attivazione notifiche non completata.');
-
-      const locationResult = await refreshBajujuNotificationLocation(userId);
-      if (!locationResult.ok) console.log('Posizione per notifiche vicine non aggiornata.');
-    }
-
-    // Avviso mostrato una sola volta a chi non riceve le notifiche (No, notifiche spente o permesso negato).
+    // Avviso mostrato una sola volta a chi non riceve le notifiche (No di prima, notifiche spente o permesso negato).
+    // v2: testo nuovo, lo rivede anche chi aveva già visto il primo avviso.
     async function showNotificationReminder(userId: string) {
-      const reminderKey = `bajuju-notification-reminder-v1:${userId}`;
+      const reminderKey = `bajuju-notification-reminder-v2:${userId}`;
       if (await AsyncStorage.getItem(reminderKey)) return;
       const permission = await getBajujuPushPermission();
       if (!permission || !active) return;
@@ -106,34 +103,14 @@ export default function HomeScreen() {
 
       Alert.alert(
         'Non perderti gli eventi vicino a te',
-        'Senza notifiche non sai quando qualcuno organizza qualcosa nella tua zona. Attivale e ti avvisiamo subito.',
+        'Ti avvisiamo quando qualcuno organizza qualcosa nella tua zona e quando ti accettano a un evento. Puoi spegnerle quando vuoi dal Profilo.',
         [
-          { text: 'Non ora', style: 'cancel' },
+          { text: 'Più tardi', style: 'cancel' },
           {
             text: 'Attiva notifiche',
             onPress: () => {
-              void (async () => {
-                await AsyncStorage.setItem(`bajuju-notification-choice-v2:${userId}`, 'accepted');
-                const saveResult = await supabase.from('notification_preferences').upsert(
-                  { user_id: userId, enabled: true, updated_at: new Date().toISOString() },
-                  { onConflict: 'user_id' }
-                );
-                if (saveResult.error) console.log('Preferenza notifiche Sì non salvata su Supabase.');
-
-                if (permission.granted || permission.canAskAgain) {
-                  await activateNotificationServices(userId);
-                  return;
-                }
-
-                // Il telefono non chiede più il permesso: si accendono dalle impostazioni.
-                // Al ritorno nell'app si registra il telefono.
-                const subscription = AppState.addEventListener('change', (state) => {
-                  if (state !== 'active') return;
-                  subscription.remove();
-                  void activateNotificationServices(userId).catch(() => null);
-                });
-                await Linking.openSettings();
-              })().catch(() => console.log('Attivazione notifiche dall\'avviso non riuscita.'));
+              void enableBajujuNotificationsFromPrompt(userId)
+                .catch(() => console.log('Attivazione notifiche dall\'avviso non riuscita.'));
             },
           },
         ]
@@ -148,7 +125,7 @@ export default function HomeScreen() {
         const userId = authResult.data.user?.id;
         if (!active || !userId) return;
 
-        const localChoiceKey = `bajuju-notification-choice-v2:${userId}`;
+        const localChoiceKey = bajujuNotificationChoiceKey(userId);
         const localChoice = await AsyncStorage.getItem(localChoiceKey);
 
         if (localChoice !== 'declined') {
@@ -165,13 +142,14 @@ export default function HomeScreen() {
           .eq('user_id', userId)
           .maybeSingle();
 
-        const notificationsEnabledInDb = !preferenceResult.error && preferenceResult.data?.enabled === true;
-        const notificationsDisabledInDb = !preferenceResult.error && preferenceResult.data?.enabled === false;
+        if (preferenceResult.error) return;
+        const notificationsEnabledInDb = preferenceResult.data?.enabled === true;
+        const notificationsDisabledInDb = preferenceResult.data?.enabled === false;
         if (!active) return;
 
         if (notificationsEnabledInDb || (localChoice === 'accepted' && !notificationsDisabledInDb)) {
           await AsyncStorage.setItem(localChoiceKey, 'accepted');
-          await activateNotificationServices(userId);
+          await activateBajujuNotificationServices(userId);
           const permission = await getBajujuPushPermission();
           if (permission && !permission.granted) await showNotificationReminder(userId);
           return;
@@ -182,41 +160,18 @@ export default function HomeScreen() {
           return;
         }
 
+        // Primo accesso: niente nostro popup con il No. In Bajuju le notifiche partono accese
+        // e compare subito solo la domanda del telefono; si spengono dal Profilo.
         if (notificationPromptRunningRef.current) return;
-
         notificationPromptRunningRef.current = true;
-        Alert.alert(
-          'Notifiche Bajuju',
-          'Vuoi ricevere notifiche per nuove esperienze vicine a te, gruppi, partecipazioni e richieste?',
-          [
-            {
-              text: 'No',
-              style: 'cancel',
-              onPress: () => {
-                notificationPromptRunningRef.current = false;
-                void (async () => {
-                  await AsyncStorage.setItem(localChoiceKey, 'declined');
-                  const saveResult = await supabase.from('notification_preferences').upsert(
-                    { user_id: userId, enabled: false, updated_at: new Date().toISOString() },
-                    { onConflict: 'user_id' }
-                  );
-                  if (saveResult.error) console.log('Preferenza notifiche No non salvata su Supabase.');
-                  reloadNearbyRef.current?.();
-                })().catch(() => console.log('Scelta notifiche No non salvata.'));
-              },
-            },
-            {
-              text: 'Sì',
-              onPress: () => {
-                notificationPromptRunningRef.current = false;
-                void (async () => {
-                  await AsyncStorage.setItem(localChoiceKey, 'accepted');
-                  await activateNotificationServices(userId);
-                })().catch(() => console.log('Attivazione notifiche non riuscita.'));
-              },
-            },
-          ]
+        await AsyncStorage.setItem(localChoiceKey, 'accepted');
+        const saveResult = await supabase.from('notification_preferences').upsert(
+          { user_id: userId, enabled: true, updated_at: new Date().toISOString() },
+          { onConflict: 'user_id' }
         );
+        if (saveResult.error) console.log('Preferenza notifiche iniziale non salvata su Supabase.');
+        await activateBajujuNotificationServices(userId);
+        notificationPromptRunningRef.current = false;
       } catch {
         notificationPromptRunningRef.current = false;
         console.log('Errore registrazione notifiche Bajuju.');

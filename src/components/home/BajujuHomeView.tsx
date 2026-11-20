@@ -82,6 +82,7 @@ export type HomeGroupPreview = {
 type BajujuHomeViewProps = {
   profilePhotoUrl: string;
   notificationCounts: Record<BajujuNotificationCategory, number>;
+  showFirstEventInvite?: boolean;
   nextExperience?: NextExperience | null;
   groups?: HomeGroupPreview[];
   nearbyExperiences?: HomeNearbyExperience[];
@@ -104,6 +105,7 @@ export function BajujuHomeView({
   profilePhotoUrl,
   notificationCounts,
   nextExperience,
+  showFirstEventInvite = false,
   groups = [],
   nearbyExperiences = [],
   onOpenExperience,
@@ -190,6 +192,23 @@ export function BajujuHomeView({
                 <Text style={styles.nextExperienceMeta} numberOfLines={1}>{nextExperience.meta}</Text>
               </View>
               <BajujuIcon name="arrow" size={22} color={COLORS.accentText} />
+            </Pressable>
+          ) : showFirstEventInvite ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Trova il tuo primo evento"
+              onPress={onFind}
+              style={({ pressed }) => [styles.nextExperienceCard, styles.firstEventCard, pressed && styles.pressed]}
+            >
+              <View style={styles.nextExperienceIcon}>
+                <BajujuIcon name="group" size={20} color={COLORS.pink} />
+              </View>
+              <View style={styles.nextExperienceCopy}>
+                <Text style={[styles.nextExperienceEyebrow, styles.firstEventEyebrow]}>IL TUO PRIMO EVENTO</Text>
+                <Text style={styles.nextExperienceTitle} numberOfLines={2}>Scegli un evento e premi Partecipa</Text>
+                <Text style={styles.nextExperienceMeta} numberOfLines={2}>È gratis: ci si incontra dal vivo.</Text>
+              </View>
+              <BajujuIcon name="arrow" size={22} color={COLORS.pink} />
             </Pressable>
           ) : null}
 
@@ -469,6 +488,8 @@ const styles = StyleSheet.create({
   groupsEmptyTitle: { color: COLORS.plum, fontFamily: 'FredokaBold', fontSize: 16 },
   groupsEmptyText: { marginTop: 3, color: COLORS.muted, fontFamily: 'FredokaMedium', fontSize: 12, lineHeight: 16 },
   nextExperienceCard: { marginTop: 6, marginBottom: 6, padding: 12, paddingLeft: 14, borderRadius: 20, borderWidth: 1.5, borderColor: '#E7C56A', backgroundColor: '#FFF9E7', flexDirection: 'row', alignItems: 'center', gap: 12 },
+  firstEventCard: { borderColor: COLORS.line, backgroundColor: COLORS.white },
+  firstEventEyebrow: { color: COLORS.pink },
   nextExperienceIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.white },
   nextExperienceCopy: { flex: 1 },
   askCard: { marginTop: 22, padding: 14, borderRadius: 20, borderWidth: 1.5, borderColor: COLORS.line, backgroundColor: COLORS.white, flexDirection: 'row', alignItems: 'center', gap: 12 },

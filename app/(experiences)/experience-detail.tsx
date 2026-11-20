@@ -966,7 +966,7 @@ export default function ExperienceDetailScreen() {
                     'Esperienza annullata',
                     'L’esperienza è stata rimossa.'
                   );
-                  router.replace('/experiences');
+                  router.replace('/all-events' as any);
                   return;
                 }
               }
@@ -1503,7 +1503,7 @@ export default function ExperienceDetailScreen() {
         >
           {loading || errorMessage || !experience ? (
             <View style={styles.stateBox}>
-              <Pressable style={styles.stateBackButton} onPress={() => router.replace('/experiences')}>
+              <Pressable style={styles.stateBackButton} onPress={() => router.replace('/all-events' as any)}>
                 <Text style={styles.stateBackText}>← Trova esperienza</Text>
               </Pressable>
               <Text style={styles.messageText}>
@@ -1546,7 +1546,7 @@ export default function ExperienceDetailScreen() {
                 <View style={styles.heroTopBar}>
                   <Pressable
                     style={styles.heroIconButton}
-                    onPress={() => router.replace('/experiences')}
+                    onPress={() => router.replace('/all-events' as any)}
                     accessibilityLabel="Torna a Trova esperienza"
                   >
                     <Ionicons name="chevron-back" size={20} color={BAJUJU_COLORS.plum} />

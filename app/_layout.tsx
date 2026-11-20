@@ -35,10 +35,10 @@ function openPushNotification(data: Record<string, unknown>) {
       router.push(groupId ? ({ pathname: '/group-detail', params: { id: groupId, section: section || 'requests' } } as any) : '/groups');
       break;
     case 'experience':
-      router.push(activityId ? ({ pathname: '/experience-detail', params: { id: activityId, section: section || undefined } } as any) : '/experiences');
+      router.push(activityId ? ({ pathname: '/experience-detail', params: { id: activityId, section: section || undefined } } as any) : ('/all-events' as any));
       break;
     case 'experiences':
-      router.push('/experiences');
+      router.push('/all-events' as any);
       break;
     case 'flash':
       router.push('/flash');

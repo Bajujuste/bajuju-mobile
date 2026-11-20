@@ -80,6 +80,8 @@ export default function HomeScreen() {
   const [profilePhotoUrl, setProfilePhotoUrl] = useState('');
   const [notificationCounts, setNotificationCounts] = useState<Record<BajujuNotificationCategory, number>>({ requests: 0, chat: 0, other: 0 });
   const [nextExperience, setNextExperience] = useState<NextExperience | null>(null);
+  // Chi non ha mai partecipato né organizzato: in Home vede l'invito al primo evento.
+  const [isNewcomer, setIsNewcomer] = useState(false);
   const [nearbyExperiences, setNearbyExperiences] = useState<HomeNearbyExperience[]>([]);
   const [groups, setGroups] = useState<HomeGroupPreview[]>([]);
 
@@ -416,8 +418,19 @@ export default function HomeScreen() {
 
         if (!next?.id) {
           setNextExperience(null);
+          if (!participationResult.error && participantIds.length === 0 && !organizedResult.error && rows.length === 0) {
+            const everOrganized = await supabase
+              .from('activities')
+              .select('id', { count: 'exact', head: true })
+              .eq('creator_id', userId);
+            if (active) setIsNewcomer(!everOrganized.error && (everOrganized.count || 0) === 0);
+          } else if (active) {
+            setIsNewcomer(false);
+          }
           return;
         }
+
+        setIsNewcomer(false);
 
         setNextExperience({
           id: String(next.id),
@@ -547,6 +560,7 @@ export default function HomeScreen() {
       profilePhotoUrl={profilePhotoUrl}
       notificationCounts={notificationCounts}
       nextExperience={nextExperience}
+      showFirstEventInvite={isNewcomer}
       groups={groups}
       nearbyExperiences={nearbyExperiences}
       onOpenExperience={(id) => router.push({ pathname: '/experience-detail' as any, params: { id } })}

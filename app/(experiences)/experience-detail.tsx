@@ -32,6 +32,7 @@ import {
 import { shareBajujuExperience } from '../../src/utils/shareBajuju';
 import { getExperienceCategoryIcon, normalizeExperienceCategory } from '@/constants/experienceCategories';
 import { sendBajujuPushNotification } from '../../src/utils/bajujuNotifications';
+import { enableBajujuNotificationsFromPrompt, shouldAskBajujuNotificationsAfterJoin } from '../../src/utils/bajujuNotificationPrompt';
 import { BAJUJU_COLORS, BAJUJU_FONTS, BAJUJU_SHADOW } from '../../src/theme/bajujuTheme';
 import { KeyboardAwareScrollView } from '../../src/components/KeyboardAwareScrollView';
 import { useChatLiveRefresh } from '../../src/hooks/useChatLiveRefresh';
@@ -655,6 +656,19 @@ export default function ExperienceDetailScreen() {
     };
   }, [experienceId, loadMessages]);
 
+  function showJoinNotificationAsk(title: string, message: string, userId: string) {
+    Alert.alert(title, message, [
+      { text: 'Più tardi', style: 'cancel' },
+      {
+        text: 'Attiva notifiche',
+        onPress: () => {
+          void enableBajujuNotificationsFromPrompt(userId)
+            .catch(() => console.log('Attivazione notifiche dopo Partecipa non riuscita.'));
+        },
+      },
+    ]);
+  }
+
   async function joinExperience() {
     if (!experienceId || joining) return;
 
@@ -767,12 +781,15 @@ export default function ExperienceDetailScreen() {
             console.log('Errore notifica richiesta partecipazione.');
           });
         }
-        Alert.alert(
-          'Richiesta inviata',
-          data?.notified === true
-            ? 'Abbiamo chiesto all’organizzatore l’autorizzazione per la tua iscrizione.'
-            : 'L’organizzatore vedrà la tua richiesta direttamente dentro l’esperienza.'
-        );
+        const requestText = data?.notified === true
+          ? 'Abbiamo chiesto all’organizzatore l’autorizzazione per la tua iscrizione.'
+          : 'L’organizzatore vedrà la tua richiesta direttamente dentro l’esperienza.';
+        // Solo a chi non ha le notifiche attive: un unico avviso con il tasto per attivarle.
+        if (await shouldAskBajujuNotificationsAfterJoin(currentUserId)) {
+          showJoinNotificationAsk('Richiesta inviata', `${requestText}\n\nAttiva le notifiche per sapere subito quando ti accettano.`, currentUserId);
+        } else {
+          Alert.alert('Richiesta inviata', requestText);
+        }
         return;
       }
 
@@ -790,7 +807,11 @@ export default function ExperienceDetailScreen() {
       setJoinState('joined');
       await loadParticipants(experienceId, experience);
       await loadMessages(experienceId);
-      Alert.alert('Ci sei!', 'Partecipazione registrata.');
+      if (await shouldAskBajujuNotificationsAfterJoin(currentUserId)) {
+        showJoinNotificationAsk('Ci sei!', 'Partecipazione registrata.\n\nAttiva le notifiche per ricevere il promemoria e gli aggiornamenti dell’evento.', currentUserId);
+      } else {
+        Alert.alert('Ci sei!', 'Partecipazione registrata.');
+      }
     } catch (error: unknown) {
       console.log('Errore partecipazione esperienza.');
       Alert.alert(

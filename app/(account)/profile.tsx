@@ -1,3 +1,4 @@
+import { EXPERIENCE_CREATION_CATEGORIES } from '../../src/constants/experienceCategories';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -72,6 +73,10 @@ type ActivityItem = {
 };
 
 const PROFILE_DRAFT_KEY = 'bajuju-profile-draft-v1';
+
+const BIO_MAX = 160;
+const INTERESTS_MAX = 5;
+const INTEREST_OPTIONS = EXPERIENCE_CREATION_CATEGORIES.filter((item) => item !== 'Altro');
 
 const GENDER_OPTIONS = [
   { value: 'maschio', label: 'Uomo' },
@@ -439,6 +444,9 @@ export default function ProfileScreen() {
   const [profileName, setProfileName] = useState('');
   const [province, setProvince] = useState('');
   const [homeCity, setHomeCity] = useState('');
+  // Facoltativi: due parole su di sé e fino a 5 interessi, visibili nel profilo pubblico.
+  const [bio, setBio] = useState('');
+  const [interests, setInterests] = useState<string[]>([]);
   const [ageRange, setAgeRange] = useState('');
   const [gender, setGender] = useState('');
   const [directContactsEnabled, setDirectContactsEnabled] = useState(true);
@@ -795,6 +803,10 @@ export default function ProfileScreen() {
           ''
         ).slice(0, 25)
       );
+      setBio(typeof currentProfile?.bio === 'string' ? currentProfile.bio.slice(0, BIO_MAX) : '');
+      setInterests(Array.isArray(currentProfile?.interests)
+        ? (currentProfile.interests as unknown[]).map(String).filter((item) => INTEREST_OPTIONS.includes(item)).slice(0, INTERESTS_MAX)
+        : []);
       const loadedAgeText = firstText(currentProfile, ['age', 'eta', 'età', 'user_age', 'age_range', 'fascia_eta', 'age_band', 'eta_range'], '');
       const loadedAgeNumber = Number(loadedAgeText);
       setAgeRange(
@@ -1052,6 +1064,8 @@ export default function ProfileScreen() {
       age_range: String(numericAge),
       [genderField]: gender,
       allow_direct_contacts: directContactsEnabled,
+      bio: bio.trim().slice(0, BIO_MAX) || null,
+      interests,
     };
 
     payload[provinceField] = cleanProvince;
@@ -1165,7 +1179,7 @@ export default function ProfileScreen() {
     } finally {
       setSaving(false);
     }
-  }, [ageRange, chatNotificationsEnabled, directContactsEnabled, gender, homeCity, loadAll, notificationsEnabled, photoUrl, profile, profileIdField, profileIdValue, profileName, province, user]);
+  }, [ageRange, bio, chatNotificationsEnabled, directContactsEnabled, gender, homeCity, interests, loadAll, notificationsEnabled, photoUrl, profile, profileIdField, profileIdValue, profileName, province, user]);
 
   const answerItemUnlocked = useCallback(
     async (item: ContactItem | InviteItem, status: 'accepted' | 'rejected') => {
@@ -1607,6 +1621,40 @@ export default function ProfileScreen() {
             );
           })}
         </View>
+
+        <Text style={styles.fieldLabel}>Due parole su di te (facoltativo)</Text>
+        <TextInput
+          value={bio}
+          onChangeText={(value) => setBio(value.slice(0, BIO_MAX))}
+          placeholder="Es. Mi piacciono le camminate e gli aperitivi in compagnia"
+          placeholderTextColor={BAJUJU_COLORS.muted}
+          style={[styles.fieldInput, styles.bioInput]}
+          maxLength={BIO_MAX}
+          multiline
+        />
+        <Text style={styles.bioCounter}>{bio.length}/{BIO_MAX}</Text>
+
+        <Text style={styles.fieldLabel}>I tuoi interessi (fino a {INTERESTS_MAX})</Text>
+        <View style={styles.interestWrap}>
+          {INTEREST_OPTIONS.map((option) => {
+            const selected = interests.includes(option);
+            return (
+              <Pressable
+                key={option}
+                style={[styles.interestChip, selected && styles.interestChipSelected]}
+                onPress={() => setInterests((current) => (
+                  current.includes(option)
+                    ? current.filter((item) => item !== option)
+                    : current.length >= INTERESTS_MAX ? current : [...current, option]
+                ))}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+              >
+                <Text style={[styles.interestChipText, selected && styles.interestChipTextSelected]}>{option}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
       </View>
 
       <View style={styles.listCard}>
@@ -1950,6 +1998,13 @@ const styles = StyleSheet.create({
   fieldRowNarrow: {
     flex: 1,
   },
+  bioInput: { minHeight: 70, textAlignVertical: 'top', paddingTop: 10 },
+  bioCounter: { alignSelf: 'flex-end', marginTop: 4, fontFamily: 'FredokaMedium', fontSize: 11, color: BAJUJU_COLORS.muted },
+  interestWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 4 },
+  interestChip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 16, borderWidth: 1, borderColor: BAJUJU_COLORS.line, backgroundColor: '#FFFFFF' },
+  interestChipSelected: { backgroundColor: BAJUJU_COLORS.pink, borderColor: BAJUJU_COLORS.pink },
+  interestChipText: { fontFamily: 'FredokaMedium', fontSize: 13, color: BAJUJU_COLORS.plum },
+  interestChipTextSelected: { color: '#FFFFFF' },
   segment: {
     flexDirection: 'row',
     gap: 4,

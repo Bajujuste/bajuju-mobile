@@ -581,6 +581,9 @@ export default function UserProfileScreen() {
     Alert.alert(name || 'Profilo', undefined, options);
   }
 
+  const profileBio = typeof profile?.bio === 'string' ? profile.bio.trim() : '';
+  const profileInterests = Array.isArray(profile?.interests) ? (profile.interests as unknown[]).map(String).filter(Boolean).slice(0, 5) : [];
+
   const infoTiles = [
     { label: 'Organizzati', value: `${organizedCount} ${organizedCount === 1 ? 'evento' : 'eventi'}` },
     { label: 'Partecipati', value: `${participatedCount} ${participatedCount === 1 ? 'evento' : 'eventi'}` },
@@ -649,6 +652,19 @@ export default function UserProfileScreen() {
             ) : null}
           </View>
 
+          {profileBio || profileInterests.length > 0 ? (
+            <View style={styles.aboutBox}>
+              {profileBio ? <Text style={styles.aboutText}>{profileBio}</Text> : null}
+              {profileInterests.length > 0 ? (
+                <View style={styles.aboutChips}>
+                  {profileInterests.map((item) => (
+                    <Text key={item} style={styles.aboutChip}>{item}</Text>
+                  ))}
+                </View>
+              ) : null}
+            </View>
+          ) : null}
+
           <View style={styles.infoGrid}>
             {infoTiles.map((tile) => (
               <View key={tile.label} style={styles.infoTile}>
@@ -713,6 +729,10 @@ const styles = StyleSheet.create({
   coverButton: { borderWidth: 0, backgroundColor: 'rgba(255,255,255,0.94)' },
   coverButtonPlain: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.94)' },
   identity: { alignItems: 'center', marginTop: -66, paddingHorizontal: 22 },
+  aboutBox: { marginHorizontal: 18, marginTop: 16, padding: 14, borderRadius: 18, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#F3C6DC' },
+  aboutText: { fontFamily: 'FredokaMedium', fontSize: 15, lineHeight: 21, color: '#4B0C2D' },
+  aboutChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
+  aboutChip: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, overflow: 'hidden', backgroundColor: '#FFF0F7', fontFamily: 'FredokaSemiBold', fontSize: 12, color: '#E43F98' },
   infoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingHorizontal: 18, marginTop: 18 },
   infoTile: {
     flexBasis: '45%',

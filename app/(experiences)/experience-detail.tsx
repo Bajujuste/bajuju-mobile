@@ -1504,7 +1504,8 @@ export default function ExperienceDetailScreen() {
           {loading || errorMessage || !experience ? (
             <View style={styles.stateBox}>
               <Pressable style={styles.stateBackButton} onPress={() => router.replace('/all-events' as any)}>
-                <Text style={styles.stateBackText}>← Trova esperienza</Text>
+                <Ionicons name="chevron-back" size={16} color={C.plum} />
+                <Text style={styles.stateBackText}>Tutti gli eventi</Text>
               </Pressable>
               <Text style={styles.messageText}>
                 {loading ? 'Caricamento esperienza...' : errorMessage || 'Esperienza non trovata.'}
@@ -2192,6 +2193,9 @@ const styles = StyleSheet.create({
   },
   stateBackButton: {
     alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     paddingVertical: 9,
     paddingHorizontal: 14,
     borderRadius: 999,

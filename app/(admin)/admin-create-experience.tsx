@@ -491,7 +491,7 @@ export default function AdminCreateExperienceScreen() {
         ) : null}
 
         <Pressable style={styles.button} onPress={() => router.back()}>
-          <Text style={styles.buttonText}>← Torna all’area Admin</Text>
+          <Text style={styles.buttonText}>Torna all’area Admin</Text>
         </Pressable>
       </KeyboardAwareScrollView>
     </SafeAreaView>

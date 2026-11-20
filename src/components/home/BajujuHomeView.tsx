@@ -122,6 +122,9 @@ export function BajujuHomeView({
 }: BajujuHomeViewProps) {
   const insets = useSafeAreaInsets();
 
+  const unreadTotal = notificationCounts.requests + notificationCounts.chat + notificationCounts.other;
+  const firstUnreadCategory: BajujuNotificationCategory = notificationCounts.requests > 0 ? 'requests' : notificationCounts.chat > 0 ? 'chat' : notificationCounts.other > 0 ? 'other' : 'requests';
+
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'left', 'right']}>
       <StatusBar style="dark" backgroundColor={COLORS.background} />
@@ -141,6 +144,18 @@ export function BajujuHomeView({
 
           <View style={styles.headerActions}>
             <BajujuRoundIconButton icon="share-outline" accessibilityLabel="Condividi Bajuju" onPress={onShare} style={styles.headerIconButton} />
+            {/* Campanella: tutte le notifiche (Richieste, Chat, Altre) in un posto solo. */}
+            <View>
+              <BajujuRoundIconButton
+                icon={unreadTotal > 0 ? 'notifications' : 'notifications-outline'}
+                accessibilityLabel={`Notifiche: ${unreadTotal} non lette`}
+                onPress={() => onOpenNotificationCategory(firstUnreadCategory)}
+                style={styles.headerIconButton}
+              />
+              {unreadTotal > 0 ? (
+                <Text pointerEvents="none" style={styles.bellBadge}>{unreadTotal > 99 ? '99+' : unreadTotal}</Text>
+              ) : null}
+            </View>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Apri il profilo"
@@ -154,30 +169,6 @@ export function BajujuHomeView({
               )}
             </Pressable>
           </View>
-        </View>
-
-        <View style={styles.notificationShortcuts}>
-          {([
-            { key: 'requests', label: 'Richieste', icon: 'mail-unread-outline' },
-            { key: 'chat', label: 'Chat', icon: 'chatbubbles-outline' },
-            { key: 'other', label: 'Altre', icon: 'notifications-outline' },
-          ] as const).map((item) => (
-            <Pressable
-              key={item.key}
-              accessibilityRole="button"
-              accessibilityLabel={`${item.label}: ${notificationCounts[item.key]} notifiche non lette`}
-              onPress={() => onOpenNotificationCategory(item.key)}
-              style={({ pressed }) => [styles.notificationShortcut, pressed && styles.pressed]}
-            >
-              <Ionicons name={item.icon} size={18} color={COLORS.plum} />
-              <Text style={styles.notificationShortcutLabel}>{item.label}</Text>
-              {notificationCounts[item.key] > 0 ? (
-                <Text style={styles.notificationShortcutCount}>
-                  {notificationCounts[item.key] > 99 ? '99+' : notificationCounts[item.key]}
-                </Text>
-              ) : null}
-            </Pressable>
-          ))}
         </View>
 
         <View style={styles.content}>
@@ -527,6 +518,7 @@ const styles = StyleSheet.create({
   infoIcon: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.softPink },
   infoText: { flex: 1, color: COLORS.plum, fontFamily: 'FredokaSemiBold', fontSize: 16, lineHeight: 21 },
   headerIconButton: { width: 42, height: 42, borderRadius: 21 },
+  bellBadge: { position: 'absolute', top: -4, right: -6, minWidth: 20, paddingHorizontal: 5, borderRadius: 10, overflow: 'hidden', fontFamily: 'FredokaBold', fontSize: 11, lineHeight: 18, textAlign: 'center', color: COLORS.white, backgroundColor: COLORS.brightPink, borderWidth: 1, borderColor: COLORS.white },
   bottomNav: { position: 'absolute', left: 15, right: 15, bottom: 13, height: 94, paddingHorizontal: 4, flexDirection: 'row', alignItems: 'center', borderRadius: 31, borderWidth: 1.4, borderColor: '#F4C4DC', backgroundColor: COLORS.white, shadowColor: '#761046', shadowOpacity: 0.22, shadowRadius: 20, shadowOffset: { width: 0, height: 13 }, elevation: 11 },
   navItem: { position: 'relative', flex: 1, height: 76, alignItems: 'center', justifyContent: 'center', gap: 4 },
   navLabel: { color: COLORS.plum, fontFamily: 'FredokaMedium', fontSize: 13 },

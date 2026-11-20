@@ -352,7 +352,30 @@ export default function HomeScreen() {
           const name = organizerNames[String(row.creator_id || '')];
           if (name && shownIds.has(String(row.id))) organizerByEvent[String(row.id)] = name;
         });
-        if (active) setNearbyExperiences(events.map((event) => ({ ...event, organizerName: organizerByEvent[event.id] })));
+        // Quante persone partecipano (organizzatore compreso), come in "Tutti gli eventi".
+        const peopleByEvent: Record<string, Set<string>> = {};
+        (result.data || []).forEach((row: any) => {
+          const id = String(row.id);
+          if (!shownIds.has(id)) return;
+          peopleByEvent[id] = new Set<string>();
+          if (row.creator_id) peopleByEvent[id].add(String(row.creator_id));
+        });
+        if (shownIds.size > 0) {
+          const participants = await supabase.from('activity_participants')
+            .select('activity_id,user_id,status').in('activity_id', Array.from(shownIds)).limit(10000);
+          if (!participants.error) {
+            (participants.data || []).forEach((row: any) => {
+              const status = String(row.status || '').trim().toLowerCase();
+              if (['annullato', 'annullata', 'rejected', 'rifiutato', 'declined', 'deleted', 'removed'].includes(status)) return;
+              if (row.user_id) peopleByEvent[String(row.activity_id)]?.add(String(row.user_id));
+            });
+          }
+        }
+        if (active) setNearbyExperiences(events.map((event) => ({
+          ...event,
+          organizerName: organizerByEvent[event.id],
+          participantCount: peopleByEvent[event.id] ? peopleByEvent[event.id].size : undefined,
+        })));
       }
 
       async function refreshNextExperience(userId: string) {

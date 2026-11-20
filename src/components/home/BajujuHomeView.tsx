@@ -65,6 +65,7 @@ export type HomeNearbyExperience = {
   organizerName?: string;
   distanceKm: number;
   promoted?: boolean;
+  participantCount?: number;
 };
 
 export type HomeGroupPreview = {
@@ -239,6 +240,15 @@ export function BajujuHomeView({
                         <BajujuIcon name="pin" size={16} color={COLORS.accentText} />
                         <Text style={styles.metaText} numberOfLines={1}>{event.city}</Text>
                       </View>
+                      {/* Evento promozionale: il numero di iscritti non si mostra. */}
+                      {!event.promoted && event.participantCount !== undefined ? (
+                        <View style={styles.metaRow}>
+                          <BajujuIcon name="group" size={16} color={COLORS.accentText} />
+                          <Text style={[styles.metaText, event.participantCount <= 1 && styles.firstText]} numberOfLines={1}>
+                            {event.participantCount <= 1 ? 'Sii il primo a partecipare' : `${event.participantCount} partecipano`}
+                          </Text>
+                        </View>
+                      ) : null}
                     </View>
                     <View style={styles.openButton}>
                       <BajujuIcon name="arrow" size={20} color={COLORS.pink} />
@@ -501,6 +511,7 @@ const styles = StyleSheet.create({
   eventMeta: { flex: 1, gap: 4 },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   metaText: { flexShrink: 1, color: COLORS.bodyText, fontFamily: 'FredokaMedium', fontSize: 14 },
+  firstText: { color: COLORS.pink, fontFamily: 'FredokaSemiBold' },
   openButton: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.softPink },
   groupCard: { width: 210, borderRadius: 20, overflow: 'hidden', backgroundColor: COLORS.white, borderWidth: 1, borderColor: COLORS.line },
   groupImageBox: { height: 104, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.softPink },

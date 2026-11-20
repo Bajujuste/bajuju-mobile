@@ -113,6 +113,8 @@ function normalizeSearch(value: string) {
 }
 
 function participantsLabel(current: number, max: number) {
+  // Solo l'organizzatore: invitiamo a essere i primi.
+  if (current <= 1) return 'Sii il primo a partecipare';
   if (max > 0) return `${current}/${max} partecipanti`;
   return `${current} ${current === 1 ? 'partecipante' : 'partecipanti'}`;
 }

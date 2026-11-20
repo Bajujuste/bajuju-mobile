@@ -36,6 +36,7 @@ import {
   loadPublicBajujuLocations,
   locationAddressLine,
 } from '../../src/lib/bajujuLocations';
+import { tidyCityName } from '../../src/utils/cityName';
 import { supabase } from '../../src/lib/supabase';
 import { BAJUJU_COLORS, BAJUJU_FONTS, BAJUJU_SHADOW } from '../../src/theme/bajujuTheme';
 import { trackBajujuEvent } from '../../src/utils/bajujuAnalytics';
@@ -365,7 +366,7 @@ export default function CreateExperienceScreen() {
 
     const cleanTitle = title.trim();
     const cleanProvince = province.trim();
-    const cleanCity = city.trim();
+    const cleanCity = tidyCityName(city);
     const cleanDescription = description.trim();
     const databaseCategory = categoryToDatabaseValue(category.trim());
 

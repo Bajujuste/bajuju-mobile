@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 
 import { resolveAddressText } from '../../src/lib/addressAutocomplete';
+import { tidyCityName } from '../../src/utils/cityName';
 import { supabase } from '../../src/lib/supabase';
 import { KeyboardAwareScrollView } from '../../src/components/KeyboardAwareScrollView';
 
@@ -174,7 +175,7 @@ export default function AdminCreateExperienceScreen() {
       description: experienceDraft.description.trim(),
       activity_date: experienceDraft.activity_date.trim(),
       activity_time: experienceDraft.activity_time.trim(),
-      city: experienceDraft.city.trim(),
+      city: tidyCityName(experienceDraft.city),
       province: experienceDraft.province.trim(),
       meeting_place: experienceDraft.meeting_place.trim(),
       category: experienceDraft.category.trim(),

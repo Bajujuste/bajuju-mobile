@@ -18,6 +18,7 @@ import {
 import { EXPERIENCE_CATEGORIES, normalizeExperienceCategory } from '@/constants/experienceCategories';
 import { AddressAutocompleteField } from '../../src/components/AddressAutocompleteField';
 import type { ResolvedAddress } from '../../src/lib/addressAutocomplete';
+import { tidyCityName } from '../../src/utils/cityName';
 import { supabase } from '../../src/lib/supabase';
 import { KeyboardAwareScrollView } from '../../src/components/KeyboardAwareScrollView';
 import { BajujuProfileButton } from '../../src/components/navigation/BajujuProfileButton';
@@ -274,7 +275,7 @@ export default function EditExperienceScreen() {
     const cleanTitle = title.trim();
     const cleanDescription = description.trim();
     const cleanMeetingPlace = meetingPlace.trim();
-    const cleanCity = resolvedAddress?.city.trim() || '';
+    const cleanCity = tidyCityName(resolvedAddress?.city);
     const cleanProvince = resolvedAddress?.province.trim() || '';
     const normalizedTime = cleanTime(activityTime);
     const parsedMax = Number(maxParticipants);

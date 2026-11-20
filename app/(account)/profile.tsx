@@ -19,6 +19,7 @@ import {
 } from 'react-native';
 import { ProfileAdminChatRow } from '../../src/components/admin/AdminPrivateChatEntry';
 import { loadBajujuLocation, LOCATION_COLOR, LOCATION_COLOR_SOFT } from '../../src/lib/bajujuLocations';
+import { tidyCityName } from '../../src/utils/cityName';
 import { supabase } from '../../src/lib/supabase';
 import { BAJUJU_COLORS, BAJUJU_FONTS } from '../../src/theme/bajujuTheme';
 import { refreshBajujuNotificationLocation } from '../../src/utils/bajujuNotificationLocation';
@@ -992,7 +993,7 @@ export default function ProfileScreen() {
     if (!user) return;
 
     const cleanProvince = province.trim();
-    const cleanHomeCity = homeCity.trim().slice(0, 25);
+    const cleanHomeCity = tidyCityName(homeCity).slice(0, 25);
     const cleanAge = ageRange.trim();
     const cleanProfileName = profileName.trim();
 

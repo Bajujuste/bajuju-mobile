@@ -498,7 +498,7 @@ export default function CreateExperienceScreen() {
             : 'Esperienza creata correttamente.'
       );
 
-      router.replace('/experiences');
+      router.replace('/all-events' as any);
     } catch (error: unknown) {
       console.log('Errore creazione esperienza:', error);
       Alert.alert(

@@ -966,7 +966,7 @@ export default function ExperienceDetailScreen() {
                     'Esperienza annullata',
                     'L’esperienza è stata rimossa.'
                   );
-                  router.replace('/experiences');
+                  router.replace('/all-events' as any);
                   return;
                 }
               }
@@ -1503,8 +1503,9 @@ export default function ExperienceDetailScreen() {
         >
           {loading || errorMessage || !experience ? (
             <View style={styles.stateBox}>
-              <Pressable style={styles.stateBackButton} onPress={() => router.replace('/experiences')}>
-                <Text style={styles.stateBackText}>← Trova esperienza</Text>
+              <Pressable style={styles.stateBackButton} onPress={() => router.replace('/all-events' as any)}>
+                <Ionicons name="chevron-back" size={16} color={C.plum} />
+                <Text style={styles.stateBackText}>Tutti gli eventi</Text>
               </Pressable>
               <Text style={styles.messageText}>
                 {loading ? 'Caricamento esperienza...' : errorMessage || 'Esperienza non trovata.'}
@@ -1546,7 +1547,7 @@ export default function ExperienceDetailScreen() {
                 <View style={styles.heroTopBar}>
                   <Pressable
                     style={styles.heroIconButton}
-                    onPress={() => router.replace('/experiences')}
+                    onPress={() => router.replace('/all-events' as any)}
                     accessibilityLabel="Torna a Trova esperienza"
                   >
                     <Ionicons name="chevron-back" size={20} color={BAJUJU_COLORS.plum} />
@@ -2192,6 +2193,9 @@ const styles = StyleSheet.create({
   },
   stateBackButton: {
     alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     paddingVertical: 9,
     paddingHorizontal: 14,
     borderRadius: 999,

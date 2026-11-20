@@ -159,10 +159,10 @@ export default function NotificationsScreen() {
         return;
       case 'experience':
         if (activityId) router.push({ pathname: '/experience-detail' as any, params: { id: activityId, section: section || undefined } });
-        else router.push('/experiences' as any);
+        else router.push('/all-events' as any);
         return;
       case 'experiences':
-        router.push('/experiences' as any);
+        router.push('/all-events' as any);
         return;
       case 'flash':
         router.push('/flash' as any);

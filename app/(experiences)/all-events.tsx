@@ -292,7 +292,7 @@ export default function AllEventsScreen() {
   const listHeader = (
     <View>
       <View style={styles.screenHeader}>
-        <BajujuBackButton onPress={() => (router.canGoBack() ? router.back() : router.replace('/experiences'))} />
+        <BajujuBackButton onPress={() => (router.canGoBack() ? router.back() : router.replace('/home' as any))} />
         <Text style={styles.screenTitle} numberOfLines={1}>Tutti gli eventi</Text>
         <BajujuProfileButton />
       </View>

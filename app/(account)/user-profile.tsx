@@ -30,6 +30,9 @@ import {
   useIsBajujuBlacklisted,
 } from '../../src/hooks/useBajujuBlacklist';
 import { BAJUJU_COLORS } from '../../src/theme/bajujuTheme';
+import { EventCardImage } from '../../src/components/events/EventCardImage';
+import { experienceDateLabel } from '../../src/utils/experienceDateLabel';
+import { getExperienceCategoryIcon, normalizeExperienceCategory } from '../../src/constants/experienceCategories';
 
 const bajujuLogo = require('../../assets/brand/bajuju-logo.png');
 
@@ -111,6 +114,43 @@ async function fetchOrganizedExperienceIds(userId: string) {
   );
 }
 
+function isClosedActivity(row: LooseRow) {
+  if (row.deleted_at) return true;
+  return ['deleted', 'eliminato', 'eliminata', 'removed', 'cancelled', 'canceled', 'annullato', 'annullata', 'archived', 'closed']
+    .includes(String(row.status || '').trim().toLowerCase());
+}
+
+function activityMoment(row: LooseRow) {
+  if (!row.activity_date) return null;
+  const value = new Date(`${row.activity_date}T${row.activity_time || '23:59'}`);
+  return Number.isNaN(value.getTime()) ? null : value;
+}
+
+// Eventi che la persona organizza e che devono ancora svolgersi.
+// La visibilità (eventi privati, blocchi) la decide la policy di Supabase, come nel resto dell'app.
+async function fetchUpcomingOrganizedEvents(userId: string) {
+  const today = new Date().toISOString().slice(0, 10);
+  const result = await supabase
+    .from('activities')
+    .select('id,title,category,city,province,activity_date,activity_time,photo_url,deleted_at,status,is_flash')
+    .eq('creator_id', userId)
+    .neq('is_flash', true)
+    .is('deleted_at', null)
+    .gte('activity_date', today)
+    .order('activity_date', { ascending: true })
+    .order('activity_time', { ascending: true })
+    .limit(30);
+
+  if (result.error || !result.data) return [];
+
+  const now = Date.now();
+  return (result.data as LooseRow[]).filter((row) => {
+    if (isClosedActivity(row)) return false;
+    const moment = activityMoment(row);
+    return !moment || moment.getTime() >= now;
+  });
+}
+
 async function safeFetchParticipantRows(userId: string) {
   const result = await supabase
     .from('activity_participants')
@@ -145,6 +185,7 @@ export default function UserProfileScreen() {
   const [organizedCount, setOrganizedCount] = useState(0);
   const [participatedCount, setParticipatedCount] = useState(0);
   const [location, setLocation] = useState<BajujuLocation | null>(null);
+  const [upcomingEvents, setUpcomingEvents] = useState<LooseRow[]>([]);
   const [errorText, setErrorText] = useState('');
 
   const loadProfile = useCallback(async () => {
@@ -227,6 +268,7 @@ export default function UserProfileScreen() {
       const profileId = String(loadedProfile.id || userId).trim();
       const organizedIds = await fetchOrganizedExperienceIds(profileId);
       setOrganizedCount(organizedIds.size);
+      setUpcomingEvents(await fetchUpcomingOrganizedEvents(profileId).catch(() => []));
 
       const participatedRows = await safeFetchParticipantRows(profileId);
       const participatedIds = new Set<string>();
@@ -665,6 +707,38 @@ export default function UserProfileScreen() {
             </View>
           ) : null}
 
+          {upcomingEvents.length > 0 ? (
+            <View style={styles.upcomingSection}>
+              <Text style={styles.upcomingTitle}>Sta organizzando</Text>
+              {upcomingEvents.map((item) => {
+                const id = String(item.id || '');
+                const title = String(item.title || '').trim() || 'Esperienza Bajuju';
+                const place = item.city || item.province || 'Luogo da definire';
+                return (
+                  <Pressable
+                    key={id}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Apri evento ${title}`}
+                    style={({ pressed }) => [styles.upcomingRow, pressed && styles.upcomingPressed]}
+                    onPress={() => router.push({ pathname: '/experience-detail' as any, params: { id } })}
+                  >
+                    <EventCardImage uri={String(item.photo_url || '').trim()} fallback={bajujuLogo} style={styles.upcomingThumb} resizeMode="cover" />
+                    <View style={styles.upcomingBody}>
+                      <Text style={styles.upcomingCategory} numberOfLines={1}>
+                        {getExperienceCategoryIcon(item.category)} {normalizeExperienceCategory(item.category)}
+                      </Text>
+                      <Text style={styles.upcomingEventTitle} numberOfLines={2}>{title}</Text>
+                      <Text style={styles.upcomingMeta} numberOfLines={1}>
+                        {experienceDateLabel(activityMoment(item), Boolean(item.activity_time))}
+                      </Text>
+                      <Text style={styles.upcomingMeta} numberOfLines={1}>{place}</Text>
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </View>
+          ) : null}
+
           <View style={styles.infoGrid}>
             {infoTiles.map((tile) => (
               <View key={tile.label} style={styles.infoTile}>
@@ -733,6 +807,15 @@ const styles = StyleSheet.create({
   aboutText: { fontFamily: 'FredokaMedium', fontSize: 15, lineHeight: 21, color: '#4B0C2D' },
   aboutChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
   aboutChip: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, overflow: 'hidden', backgroundColor: '#FFF0F7', fontFamily: 'FredokaSemiBold', fontSize: 12, color: '#E43F98' },
+  upcomingSection: { marginHorizontal: 18, marginTop: 18, gap: 10 },
+  upcomingTitle: { fontFamily: 'FredokaBold', fontSize: 18, color: '#4B0C2D' },
+  upcomingRow: { flexDirection: 'row', gap: 12, padding: 10, borderRadius: 20, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#F3C6DC' },
+  upcomingPressed: { opacity: 0.85 },
+  upcomingThumb: { width: 80, height: 80, borderRadius: 14, backgroundColor: '#FFF0F7' },
+  upcomingBody: { flex: 1, justifyContent: 'center', gap: 2 },
+  upcomingCategory: { color: '#C2287A', fontFamily: 'FredokaSemiBold', fontSize: 12 },
+  upcomingEventTitle: { color: '#4B0C2D', fontFamily: 'FredokaBold', fontSize: 16, lineHeight: 20 },
+  upcomingMeta: { color: '#8D5E77', fontFamily: 'FredokaMedium', fontSize: 13 },
   infoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingHorizontal: 18, marginTop: 18 },
   infoTile: {
     flexBasis: '45%',

@@ -45,65 +45,6 @@ function locationPinImage(eventCount: number) {
   return LOCATION_PIN_IMAGES[Math.max(0, Math.min(eventCount, 10))];
 }
 
-/**
- * Segnaposto viola con la foto del locale nel cerchio (al posto della casetta)
- * e il pallino rosa con il numero di eventi. Android disegna il Marker come
- * immagine: lo si ridisegna finché la foto non è caricata, poi si ferma.
- */
-function LocationPhotoMarker({
-  location,
-  selected,
-  onPress,
-}: {
-  location: BajujuMapLocation;
-  selected: boolean;
-  onPress: () => void;
-}) {
-  const [redraw, setRedraw] = useState(true);
-  const count = location.events.length;
-
-  useEffect(() => {
-    setRedraw(true);
-    // Rete lenta o foto rotta: smette comunque di ridisegnare dopo qualche secondo.
-    const timer = setTimeout(() => setRedraw(false), 6000);
-    return () => clearTimeout(timer);
-  }, [location.photoUrl, count]);
-
-  const stopRedrawSoon = () => {
-    // Un ultimo giro di disegno con la foto già pronta.
-    setTimeout(() => setRedraw(false), 400);
-  };
-
-  return (
-    <Marker
-      coordinate={{ latitude: location.latitude, longitude: location.longitude }}
-      anchor={{ x: 0.5, y: 1 }}
-      tracksViewChanges={redraw}
-      zIndex={selected ? 30 : 10}
-      onPress={(event) => {
-        event.stopPropagation();
-        onPress();
-      }}
-    >
-      <View style={styles.locationPhotoPin} collapsable={false}>
-        <Image source={LOCATION_PIN_IMAGES[0]} style={styles.locationPhotoPinBase} fadeDuration={0} />
-        <Image
-          source={{ uri: location.photoUrl }}
-          style={styles.locationPhotoPinPhoto}
-          resizeMode="cover"
-          fadeDuration={0}
-          onLoadEnd={stopRedrawSoon}
-        />
-        {count > 0 ? (
-          <View style={styles.locationPhotoPinBadge}>
-            <Text style={styles.locationPhotoPinBadgeText}>{count > 9 ? '9+' : String(count)}</Text>
-          </View>
-        ) : null}
-      </View>
-    </Marker>
-  );
-}
-
 export type BajujuMapItem = {
   id: string;
   latitude: number;
@@ -470,19 +411,6 @@ export default function BajujuMap({
         >
           {locations.map((location) => {
             const selected = selectedLocationId === location.id;
-            if (location.photoUrl) {
-              return (
-                <LocationPhotoMarker
-                  key={`location-${location.id}`}
-                  location={location}
-                  selected={selected}
-                  onPress={() => {
-                    setSelectedItemId(null);
-                    setSelectedLocationId(location.id);
-                  }}
-                />
-              );
-            }
             return (
               <Marker
                 key={`location-${location.id}`}
@@ -954,48 +882,6 @@ const styles = StyleSheet.create({
   map: {
     width: '100%',
     height: '100%',
-  },
-  locationPhotoPin: {
-    width: 64,
-    height: 70,
-  },
-  locationPhotoPinBase: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    width: 64,
-    height: 70,
-  },
-  locationPhotoPinPhoto: {
-    position: 'absolute',
-    left: 15.8,
-    top: 11.8,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-    backgroundColor: '#FFFFFF',
-  },
-  locationPhotoPinBadge: {
-    position: 'absolute',
-    left: 40,
-    top: 1,
-    minWidth: 22,
-    height: 22,
-    paddingHorizontal: 4,
-    borderRadius: 11,
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-    backgroundColor: '#F20A7D',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  locationPhotoPinBadgeText: {
-    color: '#FFFFFF',
-    fontFamily: BAJUJU_FONTS.bold,
-    fontSize: 12,
-    lineHeight: 15,
   },
   mapMarker: {
     width: 34,

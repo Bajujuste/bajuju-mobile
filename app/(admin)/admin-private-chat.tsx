@@ -19,12 +19,15 @@ import { useKeyboardOverlap } from '../../src/components/KeyboardAwareScrollView
 import { useChatLiveRefresh } from '../../src/hooks/useChatLiveRefresh';
 import { useBajujuAdminIds } from '../../src/hooks/useBajujuAdminIds';
 import { BajujuLinkText } from '../../src/components/chat/BajujuLinkText';
+import { BajujuChatPhoto, BajujuChatPhotoButton } from '../../src/components/chat/BajujuChatPhoto';
+import { CHAT_PHOTO_PLACEHOLDER, chatPhotoCaption } from '../../src/lib/bajujuChatPhotos';
 
 type ChatMessage = {
   id: string;
   thread_id: string;
   sender_id: string;
   message: string;
+  image_url?: string | null;
   created_at: string;
   read_at?: string | null;
 };
@@ -73,7 +76,7 @@ export default function AdminPrivateChatScreen() {
 
     const result = await supabase
       .from('admin_private_messages')
-      .select('id,thread_id,sender_id,message,created_at,read_at')
+      .select('id,thread_id,sender_id,message,image_url,created_at,read_at')
       .eq('thread_id', id)
       .order('created_at', { ascending: true })
       .limit(300);
@@ -257,9 +260,9 @@ export default function AdminPrivateChatScreen() {
     return existingId;
   }
 
-  async function sendMessage() {
-    if (!canSend || !currentUserId) return;
-    const clean = draft.trim();
+  async function sendMessage(imageUrl?: string) {
+    const clean = draft.trim() || (imageUrl ? CHAT_PHOTO_PLACEHOLDER : '');
+    if (!currentUserId || sending || !clean || (!imageUrl && !canSend)) return;
     setSending(true);
 
     try {
@@ -270,8 +273,9 @@ export default function AdminPrivateChatScreen() {
           thread_id: activeThreadId,
           sender_id: currentUserId,
           message: clean,
+          ...(imageUrl ? { image_url: imageUrl } : {}),
         })
-        .select('id,thread_id,sender_id,message,created_at,read_at')
+        .select('id,thread_id,sender_id,message,image_url,created_at,read_at')
         .maybeSingle();
 
       if (insertResult.error || !insertResult.data?.id) {
@@ -353,11 +357,14 @@ export default function AdminPrivateChatScreen() {
                         ? targetName
                         : 'Bajuju · Amministratore'}
                   </Text>
-                  <BajujuLinkText
-                    style={[styles.messageText, mine && styles.mineMessageText]}
-                    text={item.message}
-                    linksEnabled={adminIds.has(String(item.sender_id || ''))}
-                  />
+                  {item.image_url ? <BajujuChatPhoto uri={String(item.image_url)} /> : null}
+                  {chatPhotoCaption(item.message, item.image_url) ? (
+                    <BajujuLinkText
+                      style={[styles.messageText, mine && styles.mineMessageText]}
+                      text={chatPhotoCaption(item.message, item.image_url)}
+                      linksEnabled={adminIds.has(String(item.sender_id || ''))}
+                    />
+                  ) : null}
                   <Text style={[styles.messageTime, mine && styles.mineMessageTime]}>
                     {formatMessageTime(item.created_at)}
                   </Text>
@@ -375,6 +382,13 @@ export default function AdminPrivateChatScreen() {
           { paddingBottom: keyboardOverlap > 0 ? 12 : Math.max(12, insets.bottom) },
         ]}
       >
+        <BajujuChatPhotoButton
+          userId={currentUserId}
+          disabled={sending}
+          color={BAJUJU_COLORS.brightPink}
+          background={BAJUJU_COLORS.palePink}
+          onUploaded={(url) => sendMessage(url)}
+        />
         <TextInput
           value={draft}
           onChangeText={setDraft}

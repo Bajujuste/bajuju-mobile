@@ -40,6 +40,8 @@ import { BajujuProfileButton } from '../../src/components/navigation/BajujuProfi
 import { BajujuAdminRing } from '../../src/components/profile/BajujuAdminRing';
 import { useBajujuAdminIds } from '../../src/hooks/useBajujuAdminIds';
 import { BajujuLinkText } from '../../src/components/chat/BajujuLinkText';
+import { BajujuChatPhoto, BajujuChatPhotoButton } from '../../src/components/chat/BajujuChatPhoto';
+import { CHAT_PHOTO_PLACEHOLDER, chatPhotoCaption } from '../../src/lib/bajujuChatPhotos';
 import { loadPromotedEventIds } from '../../src/lib/promotedEvents';
 
 const bajujuLogo = require('../../assets/brand/bajuju-logo.png');
@@ -128,6 +130,7 @@ type MessageRow = {
   message?: string | null;
   content?: string | null;
   body?: string | null;
+  image_url?: string | null;
   created_at?: string | null;
   deleted_at?: string | null;
 };
@@ -1012,10 +1015,10 @@ export default function ExperienceDetailScreen() {
     );
   }
 
-  async function sendChatMessage() {
+  async function sendChatMessage(imageUrl?: string) {
     if (!experienceId || sendingMessage) return;
 
-    const cleanMessage = newMessage.trim();
+    const cleanMessage = newMessage.trim() || (imageUrl ? CHAT_PHOTO_PLACEHOLDER : '');
 
     if (!cleanMessage) return;
 
@@ -1040,6 +1043,7 @@ export default function ExperienceDetailScreen() {
         activity_id: experienceId,
         sender_id: currentUserId,
         message: cleanMessage,
+        ...(imageUrl ? { image_url: imageUrl } : {}),
       });
 
       if (result.error) {
@@ -1868,11 +1872,14 @@ export default function ExperienceDetailScreen() {
                                 ]}
                               >
                                 <Text style={[styles.messageAuthor, isMine && styles.messageAuthorMine]}>{name}</Text>
-                                <BajujuLinkText
-                                  style={[styles.messageBody, isMine && styles.messageBodyMine, deleted && styles.messageBodyDeleted]}
-                                  text={deleted ? 'Messaggio eliminato' : messageText(item)}
-                                  linksEnabled={!deleted && adminIds.has(userId)}
-                                />
+                                {!deleted && item.image_url ? <BajujuChatPhoto uri={String(item.image_url)} /> : null}
+                                {deleted || chatPhotoCaption(messageText(item), item.image_url) ? (
+                                  <BajujuLinkText
+                                    style={[styles.messageBody, isMine && styles.messageBodyMine, deleted && styles.messageBodyDeleted]}
+                                    text={deleted ? 'Messaggio eliminato' : chatPhotoCaption(messageText(item), item.image_url)}
+                                    linksEnabled={!deleted && adminIds.has(userId)}
+                                  />
+                                ) : null}
                                 <View style={styles.messageFooter}>
                                   <Text style={[styles.messageTime, isMine && styles.messageTimeMine]}>
                                     {formatMessageTime(item.created_at)}
@@ -1909,6 +1916,15 @@ export default function ExperienceDetailScreen() {
                       )}
 
                       <View style={styles.chatInputRow}>
+                        {currentUserId ? (
+                          <BajujuChatPhotoButton
+                            userId={currentUserId}
+                            disabled={sendingMessage}
+                            color={BAJUJU_COLORS.brightPink}
+                            background={BAJUJU_COLORS.palePink}
+                            onUploaded={(url) => sendChatMessage(url)}
+                          />
+                        ) : null}
                         <TextInput
                           value={newMessage}
                           onChangeText={setNewMessage}
@@ -1930,7 +1946,7 @@ export default function ExperienceDetailScreen() {
                             styles.sendButton,
                             (!newMessage.trim() || sendingMessage) && styles.buttonDisabled,
                           ]}
-                          onPress={sendChatMessage}
+                          onPress={() => { void sendChatMessage(); }}
                           disabled={!newMessage.trim() || sendingMessage}
                           accessibilityLabel="Invia messaggio"
                         >

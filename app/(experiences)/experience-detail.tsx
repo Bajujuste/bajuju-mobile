@@ -41,6 +41,7 @@ import { BajujuAdminRing } from '../../src/components/profile/BajujuAdminRing';
 import { useBajujuAdminIds } from '../../src/hooks/useBajujuAdminIds';
 import { BajujuLinkText } from '../../src/components/chat/BajujuLinkText';
 import { BajujuChatPhoto, BajujuChatPhotoButton } from '../../src/components/chat/BajujuChatPhoto';
+import { BajujuPhotoViewer } from '../../src/components/chat/BajujuPhotoViewer';
 import { CHAT_PHOTO_PLACEHOLDER, chatPhotoCaption } from '../../src/lib/bajujuChatPhotos';
 import { loadPromotedEventIds } from '../../src/lib/promotedEvents';
 
@@ -2169,20 +2170,10 @@ export default function ExperienceDetailScreen() {
         </View>
       </Modal>
 
-      <Modal visible={coverPhotoOpen} transparent animationType="fade" onRequestClose={() => setCoverPhotoOpen(false)}>
-        <Pressable style={styles.photoModalBackdrop} onPress={() => setCoverPhotoOpen(false)}>
-          <Pressable style={styles.photoModalClose} onPress={() => setCoverPhotoOpen(false)}>
-            <Text style={styles.photoModalCloseText}>Chiudi</Text>
-          </Pressable>
-          {experience && experiencePhotoUrl(experience) ? (
-            <Image
-              source={{ uri: experiencePhotoUrl(experience) }}
-              style={styles.coverModalImage}
-              resizeMode="contain"
-            />
-          ) : null}
-        </Pressable>
-      </Modal>
+      <BajujuPhotoViewer
+        uri={coverPhotoOpen && experience && experiencePhotoUrl(experience) ? experiencePhotoUrl(experience) : null}
+        onClose={() => setCoverPhotoOpen(false)}
+      />
 
       <Modal visible={!!selectedAlbumPhotoUrl} transparent animationType="fade" onRequestClose={closeAlbumPhoto}>
         <View style={styles.photoModalBackdrop}>
@@ -2974,10 +2965,6 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '72%',
     borderRadius: 22,
-  },
-  coverModalImage: {
-    width: '100%',
-    height: '100%',
   },
   photoModalControls: {
     position: 'absolute',

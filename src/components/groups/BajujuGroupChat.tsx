@@ -16,6 +16,8 @@ import {
 import { useChatLiveRefresh } from '../../hooks/useChatLiveRefresh';
 import { useBajujuAdminIds } from '../../hooks/useBajujuAdminIds';
 import { BajujuLinkText } from '../chat/BajujuLinkText';
+import { BajujuChatPhoto, BajujuChatPhotoButton } from '../chat/BajujuChatPhoto';
+import { CHAT_PHOTO_PLACEHOLDER, chatPhotoCaption } from '../../lib/bajujuChatPhotos';
 import { supabase } from '../../lib/supabase';
 import { BAJUJU_COLORS, BAJUJU_FONTS, BAJUJU_SHADOW } from '../../theme/bajujuTheme';
 
@@ -29,6 +31,7 @@ type GroupMessageRow = {
   group_id?: string | null;
   user_id?: string | null;
   message?: string | null;
+  image_url?: string | null;
   created_at?: string | null;
   deleted_at?: string | null;
 };
@@ -116,7 +119,7 @@ export function BajujuGroupChat({ groupId, currentUserId, canUseChat, members }:
     try {
       const result = await supabase
         .from('group_messages')
-        .select('id,group_id,user_id,message,created_at,deleted_at')
+        .select('id,group_id,user_id,message,image_url,created_at,deleted_at')
         .eq('group_id', groupId)
         .order('created_at', { ascending: false })
         .limit(PAGE_SIZE);
@@ -141,7 +144,7 @@ export function BajujuGroupChat({ groupId, currentUserId, canUseChat, members }:
 
     const result = await supabase
       .from('group_messages')
-      .select('id,group_id,user_id,message,created_at,deleted_at')
+      .select('id,group_id,user_id,message,image_url,created_at,deleted_at')
       .eq('group_id', groupId)
       .order('created_at', { ascending: false })
       .limit(PAGE_SIZE);
@@ -170,7 +173,7 @@ export function BajujuGroupChat({ groupId, currentUserId, canUseChat, members }:
     try {
       const result = await supabase
         .from('group_messages')
-        .select('id,group_id,user_id,message,created_at,deleted_at')
+        .select('id,group_id,user_id,message,image_url,created_at,deleted_at')
         .eq('group_id', groupId)
         .lt('created_at', oldestCreatedAt)
         .order('created_at', { ascending: false })
@@ -247,8 +250,8 @@ export function BajujuGroupChat({ groupId, currentUserId, canUseChat, members }:
 
   useChatLiveRefresh(groupId && canUseChat ? () => void refreshLatest() : null);
 
-  async function sendMessage() {
-    const cleanMessage = draft.trim();
+  async function sendMessage(imageUrl?: string) {
+    const cleanMessage = draft.trim() || (imageUrl ? CHAT_PHOTO_PLACEHOLDER : '');
     if (!groupId || !currentUserId || !canUseChat || !cleanMessage || sending) return;
 
     setSending(true);
@@ -259,8 +262,9 @@ export function BajujuGroupChat({ groupId, currentUserId, canUseChat, members }:
           group_id: groupId,
           user_id: currentUserId,
           message: cleanMessage,
+          ...(imageUrl ? { image_url: imageUrl } : {}),
         })
-        .select('id,group_id,user_id,message,created_at,deleted_at')
+        .select('id,group_id,user_id,message,image_url,created_at,deleted_at')
         .single();
 
       if (result.error) throw result.error;
@@ -307,7 +311,7 @@ export function BajujuGroupChat({ groupId, currentUserId, canUseChat, members }:
               return;
             }
             setMessages((current) =>
-              mergeMessages(current, [{ ...row, message: '', deleted_at: new Date().toISOString() }])
+              mergeMessages(current, [{ ...row, message: '', image_url: null, deleted_at: new Date().toISOString() }])
             );
           })();
         },
@@ -414,11 +418,14 @@ export function BajujuGroupChat({ groupId, currentUserId, canUseChat, members }:
                     >
                       <View style={[styles.bubble, mine ? styles.bubbleMine : styles.bubbleOther]}>
                         <Text style={[styles.senderName, mine && styles.senderNameMine]}>{senderName}</Text>
-                        <BajujuLinkText
-                          style={[styles.messageText, mine && styles.messageTextMine, deleted && styles.messageTextDeleted]}
-                          text={deleted ? 'Messaggio eliminato' : String(row.message || '')}
-                          linksEnabled={!deleted && adminIds.has(senderId)}
-                        />
+                        {!deleted && row.image_url ? <BajujuChatPhoto uri={String(row.image_url)} /> : null}
+                        {deleted || chatPhotoCaption(row.message, row.image_url) ? (
+                          <BajujuLinkText
+                            style={[styles.messageText, mine && styles.messageTextMine, deleted && styles.messageTextDeleted]}
+                            text={deleted ? 'Messaggio eliminato' : chatPhotoCaption(row.message, row.image_url)}
+                            linksEnabled={!deleted && adminIds.has(senderId)}
+                          />
+                        ) : null}
                         <View style={styles.messageFooter}>
                           {mine && !deleted ? (
                             <Pressable onPress={() => confirmDeleteMessage(row)} hitSlop={8} accessibilityLabel="Elimina messaggio">
@@ -439,6 +446,13 @@ export function BajujuGroupChat({ groupId, currentUserId, canUseChat, members }:
         </ScrollView>
 
         <View style={styles.composer}>
+          <BajujuChatPhotoButton
+            userId={currentUserId}
+            disabled={sending}
+            color={BAJUJU_COLORS.brightPink}
+            background={BAJUJU_COLORS.palePink}
+            onUploaded={(url) => sendMessage(url)}
+          />
           <TextInput
             value={draft}
             onChangeText={setDraft}

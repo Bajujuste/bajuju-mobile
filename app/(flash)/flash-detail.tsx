@@ -6,6 +6,8 @@ import { KeyboardAwareScrollView } from '../../src/components/KeyboardAwareScrol
 import { useChatLiveRefresh } from '../../src/hooks/useChatLiveRefresh';
 import { useBajujuAdminIds } from '../../src/hooks/useBajujuAdminIds';
 import { BajujuLinkText } from '../../src/components/chat/BajujuLinkText';
+import { BajujuChatPhoto, BajujuChatPhotoButton } from '../../src/components/chat/BajujuChatPhoto';
+import { CHAT_PHOTO_PLACEHOLDER, chatPhotoCaption } from '../../src/lib/bajujuChatPhotos';
 
 type LooseRow = Record<string, any>;
 
@@ -297,10 +299,10 @@ export default function FlashDetailScreen() {
 
   useChatLiveRefresh(flashId && canUseChat ? () => void loadMessages(flashId) : null);
 
-  async function sendChatMessage() {
+  async function sendChatMessage(imageUrl?: string) {
     if (!flashId || sendingMessage) return;
 
-    const cleanMessage = newMessage.trim();
+    const cleanMessage = newMessage.trim() || (imageUrl ? CHAT_PHOTO_PLACEHOLDER : '');
 
     if (!cleanMessage) return;
 
@@ -325,6 +327,7 @@ export default function FlashDetailScreen() {
         activity_id: flashId,
         sender_id: currentUserId,
         message: cleanMessage,
+        ...(imageUrl ? { image_url: imageUrl } : {}),
       });
 
       if (result.error) {
@@ -471,11 +474,14 @@ export default function FlashDetailScreen() {
               return (
                 <View key={`${firstValue(item, ['id'], index)}-${index}`} style={styles.messageBox}>
                   <Text style={styles.messageAuthor}>{profileName(profile)}</Text>
-                  <BajujuLinkText
-                    style={[styles.messageText, deleted && styles.messageTextDeleted]}
-                    text={deleted ? 'Messaggio eliminato' : messageText(item)}
-                    linksEnabled={!deleted && adminIds.has(senderId)}
-                  />
+                  {!deleted && item.image_url ? <BajujuChatPhoto uri={String(item.image_url)} /> : null}
+                  {deleted || chatPhotoCaption(messageText(item), item.image_url) ? (
+                    <BajujuLinkText
+                      style={[styles.messageText, deleted && styles.messageTextDeleted]}
+                      text={deleted ? 'Messaggio eliminato' : chatPhotoCaption(messageText(item), item.image_url)}
+                      linksEnabled={!deleted && adminIds.has(senderId)}
+                    />
+                  ) : null}
                   {isMine && !deleted ? (
                     <Pressable onPress={() => confirmDeleteMessage(item)} hitSlop={8} accessibilityLabel="Elimina messaggio">
                       <Text style={styles.deleteMessageText}>Elimina</Text>
@@ -496,16 +502,28 @@ export default function FlashDetailScreen() {
                 multiline
               />
 
-              <Pressable
-                style={[
-                  styles.button,
-                  (!newMessage.trim() || sendingMessage) && styles.buttonDisabled,
-                ]}
-                onPress={sendChatMessage}
-                disabled={!newMessage.trim() || sendingMessage}
-              >
-                <Text style={styles.buttonText}>{sendingMessage ? 'Invio...' : 'Invia'}</Text>
-              </Pressable>
+              <View style={styles.chatActionsRow}>
+                {currentUserId ? (
+                  <BajujuChatPhotoButton
+                    userId={currentUserId}
+                    disabled={sendingMessage}
+                    color="#E43F98"
+                    background="#FFDDEB"
+                    onUploaded={(url) => sendChatMessage(url)}
+                  />
+                ) : null}
+                <Pressable
+                  style={[
+                    styles.button,
+                    styles.chatSendButton,
+                    (!newMessage.trim() || sendingMessage) && styles.buttonDisabled,
+                  ]}
+                  onPress={() => { void sendChatMessage(); }}
+                  disabled={!newMessage.trim() || sendingMessage}
+                >
+                  <Text style={styles.buttonText}>{sendingMessage ? 'Invio...' : 'Invia'}</Text>
+                </Pressable>
+              </View>
             </View>
           ) : null}
         </View>
@@ -682,6 +700,14 @@ const styles = StyleSheet.create({
   chatComposer: {
     gap: 10,
     marginTop: 14,
+  },
+  chatActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  chatSendButton: {
+    flex: 1,
   },
   chatInput: {
     backgroundColor: '#FFF9FC',

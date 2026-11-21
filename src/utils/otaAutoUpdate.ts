@@ -4,13 +4,14 @@ import { AppState, Platform } from 'react-native';
 
 // Di serie expo-updates scarica l'OTA in background e lo applica solo al successivo avvio a freddo:
 // chi riapre l'app dal multitasking resta sulla versione vecchia finché non la chiude del tutto.
-// Qui l'aggiornamento si scarica e si applica da solo:
-// - all'avvio: se il download finisce nei primi secondi, l'app si ricarica subito (l'utente vede solo
-//   un secondo caricamento);
-// - altrimenti resta "in attesa" e si applica la prossima volta che l'app torna in primo piano,
-//   così non si ricarica mai sotto le dita di chi la sta usando.
-const RELOAD_RIGHT_AWAY_WINDOW_MS = 15 * 1000;
+// Qui l'aggiornamento si scarica da solo e si applica SOLO quando non disturba:
+// - all'avvio a freddo, se è già pronto nei primissimi secondi (l'utente è ancora sulla Home);
+// - quando l'app torna in primo piano dopo essere stata in background a lungo.
+// Mai mentre l'utente la sta usando: tornare all'app dopo pochi minuti (mappe, WhatsApp, una
+// telefonata, schermo spento) non la ricarica, l'aggiornamento resta in attesa.
+const RELOAD_RIGHT_AWAY_WINDOW_MS = 6 * 1000;
 const MIN_CHECK_INTERVAL_MS = 60 * 1000;
+const MIN_BACKGROUND_BEFORE_APPLY_MS = 15 * 60 * 1000;
 // Il ricaricamento azzera la navigazione: se l'app è stata appena aperta toccando una notifica,
 // l'utente finirebbe in Home invece che nella chat. In quel caso l'OTA aspetta il rientro successivo.
 const NOTIFICATION_GRACE_MS = 60 * 1000;
@@ -122,16 +123,22 @@ export function useOtaAutoUpdate() {
       if (ready && Date.now() - startedAt < RELOAD_RIGHT_AWAY_WINDOW_MS) void applyUpdate();
     });
 
+    let backgroundSince: number | null = null;
     const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'background') {
+        if (backgroundSince === null) backgroundSince = Date.now();
+        return;
+      }
       if (state !== 'active') return;
-      if (updateReady) {
+      const awayMs = backgroundSince === null ? 0 : Date.now() - backgroundSince;
+      backgroundSince = null;
+      // Rientro dopo tanto tempo in background: si può ricaricare, l'utente riparte comunque da capo.
+      if (updateReady && awayMs >= MIN_BACKGROUND_BEFORE_APPLY_MS) {
         void applyUpdate();
         return;
       }
-      const resumedAt = Date.now();
-      void downloadUpdate().then((ready) => {
-        if (ready && Date.now() - resumedAt < RELOAD_RIGHT_AWAY_WINDOW_MS) void applyUpdate();
-      });
+      // Rientro dopo poco: si scarica in silenzio, senza ricaricare. Si applicherà dopo.
+      void downloadUpdate();
     });
 
     return () => subscription.remove();

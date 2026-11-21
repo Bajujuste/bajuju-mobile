@@ -14,6 +14,8 @@ import {
 } from 'react-native';
 
 import { useChatLiveRefresh } from '../../hooks/useChatLiveRefresh';
+import { useBajujuAdminIds } from '../../hooks/useBajujuAdminIds';
+import { BajujuLinkText } from '../chat/BajujuLinkText';
 import { supabase } from '../../lib/supabase';
 import { BAJUJU_COLORS, BAJUJU_FONTS, BAJUJU_SHADOW } from '../../theme/bajujuTheme';
 
@@ -86,6 +88,7 @@ export function BajujuGroupChat({ groupId, currentUserId, canUseChat, members }:
   const initialScrollDoneRef = useRef(false);
   const atBottomRef = useRef(true);
 
+  const adminIds = useBajujuAdminIds();
   const [messages, setMessages] = useState<GroupMessageRow[]>([]);
   const [draft, setDraft] = useState('');
   const [loading, setLoading] = useState(false);
@@ -411,9 +414,11 @@ export function BajujuGroupChat({ groupId, currentUserId, canUseChat, members }:
                     >
                       <View style={[styles.bubble, mine ? styles.bubbleMine : styles.bubbleOther]}>
                         <Text style={[styles.senderName, mine && styles.senderNameMine]}>{senderName}</Text>
-                        <Text style={[styles.messageText, mine && styles.messageTextMine, deleted && styles.messageTextDeleted]}>
-                          {deleted ? 'Messaggio eliminato' : String(row.message || '')}
-                        </Text>
+                        <BajujuLinkText
+                          style={[styles.messageText, mine && styles.messageTextMine, deleted && styles.messageTextDeleted]}
+                          text={deleted ? 'Messaggio eliminato' : String(row.message || '')}
+                          linksEnabled={!deleted && adminIds.has(senderId)}
+                        />
                         <View style={styles.messageFooter}>
                           {mine && !deleted ? (
                             <Pressable onPress={() => confirmDeleteMessage(row)} hitSlop={8} accessibilityLabel="Elimina messaggio">

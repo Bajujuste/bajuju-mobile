@@ -6,8 +6,7 @@ import { router, useFocusEffect } from 'expo-router';
 
 import { loadEventOrganizerNames } from '../src/lib/eventCards';
 import { loadPromotedEventIds } from '../src/lib/promotedEvents';
-import { BajujuHomeView, HomeGroupPreview, HomeNearbyExperience } from '../src/components/home/BajujuHomeView';
-import { loadBajujuGroups } from '../src/lib/bajujuGroups';
+import { BajujuHomeView, HomeNearbyExperience } from '../src/components/home/BajujuHomeView';
 import { supabase } from '../src/lib/supabase';
 import { trackBajujuEvent } from '../src/utils/bajujuAnalytics';
 import { refreshBajujuNotificationLocation } from '../src/utils/bajujuNotificationLocation';
@@ -87,7 +86,6 @@ export default function HomeScreen() {
   // Chi non ha mai partecipato né organizzato: in Home vede l'invito al primo evento.
   const [isNewcomer, setIsNewcomer] = useState(false);
   const [nearbyExperiences, setNearbyExperiences] = useState<HomeNearbyExperience[]>([]);
-  const [groups, setGroups] = useState<HomeGroupPreview[]>([]);
 
   useEffect(() => {
     let active = true;
@@ -205,30 +203,6 @@ export default function HomeScreen() {
         });
         if (active) {
           setNotificationCounts(counts);
-        }
-      }
-
-      async function refreshGroups(userId: string) {
-        try {
-          // I gruppi si caricano subito: prima aspettavano l'aggiornamento della posizione
-          // e, se il GPS non rispondeva, la sezione Gruppi restava vuota.
-          const loadedGroups = await loadBajujuGroups(userId, { limit: 100 });
-          if (!active) return;
-          setGroups(
-            [...loadedGroups].sort((a, b) => b.memberCount - a.memberCount || a.name.localeCompare(b.name, 'it')).map((group) => ({
-              id: group.id,
-              name: group.name,
-              city: group.city,
-              province: group.province,
-              coverUrl: group.coverUrl,
-              memberCount: group.memberCount,
-              joinedByMe: group.joinedByMe,
-              ownedByMe: group.ownerId === userId,
-            }))
-          );
-        } catch (error) {
-          // In caso di errore restano i gruppi già mostrati.
-          console.log('Gruppi Home non aggiornati:', error);
         }
       }
 
@@ -429,7 +403,6 @@ export default function HomeScreen() {
             if (active) {
             setNotificationCounts({ requests: 0, chat: 0, other: 0 });
               setNextExperience(null);
-              setGroups([]);
               setNearbyExperiences([]);
             }
             return;
@@ -439,23 +412,20 @@ export default function HomeScreen() {
 
           homeFocusCountRef.current += 1;
           if (homeFocusCountRef.current > 1) {
-            // Token push in background: se non risponde, eventi e gruppi si caricano lo stesso.
+            // Token push in background: se non risponde, gli eventi si caricano lo stesso.
             void refreshBajujuPushRegistrationIfAuthorized(userId)
               .then((result) => { if (!result.ok) console.log('Token push non aggiornato al focus Home.'); })
               .catch(() => console.log('Token push non aggiornato al focus Home.'));
           }
-          // Posizione in background: quando arriva, i gruppi si riordinano per distanza.
-          void refreshBajujuNotificationLocation(userId, { requestPermission: false })
-            .then((result) => { if (result.ok && active) void refreshGroups(userId); })
-            .catch(() => null);
+          // Posizione delle notifiche aggiornata in background.
+          void refreshBajujuNotificationLocation(userId, { requestPermission: false }).catch(() => null);
 
           reloadNearbyRef.current = () => {
             void refreshNearbyExperiences(userId).catch(() => console.log('Eventi vicini non aggiornati.'));
           };
-          // Al ritorno nell'app (es. dopo aver acceso GPS o rete) eventi e gruppi si ricaricano.
+          // Al ritorno nell'app (es. dopo aver acceso GPS o rete) gli eventi si ricaricano.
           appStateSubscription = AppState.addEventListener('change', (state) => {
             if (state !== 'active' || !active) return;
-            void refreshGroups(userId);
             void refreshNearbyExperiences(userId).catch(() => console.log('Eventi vicini non aggiornati.'));
           });
 
@@ -463,7 +433,6 @@ export default function HomeScreen() {
           const results = await Promise.allSettled([
             refreshUnreadCount(userId),
             refreshNextExperience(userId),
-            refreshGroups(userId),
             refreshNearbyExperiences(userId),
           ]);
           results.forEach((result) => {
@@ -539,7 +508,6 @@ export default function HomeScreen() {
       notificationCounts={notificationCounts}
       nextExperience={nextExperience}
       showFirstEventInvite={isNewcomer}
-      groups={groups}
       nearbyExperiences={nearbyExperiences}
       onOpenExperience={(id) => router.push({ pathname: '/experience-detail' as any, params: { id } })}
       onOpenNextExperience={() => {
@@ -556,11 +524,6 @@ export default function HomeScreen() {
       onOpenHowItWorks={() => router.push('/how-it-works' as any)}
       onCreate={() => router.push('/create-experience')}
       onOpenMyEvents={() => router.push('/my-events' as any)}
-      onOpenGroups={() => router.push('/groups' as any)}
-      onCreateGroup={() => router.push('/create-group' as any)}
-      onOpenGroup={(groupId) => {
-        router.push({ pathname: '/group-detail' as any, params: { id: groupId } });
-      }}
       onAskBajuju={() => router.push('/admin-private-chat' as any)}
       onShare={() => { void shareBajujuHome(); }}
     />

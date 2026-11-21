@@ -68,23 +68,11 @@ export type HomeNearbyExperience = {
   participantCount?: number;
 };
 
-export type HomeGroupPreview = {
-  id: string;
-  name: string;
-  city: string;
-  province: string;
-  coverUrl: string;
-  memberCount: number;
-  joinedByMe: boolean;
-  ownedByMe: boolean;
-};
-
 type BajujuHomeViewProps = {
   profilePhotoUrl: string;
   notificationCounts: Record<BajujuNotificationCategory, number>;
   showFirstEventInvite?: boolean;
   nextExperience?: NextExperience | null;
-  groups?: HomeGroupPreview[];
   nearbyExperiences?: HomeNearbyExperience[];
   onOpenExperience: (id: string) => void;
   onOpenNextExperience?: () => void;
@@ -94,9 +82,6 @@ type BajujuHomeViewProps = {
   onOpenHowItWorks: () => void;
   onCreate: () => void;
   onOpenMyEvents: () => void;
-  onOpenGroups: () => void;
-  onCreateGroup: () => void;
-  onOpenGroup: (groupId: string) => void;
   onAskBajuju: () => void;
   onShare: () => void;
 };
@@ -106,7 +91,6 @@ export function BajujuHomeView({
   notificationCounts,
   nextExperience,
   showFirstEventInvite = false,
-  groups = [],
   nearbyExperiences = [],
   onOpenExperience,
   onOpenNextExperience,
@@ -116,15 +100,59 @@ export function BajujuHomeView({
   onOpenHowItWorks,
   onCreate,
   onOpenMyEvents,
-  onOpenGroups,
-  onCreateGroup,
-  onOpenGroup,
   onAskBajuju,
   onShare,
 }: BajujuHomeViewProps) {
   const insets = useSafeAreaInsets();
 
   const unreadTotal = notificationCounts.requests + notificationCounts.chat + notificationCounts.other;
+  // Eventi premium (promozionali, cornice dorata): sezione a parte sotto "Eventi vicino a te".
+  // Tutti i premium, a qualsiasi distanza: dal più vicino al più lontano (senza posizione restano in ordine di data).
+  const premiumExperiences = nearbyExperiences
+    .filter((event) => event.promoted)
+    .sort((a, b) => (Number.isFinite(a.distanceKm) ? a.distanceKm : Infinity) - (Number.isFinite(b.distanceKm) ? b.distanceKm : Infinity));
+  const closeExperiences = nearbyExperiences.filter((event) => !event.promoted);
+
+  const renderEventCard = (event: HomeNearbyExperience) => (
+    <Pressable key={event.id} style={({ pressed }) => [styles.eventCard, event.promoted && styles.promoCard, pressed && styles.pressed]} onPress={() => onOpenExperience(event.id)} accessibilityRole="button" accessibilityLabel={`Apri esperienza ${event.title}`}>
+      <View style={styles.eventImageBox}>
+        {event.photoUrl ? <EventCardImage uri={event.photoUrl} style={styles.eventImage} resizeMode="cover" /> : <View style={styles.eventPlaceholder}><BajujuIcon name="pin" size={30} color={COLORS.pink} /></View>}
+        <Text style={[styles.imageChip, styles.categoryChip]} numberOfLines={1}>{getExperienceCategoryIcon(event.category)} {normalizeExperienceCategory(event.category)}</Text>
+        {event.byLocation ? <Text style={[styles.imageChip, styles.locationChip]}>🏠 Del locale</Text> : null}
+        {Number.isFinite(event.distanceKm) ? <Text style={[styles.imageChip, styles.distanceChip]}>{event.distanceKm < 1 ? `${Math.round(event.distanceKm * 1000)} m` : `${event.distanceKm.toFixed(1).replace('.', ',')} km`}</Text> : null}
+      </View>
+      {event.promoted ? <Text style={styles.promoBand} numberOfLines={1}>{PROMO_LABEL}</Text> : null}
+      <View style={styles.eventBody}>
+        <Text style={styles.eventTitle} numberOfLines={1}>{event.title}</Text>
+        {event.organizerName ? <Text style={styles.organizerLine} numberOfLines={1}>Organizzato da <Text style={styles.organizerName}>{event.organizerName}</Text></Text> : null}
+        <View style={styles.eventFooter}>
+          <View style={styles.eventMeta}>
+            <View style={styles.metaRow}>
+              <BajujuIcon name="calendar" size={13} color={COLORS.accentText} />
+              <Text style={styles.metaText} numberOfLines={1}>{event.date}</Text>
+            </View>
+            <View style={styles.metaRow}>
+              <BajujuIcon name="pin" size={13} color={COLORS.accentText} />
+              <Text style={styles.metaText} numberOfLines={1}>{event.city}</Text>
+            </View>
+            {/* Evento promozionale: il numero di iscritti non si mostra. */}
+            {!event.promoted && event.participantCount !== undefined ? (
+              <View style={styles.metaRow}>
+                <BajujuIcon name="group" size={13} color={COLORS.accentText} />
+                <Text style={[styles.metaText, event.participantCount <= 1 && styles.firstText]} numberOfLines={1}>
+                  {event.participantCount <= 1 ? 'Sii il primo a partecipare' : `${event.participantCount} partecipano`}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+          <View style={[styles.openButton, styles.cardOpenButton]}>
+            <BajujuIcon name="arrow" size={16} color={COLORS.pink} />
+          </View>
+        </View>
+      </View>
+    </Pressable>
+  );
+
   const firstUnreadCategory: BajujuNotificationCategory = notificationCounts.requests > 0 ? 'requests' : notificationCounts.chat > 0 ? 'chat' : notificationCounts.other > 0 ? 'other' : 'requests';
 
   return (
@@ -220,7 +248,7 @@ export function BajujuHomeView({
           </View>
           <FlatList
             horizontal
-            data={nearbyExperiences}
+            data={closeExperiences}
             keyExtractor={(event) => event.id}
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.cardsScroll}
@@ -228,94 +256,32 @@ export function BajujuHomeView({
             initialNumToRender={5}
             maxToRenderPerBatch={8}
             windowSize={5}
-            renderItem={({ item: event }) => (
-              <Pressable key={event.id} style={({ pressed }) => [styles.eventCard, event.promoted && styles.promoCard, pressed && styles.pressed]} onPress={() => onOpenExperience(event.id)} accessibilityRole="button" accessibilityLabel={`Apri esperienza ${event.title}`}>
-                <View style={styles.eventImageBox}>
-                  {event.photoUrl ? <EventCardImage uri={event.photoUrl} style={styles.eventImage} resizeMode="cover" /> : <View style={styles.eventPlaceholder}><BajujuIcon name="pin" size={44} color={COLORS.pink} /></View>}
-                  <Text style={[styles.imageChip, styles.categoryChip]} numberOfLines={1}>{getExperienceCategoryIcon(event.category)} {normalizeExperienceCategory(event.category)}</Text>
-                  {event.byLocation ? <Text style={[styles.imageChip, styles.locationChip]}>🏠 Del locale</Text> : null}
-                  {Number.isFinite(event.distanceKm) ? <Text style={[styles.imageChip, styles.distanceChip]}>{event.distanceKm < 1 ? `${Math.round(event.distanceKm * 1000)} m` : `${event.distanceKm.toFixed(1).replace('.', ',')} km`}</Text> : null}
-                </View>
-                {event.promoted ? <Text style={styles.promoBand} numberOfLines={1}>{PROMO_LABEL}</Text> : null}
-                <View style={styles.eventBody}>
-                  <Text style={styles.eventTitle} numberOfLines={2}>{event.title}</Text>
-                  {event.organizerName ? <Text style={styles.organizerLine} numberOfLines={1}>Organizzato da <Text style={styles.organizerName}>{event.organizerName}</Text></Text> : null}
-                  <View style={styles.eventFooter}>
-                    <View style={styles.eventMeta}>
-                      <View style={styles.metaRow}>
-                        <BajujuIcon name="calendar" size={16} color={COLORS.accentText} />
-                        <Text style={styles.metaText} numberOfLines={1}>{event.date}</Text>
-                      </View>
-                      <View style={styles.metaRow}>
-                        <BajujuIcon name="pin" size={16} color={COLORS.accentText} />
-                        <Text style={styles.metaText} numberOfLines={1}>{event.city}</Text>
-                      </View>
-                      {/* Evento promozionale: il numero di iscritti non si mostra. */}
-                      {!event.promoted && event.participantCount !== undefined ? (
-                        <View style={styles.metaRow}>
-                          <BajujuIcon name="group" size={16} color={COLORS.accentText} />
-                          <Text style={[styles.metaText, event.participantCount <= 1 && styles.firstText]} numberOfLines={1}>
-                            {event.participantCount <= 1 ? 'Sii il primo a partecipare' : `${event.participantCount} partecipano`}
-                          </Text>
-                        </View>
-                      ) : null}
-                    </View>
-                    <View style={styles.openButton}>
-                      <BajujuIcon name="arrow" size={20} color={COLORS.pink} />
-                    </View>
-                  </View>
-                </View>
-              </Pressable>
-            )}
+            renderItem={({ item: event }) => renderEventCard(event)}
             ListFooterComponent={
               <Pressable style={({ pressed }) => [styles.eventCard, styles.seeAllCard, pressed && styles.pressed]} onPress={onFind} accessibilityRole="button" accessibilityLabel="Visualizza tutti gli eventi">
-              <BajujuIcon name="search" size={42} color={COLORS.pink} />
+              <BajujuIcon name="search" size={30} color={COLORS.pink} />
               <Text style={styles.seeAllText}>Visualizza tutti</Text>
               <Text style={styles.seeAllLink}>Trova esperienze →</Text>
               </Pressable>
             }
           />
 
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Gruppi</Text>
-            <Pressable accessibilityRole="button" accessibilityLabel="Vedi tutti i gruppi" onPress={onOpenGroups} style={({ pressed }) => [styles.seeAllButton, pressed && styles.pressed]}>
-              <Text style={styles.seeAllLink}>Vedi tutti ›</Text>
-            </Pressable>
-          </View>
-
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.cardsScroll}
-            style={styles.horizontalSection}
-          >
-            {groups.map((group) => {
-              const place = group.city || group.province;
-              const members = `${group.memberCount} ${group.memberCount === 1 ? 'iscritto' : 'iscritti'}`;
-              return (
-                <Pressable
-                  key={group.id}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Apri gruppo ${group.name}`}
-                  onPress={() => onOpenGroup(group.id)}
-                  style={({ pressed }) => [styles.groupCard, pressed && styles.pressed]}
-                >
-                  <View style={styles.groupImageBox}>
-                    {group.coverUrl ? <Image source={{ uri: group.coverUrl }} resizeMode="cover" style={styles.groupImage} /> : <BajujuIcon name="group" size={40} color={COLORS.pink} />}
-                    {group.ownedByMe ? (
-                      <Text style={[styles.imageChip, styles.joinedChip, styles.ownerChip]}>Proprietario</Text>
-                    ) : group.joinedByMe ? (
-                      <Text style={[styles.imageChip, styles.joinedChip]}>Sei iscritto</Text>
-                    ) : null}
-                  </View>
-                  <View style={styles.groupBody}>
-                    <Text style={styles.groupName} numberOfLines={1}>{group.name}</Text>
-                    <Text style={styles.metaText} numberOfLines={1}>{[place, members].filter(Boolean).join(' · ')}</Text>
-                  </View>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
+          {premiumExperiences.length > 0 ? (
+            <>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Eventi premium</Text>
+              </View>
+              <FlatList
+                horizontal
+                data={premiumExperiences}
+                keyExtractor={(event) => event.id}
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.cardsScroll}
+                style={styles.horizontalSection}
+                renderItem={({ item: event }) => renderEventCard(event)}
+              />
+            </>
+          ) : null}
 
           <Pressable
             accessibilityRole="button"
@@ -471,8 +437,8 @@ const styles = StyleSheet.create({
   titleUnderline: { width: 24, height: 3, marginTop: 6, marginBottom: 8, borderRadius: 2, backgroundColor: COLORS.brightPink },
   actionDescription: { color: COLORS.plum, fontFamily: 'FredokaSemiBold', fontSize: 13.5, lineHeight: 16 },
   cardArrow: { position: 'absolute', right: 14, bottom: 10, width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.softPink, borderWidth: 1, borderColor: '#FFD5E8', shadowColor: '#A2165A', shadowOpacity: 0.18, shadowRadius: 9, shadowOffset: { width: 0, height: 6 }, elevation: 5 },
-  seeAllCard: { paddingVertical: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.softPink },
-  seeAllText: { color: COLORS.plum, fontFamily: 'FredokaBold', fontSize: 24, marginTop: 12 },
+  seeAllCard: { paddingVertical: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.softPink },
+  seeAllText: { color: COLORS.plum, fontFamily: 'FredokaBold', fontSize: 18, marginTop: 6 },
   createGroupCard: { borderColor: '#9EDDBC', backgroundColor: '#F6FCF8', alignItems: 'center', justifyContent: 'center', shadowColor: '#167A49' },
   createGroupPlus: { width: 74, height: 74, borderRadius: 37, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.greenSoft, borderWidth: 1, borderColor: '#D8F3E4', shadowColor: '#188451', shadowOpacity: 0.17, shadowRadius: 12, shadowOffset: { width: 0, height: 7 }, elevation: 6 },
   createGroupTitle: { marginTop: 14, color: COLORS.green, fontFamily: 'FredokaBold', fontSize: 20, textAlign: 'center' },
@@ -497,39 +463,33 @@ const styles = StyleSheet.create({
   askCopy: { flex: 1 },
   askEyebrow: { color: COLORS.muted, fontFamily: 'FredokaMedium', fontSize: 13 },
   askTitle: { marginTop: 1, color: COLORS.pink, fontFamily: 'FredokaBold', fontSize: 18 },
-  sectionHeader: { marginTop: 18, marginBottom: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  sectionTitle: { color: COLORS.plum, fontFamily: 'FredokaBold', fontSize: 22, letterSpacing: -0.3 },
-  seeAllButton: { minHeight: 44, justifyContent: 'center' },
+  sectionHeader: { marginTop: 10, marginBottom: 4, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  sectionTitle: { color: COLORS.plum, fontFamily: 'FredokaBold', fontSize: 20, letterSpacing: -0.3 },
+  seeAllButton: { minHeight: 36, justifyContent: 'center' },
   seeAllLink: { color: COLORS.accentText, fontFamily: 'FredokaSemiBold', fontSize: 15 },
   horizontalSection: { marginHorizontal: -16 },
   cardsScroll: { paddingHorizontal: 16, paddingBottom: 8, gap: 12 },
-  eventCard: { width: 300, borderRadius: 22, overflow: 'hidden', backgroundColor: COLORS.white, borderWidth: 1, borderColor: COLORS.line },
+  eventCard: { width: 230, borderRadius: 18, overflow: 'hidden', backgroundColor: COLORS.white, borderWidth: 1, borderColor: COLORS.line },
   promoCard: { borderWidth: 3, borderColor: PROMO_GOLD },
-  promoBand: { backgroundColor: PROMO_GOLD, color: COLORS.white, fontFamily: 'FredokaBold', fontSize: 14, textAlign: 'center', paddingVertical: 5 },
-  eventImageBox: { height: 160, backgroundColor: COLORS.softPink },
+  promoBand: { backgroundColor: PROMO_GOLD, color: COLORS.white, fontFamily: 'FredokaBold', fontSize: 12, textAlign: 'center', paddingVertical: 3 },
+  eventImageBox: { height: 84, backgroundColor: COLORS.softPink },
   eventImage: { width: '100%', height: '100%' },
   eventPlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  imageChip: { position: 'absolute', overflow: 'hidden', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, fontFamily: 'FredokaSemiBold', fontSize: 13 },
-  categoryChip: { top: 10, left: 10, maxWidth: '60%', backgroundColor: COLORS.white, color: '#4B0C2D' },
-  distanceChip: { top: 10, right: 10, backgroundColor: 'rgba(75, 12, 45, 0.82)', color: COLORS.white },
-  locationChip: { bottom: 10, left: 10, backgroundColor: LOCATION_COLOR, color: COLORS.white, fontSize: 12 },
-  ownerChip: { backgroundColor: COLORS.plum },
-  joinedChip: { top: 8, left: 8, backgroundColor: COLORS.green, color: COLORS.white, fontFamily: 'FredokaRegular', fontSize: 12 },
-  eventBody: { paddingHorizontal: 14, paddingTop: 12, paddingBottom: 14, gap: 8 },
-  eventTitle: { color: COLORS.plum, fontFamily: 'FredokaBold', fontSize: 18, lineHeight: 22 },
-  organizerLine: { marginTop: -4, color: COLORS.bodyText, fontFamily: 'FredokaMedium', fontSize: 14 },
+  imageChip: { position: 'absolute', overflow: 'hidden', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, fontFamily: 'FredokaSemiBold', fontSize: 11 },
+  categoryChip: { top: 6, left: 6, maxWidth: '60%', backgroundColor: COLORS.white, color: '#4B0C2D' },
+  distanceChip: { top: 6, right: 6, backgroundColor: 'rgba(75, 12, 45, 0.82)', color: COLORS.white },
+  locationChip: { bottom: 6, left: 6, backgroundColor: LOCATION_COLOR, color: COLORS.white, fontSize: 11 },
+  eventBody: { paddingHorizontal: 10, paddingTop: 7, paddingBottom: 8, gap: 4 },
+  eventTitle: { color: COLORS.plum, fontFamily: 'FredokaBold', fontSize: 15, lineHeight: 19 },
+  organizerLine: { marginTop: -3, color: COLORS.bodyText, fontFamily: 'FredokaMedium', fontSize: 12 },
   organizerName: { color: COLORS.plum, fontFamily: 'FredokaSemiBold' },
   eventFooter: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  eventMeta: { flex: 1, gap: 4 },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  metaText: { flexShrink: 1, color: COLORS.bodyText, fontFamily: 'FredokaMedium', fontSize: 14 },
+  eventMeta: { flex: 1, gap: 1 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  metaText: { flexShrink: 1, color: COLORS.bodyText, fontFamily: 'FredokaMedium', fontSize: 12, lineHeight: 15 },
   firstText: { color: COLORS.pink, fontFamily: 'FredokaSemiBold' },
+  cardOpenButton: { width: 30, height: 30, borderRadius: 15 },
   openButton: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.softPink },
-  groupCard: { width: 210, borderRadius: 20, overflow: 'hidden', backgroundColor: COLORS.white, borderWidth: 1, borderColor: COLORS.line },
-  groupImageBox: { height: 104, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.softPink },
-  groupImage: { width: '100%', height: '100%' },
-  groupBody: { paddingHorizontal: 12, paddingTop: 10, paddingBottom: 12, gap: 3 },
-  groupName: { color: COLORS.plum, fontFamily: 'FredokaBold', fontSize: 16, lineHeight: 20 },
   nextExperienceEyebrow: { color: '#7A5A00', fontFamily: 'FredokaSemiBold', fontSize: 11, letterSpacing: 0.5 },
   nextExperienceTitle: { marginTop: 2, color: COLORS.plum, fontFamily: 'FredokaBold', fontSize: 16, lineHeight: 20 },
   nextExperienceMeta: { marginTop: 1, color: COLORS.bodyText, fontFamily: 'FredokaMedium', fontSize: 13 },

@@ -540,6 +540,7 @@
     "review_activity_join_request",
     "review_group_join_request",
     "set_updated_at",
-    "vote_group_poll"
+    "vote_group_poll",
+    "admin_set_event_promoted"
   ]
 }

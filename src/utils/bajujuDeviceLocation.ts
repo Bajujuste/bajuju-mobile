@@ -22,7 +22,13 @@ export function toUsableCoordinates(latitude: unknown, longitude: unknown): Baju
     : null;
 }
 
-// Ultima posizione valida (se recente), altrimenti una lettura nuova del GPS. Null se nessuna è valida.
+// Posizione attuale del telefono. Null se nessuna è valida.
+// Prima si chiede una lettura NUOVA al GPS: l'"ultima posizione" del telefono può essere
+// di ore prima (es. la sera prima a Monza, la mattina a Caprino) e faceva vedere gli eventi sbagliati.
+// L'ultima posizione si usa subito solo se è recentissima (2 minuti), oppure come ripiego
+// quando il GPS non risponde (fino a maxAgeMs, di default 6 ore).
+const FRESH_LAST_KNOWN_MS = 2 * 60 * 1000;
+
 export async function getUsableDevicePosition(options?: {
   maxAgeMs?: number;
   requiredAccuracy?: number;
@@ -33,16 +39,17 @@ export async function getUsableDevicePosition(options?: {
     ...(options?.requiredAccuracy ? { requiredAccuracy: options.requiredAccuracy } : {}),
   }).catch(() => null);
   const fromLastKnown = lastKnown ? toUsableCoordinates(lastKnown.coords.latitude, lastKnown.coords.longitude) : null;
-  if (fromLastKnown) return fromLastKnown;
+  if (fromLastKnown && Date.now() - Number(lastKnown?.timestamp || 0) <= FRESH_LAST_KNOWN_MS) return fromLastKnown;
 
-  // Su alcuni telefoni il GPS non risponde mai: dopo 10 secondi si passa al ripiego (città del profilo).
+  // Su alcuni telefoni il GPS non risponde mai: dopo 10 secondi si usa l'ultima posizione (o la città del profilo).
   const current = await Promise.race([
     Location.getCurrentPositionAsync({
       accuracy: options?.accuracy ?? Location.Accuracy.Balanced,
-    }),
+    }).catch(() => null),
     new Promise<null>((resolve) => setTimeout(() => resolve(null), 10000)),
   ]);
-  return current ? toUsableCoordinates(current.coords.latitude, current.coords.longitude) : null;
+  const fromCurrent = current ? toUsableCoordinates(current.coords.latitude, current.coords.longitude) : null;
+  return fromCurrent ?? fromLastKnown;
 }
 
 // Coordinate della città del profilo, usate quando il telefono non dà una posizione valida.

@@ -15,10 +15,13 @@ import MapView, {
 } from 'react-native-maps';
 
 import { BAJUJU_COLORS, BAJUJU_FONTS } from '../theme/bajujuTheme';
+import { PROMO_GOLD } from '../lib/promotedEvents';
 
 // Un'immagine statica evita il ritaglio delle icone vettoriali quando Android
 // converte il contenuto di Marker in bitmap.
 const pinkPinImage = require('../../assets/markers/pink-pin.png');
+// Eventi premium: segnaposto oro.
+const goldPinImage = require('../../assets/markers/gold-pin.png');
 
 // Segnaposto viola dei locali: senza numero o con il numero di eventi in programma.
 const LOCATION_PIN_IMAGES = [
@@ -53,6 +56,7 @@ export type BajujuMapItem = {
   dateText?: string;
   photoUrl?: string;
   ageText?: string;
+  promoted?: boolean;
 };
 
 export type BajujuMapLocation = {
@@ -442,10 +446,10 @@ export default function BajujuMap({
                   longitude: displayMarker.longitude,
                 }}
                 anchor={{ x: 0.5, y: fullScreen ? 1 : 0.5 }}
-                image={fullScreen ? pinkPinImage : undefined}
+                image={fullScreen ? (item.promoted ? goldPinImage : pinkPinImage) : undefined}
                 tracksViewChanges={!fullScreen && Platform.OS === "android" && markersNeedRedraw}
                 opacity={selected ? 1 : 0.96}
-                zIndex={selected ? 20 : 1}
+                zIndex={selected ? 20 : item.promoted ? 5 : 1}
                 onPress={(event) => {
                   event.stopPropagation();
                   setSelectedLocationId(null);
@@ -453,7 +457,7 @@ export default function BajujuMap({
                 }}
               >
                 {!fullScreen ? (
-                  <View style={[styles.mapMarker, selected && styles.mapMarkerSelected]}>
+                  <View style={[styles.mapMarker, item.promoted && styles.mapMarkerPromoted, selected && styles.mapMarkerSelected]}>
                     <Text style={styles.mapMarkerIcon}>{item.icon}</Text>
                     {displayMarker.total > 1 ? (
                       <View style={styles.duplicateBadge}>
@@ -893,6 +897,9 @@ const styles = StyleSheet.create({
     shadowRadius: 5,
     shadowOffset: { width: 0, height: 3 },
     elevation: 6,
+  },
+  mapMarkerPromoted: {
+    backgroundColor: PROMO_GOLD,
   },
   mapMarkerSelected: {
     width: 38,

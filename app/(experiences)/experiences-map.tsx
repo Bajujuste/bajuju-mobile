@@ -20,6 +20,7 @@ import { BajujuProfileButton } from '@/components/navigation/BajujuProfileButton
 import { normalizeExperienceCategory } from '@/constants/experienceCategories';
 import { BAJUJU_COLORS, BAJUJU_FONTS, BAJUJU_SHADOW } from '@/theme/bajujuTheme';
 import { supabase } from '../../src/lib/supabase';
+import { loadPromotedEventIds } from '../../src/lib/promotedEvents';
 import { BajujuBackButton } from '../../src/components/navigation/BajujuBackButton';
 
 type ActivityRow = Record<string, any>;
@@ -310,6 +311,8 @@ function openDetail(row: ActivityRow) {
 export default function ExperiencesMapScreen() { 
   const [rows, setRows] = useState<ActivityRow[]>([]);
   const [locations, setLocations] = useState<BajujuLocation[]>([]);
+  // Eventi premium (promozionali): segnaposto oro sulla mappa.
+  const [promotedIds, setPromotedIds] = useState<Set<string>>(new Set());
   const [viewerCoordinates, setViewerCoordinates] = useState<Coordinates | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -335,6 +338,7 @@ export default function ExperiencesMapScreen() {
 
       // I locali non bloccano la mappa: se non arrivano si vedono solo gli eventi.
       void loadPublicBajujuLocations().then(setLocations).catch(() => setLocations([]));
+      void loadPromotedEventIds().then(setPromotedIds);
 
       const auth = await supabase.auth.getUser();
       if (auth.data.user?.id) {
@@ -482,6 +486,7 @@ export default function ExperiencesMapScreen() {
       dateText: formatDate(row),
       photoUrl: cleanText(row.photo_url || row.image_url || row.cover_url),
       ageText: row.min_age != null && row.max_age != null ? `Età ${row.min_age}–${row.max_age}` : '',
+      promoted: promotedIds.has(id),
     }];
   });
 

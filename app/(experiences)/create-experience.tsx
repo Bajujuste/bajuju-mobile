@@ -38,6 +38,8 @@ import {
 } from '../../src/lib/bajujuLocations';
 import { tidyCityName } from '../../src/utils/cityName';
 import { supabase } from '../../src/lib/supabase';
+import { isActiveAdmin } from '../../src/lib/bajujuSupport';
+import { PROMO_GOLD, setEventPromoted } from '../../src/lib/promotedEvents';
 import { BAJUJU_COLORS, BAJUJU_FONTS, BAJUJU_SHADOW } from '../../src/theme/bajujuTheme';
 import { trackBajujuEvent } from '../../src/utils/bajujuAnalytics';
 import { sendBajujuPushNotification } from '../../src/utils/bajujuNotifications';
@@ -185,6 +187,8 @@ export default function CreateExperienceScreen() {
   const [budgetAmount, setBudgetAmount] = useState('');
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // Solo gli admin vedono anche il tasto "Crea evento premium".
+  const [isAdmin, setIsAdmin] = useState(false);
   const [ownedGroups, setOwnedGroups] = useState<BajujuGroupCard[]>([]);
   const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
 
@@ -197,6 +201,9 @@ export default function CreateExperienceScreen() {
         if (authResult.error) throw authResult.error;
         const userId = authResult.data.user?.id;
         if (!userId) return;
+        void isActiveAdmin(userId).then((admin) => {
+          if (active) setIsAdmin(admin);
+        }).catch(() => undefined);
 
         const groups = await loadOwnedBajujuGroups(userId);
         if (!active) return;
@@ -349,7 +356,7 @@ export default function CreateExperienceScreen() {
     }
   }
 
-  async function handleCreateExperience() {
+  async function handleCreateExperience(premium = false) {
     if (!canCreateExperience || saving) return;
     if (!photoUri) {
       Alert.alert('Foto esperienza', 'Aggiungi una foto per pubblicare l’esperienza.');
@@ -421,6 +428,16 @@ export default function CreateExperienceScreen() {
 
       let photoUploadWarning = '';
       let groupNotificationWarning = '';
+      let premiumWarning = '';
+
+      // Evento premium (solo admin): cornice d'oro, primo per tutti, numero iscritti nascosto.
+      if (premium && result.data?.id) {
+        try {
+          await setEventPromoted(String(result.data.id), true);
+        } catch (error: unknown) {
+          premiumWarning = error instanceof Error ? error.message : 'Non sono riuscito a renderlo premium.';
+        }
+      }
 
       if (photoUri && result.data?.id) {
         try {
@@ -488,12 +505,15 @@ export default function CreateExperienceScreen() {
       const warnings = [
         photoUploadWarning ? `Foto: ${photoUploadWarning}` : '',
         groupNotificationWarning ? `Gruppi: ${groupNotificationWarning}` : '',
+        premiumWarning ? `Premium: ${premiumWarning}` : '',
       ].filter(Boolean);
 
       Alert.alert(
         'Esperienza creata',
         warnings.length > 0
           ? `L’esperienza è stata creata. ${warnings.join(' ')}`
+          : premium
+            ? 'Evento premium creato correttamente.'
           : selectedGroupIds.length > 0
             ? 'Esperienza creata e gruppi informati correttamente.'
             : 'Esperienza creata correttamente.'
@@ -949,11 +969,28 @@ export default function CreateExperienceScreen() {
       </KeyboardAwareScrollView>
 
       <BajujuActionBar withBottomNav>
-        <BajujuButton
-          label={saving ? 'Pubblicazione...' : 'Pubblica esperienza'}
-          onPress={handleCreateExperience}
-          disabled={!canCreateExperience}
-        />
+        {isAdmin ? (
+          <View style={styles.adminButtons}>
+            <BajujuButton
+              label={saving ? 'Pubblicazione...' : 'Crea evento'}
+              onPress={() => handleCreateExperience(false)}
+              disabled={!canCreateExperience}
+              style={styles.adminButton}
+            />
+            <BajujuButton
+              label={saving ? 'Pubblicazione...' : '⭐ Crea evento premium'}
+              onPress={() => handleCreateExperience(true)}
+              disabled={!canCreateExperience}
+              style={[styles.adminButton, styles.premiumButton]}
+            />
+          </View>
+        ) : (
+          <BajujuButton
+            label={saving ? 'Pubblicazione...' : 'Pubblica esperienza'}
+            onPress={() => handleCreateExperience(false)}
+            disabled={!canCreateExperience}
+          />
+        )}
       </BajujuActionBar>
       <BajujuBottomNav active="create" />
     </SafeAreaView>
@@ -961,6 +998,9 @@ export default function CreateExperienceScreen() {
 }
 
 const styles = StyleSheet.create({
+  adminButtons: { flex: 1, gap: 8 },
+  adminButton: { flex: 0, alignSelf: 'stretch' },
+  premiumButton: { backgroundColor: PROMO_GOLD },
   safeArea: { flex: 1, backgroundColor: BAJUJU_COLORS.background },
   container: { paddingHorizontal: 16, paddingTop: 18, paddingBottom: 32, gap: 16 },
   topBar: { flexDirection: 'row', alignItems: 'center', gap: 12 },

@@ -16,3 +16,13 @@ export async function loadPromotedEventIds(): Promise<Set<string>> {
     return new Set();
   }
 }
+
+// Solo admin: aggiunge (o toglie) un evento dagli eventi premium/promozionali.
+export async function setEventPromoted(activityId: string, promoted: boolean) {
+  const result = await supabase.rpc('admin_set_event_promoted', {
+    target_activity_id: activityId,
+    promoted,
+  });
+  if (result.error) throw result.error;
+  return String(result.data || '');
+}

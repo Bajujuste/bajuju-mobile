@@ -39,6 +39,7 @@ import { useChatLiveRefresh } from '../../src/hooks/useChatLiveRefresh';
 import { BajujuProfileButton } from '../../src/components/navigation/BajujuProfileButton';
 import { BajujuAdminRing } from '../../src/components/profile/BajujuAdminRing';
 import { useBajujuAdminIds } from '../../src/hooks/useBajujuAdminIds';
+import { BajujuLinkText } from '../../src/components/chat/BajujuLinkText';
 import { loadPromotedEventIds } from '../../src/lib/promotedEvents';
 
 const bajujuLogo = require('../../assets/brand/bajuju-logo.png');
@@ -1867,9 +1868,11 @@ export default function ExperienceDetailScreen() {
                                 ]}
                               >
                                 <Text style={[styles.messageAuthor, isMine && styles.messageAuthorMine]}>{name}</Text>
-                                <Text style={[styles.messageBody, isMine && styles.messageBodyMine, deleted && styles.messageBodyDeleted]}>
-                                  {deleted ? 'Messaggio eliminato' : messageText(item)}
-                                </Text>
+                                <BajujuLinkText
+                                  style={[styles.messageBody, isMine && styles.messageBodyMine, deleted && styles.messageBodyDeleted]}
+                                  text={deleted ? 'Messaggio eliminato' : messageText(item)}
+                                  linksEnabled={!deleted && adminIds.has(userId)}
+                                />
                                 <View style={styles.messageFooter}>
                                   <Text style={[styles.messageTime, isMine && styles.messageTimeMine]}>
                                     {formatMessageTime(item.created_at)}

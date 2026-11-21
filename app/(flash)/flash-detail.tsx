@@ -4,6 +4,8 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { supabase } from '../../src/lib/supabase';
 import { KeyboardAwareScrollView } from '../../src/components/KeyboardAwareScrollView';
 import { useChatLiveRefresh } from '../../src/hooks/useChatLiveRefresh';
+import { useBajujuAdminIds } from '../../src/hooks/useBajujuAdminIds';
+import { BajujuLinkText } from '../../src/components/chat/BajujuLinkText';
 
 type LooseRow = Record<string, any>;
 
@@ -110,6 +112,7 @@ export default function FlashDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ id?: string }>();
 
+  const adminIds = useBajujuAdminIds();
   const [flash, setFlash] = useState<LooseRow | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -468,9 +471,11 @@ export default function FlashDetailScreen() {
               return (
                 <View key={`${firstValue(item, ['id'], index)}-${index}`} style={styles.messageBox}>
                   <Text style={styles.messageAuthor}>{profileName(profile)}</Text>
-                  <Text style={[styles.messageText, deleted && styles.messageTextDeleted]}>
-                    {deleted ? 'Messaggio eliminato' : messageText(item)}
-                  </Text>
+                  <BajujuLinkText
+                    style={[styles.messageText, deleted && styles.messageTextDeleted]}
+                    text={deleted ? 'Messaggio eliminato' : messageText(item)}
+                    linksEnabled={!deleted && adminIds.has(senderId)}
+                  />
                   {isMine && !deleted ? (
                     <Pressable onPress={() => confirmDeleteMessage(item)} hitSlop={8} accessibilityLabel="Elimina messaggio">
                       <Text style={styles.deleteMessageText}>Elimina</Text>

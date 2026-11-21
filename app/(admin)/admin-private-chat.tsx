@@ -17,6 +17,8 @@ import { BAJUJU_COLORS, BAJUJU_FONTS, BAJUJU_SHADOW } from '../../src/theme/baju
 import { BajujuBackButton } from '../../src/components/navigation/BajujuBackButton';
 import { useKeyboardOverlap } from '../../src/components/KeyboardAwareScrollView';
 import { useChatLiveRefresh } from '../../src/hooks/useChatLiveRefresh';
+import { useBajujuAdminIds } from '../../src/hooks/useBajujuAdminIds';
+import { BajujuLinkText } from '../../src/components/chat/BajujuLinkText';
 
 type ChatMessage = {
   id: string;
@@ -55,6 +57,7 @@ export default function AdminPrivateChatScreen() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [currentUserId, setCurrentUserId] = useState('');
+  const adminIds = useBajujuAdminIds();
   const [isAdmin, setIsAdmin] = useState(false);
   const [targetUserId, setTargetUserId] = useState('');
   const [targetName, setTargetName] = useState('Utente Bajuju');
@@ -350,7 +353,11 @@ export default function AdminPrivateChatScreen() {
                         ? targetName
                         : 'Bajuju · Amministratore'}
                   </Text>
-                  <Text style={[styles.messageText, mine && styles.mineMessageText]}>{item.message}</Text>
+                  <BajujuLinkText
+                    style={[styles.messageText, mine && styles.mineMessageText]}
+                    text={item.message}
+                    linksEnabled={adminIds.has(String(item.sender_id || ''))}
+                  />
                   <Text style={[styles.messageTime, mine && styles.mineMessageTime]}>
                     {formatMessageTime(item.created_at)}
                   </Text>

@@ -112,6 +112,7 @@ type ProfileRow = {
   profile_image_url?: string | null;
   image_url?: string | null;
   foto?: string | null;
+  age?: number | null;
 };
 
 type AlbumPhotoRow = {
@@ -403,6 +404,14 @@ export default function ExperienceDetailScreen() {
   const canManageJoinRequests = isOrganizer || isCurrentUserAdmin;
 
   const participantCount = displayedParticipants.length;
+  // Età media dei partecipanti (organizzatore compreso): conta solo chi ha l'età nel profilo.
+  const averageAge = useMemo(() => {
+    const ages = displayedParticipants
+      .map((participant) => Number(profiles[String(participant.user_id || '')]?.age))
+      .filter((age) => Number.isFinite(age) && age >= 14 && age <= 100);
+    if (ages.length === 0) return null;
+    return Math.round(ages.reduce((sum, age) => sum + age, 0) / ages.length);
+  }, [displayedParticipants, profiles]);
   const userAlbumPhotoCount = albumPhotos.filter((photo) => albumPhotoOwnerId(photo) === String(currentUserId || '')).length;
   const canUseAlbum = Boolean(currentUserId && (isOrganizer || isParticipant));
   const albumIsFull = albumPhotos.length >= 15;
@@ -1739,6 +1748,9 @@ export default function ExperienceDetailScreen() {
                           ? `Organizza ${organizerName}`
                           : 'Guarda chi partecipa'}
                     </Text>
+                    {averageAge !== null && !hideParticipantCount ? (
+                      <Text style={styles.peopleMeta} numberOfLines={1}>Età media {averageAge} anni</Text>
+                    ) : null}
                   </View>
 
                   {displayedParticipants.length > 0 ? (

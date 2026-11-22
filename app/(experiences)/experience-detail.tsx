@@ -44,6 +44,7 @@ import { BajujuChatPhoto, BajujuChatPhotoButton } from '../../src/components/cha
 import { BajujuPhotoViewer } from '../../src/components/chat/BajujuPhotoViewer';
 import { CHAT_PHOTO_PLACEHOLDER, chatPhotoCaption } from '../../src/lib/bajujuChatPhotos';
 import { loadPromotedEventIds } from '../../src/lib/promotedEvents';
+import { useBajujuAuthorProfiles } from '../../src/hooks/useBajujuAuthorProfiles';
 
 const bajujuLogo = require('../../assets/brand/bajuju-logo.png');
 
@@ -191,6 +192,20 @@ function profileName(profile: ProfileRow | undefined, index: number) {
   return value ? String(value).trim() : `Partecipante ${index + 1}`;
 }
 
+// Nome di chi ha scritto in chat: mai "Partecipante N".
+function authorName(profile: ProfileRow | undefined) {
+  const value =
+    profile?.full_name ||
+    profile?.display_name ||
+    profile?.name ||
+    profile?.nome ||
+    profile?.username ||
+    profile?.first_name ||
+    profile?.nickname ||
+    '';
+  return value ? String(value).trim() : 'Utente Bajuju';
+}
+
 function profilePhotoUrl(profile: ProfileRow | undefined) {
   return (
     profile?.avatar_url ||
@@ -298,6 +313,13 @@ export default function ExperienceDetailScreen() {
   const [participants, setParticipants] = useState<ParticipantRow[]>([]);
   const [profiles, setProfiles] = useState<Record<string, ProfileRow>>({});
   const [messages, setMessages] = useState<MessageRow[]>([]);
+  // Profili di chi ha scritto in chat ma non è più tra i partecipanti (es. ha lasciato l'evento).
+  const messageAuthorIds = useMemo(
+    () => messages.map((item) => String(item.user_id || item.sender_id || '')).filter(Boolean),
+    [messages]
+  );
+  const loadedProfileIds = useMemo(() => Object.keys(profiles), [profiles]);
+  const authorProfiles = useBajujuAuthorProfiles(messageAuthorIds, loadedProfileIds);
   const [albumPhotos, setAlbumPhotos] = useState<AlbumPhotoRow[]>([]);
   const [selectedAlbumPhotoIndex, setSelectedAlbumPhotoIndex] = useState<number | null>(null);
   const [coverPhotoOpen, setCoverPhotoOpen] = useState(false);
@@ -1861,7 +1883,7 @@ export default function ExperienceDetailScreen() {
                             const isMine = currentUserId && userId === currentUserId;
                             const name = isMine
                               ? 'Tu'
-                              : profileName(profiles[userId], index);
+                              : authorName(profiles[userId] || authorProfiles[userId]);
                             const deleted = Boolean(item.deleted_at);
 
                             return (

@@ -19,6 +19,7 @@ import { BajujuLinkText } from '../chat/BajujuLinkText';
 import { BajujuChatPhoto, BajujuChatPhotoButton } from '../chat/BajujuChatPhoto';
 import { CHAT_PHOTO_PLACEHOLDER, chatPhotoCaption } from '../../lib/bajujuChatPhotos';
 import { supabase } from '../../lib/supabase';
+import { useBajujuAuthorProfiles } from '../../hooks/useBajujuAuthorProfiles';
 import { BAJUJU_COLORS, BAJUJU_FONTS, BAJUJU_SHADOW } from '../../theme/bajujuTheme';
 
 type GroupChatMember = {
@@ -105,12 +106,18 @@ export function BajujuGroupChat({ groupId, currentUserId, canUseChat, members }:
 
     members.forEach((member) => {
       const id = String(member.user_id || '').trim();
-      if (!id) return;
-      map[id] = String(member.nickname || '').trim() || 'Utente Bajuju';
+      const nickname = String(member.nickname || '').trim();
+      if (!id || !nickname) return;
+      map[id] = nickname;
     });
 
     return map;
   }, [members]);
+
+  // Chi ha scritto ma non è più nel gruppo: si carica il profilo per mostrare il nome vero.
+  const messageAuthorIds = useMemo(() => messages.map((row) => String(row.user_id || '')).filter(Boolean), [messages]);
+  const memberIds = useMemo(() => Object.keys(nicknameById), [nicknameById]);
+  const authorProfiles = useBajujuAuthorProfiles(messageAuthorIds, memberIds);
 
   const loadLatest = useCallback(async () => {
     if (!groupId || !canUseChat) return;
@@ -408,7 +415,11 @@ export function BajujuGroupChat({ groupId, currentUserId, canUseChat, members }:
                 messages.map((row) => {
                   const senderId = String(row.user_id || '');
                   const mine = senderId === currentUserId;
-                  const senderName = mine ? 'Tu' : nicknameById[senderId] || 'Utente Bajuju';
+                  const senderName = mine
+                    ? 'Tu'
+                    : nicknameById[senderId] ||
+                      String(authorProfiles[senderId]?.nickname || authorProfiles[senderId]?.full_name || '').trim() ||
+                      'Utente Bajuju';
                   const deleted = Boolean(row.deleted_at);
 
                   return (

@@ -8,6 +8,7 @@ import { useBajujuAdminIds } from '../../src/hooks/useBajujuAdminIds';
 import { BajujuLinkText } from '../../src/components/chat/BajujuLinkText';
 import { BajujuChatPhoto, BajujuChatPhotoButton } from '../../src/components/chat/BajujuChatPhoto';
 import { CHAT_PHOTO_PLACEHOLDER, chatPhotoCaption } from '../../src/lib/bajujuChatPhotos';
+import { useBajujuAuthorProfiles } from '../../src/hooks/useBajujuAuthorProfiles';
 
 type LooseRow = Record<string, any>;
 
@@ -122,6 +123,10 @@ export default function FlashDetailScreen() {
   const [participants, setParticipants] = useState<LooseRow[]>([]);
   const [profiles, setProfiles] = useState<Record<string, LooseRow>>({});
   const [messages, setMessages] = useState<LooseRow[]>([]);
+  // Profili di chi ha scritto in chat ma non partecipa più al Flash.
+  const messageAuthorIds = useMemo(() => messages.map((item) => messageSenderId(item)).filter(Boolean), [messages]);
+  const loadedProfileIds = useMemo(() => Object.keys(profiles), [profiles]);
+  const authorProfiles = useBajujuAuthorProfiles(messageAuthorIds, loadedProfileIds);
   const [newMessage, setNewMessage] = useState('');
   const [sendingMessage, setSendingMessage] = useState(false);
 
@@ -467,7 +472,7 @@ export default function FlashDetailScreen() {
           ) : (
             messages.map((item, index) => {
               const senderId = messageSenderId(item);
-              const profile = profiles[senderId] || null;
+              const profile = profiles[senderId] || authorProfiles[senderId] || null;
               const deleted = Boolean(item.deleted_at);
               const isMine = Boolean(currentUserId) && senderId === currentUserId;
 

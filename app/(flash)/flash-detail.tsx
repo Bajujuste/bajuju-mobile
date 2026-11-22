@@ -9,6 +9,8 @@ import { BajujuLinkText } from '../../src/components/chat/BajujuLinkText';
 import { BajujuChatPhoto, BajujuChatPhotoButton } from '../../src/components/chat/BajujuChatPhoto';
 import { CHAT_PHOTO_PLACEHOLDER, chatPhotoCaption } from '../../src/lib/bajujuChatPhotos';
 import { useBajujuAuthorProfiles } from '../../src/hooks/useBajujuAuthorProfiles';
+import { useBajujuMessageReactions } from '../../src/hooks/useBajujuMessageReactions';
+import { BajujuReactionChips, BajujuReactionPicker } from '../../src/components/chat/BajujuMessageReactions';
 
 type LooseRow = Record<string, any>;
 
@@ -302,6 +304,9 @@ export default function FlashDetailScreen() {
 
   const canUseChat = isOrganizer || isParticipant;
 
+  const [reactingTo, setReactingTo] = useState<string | null>(null);
+  const reactions = useBajujuMessageReactions('activity', flashId, currentUserId, messages.length > 0);
+
   useChatLiveRefresh(flashId && canUseChat ? () => void loadMessages(flashId) : null);
 
   async function sendChatMessage(imageUrl?: string) {
@@ -475,11 +480,18 @@ export default function FlashDetailScreen() {
               const profile = profiles[senderId] || authorProfiles[senderId] || null;
               const deleted = Boolean(item.deleted_at);
               const isMine = Boolean(currentUserId) && senderId === currentUserId;
+              const id = String(firstValue(item, ['id'], '') || '');
+              const openReactions = deleted || !id ? undefined : () => setReactingTo(id);
 
               return (
-                <View key={`${firstValue(item, ['id'], index)}-${index}`} style={styles.messageBox}>
+                <Pressable
+                  key={`${firstValue(item, ['id'], index)}-${index}`}
+                  style={styles.messageBox}
+                  onLongPress={openReactions}
+                  delayLongPress={350}
+                >
                   <Text style={styles.messageAuthor}>{profileName(profile)}</Text>
-                  {!deleted && item.image_url ? <BajujuChatPhoto uri={String(item.image_url)} /> : null}
+                  {!deleted && item.image_url ? <BajujuChatPhoto uri={String(item.image_url)} onLongPress={openReactions} /> : null}
                   {deleted || chatPhotoCaption(messageText(item), item.image_url) ? (
                     <BajujuLinkText
                       style={[styles.messageText, deleted && styles.messageTextDeleted]}
@@ -492,10 +504,28 @@ export default function FlashDetailScreen() {
                       <Text style={styles.deleteMessageText}>Elimina</Text>
                     </Pressable>
                   ) : null}
-                </View>
+                  {!deleted && id ? (
+                    <BajujuReactionChips
+                      reactions={reactions.byMessage[id]}
+                      onToggle={(emoji) => void reactions.toggleReaction(id, emoji)}
+                      style={{ marginTop: 8, marginLeft: 0, maxWidth: '100%' }}
+                    />
+                  ) : null}
+                </Pressable>
               );
             })
           )}
+
+          <BajujuReactionPicker
+            visible={Boolean(reactingTo)}
+            selected={reactingTo ? reactions.myReactionFor(reactingTo) : null}
+            onClose={() => setReactingTo(null)}
+            onSelect={(emoji) => {
+              const target = reactingTo;
+              setReactingTo(null);
+              if (target) void reactions.toggleReaction(target, emoji);
+            }}
+          />
 
           {canUseChat ? (
             <View style={styles.chatComposer}>

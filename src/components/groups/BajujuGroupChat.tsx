@@ -20,6 +20,8 @@ import { BajujuChatPhoto, BajujuChatPhotoButton } from '../chat/BajujuChatPhoto'
 import { CHAT_PHOTO_PLACEHOLDER, chatPhotoCaption } from '../../lib/bajujuChatPhotos';
 import { supabase } from '../../lib/supabase';
 import { useBajujuAuthorProfiles } from '../../hooks/useBajujuAuthorProfiles';
+import { useBajujuMessageReactions } from '../../hooks/useBajujuMessageReactions';
+import { BajujuReactionChips, BajujuReactionPicker } from '../chat/BajujuMessageReactions';
 import { BAJUJU_COLORS, BAJUJU_FONTS, BAJUJU_SHADOW } from '../../theme/bajujuTheme';
 
 type GroupChatMember = {
@@ -100,6 +102,8 @@ export function BajujuGroupChat({ groupId, currentUserId, canUseChat, members }:
   const [sending, setSending] = useState(false);
   const [hasOlder, setHasOlder] = useState(true);
   const [atBottom, setAtBottom] = useState(true);
+  const [reactingTo, setReactingTo] = useState<string | null>(null);
+  const reactions = useBajujuMessageReactions('group', groupId, currentUserId, canUseChat);
 
   const nicknameById = useMemo(() => {
     const map: Record<string, string> = {};
@@ -421,15 +425,21 @@ export function BajujuGroupChat({ groupId, currentUserId, canUseChat, members }:
                       String(authorProfiles[senderId]?.nickname || authorProfiles[senderId]?.full_name || '').trim() ||
                       'Utente Bajuju';
                   const deleted = Boolean(row.deleted_at);
+                  const id = messageId(row);
+                  const openReactions = deleted ? undefined : () => setReactingTo(id);
 
                   return (
                     <View
-                      key={messageId(row)}
+                      key={id}
                       style={[styles.messageRow, mine ? styles.messageRowMine : styles.messageRowOther]}
                     >
-                      <View style={[styles.bubble, mine ? styles.bubbleMine : styles.bubbleOther]}>
+                      <Pressable
+                        onLongPress={openReactions}
+                        delayLongPress={350}
+                        style={[styles.bubble, mine ? styles.bubbleMine : styles.bubbleOther]}
+                      >
                         <Text style={[styles.senderName, mine && styles.senderNameMine]}>{senderName}</Text>
-                        {!deleted && row.image_url ? <BajujuChatPhoto uri={String(row.image_url)} /> : null}
+                        {!deleted && row.image_url ? <BajujuChatPhoto uri={String(row.image_url)} onLongPress={openReactions} /> : null}
                         {deleted || chatPhotoCaption(row.message, row.image_url) ? (
                           <BajujuLinkText
                             style={[styles.messageText, mine && styles.messageTextMine, deleted && styles.messageTextDeleted]}
@@ -447,7 +457,14 @@ export function BajujuGroupChat({ groupId, currentUserId, canUseChat, members }:
                             {formatMessageTime(row.created_at)}
                           </Text>
                         </View>
-                      </View>
+                      </Pressable>
+                      {!deleted ? (
+                        <BajujuReactionChips
+                          reactions={reactions.byMessage[id]}
+                          alignRight={mine}
+                          onToggle={(emoji) => void reactions.toggleReaction(id, emoji)}
+                        />
+                      ) : null}
                     </View>
                   );
                 })
@@ -455,6 +472,17 @@ export function BajujuGroupChat({ groupId, currentUserId, canUseChat, members }:
             </>
           )}
         </ScrollView>
+
+        <BajujuReactionPicker
+          visible={Boolean(reactingTo)}
+          selected={reactingTo ? reactions.myReactionFor(reactingTo) : null}
+          onClose={() => setReactingTo(null)}
+          onSelect={(emoji) => {
+            const target = reactingTo;
+            setReactingTo(null);
+            if (target) void reactions.toggleReaction(target, emoji);
+          }}
+        />
 
         <View style={styles.composer}>
           <BajujuChatPhotoButton

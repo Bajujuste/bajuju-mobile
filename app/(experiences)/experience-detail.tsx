@@ -41,6 +41,8 @@ import { BajujuAdminRing } from '../../src/components/profile/BajujuAdminRing';
 import { useBajujuAdminIds } from '../../src/hooks/useBajujuAdminIds';
 import { BajujuLinkText } from '../../src/components/chat/BajujuLinkText';
 import { BajujuChatPhoto, BajujuChatPhotoButton } from '../../src/components/chat/BajujuChatPhoto';
+import { useBajujuMessageReactions } from '../../src/hooks/useBajujuMessageReactions';
+import { BajujuReactionChips, BajujuReactionPicker } from '../../src/components/chat/BajujuMessageReactions';
 import { BajujuPhotoViewer } from '../../src/components/chat/BajujuPhotoViewer';
 import { CHAT_PHOTO_PLACEHOLDER, chatPhotoCaption } from '../../src/lib/bajujuChatPhotos';
 import { loadPromotedEventIds } from '../../src/lib/promotedEvents';
@@ -441,6 +443,9 @@ export default function ExperienceDetailScreen() {
   const canShowInviteOut = canUseChat && canInviteOutAfterExperience(experience);
 
   useChatLiveRefresh(experienceId && canUseChat ? () => void loadMessages(experienceId) : null);
+
+  const [reactingTo, setReactingTo] = useState<string | null>(null);
+  const reactions = useBajujuMessageReactions('activity', experienceId, currentUserId, canUseChat);
 
   useEffect(() => {
     chatAutoScrollDoneRef.current = false;
@@ -1885,17 +1890,21 @@ export default function ExperienceDetailScreen() {
                               ? 'Tu'
                               : authorName(profiles[userId] || authorProfiles[userId]);
                             const deleted = Boolean(item.deleted_at);
+                            const id = String(item.id || '');
+                            const openReactions = deleted || !id ? undefined : () => setReactingTo(id);
 
                             return (
-                              <View
-                                key={item.id || `${userId}-${index}`}
+                              <React.Fragment key={item.id || `${userId}-${index}`}>
+                              <Pressable
+                                onLongPress={openReactions}
+                                delayLongPress={350}
                                 style={[
                                   styles.messageBubble,
                                   isMine && styles.messageBubbleMine,
                                 ]}
                               >
                                 <Text style={[styles.messageAuthor, isMine && styles.messageAuthorMine]}>{name}</Text>
-                                {!deleted && item.image_url ? <BajujuChatPhoto uri={String(item.image_url)} /> : null}
+                                {!deleted && item.image_url ? <BajujuChatPhoto uri={String(item.image_url)} onLongPress={openReactions} /> : null}
                                 {deleted || chatPhotoCaption(messageText(item), item.image_url) ? (
                                   <BajujuLinkText
                                     style={[styles.messageBody, isMine && styles.messageBodyMine, deleted && styles.messageBodyDeleted]}
@@ -1918,7 +1927,15 @@ export default function ExperienceDetailScreen() {
                                     </Pressable>
                                   ) : null}
                                 </View>
-                              </View>
+                              </Pressable>
+                              {!deleted && id ? (
+                                <BajujuReactionChips
+                                  reactions={reactions.byMessage[id]}
+                                  alignRight={Boolean(isMine)}
+                                  onToggle={(emoji) => void reactions.toggleReaction(id, emoji)}
+                                />
+                              ) : null}
+                              </React.Fragment>
                             );
                           })}
                         </ScrollView>
@@ -1937,6 +1954,17 @@ export default function ExperienceDetailScreen() {
                         ) : null}
                         </View>
                       )}
+
+                      <BajujuReactionPicker
+                        visible={Boolean(reactingTo)}
+                        selected={reactingTo ? reactions.myReactionFor(reactingTo) : null}
+                        onClose={() => setReactingTo(null)}
+                        onSelect={(emoji) => {
+                          const target = reactingTo;
+                          setReactingTo(null);
+                          if (target) void reactions.toggleReaction(target, emoji);
+                        }}
+                      />
 
                       <View style={styles.chatInputRow}>
                         {currentUserId ? (

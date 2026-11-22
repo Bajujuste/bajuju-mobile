@@ -9,6 +9,8 @@ type PushRequest = {
   targetUserId?: string | null;
   activityId?: string | null;
   requestId?: string | null;
+  // Solo experience_cancelled: motivo scritto da organizzatore/admin.
+  reason?: string | null;
   // Versioni precedenti dell'app inviano gli id dentro data.
   data?: Record<string, unknown>;
 };
@@ -468,12 +470,28 @@ Deno.serve(async (request) => {
 
     if (error || participantResult.error) return jsonResponse({ error: 'Errore lettura esperienza.' }, 500);
     if (!activity) return jsonResponse({ error: 'Esperienza non trovata.' }, 404);
-    if (creatorIdOf(activity) !== actorUserId) return jsonResponse({ error: 'Esperienza non appartenente all’utente autenticato.' }, 403);
+    const activityCreatorId = creatorIdOf(activity);
+    if (activityCreatorId !== actorUserId) {
+      // Anche gli admin attivi possono eliminare qualsiasi evento e avvisare i partecipanti.
+      const adminResult = await supabase.rpc('bajuju_is_active_admin', { p_user_id: actorUserId });
+      if (adminResult.error || adminResult.data !== true) {
+        return jsonResponse({ error: 'Esperienza non appartenente all’utente autenticato.' }, 403);
+      }
+    }
     if (!activityIsCancelled(activity)) return jsonResponse({ error: 'Esperienza non annullata.' }, 403);
-    if ((participantResult.data || []).length === 0) return jsonResponse({ error: 'Destinatario non partecipante.' }, 403);
+    // Destinatari: partecipanti dell'evento e, se elimina un admin, l'organizzatore.
+    const targetIsCreator = activityCreatorId === targetUserId;
+    if ((participantResult.data || []).length === 0 && !targetIsCreator) {
+      return jsonResponse({ error: 'Destinatario non partecipante.' }, 403);
+    }
 
-    title = 'Esperienza annullata';
-    body = `L’esperienza “${activityTitleOf(activity, 'Bajuju')}” è stata annullata.`;
+    // Motivo scritto da chi elimina (solo organizzatore o admin arrivano qui).
+    const reason = truncate(String(payload.reason || ''), 150);
+    const eventTitle = activityTitleOf(activity, 'Bajuju');
+    title = 'Evento annullato';
+    body = reason
+      ? truncate(`“${eventTitle}” è stato annullato. Motivo: ${reason}`)
+      : `“${eventTitle}” è stato annullato.`;
     data = { screen: 'experiences', activityId };
     dedupKey = { activityId };
   }

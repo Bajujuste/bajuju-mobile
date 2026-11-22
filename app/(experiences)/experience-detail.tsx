@@ -452,11 +452,14 @@ export default function ExperienceDetailScreen() {
 
   const canUseChat = isOrganizer || isParticipant;
   const canShowInviteOut = canUseChat && canInviteOutAfterExperience(experience);
+  // Eventi premium (promozionali): niente chat, per nessuno. Resta solo la Galleria.
+  const chatHidden = isPromoted;
+  const visibleTab: 'chat' | 'gallery' = chatHidden ? 'gallery' : activeTab;
 
-  useChatLiveRefresh(experienceId && canUseChat ? () => void loadMessages(experienceId) : null);
+  useChatLiveRefresh(experienceId && canUseChat && !chatHidden ? () => void loadMessages(experienceId) : null);
 
   const [reactingTo, setReactingTo] = useState<string | null>(null);
-  const reactions = useBajujuMessageReactions('activity', experienceId, currentUserId, canUseChat);
+  const reactions = useBajujuMessageReactions('activity', experienceId, currentUserId, canUseChat && !chatHidden);
 
   useEffect(() => {
     chatAutoScrollDoneRef.current = false;
@@ -1764,25 +1767,27 @@ export default function ExperienceDetailScreen() {
                 ) : null}
 
                 <View style={styles.tabs}>
+                  {!chatHidden ? (
+                    <Pressable
+                      style={[styles.tab, visibleTab === 'chat' && styles.tabActive]}
+                      onPress={() => setActiveTab('chat')}
+                    >
+                      <Text style={[styles.tabText, visibleTab === 'chat' && styles.tabTextActive]}>
+                        Chat{canUseChat && messages.length > 0 ? ` · ${messages.length}` : ''}
+                      </Text>
+                    </Pressable>
+                  ) : null}
                   <Pressable
-                    style={[styles.tab, activeTab === 'chat' && styles.tabActive]}
-                    onPress={() => setActiveTab('chat')}
-                  >
-                    <Text style={[styles.tabText, activeTab === 'chat' && styles.tabTextActive]}>
-                      Chat{canUseChat && messages.length > 0 ? ` · ${messages.length}` : ''}
-                    </Text>
-                  </Pressable>
-                  <Pressable
-                    style={[styles.tab, activeTab === 'gallery' && styles.tabActive]}
+                    style={[styles.tab, visibleTab === 'gallery' && styles.tabActive]}
                     onPress={() => setActiveTab('gallery')}
                   >
-                    <Text style={[styles.tabText, activeTab === 'gallery' && styles.tabTextActive]}>
+                    <Text style={[styles.tabText, visibleTab === 'gallery' && styles.tabTextActive]}>
                       Galleria{albumPhotos.length > 0 ? ` · ${albumPhotos.length}` : ''}
                     </Text>
                   </Pressable>
                 </View>
 
-                {activeTab === 'chat' ? (
+                {visibleTab === 'chat' ? (
                   !canUseChat ? (
                     <Text style={styles.emptySmallText}>
                       La chat si sblocca quando partecipi all’esperienza. L’organizzatore può sempre scrivere.

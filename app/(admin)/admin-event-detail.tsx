@@ -13,6 +13,7 @@ import {
 
 import { supabase } from '../../src/lib/supabase';
 import { BajujuBackButton } from '../../src/components/navigation/BajujuBackButton';
+import { BajujuCancelEventModal } from '../../src/components/experiences/BajujuCancelEventModal';
 
 type LooseRow = Record<string, any>;
 
@@ -73,42 +74,6 @@ function profileName(row: LooseRow | null | undefined, fallback: string) {
 
 function getOrganizerId(row: LooseRow | null | undefined) {
   return String(firstValue(row, ['creator_id', 'organizer_id', 'created_by', 'user_id', 'profile_id']) || '').trim();
-}
-
-async function tryDeleteActivity(activityId: string) {
-  const cleanActivityId = String(activityId || '').trim();
-
-  if (!cleanActivityId) {
-    return {
-      ok: false,
-      message: 'ID evento non disponibile.',
-    };
-  }
-
-  const now = new Date().toISOString();
-
-  const result = await supabase
-    .from('activities')
-    .update({ deleted_at: now })
-    .eq('id', cleanActivityId)
-    .select('id,deleted_at')
-    .maybeSingle();
-
-  if (result.error) {
-    return {
-      ok: false,
-      message: result.error.message || 'Errore Supabase durante eliminazione evento.',
-    };
-  }
-
-  if (result.data?.deleted_at) {
-    return { ok: true, message: '' };
-  }
-
-  return {
-    ok: false,
-    message: 'La riga evento è stata trovata, ma deleted_at non è stato compilato.',
-  };
 }
 
 export default function AdminEventDetailScreen() {
@@ -265,36 +230,11 @@ export default function AdminEventDetailScreen() {
     }
   }, [loadAll]);
 
+  const [cancelOpen, setCancelOpen] = useState(false);
+
   const deleteActivity = useCallback(() => {
     if (!activityId || !activity) return;
-
-    Alert.alert('Rimuovere evento', `Vuoi eliminare "${activityTitle(activity)}"?`, [
-      { text: 'Annulla', style: 'cancel' },
-      {
-        text: 'Elimina',
-        style: 'destructive',
-        onPress: async () => {
-            try {
-          const result = await tryDeleteActivity(activityId);
-
-          if (!result.ok) {
-            Alert.alert('Errore', result.message);
-            return;
-          }
-
-          Alert.alert('Fatto', 'Evento rimosso.');
-          router.replace('/admin-events');
-            } catch (error: unknown) {
-              const message =
-                error instanceof Error
-                  ? error.message
-                  : "Non è stato possibile rimuovere l’evento.";
-
-              Alert.alert("Errore", message);
-            }
-        },
-      },
-    ]);
+    setCancelOpen(true);
   }, [activity, activityId]);
 
   return (
@@ -385,6 +325,13 @@ export default function AdminEventDetailScreen() {
           </View>
         </>
       ) : null}
+      <BajujuCancelEventModal
+        visible={cancelOpen}
+        activityId={activityId ? String(activityId) : null}
+        eventTitle={activity ? activityTitle(activity) : ''}
+        onClose={() => setCancelOpen(false)}
+        onDeleted={() => router.replace('/admin-events')}
+      />
     </ScrollView>
   );
 }

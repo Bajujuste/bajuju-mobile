@@ -47,6 +47,7 @@ import { BajujuPhotoViewer } from '../../src/components/chat/BajujuPhotoViewer';
 import { CHAT_PHOTO_PLACEHOLDER, chatPhotoCaption } from '../../src/lib/bajujuChatPhotos';
 import { loadPromotedEventIds } from '../../src/lib/promotedEvents';
 import { useBajujuAuthorProfiles } from '../../src/hooks/useBajujuAuthorProfiles';
+import { BajujuCancelEventModal } from '../../src/components/experiences/BajujuCancelEventModal';
 
 const bajujuLogo = require('../../assets/brand/bajuju-logo.png');
 
@@ -393,6 +394,7 @@ export default function ExperienceDetailScreen() {
   );
 
   const canEditExperience = isOrganizer || isCurrentUserAdmin;
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
   // Evento promozionale Bajuju: il numero di iscritti non si mostra (solo organizzatore e admin lo vedono).
   const [isPromoted, setIsPromoted] = useState(false);
   useEffect(() => {
@@ -966,90 +968,9 @@ export default function ExperienceDetailScreen() {
     }
   }
 
-  async function cancelExperience() {
-    if (!experienceId || !currentUserId || !isOrganizer) return;
-
-    Alert.alert(
-      'Annullare esperienza',
-      'Vuoi davvero annullare questa esperienza?',
-      [
-        { text: 'No', style: 'cancel' },
-        {
-          text: 'Sì, annulla',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const now = new Date().toISOString();
-
-              const attempts = [
-                { deleted_at: now, status: 'deleted' },
-                { deleted_at: now },
-                { is_deleted: true, status: 'deleted' },
-                { hidden: true, status: 'deleted' },
-                { status: 'deleted' },
-                { stato: 'eliminato' },
-              ];
-
-              for (const payload of attempts) {
-                const result = await supabase
-                  .from('activities')
-                  .update(payload)
-                  .eq('id', experienceId)
-                  .select('id')
-                  .maybeSingle();
-
-                if (!result.error && result.data) {
-                  const participantsResult = await supabase
-                    .from('activity_participants')
-                    .select('user_id')
-                    .eq('activity_id', experienceId);
-
-                  if (participantsResult.error) {
-                    console.log('Errore lettura partecipanti esperienza annullata.');
-                  }
-
-                  const participantIds = (participantsResult.data || [])
-                    .map((row: any) => String(row.user_id || ''))
-                    .filter((id: string) => id && id !== currentUserId);
-
-                  await Promise.all(
-                    participantIds.map((targetUserId: string) =>
-                      sendBajujuPushNotification({
-                        type: 'experience_cancelled',
-                        targetUserId,
-                        activityId: experienceId,
-                      }).catch((error) => {
-                        console.log('Errore notifica esperienza annullata.');
-                      })
-                    )
-                  );
-
-                  Alert.alert(
-                    'Esperienza annullata',
-                    'L’esperienza è stata rimossa.'
-                  );
-                  router.replace('/all-events' as any);
-                  return;
-                }
-              }
-
-              Alert.alert(
-                'Errore annullamento',
-                'Non sono riuscito ad annullare questa esperienza. Probabile policy Supabase o colonna mancante.'
-              );
-            } catch (error: any) {
-              console.log('Errore generale annullamento esperienza.');
-
-              Alert.alert(
-                'Errore annullamento',
-                error?.message ||
-                  'Non sono riuscito ad annullare questa esperienza. Riprova tra poco.'
-              );
-            }
-          },
-        },
-      ]
-    );
+  function cancelExperience() {
+    if (!experienceId || !currentUserId || !canEditExperience) return;
+    setCancelModalOpen(true);
   }
 
   async function sendChatMessage(imageUrl?: string) {
@@ -2216,20 +2137,28 @@ export default function ExperienceDetailScreen() {
             </Pressable>
           ) : null}
 
-          {isOrganizer ? (
-            <Pressable
-              style={styles.menuItem}
-              onPress={() => {
-                setMenuOpen(false);
-                cancelExperience();
-              }}
-            >
-              <Ionicons name="close-circle-outline" size={20} color={BAJUJU_COLORS.plum} />
-              <Text style={[styles.menuItemText, styles.menuItemDanger]}>Annulla esperienza</Text>
-            </Pressable>
-          ) : null}
+          <Pressable
+            style={styles.menuItem}
+            onPress={() => {
+              setMenuOpen(false);
+              cancelExperience();
+            }}
+          >
+            <Ionicons name="trash-outline" size={20} color={BAJUJU_COLORS.plum} />
+            <Text style={[styles.menuItemText, styles.menuItemDanger]}>
+              {isOrganizer ? 'Elimina evento' : 'Elimina evento · Admin'}
+            </Text>
+          </Pressable>
         </View>
       </Modal>
+
+      <BajujuCancelEventModal
+        visible={cancelModalOpen}
+        activityId={experienceId || null}
+        eventTitle={experience?.title || ''}
+        onClose={() => setCancelModalOpen(false)}
+        onDeleted={() => router.replace('/all-events' as any)}
+      />
 
       <BajujuPhotoViewer
         uri={coverPhotoOpen && experience && experiencePhotoUrl(experience) ? experiencePhotoUrl(experience) : null}

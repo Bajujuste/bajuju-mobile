@@ -1708,38 +1708,41 @@ export default function ExperienceDetailScreen() {
 
                 <Pressable style={styles.peopleRow} onPress={() => setParticipantsOpen(true)}>
                   {displayedParticipants.length > 0 ? (
-                    <View style={styles.avatarStack}>
-                      {displayedParticipants.slice(0, 5).map((participant, index) => {
-                        const userId = String(participant.user_id || '');
-                        const photo = profilePhotoUrl(profiles[userId]);
-                        const isAdminUser = adminIds.has(userId);
-                        return (
-                          <BajujuAdminRing
-                            key={`${userId}-${index}`}
-                            size={34}
-                            isAdmin={isAdminUser}
-                            userId={userId}
-                            style={[index > 0 && styles.stackAvatarOverlap, isAdminUser && styles.stackAvatarAdmin]}
-                          >
-                            <Image
-                              source={photo ? { uri: photo } : bajujuLogo}
-                              style={[
-                                styles.stackAvatar,
-                                userId === creatorId && styles.stackAvatarOrganizer,
-                              ]}
-                              resizeMode="cover"
-                            />
-                          </BajujuAdminRing>
-                        );
-                      })}
+                    <View style={styles.peopleTop}>
+                      <View style={styles.avatarStack}>
+                        {displayedParticipants.slice(0, 5).map((participant, index) => {
+                          const userId = String(participant.user_id || '');
+                          const photo = profilePhotoUrl(profiles[userId]);
+                          const isAdminUser = adminIds.has(userId);
+                          return (
+                            <BajujuAdminRing
+                              key={`${userId}-${index}`}
+                              size={34}
+                              isAdmin={isAdminUser}
+                              userId={userId}
+                              style={[index > 0 && styles.stackAvatarOverlap, isAdminUser && styles.stackAvatarAdmin]}
+                            >
+                              <Image
+                                source={photo ? { uri: photo } : bajujuLogo}
+                                style={[
+                                  styles.stackAvatar,
+                                  userId === creatorId && styles.stackAvatarOrganizer,
+                                ]}
+                                resizeMode="cover"
+                              />
+                            </BajujuAdminRing>
+                          );
+                        })}
+                      </View>
+                      <Text style={styles.peopleLink}>Vedi tutti ›</Text>
                     </View>
                   ) : null}
 
                   <View style={styles.peopleCopy}>
-                    <Text style={styles.peopleCount}>
+                    <Text style={styles.peopleCount} numberOfLines={1}>
                       {hideParticipantCount ? 'Partecipanti' : `${participantCount}${maxParticipants > 0 ? ` / ${maxParticipants}` : ''} partecipanti`}
                     </Text>
-                    <Text style={styles.peopleMeta} numberOfLines={1}>
+                    <Text style={styles.peopleMeta}>
                       {displayedParticipants.length === 0
                         ? isOrganizer
                           ? 'Ancora nessuno, li vedrai qui'
@@ -1749,13 +1752,9 @@ export default function ExperienceDetailScreen() {
                           : 'Guarda chi partecipa'}
                     </Text>
                     {averageAge !== null && !hideParticipantCount ? (
-                      <Text style={styles.peopleMeta} numberOfLines={1}>Età media {averageAge} anni</Text>
+                      <Text style={styles.peopleMeta}>Età media {averageAge} anni</Text>
                     ) : null}
                   </View>
-
-                  {displayedParticipants.length > 0 ? (
-                    <Text style={styles.peopleLink}>Vedi tutti ›</Text>
-                  ) : null}
                 </Pressable>
 
                 {canManageJoinRequests && joinRequests.length > 0 ? (
@@ -2464,9 +2463,7 @@ const styles = StyleSheet.create({
   },
 
   peopleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
+    gap: 10,
     backgroundColor: C.white,
     borderWidth: 1,
     borderColor: C.line,
@@ -2495,18 +2492,23 @@ const styles = StyleSheet.create({
   stackAvatarAdmin: {
     zIndex: 1,
   },
+  peopleTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
   peopleCopy: {
-    flex: 1,
-    minWidth: 0,
+    gap: 2,
   },
   peopleCount: {
     fontFamily: F.semiBold,
-    fontSize: 15,
+    fontSize: 16,
     color: C.plum,
   },
   peopleMeta: {
     fontFamily: F.regular,
-    fontSize: 12,
+    fontSize: 14,
     color: C.muted,
   },
   peopleLink: {

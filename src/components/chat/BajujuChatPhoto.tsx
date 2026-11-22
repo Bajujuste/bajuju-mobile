@@ -7,13 +7,13 @@ import { BajujuPhotoViewer } from './BajujuPhotoViewer';
 const THUMB_WIDTH = 210;
 
 /** Foto dentro un messaggio: tocco = schermo intero con zoom. */
-export function BajujuChatPhoto({ uri }: { uri: string }) {
+export function BajujuChatPhoto({ uri, onLongPress }: { uri: string; onLongPress?: () => void }) {
   const [ratio, setRatio] = useState(1);
   const [open, setOpen] = useState(false);
 
   return (
     <>
-      <Pressable onPress={() => setOpen(true)} accessibilityRole="imagebutton" accessibilityLabel="Apri foto">
+      <Pressable onPress={() => setOpen(true)} onLongPress={onLongPress} delayLongPress={350} accessibilityRole="imagebutton" accessibilityLabel="Apri foto">
         <Image
           source={{ uri }}
           resizeMode="cover"

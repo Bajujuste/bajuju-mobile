@@ -20,6 +20,8 @@ import { useChatLiveRefresh } from '../../src/hooks/useChatLiveRefresh';
 import { useBajujuAdminIds } from '../../src/hooks/useBajujuAdminIds';
 import { BajujuLinkText } from '../../src/components/chat/BajujuLinkText';
 import { BajujuChatPhoto, BajujuChatPhotoButton } from '../../src/components/chat/BajujuChatPhoto';
+import { useBajujuMessageReactions } from '../../src/hooks/useBajujuMessageReactions';
+import { BajujuReactionChips, BajujuReactionPicker } from '../../src/components/chat/BajujuMessageReactions';
 import { CHAT_PHOTO_PLACEHOLDER, chatPhotoCaption } from '../../src/lib/bajujuChatPhotos';
 
 type ChatMessage = {
@@ -202,6 +204,9 @@ export default function AdminPrivateChatScreen() {
 
   useChatLiveRefresh(threadId ? () => void loadMessages(threadId).catch(() => undefined) : null);
 
+  const [reactingTo, setReactingTo] = useState<string | null>(null);
+  const reactions = useBajujuMessageReactions('support', threadId, currentUserId, Boolean(threadId));
+
   const canSend = useMemo(() => {
     const clean = draft.trim();
     if (!clean || clean.length > 2000 || sending) return false;
@@ -345,9 +350,15 @@ export default function AdminPrivateChatScreen() {
         ) : (
           messages.map((item) => {
             const mine = item.sender_id === currentUserId;
+            const id = String(item.id || '');
+            const openReactions = id ? () => setReactingTo(id) : undefined;
             return (
               <View key={item.id} style={[styles.messageRow, mine ? styles.mineRow : styles.otherRow]}>
-                <View style={[styles.bubble, mine ? styles.mineBubble : styles.otherBubble]}>
+                <Pressable
+                  onLongPress={openReactions}
+                  delayLongPress={350}
+                  style={[styles.bubble, mine ? styles.mineBubble : styles.otherBubble]}
+                >
                   <Text style={[styles.senderLabel, mine && styles.mineSenderLabel]}>
                     {mine
                       ? adminViewingUser
@@ -357,7 +368,7 @@ export default function AdminPrivateChatScreen() {
                         ? targetName
                         : 'Bajuju · Amministratore'}
                   </Text>
-                  {item.image_url ? <BajujuChatPhoto uri={String(item.image_url)} /> : null}
+                  {item.image_url ? <BajujuChatPhoto uri={String(item.image_url)} onLongPress={openReactions} /> : null}
                   {chatPhotoCaption(item.message, item.image_url) ? (
                     <BajujuLinkText
                       style={[styles.messageText, mine && styles.mineMessageText]}
@@ -368,12 +379,30 @@ export default function AdminPrivateChatScreen() {
                   <Text style={[styles.messageTime, mine && styles.mineMessageTime]}>
                     {formatMessageTime(item.created_at)}
                   </Text>
-                </View>
+                </Pressable>
+                {id ? (
+                  <BajujuReactionChips
+                    reactions={reactions.byMessage[id]}
+                    alignRight={mine}
+                    onToggle={(emoji) => void reactions.toggleReaction(id, emoji)}
+                  />
+                ) : null}
               </View>
             );
           })
         )}
       </ScrollView>
+
+      <BajujuReactionPicker
+        visible={Boolean(reactingTo)}
+        selected={reactingTo ? reactions.myReactionFor(reactingTo) : null}
+        onClose={() => setReactingTo(null)}
+        onSelect={(emoji) => {
+          const target = reactingTo;
+          setReactingTo(null);
+          if (target) void reactions.toggleReaction(target, emoji);
+        }}
+      />
 
       <View
         style={[
@@ -426,9 +455,9 @@ const styles = StyleSheet.create({
   emptyCard: { marginTop: 24, padding: 20, borderRadius: 22, borderWidth: 1.5, borderColor: BAJUJU_COLORS.palePink, backgroundColor: '#fff', ...BAJUJU_SHADOW },
   emptyTitle: { color: BAJUJU_COLORS.plum, fontFamily: BAJUJU_FONTS.bold, fontSize: 18 },
   emptyText: { marginTop: 6, color: BAJUJU_COLORS.muted, fontFamily: BAJUJU_FONTS.medium, fontSize: 14, lineHeight: 20 },
-  messageRow: { marginBottom: 11, flexDirection: 'row' },
-  mineRow: { justifyContent: 'flex-end' },
-  otherRow: { justifyContent: 'flex-start' },
+  messageRow: { marginBottom: 11 },
+  mineRow: { alignItems: 'flex-end' },
+  otherRow: { alignItems: 'flex-start' },
   bubble: { maxWidth: '84%', paddingHorizontal: 14, paddingVertical: 11, borderRadius: 20 },
   mineBubble: { backgroundColor: BAJUJU_COLORS.brightPink, borderBottomRightRadius: 7 },
   otherBubble: { backgroundColor: '#fff', borderWidth: 1, borderColor: BAJUJU_COLORS.palePink, borderBottomLeftRadius: 7 },

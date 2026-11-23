@@ -340,6 +340,7 @@ export default function AllEventsScreen() {
       {!loading && !errorMessage ? (
         <Text style={styles.countText}>
           {filteredEvents.length} {filteredEvents.length === 1 ? 'evento' : 'eventi'}
+          {coordinates ? ' · in ordine di distanza da dove ti trovi' : ''}
         </Text>
       ) : null}
     </View>

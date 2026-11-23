@@ -5,7 +5,6 @@ import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
-  Modal,
   Platform,
   Pressable,
   SafeAreaView,
@@ -29,15 +28,6 @@ import { loadPromotedEventIds, PROMO_GOLD, PROMO_LABEL } from '../../src/lib/pro
 
 const bajujuLogo = require('../../assets/brand/bajuju-logo.png');
 const PAGE_SIZE = 30;
-
-// null = nessun limite di distanza; all'apertura si parte da 10 km.
-const DISTANCE_OPTIONS: { km: number | null; label: string }[] = [
-  { km: null, label: 'Distanza da te' },
-  { km: 5, label: 'Entro 5 km' },
-  { km: 10, label: 'Entro 10 km' },
-  { km: 25, label: 'Entro 25 km' },
-  { km: 50, label: 'Entro 50 km' },
-];
 
 type ActivityRow = {
   id?: string;
@@ -125,12 +115,10 @@ export default function AllEventsScreen() {
   const [organizerNames, setOrganizerNames] = useState<Record<string, string>>({});
   const [coordinates, setCoordinates] = useState<Coordinates | null>(null);
   const [searchText, setSearchText] = useState('');
-  const [maxKm, setMaxKm] = useState<number | null>(10);
   const [promotedIds, setPromotedIds] = useState<Set<string>>(new Set());
   const [filterDate, setFilterDate] = useState<Date | null>(null);
   const [pendingDate, setPendingDate] = useState<Date>(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showDistanceMenu, setShowDistanceMenu] = useState(false);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
@@ -235,8 +223,6 @@ export default function AllEventsScreen() {
         const target = rowCoordinates(row);
         return { ...row, distanceKm: coordinates && target ? distanceKm(coordinates, target) : null, promoted: promotedIds.has(String(row.id || '')) };
       })
-      // Gli eventi promozionali Bajuju compaiono a prescindere dalla distanza.
-      .filter((row) => row.promoted || maxKm === null || (row.distanceKm !== null && row.distanceKm <= maxKm))
       .filter((row) => !filterDayKey || String(row.activity_date || '').slice(0, 10) === filterDayKey)
       .filter((row) => {
         if (searchWords.length === 0) return true;
@@ -253,11 +239,14 @@ export default function AllEventsScreen() {
       })
       .sort((a, b) => {
         if (a.promoted !== b.promoted) return a.promoted ? -1 : 1;
+        // Tutti gli eventi, dal più vicino al più lontano; senza posizione vanno in fondo.
+        const distanceA = a.distanceKm ?? Number.MAX_SAFE_INTEGER;
+        const distanceB = b.distanceKm ?? Number.MAX_SAFE_INTEGER;
         const startA = activityMoment(a)?.getTime() ?? Number.MAX_SAFE_INTEGER;
         const startB = activityMoment(b)?.getTime() ?? Number.MAX_SAFE_INTEGER;
-        return startA - startB || Number(a.distanceKm ?? 9999) - Number(b.distanceKm ?? 9999);
+        return distanceA - distanceB || startA - startB;
       });
-  }, [activities, coordinates, maxKm, filterDayKey, searchWords, organizerNames, promotedIds]);
+  }, [activities, coordinates, filterDayKey, searchWords, organizerNames, promotedIds]);
 
   const visibleEvents = filteredEvents.slice(0, visibleCount);
 
@@ -280,14 +269,6 @@ export default function AllEventsScreen() {
     if (event.type === 'dismissed' || !selectedDate) return;
     applyFilterDate(selectedDate);
   }
-
-  function selectDistance(km: number | null) {
-    setShowDistanceMenu(false);
-    setMaxKm(km);
-    setVisibleCount(PAGE_SIZE);
-  }
-
-  const distanceLabel = DISTANCE_OPTIONS.find((option) => option.km === maxKm)?.label || 'Distanza da te';
 
   const listHeader = (
     <View>
@@ -316,15 +297,6 @@ export default function AllEventsScreen() {
       </View>
 
       <View style={styles.filterBar}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Scegli la distanza"
-          style={({ pressed }) => [styles.modeSelect, pressed && styles.pressed]}
-          onPress={() => setShowDistanceMenu(true)}
-        >
-          <Text style={styles.modeSelectText} numberOfLines={1}>{distanceLabel}</Text>
-          <Text style={styles.modeSelectArrow}>▾</Text>
-        </Pressable>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={filterDate ? 'Cambia data' : 'Scegli una data'}
@@ -370,9 +342,6 @@ export default function AllEventsScreen() {
           {filteredEvents.length} {filteredEvents.length === 1 ? 'evento' : 'eventi'}
         </Text>
       ) : null}
-      {maxKm !== null && !coordinates && !loading ? (
-        <Text style={styles.hintText}>Attiva la posizione per filtrare per distanza.</Text>
-      ) : null}
     </View>
   );
 
@@ -403,7 +372,7 @@ export default function AllEventsScreen() {
           ) : (
             <View style={styles.emptyCard}>
               <Text style={styles.emptyTitle}>Nessun evento</Text>
-              <Text style={styles.emptyText}>Prova a cambiare distanza o data.</Text>
+              <Text style={styles.emptyText}>Prova a cambiare data o ricerca.</Text>
             </View>
           )
         }
@@ -443,23 +412,6 @@ export default function AllEventsScreen() {
       />
 
       <BajujuBottomNav active="find" />
-
-      <Modal visible={showDistanceMenu} transparent animationType="fade" onRequestClose={() => setShowDistanceMenu(false)}>
-        <Pressable style={styles.menuBackdrop} onPress={() => setShowDistanceMenu(false)}>
-          <View style={styles.menuCard}>
-            {DISTANCE_OPTIONS.map((option) => (
-              <Pressable
-                key={option.label}
-                accessibilityRole="button"
-                style={({ pressed }) => [styles.menuItem, option.km === maxKm && styles.menuItemActive, pressed && styles.pressed]}
-                onPress={() => selectDistance(option.km)}
-              >
-                <Text style={[styles.menuItemText, option.km === maxKm && styles.menuItemTextActive]}>{option.label}</Text>
-              </Pressable>
-            ))}
-          </View>
-        </Pressable>
-      </Modal>
     </SafeAreaView>
   );
 }
@@ -478,15 +430,11 @@ const styles = StyleSheet.create({
   searchInput: { flex: 1, color: PLUM, fontFamily: 'FredokaMedium', fontSize: 16, paddingVertical: 0 },
   searchClear: { color: '#8D5E77', fontFamily: 'FredokaBold', fontSize: 15 },
   filterBar: { marginTop: 10, marginBottom: 14, flexDirection: 'row', gap: 10 },
-  modeSelect: { flex: 1, height: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 6, paddingHorizontal: 18, borderRadius: 999, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: LINE },
-  modeSelectText: { flexShrink: 1, color: PLUM, fontFamily: 'FredokaSemiBold', fontSize: 16 },
-  modeSelectArrow: { color: PINK, fontSize: 18 },
   dateFilterButton: { flex: 1, height: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 14, borderRadius: 999, backgroundColor: PINK },
   dateFilterButtonText: { flexShrink: 1, color: '#FFFFFF', fontFamily: 'FredokaSemiBold', fontSize: 16 },
   dateFilterClear: { width: 24, height: 24, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.3)', alignItems: 'center', justifyContent: 'center' },
   dateFilterClearText: { color: '#FFFFFF', fontFamily: 'FredokaBold', fontSize: 13 },
   countText: { color: '#8D5E77', fontFamily: 'FredokaMedium', fontSize: 14, marginBottom: 10 },
-  hintText: { color: '#8F5573', fontFamily: 'FredokaMedium', fontSize: 13, marginBottom: 10 },
   eventRow: { flexDirection: 'row', gap: 12, padding: 10, borderRadius: 20, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: LINE },
   promoRow: { borderWidth: 3, borderColor: PROMO_GOLD, backgroundColor: '#FFFBEF' },
   promoLabel: { alignSelf: 'flex-start', marginBottom: 2, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, overflow: 'hidden', backgroundColor: PROMO_GOLD, color: '#FFFFFF', fontFamily: 'FredokaBold', fontSize: 12 },
@@ -501,12 +449,6 @@ const styles = StyleSheet.create({
   iosPickerAction: { paddingHorizontal: 12, paddingVertical: 10 },
   iosPickerCancelText: { color: '#8D5E77', fontFamily: 'FredokaSemiBold', fontSize: 15 },
   iosPickerConfirmText: { color: PINK, fontFamily: 'FredokaBold', fontSize: 15 },
-  menuBackdrop: { flex: 1, backgroundColor: 'rgba(75,12,45,0.35)', justifyContent: 'center', padding: 32 },
-  menuCard: { borderRadius: 22, padding: 8, backgroundColor: '#FFFFFF' },
-  menuItem: { paddingVertical: 14, paddingHorizontal: 16, borderRadius: 16 },
-  menuItemActive: { backgroundColor: '#FFF0F7' },
-  menuItemText: { color: PLUM, fontFamily: 'FredokaMedium', fontSize: 17 },
-  menuItemTextActive: { color: PINK, fontFamily: 'FredokaSemiBold' },
   emptyCard: { minHeight: 170, borderRadius: 22, padding: 24, backgroundColor: '#ffffff', borderWidth: 1, borderColor: LINE, alignItems: 'center', justifyContent: 'center' },
   emptyTitle: { color: PINK, fontFamily: 'FredokaBold', fontSize: 18, textAlign: 'center' },
   emptyText: { marginTop: 8, color: '#8D5E77', fontFamily: 'FredokaMedium', fontSize: 14, lineHeight: 20, textAlign: 'center' },

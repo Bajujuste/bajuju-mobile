@@ -48,6 +48,7 @@ import { CHAT_PHOTO_PLACEHOLDER, chatPhotoCaption } from '../../src/lib/bajujuCh
 import { loadPromotedEventIds } from '../../src/lib/promotedEvents';
 import { useBajujuAuthorProfiles } from '../../src/hooks/useBajujuAuthorProfiles';
 import { BajujuCancelEventModal } from '../../src/components/experiences/BajujuCancelEventModal';
+import { BajujuRemoveParticipantModal } from '../../src/components/experiences/BajujuRemoveParticipantModal';
 
 const bajujuLogo = require('../../assets/brand/bajuju-logo.png');
 
@@ -395,6 +396,7 @@ export default function ExperienceDetailScreen() {
 
   const canEditExperience = isOrganizer || isCurrentUserAdmin;
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [removeTarget, setRemoveTarget] = useState<{ userId: string; name: string } | null>(null);
   // Evento promozionale Bajuju: il numero di iscritti non si mostra (solo organizzatore e admin lo vedono).
   const [isPromoted, setIsPromoted] = useState(false);
   useEffect(() => {
@@ -1445,6 +1447,20 @@ export default function ExperienceDetailScreen() {
           </Text>
         </View>
 
+        {canEditExperience && !isCreator && userId !== String(currentUserId || '') ? (
+          <Pressable
+            style={styles.removeParticipantButton}
+            accessibilityLabel={`Rimuovi ${name}`}
+            onPress={(event) => {
+              event.stopPropagation();
+              setParticipantsOpen(false);
+              setRemoveTarget({ userId, name });
+            }}
+          >
+            <Text style={styles.removeParticipantButtonText}>Rimuovi</Text>
+          </Pressable>
+        ) : null}
+
         {canShowInviteOut && userId !== String(currentUserId || '') ? (
           <Pressable
             style={styles.inviteOutButton}
@@ -2156,6 +2172,19 @@ export default function ExperienceDetailScreen() {
           </Pressable>
         </View>
       </Modal>
+
+      <BajujuRemoveParticipantModal
+        visible={!!removeTarget}
+        activityId={experienceId || null}
+        userId={removeTarget?.userId || null}
+        userName={removeTarget?.name || ''}
+        onClose={() => setRemoveTarget(null)}
+        onRemoved={() => {
+          if (!experienceId) return;
+          void loadParticipants(experienceId, experience);
+          void loadMessages(experienceId);
+        }}
+      />
 
       <BajujuCancelEventModal
         visible={cancelModalOpen}
@@ -2914,6 +2943,19 @@ const styles = StyleSheet.create({
     backgroundColor: C.pink,
     paddingHorizontal: 12,
     paddingVertical: 7,
+  },
+  removeParticipantButton: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: C.hotPink,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginRight: 6,
+  },
+  removeParticipantButtonText: {
+    fontFamily: F.semiBold,
+    color: C.hotPink,
+    fontSize: 12,
   },
   inviteOutButtonText: {
     fontFamily: F.semiBold,

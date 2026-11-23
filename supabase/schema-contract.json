@@ -478,6 +478,7 @@
     "bajuju_get_or_create_support_thread",
     "bajuju_get_users_blocked_by_me",
     "bajuju_main_admin_id",
+    "bajuju_remove_participant_with_reason",
     "cancel_activity_join_request",
     "cancel_group_join_request",
     "claim_push_token_for_current_user",

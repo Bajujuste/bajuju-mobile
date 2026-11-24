@@ -5,6 +5,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Pressable,
   SafeAreaView,
   StyleSheet,
@@ -22,6 +23,8 @@ import { BAJUJU_COLORS, BAJUJU_FONTS, BAJUJU_SHADOW } from '@/theme/bajujuTheme'
 import { supabase } from '../../src/lib/supabase';
 import { loadPromotedEventIds } from '../../src/lib/promotedEvents';
 import { BajujuBackButton } from '../../src/components/navigation/BajujuBackButton';
+
+const bajujuLogo = require('../../assets/brand/bajuju-logo.png');
 
 type ActivityRow = Record<string, any>;
 
@@ -512,7 +515,14 @@ export default function ExperiencesMapScreen() {
     <SafeAreaView style={screenStyles.safeArea}>
       <View style={screenStyles.header}>
         <BajujuBackButton onPress={() => router.back()} accessibilityLabel="Torna a Trova esperienze" />
-        <Text style={screenStyles.heading}>Mappa esperienze</Text>
+        {/* In alto il panda con "Bajuju" e "Dal vivo è meglio" (come in Home). */}
+        <View style={screenStyles.brandGroup} accessibilityLabel="Bajuju, dal vivo è meglio">
+          <Image source={bajujuLogo} resizeMode="contain" style={screenStyles.panda} />
+          <View>
+            <Text style={screenStyles.brand}>Bajuju</Text>
+            <Text style={screenStyles.tagline}>Dal vivo è meglio</Text>
+          </View>
+        </View>
         <Text style={screenStyles.count}>{mapItems.length + mapLocations.reduce((total, location) => total + location.events.length, 0)}</Text>
         <BajujuProfileButton size={38} />
       </View>
@@ -556,7 +566,10 @@ const screenStyles = StyleSheet.create({
   header: { height: 62, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#FFFFFF' },
   backButton: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#FFF0F7', alignItems: 'center', justifyContent: 'center' },
   backText: { fontFamily: 'FredokaRegular', fontSize: 29, lineHeight: 34, color: '#E43F98' },
-  heading: { flex: 1, color: '#4B0C2D', fontFamily: BAJUJU_FONTS.bold, fontSize: 22 },
+  brandGroup: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  panda: { width: 40, height: 44 },
+  brand: { color: '#E43F98', fontFamily: 'FredokaBold', fontSize: 27, lineHeight: 30, letterSpacing: -1 },
+  tagline: { color: '#4B0C2D', fontFamily: BAJUJU_FONTS.bold, fontSize: 13, lineHeight: 16 },
   count: { minWidth: 30, color: '#E43F98', fontFamily: BAJUJU_FONTS.bold, fontSize: 16, textAlign: 'center' },
   mapArea: { flex: 1, marginBottom: 112 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24 },

@@ -12,7 +12,7 @@ import {
   View,
 } from 'react-native';
 
-import { toUsableCoordinates } from '../../src/utils/bajujuDeviceLocation';
+import { getUsableDevicePosition } from '../../src/utils/bajujuDeviceLocation';
 import BajujuMap, { BajujuMapItem, BajujuMapLocation } from '../../src/components/BajujuMap';
 import { BajujuLocation, loadPublicBajujuLocations, locationAddressLine } from '../../src/lib/bajujuLocations';
 import { BajujuBottomNav } from '@/components/navigation/BajujuBottomNav';
@@ -332,8 +332,7 @@ export default function ExperiencesMapScreen() {
           setViewerCoordinates(null);
           return;
         }
-        const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Highest });
-        setViewerCoordinates(toUsableCoordinates(position.coords.latitude, position.coords.longitude));
+        setViewerCoordinates(await getUsableDevicePosition());
         })().catch(() => setViewerCoordinates(null));
 
       // I locali non bloccano la mappa: se non arrivano si vedono solo gli eventi.
@@ -539,6 +538,7 @@ export default function ExperiencesMapScreen() {
             userCoordinates={viewerCoordinates}
             hideHeader
             fullScreen
+            bergamoIntro
             topOverlay={<View style={screenStyles.filters}>
               <Pressable style={[screenStyles.chip, selectedWhen === 'Oggi' && screenStyles.chipSelected]} onPress={() => setSelectedWhen((value) => value === 'Oggi' ? null : 'Oggi')}><Text style={[screenStyles.chipText, selectedWhen === 'Oggi' && screenStyles.chipTextSelected]}>Oggi</Text></Pressable>
               <Pressable style={[screenStyles.chip, selectedWhen === 'Domani' && screenStyles.chipSelected]} onPress={() => setSelectedWhen((value) => value === 'Domani' ? null : 'Domani')}><Text style={[screenStyles.chipText, selectedWhen === 'Domani' && screenStyles.chipTextSelected]}>Domani</Text></Pressable>

@@ -10,18 +10,35 @@ import {
 } from 'react-native';
 import MapView, {
   Marker,
+  Polygon,
   PROVIDER_GOOGLE,
   Region,
 } from 'react-native-maps';
 
 import { BAJUJU_COLORS, BAJUJU_FONTS } from '../theme/bajujuTheme';
 import { PROMO_GOLD } from '../lib/promotedEvents';
+import { BERGAMO_PROVINCE_OUTLINE } from '../constants/bergamoProvince';
 
 // Un'immagine statica evita il ritaglio delle icone vettoriali quando Android
 // converte il contenuto di Marker in bitmap.
 const pinkPinImage = require('../../assets/markers/pink-pin.png');
 // Eventi premium: segnaposto oro.
 const goldPinImage = require('../../assets/markers/gold-pin.png');
+// Scritta "Bergamo e provincia" sopra la città (immagine: su Android le View nei Marker vengono tagliate).
+const bergamoLabelImage = require('../../assets/markers/bergamo-label.png');
+
+// Apertura della Mappa: prima Bergamo e tutta la provincia, poi zoom lento sulla posizione.
+const BERGAMO_REGION: Region = {
+  latitude: 45.757,
+  longitude: 9.854,
+  latitudeDelta: 0.85,
+  longitudeDelta: 1.0,
+};
+const BERGAMO_CITY = { latitude: 45.6983, longitude: 9.6773 };
+const INTRO_HOLD_MS = 1800;
+const INTRO_ZOOM_MS = 2600;
+// La scritta si nasconde quando si è zoomati, per non coprire i segnaposto in città.
+const CITY_LABEL_MIN_DELTA = 0.3;
 
 // Segnaposto viola dei locali: senza numero o con il numero di eventi in programma.
 const LOCATION_PIN_IMAGES = [
@@ -90,6 +107,7 @@ type BajujuMapProps = {
   onOpenLocation?: (location: BajujuMapLocation) => void;
   onOpenLocationEvent?: (eventId: string) => void;
   onCreateEventAtLocation?: (location: BajujuMapLocation) => void;
+  bergamoIntro?: boolean;
 };
 
 const DEFAULT_REGION: Region = {
@@ -215,6 +233,7 @@ export default function BajujuMap({
   onOpenLocation,
   onOpenLocationEvent,
   onCreateEventAtLocation,
+  bergamoIntro = false,
 }: BajujuMapProps) {
   const mapRef = useRef<MapView | null>(null);
   const [mapReady, setMapReady] = useState(false);
@@ -226,10 +245,19 @@ export default function BajujuMap({
   const [markersNeedRedraw, setMarkersNeedRedraw] = useState(true);
   const preferredRegionKeyRef = useRef("");
   const fittedViewportKeyRef = useRef("");
+  const [introHoldDone, setIntroHoldDone] = useState(!bergamoIntro);
+  const introZoomedRef = useRef(!bergamoIntro);
+  const [showCityLabel, setShowCityLabel] = useState(bergamoIntro);
+
+  useEffect(() => {
+    if (!bergamoIntro || !mapReady || introHoldDone) return;
+    const timer = setTimeout(() => setIntroHoldDone(true), INTRO_HOLD_MS);
+    return () => clearTimeout(timer);
+  }, [bergamoIntro, introHoldDone, mapReady]);
 
   const initialRegion = useMemo(
-    () => (preferFallbackRegion && fallbackRegion ? fallbackRegion : items.length > 0 ? buildInitialRegion(items) : fallbackRegion || DEFAULT_REGION),
-    [fallbackRegion, items, preferFallbackRegion]
+    () => (bergamoIntro ? BERGAMO_REGION : preferFallbackRegion && fallbackRegion ? fallbackRegion : items.length > 0 ? buildInitialRegion(items) : fallbackRegion || DEFAULT_REGION),
+    [bergamoIntro, fallbackRegion, items, preferFallbackRegion]
   );
 
   const selectedItem =
@@ -265,17 +293,28 @@ export default function BajujuMap({
 
   useEffect(() => {
     if (!mapReady || !mapRef.current) return;
+    // Prima si lascia vedere Bergamo e provincia per qualche istante.
+    if (!introHoldDone) return;
 
     if (preferFallbackRegion && fallbackRegion) {
       const regionKey = `${fallbackRegion.latitude}:${fallbackRegion.longitude}:${fallbackRegion.latitudeDelta}:${fallbackRegion.longitudeDelta}`;
       if (preferredRegionKeyRef.current !== regionKey) {
         preferredRegionKeyRef.current = regionKey;
-        mapRef.current.animateToRegion(fallbackRegion, 350);
+        const duration = introZoomedRef.current ? 350 : INTRO_ZOOM_MS;
+        introZoomedRef.current = true;
+        mapRef.current.animateToRegion(fallbackRegion, duration);
       }
       return;
     }
 
     if (viewportKey && fittedViewportKeyRef.current === viewportKey) return;
+
+    // Senza posizione si resta su Bergamo e provincia (i filtri poi inquadrano gli eventi).
+    if (bergamoIntro && !introZoomedRef.current) {
+      introZoomedRef.current = true;
+      if (viewportKey) fittedViewportKeyRef.current = viewportKey;
+      return;
+    }
 
     if (items.length === 0) {
       mapRef.current.animateToRegion(
@@ -315,7 +354,7 @@ export default function BajujuMap({
       }
     );
     if (viewportKey) fittedViewportKeyRef.current = viewportKey;
-  }, [fallbackRegion, items, mapReady, preferFallbackRegion, viewportKey]);
+  }, [bergamoIntro, fallbackRegion, introHoldDone, items, mapReady, preferFallbackRegion, viewportKey]);
 
   const changeZoom = async (delta: number) => {
     if (!mapRef.current) return;
@@ -403,12 +442,35 @@ export default function BajujuMap({
           onTouchStart={() => onInteractionChange?.(true)}
           onTouchEnd={() => onInteractionChange?.(false)}
           onTouchCancel={() => onInteractionChange?.(false)}
-          onRegionChangeComplete={() => onInteractionChange?.(false)}
+          onRegionChangeComplete={(region) => {
+            onInteractionChange?.(false);
+            if (bergamoIntro) setShowCityLabel(region.latitudeDelta >= CITY_LABEL_MIN_DELTA);
+          }}
           onPress={() => {
             setSelectedItemId(null);
             setSelectedLocationId(null);
           }}
         >
+          {bergamoIntro ? (
+            <Polygon
+              coordinates={BERGAMO_PROVINCE_OUTLINE}
+              strokeColor="#E43F98"
+              strokeWidth={3}
+              fillColor="rgba(228, 63, 152, 0.07)"
+              zIndex={0}
+            />
+          ) : null}
+          {bergamoIntro && showCityLabel ? (
+            <Marker
+              key="bergamo-label"
+              coordinate={BERGAMO_CITY}
+              anchor={{ x: 0.5, y: 0.5 }}
+              image={bergamoLabelImage}
+              tracksViewChanges={false}
+              zIndex={3}
+              onPress={(event) => event.stopPropagation()}
+            />
+          ) : null}
           {locations.map((location) => {
             const selected = selectedLocationId === location.id;
             return (

@@ -28,6 +28,7 @@ import { EventCardImage } from '../events/EventCardImage';
 import { PROMO_GOLD, PROMO_LABEL } from '../../lib/promotedEvents';
 
 const bajujuLogo = require('../../../assets/brand/bajuju-logo.png');
+const discountsImage = require('../../../assets/images/sconti-panda.jpg');
 
 const COLORS = {
   background: '#FFF7FB',
@@ -285,22 +286,16 @@ export function BajujuHomeView({
             </>
           ) : null}
 
-          {/* Sconti: negozi che fanno uno sconto a chi mostra l'app (li inseriscono gli admin). */}
+          {/* Sconti: scheda quadrata come un evento premium, panda che fa shopping + tastone "Sconti". */}
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Sconti"
             onPress={onOpenDiscounts}
-            style={({ pressed }) => [styles.askCard, pressed && styles.pressed]}
+            style={({ pressed }) => [styles.discountCard, pressed && styles.pressed]}
           >
-            <View style={styles.askIcon}>
-              <Ionicons name="pricetag-outline" size={22} color={COLORS.pink} />
-            </View>
-            <View style={styles.askCopy}>
-              <Text style={styles.askEyebrow}>Nei negozi per chi usa Bajuju</Text>
-              <Text style={styles.askTitle}>Sconti</Text>
-            </View>
-            <View style={styles.openButton}>
-              <BajujuIcon name="arrow" size={20} color={COLORS.pink} />
+            <Image source={discountsImage} style={styles.discountImage} resizeMode="cover" />
+            <View style={styles.discountButton}>
+              <Text style={styles.discountButtonText}>Sconti</Text>
             </View>
           </Pressable>
 
@@ -479,6 +474,10 @@ const styles = StyleSheet.create({
   firstEventEyebrow: { color: COLORS.pink },
   nextExperienceIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.white },
   nextExperienceCopy: { flex: 1 },
+  discountCard: { marginTop: 14, width: 230, borderRadius: 18, overflow: 'hidden', backgroundColor: COLORS.white, borderWidth: 3, borderColor: COLORS.pink },
+  discountImage: { width: '100%', height: 150 },
+  discountButton: { margin: 8, height: 50, borderRadius: 25, backgroundColor: COLORS.pink, alignItems: 'center', justifyContent: 'center' },
+  discountButtonText: { color: COLORS.white, fontFamily: 'FredokaBold', fontSize: 24 },
   askCard: { marginTop: 22, padding: 14, borderRadius: 20, borderWidth: 1.5, borderColor: COLORS.line, backgroundColor: COLORS.white, flexDirection: 'row', alignItems: 'center', gap: 12 },
   askIcon: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.softPink },
   askCopy: { flex: 1 },

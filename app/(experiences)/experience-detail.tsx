@@ -30,6 +30,7 @@ import {
   withLocationIdentity,
 } from '../../src/lib/bajujuLocations';
 import { shareBajujuExperience } from '../../src/utils/shareBajuju';
+import { addToGoogleCalendar } from '../../src/utils/googleCalendar';
 import { getExperienceCategoryIcon, normalizeExperienceCategory } from '@/constants/experienceCategories';
 import { sendBajujuPushNotification } from '../../src/utils/bajujuNotifications';
 import { enableBajujuNotificationsFromPrompt, shouldAskBajujuNotificationsAfterJoin } from '../../src/utils/bajujuNotificationPrompt';
@@ -1608,6 +1609,32 @@ export default function ExperienceDetailScreen() {
                   ))}
                 </View>
 
+                {experience?.activity_date ? (
+                  <Pressable
+                    style={styles.calendarButton}
+                    onPress={() =>
+                      void addToGoogleCalendar({
+                        id: experienceId,
+                        title: experience.title,
+                        date: experience.activity_date,
+                        time: experience.activity_time,
+                        place: [
+                          eventLocation ? `${eventLocation.name}, ${locationAddressLine(eventLocation)}` : experience.meeting_place,
+                          eventLocation ? null : experience.city,
+                        ]
+                          .filter(Boolean)
+                          .join(', '),
+                        description: experience.description,
+                      })
+                    }
+                    accessibilityRole="button"
+                    accessibilityLabel="Aggiungi a Google Calendar"
+                  >
+                    <Ionicons name="calendar-outline" size={18} color={BAJUJU_COLORS.pink} />
+                    <Text style={styles.calendarButtonText}>Aggiungi a Google Calendar</Text>
+                  </Pressable>
+                ) : null}
+
                 {eventLocation ? (
                   <Pressable
                     style={[styles.locationCard, isOfficialLocationEvent && styles.locationCardOfficial]}
@@ -2376,6 +2403,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
+  },
+  calendarButton: {
+    marginTop: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: C.white,
+    borderWidth: 1,
+    borderColor: C.line,
+    borderRadius: 18,
+    paddingVertical: 11,
+  },
+  calendarButtonText: {
+    color: BAJUJU_COLORS.pink,
+    fontFamily: BAJUJU_FONTS.bold,
+    fontSize: 14,
   },
   infoTile: {
     flexBasis: '48%',

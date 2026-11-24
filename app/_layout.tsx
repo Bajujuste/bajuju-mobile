@@ -10,6 +10,7 @@ import 'react-native-reanimated';
 
 import { AdminPrivateChatEntry } from '../src/components/admin/AdminPrivateChatEntry';
 import { OtaUpdatingNotice } from '../src/components/app/OtaUpdatingNotice';
+import { SuspendedAccountGate } from '../src/components/app/SuspendedAccountGate';
 import { supabase } from '../src/lib/supabase';
 import { useAppUpdatePrompt } from '../src/utils/appUpdatePrompt';
 import { noteNotificationOpened, useOtaAutoUpdate } from '../src/utils/otaAutoUpdate';
@@ -235,6 +236,7 @@ export default function RootLayout() {
           <Stack.Screen name="(tabs)" />
         </Stack>
         <AdminPrivateChatEntry />
+        <SuspendedAccountGate />
         <OtaUpdatingNotice />
       </SafeAreaView>
       <StatusBar style="dark" backgroundColor="#FFF9FC" />

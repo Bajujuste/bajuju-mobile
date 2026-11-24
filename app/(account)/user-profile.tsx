@@ -33,6 +33,7 @@ import { BAJUJU_COLORS } from '../../src/theme/bajujuTheme';
 import { EventCardImage } from '../../src/components/events/EventCardImage';
 import { experienceDateLabel } from '../../src/utils/experienceDateLabel';
 import { getExperienceCategoryIcon, normalizeExperienceCategory } from '../../src/constants/experienceCategories';
+import { BajujuPhotoViewer } from '../../src/components/chat/BajujuPhotoViewer';
 
 const bajujuLogo = require('../../assets/brand/bajuju-logo.png');
 
@@ -187,6 +188,7 @@ export default function UserProfileScreen() {
   const [location, setLocation] = useState<BajujuLocation | null>(null);
   const [upcomingEvents, setUpcomingEvents] = useState<LooseRow[]>([]);
   const [errorText, setErrorText] = useState('');
+  const [photoViewerOpen, setPhotoViewerOpen] = useState(false);
 
   const loadProfile = useCallback(async () => {
     setLoading(true);
@@ -670,9 +672,15 @@ export default function UserProfileScreen() {
               userId={userId}
               style={styles.adminRing}
             >
-              <View style={[styles.photoFrame, photoFrameStyle, (isAdminOrCreator || isInMyBlacklist) && styles.photoFrameInRing]}>
+              <Pressable
+                style={[styles.photoFrame, photoFrameStyle, (isAdminOrCreator || isInMyBlacklist) && styles.photoFrameInRing]}
+                onPress={() => { if (photo) setPhotoViewerOpen(true); }}
+                disabled={!photo}
+                accessibilityRole="imagebutton"
+                accessibilityLabel="Ingrandisci foto profilo"
+              >
                 <Image source={photo ? { uri: photo } : bajujuLogo} style={styles.photo} resizeMode="cover" />
-              </View>
+              </Pressable>
             </BajujuAdminRing>
 
             <Text style={styles.name}>{name}</Text>
@@ -762,6 +770,8 @@ export default function UserProfileScreen() {
             />
           </BajujuActionBar>
         ) : null}
+
+        <BajujuPhotoViewer uri={photoViewerOpen && photo ? photo : null} onClose={() => setPhotoViewerOpen(false)} />
       </View>
     );
   }

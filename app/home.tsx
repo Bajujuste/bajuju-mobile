@@ -525,6 +525,7 @@ export default function HomeScreen() {
       onCreate={() => router.push('/create-experience')}
       onOpenMyEvents={() => router.push('/my-events' as any)}
       onAskBajuju={() => router.push('/admin-private-chat' as any)}
+      onOpenDiscounts={() => router.push('/discounts' as any)}
       onShare={() => { void shareBajujuHome(); }}
     />
   );

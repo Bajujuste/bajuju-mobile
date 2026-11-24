@@ -83,6 +83,7 @@ type BajujuHomeViewProps = {
   onCreate: () => void;
   onOpenMyEvents: () => void;
   onAskBajuju: () => void;
+  onOpenDiscounts: () => void;
   onShare: () => void;
 };
 
@@ -101,6 +102,7 @@ export function BajujuHomeView({
   onCreate,
   onOpenMyEvents,
   onAskBajuju,
+  onOpenDiscounts,
   onShare,
 }: BajujuHomeViewProps) {
   const insets = useSafeAreaInsets();
@@ -282,6 +284,25 @@ export function BajujuHomeView({
               />
             </>
           ) : null}
+
+          {/* Sconti: negozi che fanno uno sconto a chi mostra l'app (li inseriscono gli admin). */}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Sconti"
+            onPress={onOpenDiscounts}
+            style={({ pressed }) => [styles.askCard, pressed && styles.pressed]}
+          >
+            <View style={styles.askIcon}>
+              <Ionicons name="pricetag-outline" size={22} color={COLORS.pink} />
+            </View>
+            <View style={styles.askCopy}>
+              <Text style={styles.askEyebrow}>Nei negozi per chi usa Bajuju</Text>
+              <Text style={styles.askTitle}>Sconti</Text>
+            </View>
+            <View style={styles.openButton}>
+              <BajujuIcon name="arrow" size={20} color={COLORS.pink} />
+            </View>
+          </Pressable>
 
           <Pressable
             accessibilityRole="button"

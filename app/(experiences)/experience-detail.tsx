@@ -1673,7 +1673,14 @@ export default function ExperienceDetailScreen() {
                   ) : null}
                 </Pressable>
 
-                <Pressable style={styles.peopleRow} onPress={() => setParticipantsOpen(true)}>
+                <Pressable
+                  style={styles.peopleRow}
+                  disabled={hideParticipantCount}
+                  onPress={() => {
+                    // Evento premium: la lista non si apre, così non si possono contare i partecipanti.
+                    if (!hideParticipantCount) setParticipantsOpen(true);
+                  }}
+                >
                   {displayedParticipants.length > 0 ? (
                     <View style={styles.peopleTop}>
                       <View style={styles.avatarStack}>
@@ -1701,7 +1708,7 @@ export default function ExperienceDetailScreen() {
                           );
                         })}
                       </View>
-                      <Text style={styles.peopleLink}>Vedi tutti ›</Text>
+                      {hideParticipantCount ? null : <Text style={styles.peopleLink}>Vedi tutti ›</Text>}
                     </View>
                   ) : null}
 

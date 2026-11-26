@@ -191,6 +191,34 @@ export function useKeyboardOverlap(viewRef: { current: View | null }) {
 }
 
 /**
+ * Android, schermate di chat con il campo fisso in fondo: spazio da lasciare sotto la schermata
+ * a tastiera aperta = altezza VERA della tastiera letta da Reanimated, meno quanto il sistema
+ * ha già rimpicciolito la schermata. Niente coordinate (cambiano da telefono a telefono):
+ * è lo stesso schema della chat della pagina evento.
+ * onLayout va messo sulla vista esterna della schermata (quella che riceve il paddingBottom).
+ * Su iOS restituisce sempre 0.
+ */
+export function useAndroidKeyboardPad() {
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [screenHeight, setScreenHeight] = useState(0);
+  const fullScreenHeight = useRef(0);
+  const keyboardHeightRef = useRef(0);
+  keyboardHeightRef.current = keyboardHeight;
+
+  useLiveKeyboardHeight(setKeyboardHeight);
+
+  const onLayout = useCallback((event: LayoutChangeEvent) => {
+    const height = Math.round(event.nativeEvent.layout.height);
+    if (keyboardHeightRef.current === 0) fullScreenHeight.current = Math.max(fullScreenHeight.current, height);
+    setScreenHeight(height);
+  }, []);
+
+  const systemShrink = Math.max(0, fullScreenHeight.current - screenHeight);
+  const pad = Platform.OS === 'android' && keyboardHeight > 0 ? Math.max(0, keyboardHeight - systemShrink) : 0;
+  return { pad, onLayout };
+}
+
+/**
  * ScrollView che non lascia mai un campo di testo sotto la tastiera, su iOS e Android.
  * - Quando la tastiera si apre aggiunge in fondo lo spazio che la tastiera copre davvero
  *   (zero se il sistema ha già ristretto la finestra), così si può scorrere fino all'ultimo campo.

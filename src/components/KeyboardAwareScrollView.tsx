@@ -19,6 +19,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Spazio libero che lasciamo tra il campo attivo e la tastiera.
 const EXTRA_SPACE = 24;
+// Margine prudente in più sulla posizione della tastiera su Android (circa la barra dei tasti di sistema).
+const ANDROID_KEYBOARD_MARGIN = 48;
 
 function assignRef<T>(ref: ForwardedRef<T>, value: T | null) {
   if (typeof ref === 'function') ref(value);
@@ -101,7 +103,16 @@ function useKeyboardTop(onChange: (top: number | null) => void) {
     const candidates: number[] = [];
     if (eventTop.current != null) candidates.push(eventTop.current);
     if (liveHeight.current > 0) candidates.push(keyboardTopFromHeight(liveHeight.current, insetsRef.current));
-    onChangeRef.current(candidates.length ? Math.min(...candidates) : null);
+    if (!candidates.length) {
+      onChangeRef.current(null);
+      return;
+    }
+    // Android: su alcuni telefoni (es. quello di stefano, barra con 3 tasti) entrambe le stime
+    // risultano più basse della tastiera vera di circa l'altezza della barra dei tasti di sistema,
+    // e il campo restava coperto. Teniamo sempre questo margine in più: al massimo resta
+    // un po' di spazio sopra la tastiera, mai il campo coperto.
+    const androidMargin = Platform.OS === 'android' ? Math.max(insetsRef.current.bottom, ANDROID_KEYBOARD_MARGIN) : 0;
+    onChangeRef.current(Math.min(...candidates) - androidMargin);
   }, []);
 
   const onLiveHeight = useCallback(

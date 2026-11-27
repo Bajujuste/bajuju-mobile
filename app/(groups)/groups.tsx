@@ -122,12 +122,17 @@ export default function GroupsScreen() {
 
   const hasSearch = search.trim().length > 0;
   // Iscritto = gruppi di altri dove sono dentro; Proprietario = gruppi che ho creato io.
-  const visibleGroups = groups.filter((group) => {
-    const owned = group.ownerId === userId;
-    if (filter === 'owner') return owned;
-    if (filter === 'joined') return group.joinedByMe && !owned;
-    return true;
-  });
+  // Ordine: prima i gruppi con più iscritti, poi a scendere (a pari iscritti resta l'ordine di prima).
+  const visibleGroups = groups
+    .filter((group) => {
+      const owned = group.ownerId === userId;
+      if (filter === 'owner') return owned;
+      if (filter === 'joined') return group.joinedByMe && !owned;
+      return true;
+    })
+    .map((group, index) => ({ group, index }))
+    .sort((a, b) => b.group.memberCount - a.group.memberCount || a.index - b.index)
+    .map(({ group }) => group);
   const listTitle = hasSearch
     ? 'Risultati'
     : filter === 'owner'

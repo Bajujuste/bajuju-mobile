@@ -19,6 +19,7 @@ import { BajujuLinkText } from '../chat/BajujuLinkText';
 import { BajujuChatPhoto, BajujuChatPhotoButton } from '../chat/BajujuChatPhoto';
 import { CHAT_PHOTO_PLACEHOLDER, chatPhotoCaption } from '../../lib/bajujuChatPhotos';
 import { supabase } from '../../lib/supabase';
+import { ADMIN_AS_BAJUJU_HINT, sendChatAsBajuju } from '../../utils/sendChatAsBajuju';
 import { useBajujuAuthorProfiles } from '../../hooks/useBajujuAuthorProfiles';
 import { useBajujuMessageReactions } from '../../hooks/useBajujuMessageReactions';
 import { BajujuReactionChips, BajujuReactionPicker } from '../chat/BajujuMessageReactions';
@@ -44,6 +45,8 @@ type Props = {
   currentUserId: string;
   canUseChat: boolean;
   members: GroupChatMember[];
+  // Admin di Bajuju non iscritto: i suoi messaggi escono come "Bajuju".
+  sendAsBajuju?: boolean;
 };
 
 const PAGE_SIZE = 50;
@@ -89,7 +92,7 @@ function formatMessageTime(value: string | null | undefined) {
   });
 }
 
-export function BajujuGroupChat({ groupId, currentUserId, canUseChat, members }: Props) {
+export function BajujuGroupChat({ groupId, currentUserId, canUseChat, members, sendAsBajuju = false }: Props) {
   const scrollRef = useRef<ScrollView | null>(null);
   const initialScrollDoneRef = useRef(false);
   const atBottomRef = useRef(true);
@@ -267,30 +270,39 @@ export function BajujuGroupChat({ groupId, currentUserId, canUseChat, members }:
 
     setSending(true);
     try {
-      const result = await supabase
-        .from('group_messages')
-        .insert({
-          group_id: groupId,
-          user_id: currentUserId,
-          message: cleanMessage,
-          ...(imageUrl ? { image_url: imageUrl } : {}),
-        })
-        .select('id,group_id,user_id,message,image_url,created_at,deleted_at')
-        .single();
+      if (sendAsBajuju) {
+        const sent = await sendChatAsBajuju('group', groupId, cleanMessage, imageUrl);
+        if (sent.error) throw new Error(sent.error);
+        setDraft('');
+        atBottomRef.current = true;
+        setAtBottom(true);
+        await refreshLatest();
+      } else {
+        const result = await supabase
+          .from('group_messages')
+          .insert({
+            group_id: groupId,
+            user_id: currentUserId,
+            message: cleanMessage,
+            ...(imageUrl ? { image_url: imageUrl } : {}),
+          })
+          .select('id,group_id,user_id,message,image_url,created_at,deleted_at')
+          .single();
 
-      if (result.error) throw result.error;
+        if (result.error) throw result.error;
 
-      setDraft('');
-      atBottomRef.current = true;
-      setAtBottom(true);
-      setMessages((current) => mergeMessages(current, [result.data as GroupMessageRow]));
+        setDraft('');
+        atBottomRef.current = true;
+        setAtBottom(true);
+        setMessages((current) => mergeMessages(current, [result.data as GroupMessageRow]));
+      }
       requestAnimationFrame(() => {
         scrollRef.current?.scrollToEnd({ animated: true });
       });
 
       if (Platform.OS !== 'web') {
         void supabase.functions
-          .invoke('send-bajuju-group-chat-push', { body: { groupId } })
+          .invoke('send-bajuju-group-chat-push', { body: { groupId, ...(sendAsBajuju ? { asBajuju: true } : {}) } })
           .then(({ error }) => {
             if (error) console.log('Push chat gruppo non inviata.');
           })
@@ -365,7 +377,9 @@ export function BajujuGroupChat({ groupId, currentUserId, canUseChat, members }:
       <View style={styles.titleRow}>
         <View>
           <Text style={styles.sectionTitle}>Chat del gruppo</Text>
-          <Text style={styles.sectionHint}>La chat resta compatta: scorri qui dentro per vedere i messaggi.</Text>
+          <Text style={styles.sectionHint}>
+            {sendAsBajuju ? ADMIN_AS_BAJUJU_HINT : 'La chat resta compatta: scorri qui dentro per vedere i messaggi.'}
+          </Text>
         </View>
         {!atBottom && messages.length > 0 ? (
           <Pressable style={styles.jumpButton} onPress={scrollToLatest} accessibilityLabel="Vai agli ultimi messaggi">

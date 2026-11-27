@@ -1327,6 +1327,7 @@ export default function GroupDetailScreen() {
                 currentUserId={currentUserId}
                 canUseChat={canInteract}
                 members={members}
+                sendAsBajuju={isAdmin && !joined && !isOwner}
               />
             ) : null}
 

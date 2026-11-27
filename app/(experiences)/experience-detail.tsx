@@ -50,6 +50,7 @@ import { loadPromotedEventIds } from '../../src/lib/promotedEvents';
 import { useBajujuAuthorProfiles } from '../../src/hooks/useBajujuAuthorProfiles';
 import { BajujuCancelEventModal } from '../../src/components/experiences/BajujuCancelEventModal';
 import { BajujuRemoveParticipantModal } from '../../src/components/experiences/BajujuRemoveParticipantModal';
+import { ADMIN_AS_BAJUJU_HINT, sendChatAsBajuju } from '../../src/utils/sendChatAsBajuju';
 
 const bajujuLogo = require('../../assets/brand/bajuju-logo.png');
 
@@ -453,7 +454,9 @@ export default function ExperienceDetailScreen() {
   const isFull = maxParticipants > 0 && participantCount >= maxParticipants;
   const approvalRequired = experience?.join_approval_required === true;
 
-  const canUseChat = isOrganizer || isParticipant;
+  // Gli admin leggono e scrivono in tutte le chat; dove non partecipano scrivono come "Bajuju".
+  const writesAsBajuju = isCurrentUserAdmin && !isOrganizer && !isParticipant;
+  const canUseChat = isOrganizer || isParticipant || isCurrentUserAdmin;
   const canShowInviteOut = canUseChat && canInviteOutAfterExperience(experience);
   // Eventi premium (promozionali): niente chat, per nessuno. Resta solo la Galleria.
   const chatHidden = isPromoted;
@@ -1030,16 +1033,20 @@ export default function ExperienceDetailScreen() {
     setSendingMessage(true);
 
     try {
-      const result = await supabase.from('activity_messages').insert({
-        activity_id: experienceId,
-        sender_id: currentUserId,
-        message: cleanMessage,
-        ...(imageUrl ? { image_url: imageUrl } : {}),
-      });
+      const insertError = writesAsBajuju
+        ? (await sendChatAsBajuju('activity', experienceId, cleanMessage, imageUrl)).error
+        : (
+            await supabase.from('activity_messages').insert({
+              activity_id: experienceId,
+              sender_id: currentUserId,
+              message: cleanMessage,
+              ...(imageUrl ? { image_url: imageUrl } : {}),
+            })
+          ).error?.message || null;
 
-      if (result.error) {
+      if (insertError) {
         if (typeof window !== 'undefined') {
-          window.alert(`Errore invio messaggio: ${result.error.message}`);
+          window.alert(`Errore invio messaggio: ${insertError}`);
         }
         return;
       }
@@ -1056,6 +1063,7 @@ export default function ExperienceDetailScreen() {
             body: {
               activityId: experienceId,
               message: cleanMessage,
+              ...(writesAsBajuju ? { asBajuju: true } : {}),
             },
           })
           .then(({ error }) => {
@@ -1968,6 +1976,10 @@ export default function ExperienceDetailScreen() {
                         ) : null}
                         </View>
                       )}
+
+                      {writesAsBajuju ? (
+                        <Text style={styles.emptySmallText}>{ADMIN_AS_BAJUJU_HINT}</Text>
+                      ) : null}
 
                       <BajujuReactionPicker
                         visible={Boolean(reactingTo)}

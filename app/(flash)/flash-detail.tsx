@@ -5,6 +5,7 @@ import { supabase } from '../../src/lib/supabase';
 import { KeyboardAwareScrollView } from '../../src/components/KeyboardAwareScrollView';
 import { useChatLiveRefresh } from '../../src/hooks/useChatLiveRefresh';
 import { useBajujuAdminIds } from '../../src/hooks/useBajujuAdminIds';
+import { ADMIN_AS_BAJUJU_HINT, sendChatAsBajuju } from '../../src/utils/sendChatAsBajuju';
 import { BajujuLinkText } from '../../src/components/chat/BajujuLinkText';
 import { BajujuChatPhoto, BajujuChatPhotoButton } from '../../src/components/chat/BajujuChatPhoto';
 import { CHAT_PHOTO_PLACEHOLDER, chatPhotoCaption } from '../../src/lib/bajujuChatPhotos';
@@ -302,7 +303,10 @@ export default function FlashDetailScreen() {
     (item) => String(firstValue(item, ['user_id'], '') || '') === String(currentUserId || '')
   );
 
-  const canUseChat = isOrganizer || isParticipant;
+  // Gli admin leggono e scrivono in tutte le chat; dove non partecipano scrivono come "Bajuju".
+  const isCurrentUserAdmin = Boolean(currentUserId && adminIds.has(String(currentUserId)));
+  const writesAsBajuju = isCurrentUserAdmin && !isOrganizer && !isParticipant;
+  const canUseChat = isOrganizer || isParticipant || isCurrentUserAdmin;
 
   const [reactingTo, setReactingTo] = useState<string | null>(null);
   const reactions = useBajujuMessageReactions('activity', flashId, currentUserId, messages.length > 0);
@@ -333,16 +337,20 @@ export default function FlashDetailScreen() {
     setSendingMessage(true);
 
     try {
-      const result = await supabase.from('activity_messages').insert({
-        activity_id: flashId,
-        sender_id: currentUserId,
-        message: cleanMessage,
-        ...(imageUrl ? { image_url: imageUrl } : {}),
-      });
+      const insertError = writesAsBajuju
+        ? (await sendChatAsBajuju('activity', flashId, cleanMessage, imageUrl)).error
+        : (
+            await supabase.from('activity_messages').insert({
+              activity_id: flashId,
+              sender_id: currentUserId,
+              message: cleanMessage,
+              ...(imageUrl ? { image_url: imageUrl } : {}),
+            })
+          ).error?.message || null;
 
-      if (result.error) {
+      if (insertError) {
         if (typeof window !== 'undefined') {
-          window.alert(`Errore invio messaggio: ${result.error.message}`);
+          window.alert(`Errore invio messaggio: ${insertError}`);
         }
         return;
       }
@@ -471,6 +479,8 @@ export default function FlashDetailScreen() {
           {!canUseChat ? (
             <Text style={styles.mutedText}>La chat è visibile, ma puoi scrivere solo se partecipi al Flash.</Text>
           ) : null}
+
+          {writesAsBajuju ? <Text style={styles.mutedText}>{ADMIN_AS_BAJUJU_HINT}</Text> : null}
 
           {messages.length === 0 ? (
             <Text style={styles.mutedText}>Ancora nessun messaggio.</Text>

@@ -511,7 +511,7 @@ export default function UserProfileScreen() {
 
   const profileActions = currentUserId && currentUserId !== userId ? (
     <>
-      {viewerIsOfficialAdmin ? (
+      {viewerIsAdmin ? (
         <Pressable
           style={styles.adminMessageButton}
           onPress={() => router.push({
@@ -521,7 +521,7 @@ export default function UserProfileScreen() {
           accessibilityRole="button"
           accessibilityLabel="Scrivi un messaggio privato come Bajuju Admin"
         >
-          <Text style={styles.adminMessageButtonText}>💬 Scrivi come Bajuju Admin</Text>
+          <Text style={styles.adminMessageButtonText}>Scrivi come Bajuju</Text>
         </Pressable>
       ) : null}
   
@@ -607,9 +607,9 @@ export default function UserProfileScreen() {
 
   function openProfileMenu() {
     const options: { text: string; style?: 'destructive' | 'cancel'; onPress?: () => void }[] = [];
-    if (viewerIsOfficialAdmin) {
+    if (viewerIsAdmin) {
       options.push({
-        text: 'Scrivi come Bajuju Admin',
+        text: 'Scrivi come Bajuju',
         onPress: () => router.push({ pathname: '/admin-private-chat' as any, params: { userId } }),
       });
     }
@@ -755,6 +755,18 @@ export default function UserProfileScreen() {
               </View>
             ))}
           </View>
+
+          {viewerIsAdmin && isOtherUser ? (
+            // Solo admin: apre la chat "Chiedi a Bajuju" con questa persona, il messaggio arriva come Bajuju.
+            <Pressable
+              style={styles.adminMessageButton}
+              onPress={() => router.push({ pathname: '/admin-private-chat' as any, params: { userId } })}
+              accessibilityRole="button"
+              accessibilityLabel="Scrivi un messaggio come Bajuju"
+            >
+              <Text style={styles.adminMessageButtonText}>Scrivi come Bajuju</Text>
+            </Pressable>
+          ) : null}
         </ScrollView>
 
         {canInvite ? (

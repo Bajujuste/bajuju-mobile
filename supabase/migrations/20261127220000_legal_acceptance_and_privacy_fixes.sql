@@ -115,7 +115,7 @@ revoke all on function public.bajuju_accept_legal(text, text, text) from public,
 grant execute on function public.bajuju_legal_status() to authenticated;
 grant execute on function public.bajuju_accept_legal(text, text, text) to authenticated;
 revoke all on function public.bajuju_current_legal_version() from public;
-grant execute on function public.bajuju_current_legal_version() to anon, authenticated, service_role;
+grant execute on function public.bajuju_current_legal_version() to authenticated, service_role;
 
 -- Registrazione: l'app invia nei metadati legal_accepted=true e legal_version. Data e ora sono quelle del server.
 create or replace function public.handle_new_user()
@@ -275,3 +275,6 @@ as $$
 $$;
 revoke all on function public.bajuju_account_storage_objects(uuid) from public, anon, authenticated;
 grant execute on function public.bajuju_account_storage_objects(uuid) to service_role;
+
+-- La versione serve solo agli utenti autenticati e al trigger di registrazione.
+revoke execute on function public.bajuju_current_legal_version() from anon;

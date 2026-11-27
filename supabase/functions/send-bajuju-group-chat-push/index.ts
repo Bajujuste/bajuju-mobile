@@ -37,7 +37,7 @@ Deno.serve(async (request) => {
   const { data: userData, error: userError } = await authClient.auth.getUser();
   if (userError || !userData.user) return jsonResponse({ error: 'Authentication required' }, 401);
 
-  let payload: { groupId?: string };
+  let payload: { groupId?: string; asBajuju?: boolean };
   try {
     payload = await request.json();
   } catch {
@@ -49,10 +49,22 @@ Deno.serve(async (request) => {
     return jsonResponse({ error: 'groupId non valido' }, 400);
   }
 
-  const senderId = userData.user.id;
   const supabase = createClient(supabaseUrl, serviceRoleKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
+
+  // Admin che scrive come "Bajuju" dove non partecipa: il messaggio è salvato con l'account ufficiale Bajuju.
+  let senderId = userData.user.id;
+  if (payload.asBajuju === true) {
+    const adminResult = await supabase.from('profiles').select('is_admin,is_deleted').eq('id', senderId).maybeSingle();
+    if (!adminResult.data?.is_admin || adminResult.data?.is_deleted) {
+      return jsonResponse({ error: 'Solo gli admin possono scrivere come Bajuju' }, 403);
+    }
+    const mainAdminResult = await supabase.rpc('bajuju_main_admin_id');
+    const mainAdminId = String(mainAdminResult.data || '').trim();
+    if (mainAdminResult.error || !mainAdminId) return jsonResponse({ error: 'Account Bajuju non trovato' }, 500);
+    senderId = mainAdminId;
+  }
 
   const [groupResult, membersResult, latestMessageResult] = await Promise.all([
     supabase.from('groups').select('id,owner_id,name,status').eq('id', groupId).maybeSingle(),

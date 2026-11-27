@@ -15,7 +15,8 @@ import {
   View,
 } from 'react-native';
 
-import { EXPERIENCE_CATEGORIES, normalizeExperienceCategory } from '@/constants/experienceCategories';
+import { EXPERIENCE_CATEGORIES, categoryAllowsWalkTogether, normalizeExperienceCategory } from '@/constants/experienceCategories';
+import { loadWalkTogetherState, setWalkTogetherEnabled } from '../../src/lib/walkTogether';
 import { AddressAutocompleteField } from '../../src/components/AddressAutocompleteField';
 import type { ResolvedAddress } from '../../src/lib/addressAutocomplete';
 import { tidyCityName } from '../../src/utils/cityName';
@@ -72,6 +73,8 @@ function categoryToDatabaseValue(value: string) {
       return 'aperitivo';
     case 'Camminata':
       return 'passeggiata';
+    case 'Trekking':
+      return 'trekking';
     case 'Sport':
       return 'sport';
     case 'Cultura':
@@ -120,6 +123,9 @@ export default function EditExperienceScreen() {
   const [minAge, setMinAge] = useState('18');
   const [maxAge, setMaxAge] = useState('80');
   const [budgetAmount, setBudgetAmount] = useState('');
+  const [walkTogether, setWalkTogether] = useState(false);
+  const [initialWalkTogether, setInitialWalkTogether] = useState(false);
+  const canWalkTogether = categoryAllowsWalkTogether(category);
 
   const loadExperience = useCallback(async () => {
     setLoading(true);
@@ -235,6 +241,9 @@ export default function EditExperienceScreen() {
       setMinAge(hasAgeRestriction ? String(row.min_age) : '18');
       setMaxAge(hasAgeRestriction ? String(row.max_age) : '80');
       setBudgetAmount(row.budget_amount !== null && row.budget_amount !== undefined ? String(row.budget_amount) : '');
+      const walkState = await loadWalkTogetherState(experienceId);
+      setWalkTogether(walkState.enabled);
+      setInitialWalkTogether(walkState.enabled);
     } catch (error: any) {
       setErrorText(error?.message || 'Errore durante il caricamento dell’evento.');
     } finally {
@@ -396,9 +405,22 @@ export default function EditExperienceScreen() {
         setPhotoUrl(replacementPhotoUrl);
         setNewPhotoUri(null);
       }
+
+      // "Vediamoci in cammino": si salva solo se è cambiato (o se la categoria non lo permette più).
+      let walkWarning = '';
+      const wantedWalkTogether = canWalkTogether && walkTogether;
+      if (wantedWalkTogether !== initialWalkTogether) {
+        try {
+          await setWalkTogetherEnabled(experienceId, wantedWalkTogether);
+          setInitialWalkTogether(wantedWalkTogether);
+        } catch (error: any) {
+          walkWarning = ` Vediamoci in cammino non salvato: ${error?.message || 'riprova.'}`;
+        }
+      }
+
       Alert.alert(
         'Evento aggiornato',
-        'Le modifiche sono state salvate. La fascia d’età vale solo per le nuove partecipazioni: chi è già nell’evento rimane dentro.',
+        `Le modifiche sono state salvate. La fascia d’età vale solo per le nuove partecipazioni: chi è già nell’evento rimane dentro.${walkWarning}`,
         [
         {
           text: 'Apri evento',
@@ -515,6 +537,31 @@ export default function EditExperienceScreen() {
                   </Pressable>
                 ))}
               </View>
+
+              {canWalkTogether ? (
+                <>
+                  <Text style={styles.label}>Vediamoci in cammino</Text>
+                  <View style={styles.approvalModeRow}>
+                    {[
+                      { value: false, label: 'No' },
+                      { value: true, label: 'Sì' },
+                    ].map((option) => (
+                      <Pressable
+                        key={option.label}
+                        style={[styles.approvalModeButton, walkTogether === option.value && styles.approvalModeButtonActive]}
+                        onPress={() => setWalkTogether(option.value)}
+                      >
+                        <Text style={[styles.approvalModeText, walkTogether === option.value && styles.approvalModeTextActive]}>
+                          {option.label}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                  <Text style={styles.hint}>
+                    Il giorno dell’evento chi partecipa preme “Sono qui” e vede a che distanza sono gli altri. Funziona con l’app aperta.
+                  </Text>
+                </>
+              ) : null}
 
               <View style={styles.row}>
                 <View style={styles.rowItem}>

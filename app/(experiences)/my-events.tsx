@@ -16,6 +16,8 @@ import { BajujuIcon } from '../../src/components/icons/BajujuIcon';
 import { BajujuBottomNav } from '../../src/components/navigation/BajujuBottomNav';
 import { BajujuProfileButton } from '../../src/components/navigation/BajujuProfileButton';
 import { EventCardImage } from '../../src/components/events/EventCardImage';
+import { PendingRequestsBadge } from '../../src/components/common/PendingRequestsBadge';
+import { useMyPendingJoinRequests } from '../../src/hooks/useMyPendingJoinRequests';
 import { supabase } from '../../src/lib/supabase';
 import {
   BAJUJU_COLORS,
@@ -112,6 +114,7 @@ export default function MyEventsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [loadedAt, setLoadedAt] = useState(Date.now());
+  const pendingRequests = useMyPendingJoinRequests();
   const [selectedTab, setSelectedTab] = useState<'upcoming' | 'past' | null>(null);
 
   const loadMyEvents = useCallback(async (mode: 'initial' | 'refresh' = 'initial') => {
@@ -268,12 +271,15 @@ export default function MyEventsScreen() {
           pressed && styles.pressed,
         ]}
       >
-        <EventCardImage
-          uri={String(item.photo_url || '')}
-          fallback={bajujuLogo}
-          resizeMode="cover"
-          style={styles.eventImage}
-        />
+        <View>
+          <EventCardImage
+            uri={String(item.photo_url || '')}
+            fallback={bajujuLogo}
+            resizeMode="cover"
+            style={styles.eventImage}
+          />
+          <PendingRequestsBadge count={organizedByMe ? pendingRequests.activities[String(item.id)] : 0} style={styles.pendingBadge} />
+        </View>
 
         <View style={styles.eventBody}>
           <Text style={[styles.eventTitle, cancelled && styles.eventTitleCancelled]} numberOfLines={2}>
@@ -522,6 +528,7 @@ const styles = StyleSheet.create({
     borderColor: '#E7C56A',
     backgroundColor: '#FFFDF5',
   },
+  pendingBadge: { top: -6, right: -6 },
   eventImage: {
     width: 76,
     height: 76,

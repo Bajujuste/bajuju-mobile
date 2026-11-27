@@ -232,7 +232,7 @@ export function BajujuWalkTogetherCard({ activityId, currentUserId, getPerson }:
       <View style={styles.card}>
         {header}
         <Text style={styles.text}>
-          Il giorno dell’evento potrai premere “Sono qui” e vedere a che distanza sono gli altri.
+          Il giorno dell’evento potrai premere “Sono qui” e vedere a che distanza sono gli altri, per non lasciare indietro nessuno.
         </Text>
       </View>
     );

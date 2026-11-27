@@ -1,8 +1,10 @@
+import Constants from 'expo-constants';
 import { router } from 'expo-router';
 import React, { useState, useEffect } from 'react';
 import {
   ActivityIndicator,
   Image,
+  Platform,
   Pressable,
   SafeAreaView,
   StyleSheet,
@@ -12,6 +14,7 @@ import {
 } from 'react-native';
 
 import { trackAcquisition } from '../../src/utils/acquisitionAnalytics';
+import { LEGAL_ACCEPTANCE_LABEL, LEGAL_VERSION } from '../../src/legal/legalContent';
 
 import { supabase } from '../../src/lib/supabase';
 import { KeyboardAwareScrollView } from '../../src/components/KeyboardAwareScrollView';
@@ -137,7 +140,7 @@ export default function RegisterScreen() {
     if (!acceptedTerms) {
       trackAcquisition('register_error', 'termini');
       setMessageTitle('Accettazione richiesta');
-      setMessageText('Per registrarti devi accettare Termini, Privacy e le regole di tolleranza zero contro abusi e contenuti offensivi.');
+      setMessageText('Per registrarti devi accettare i Termini e dichiarare di aver letto l’informativa privacy.');
       return;
     }
 
@@ -167,6 +170,12 @@ export default function RegisterScreen() {
             display_name: cleanProfileName,
             full_name: cleanProfileName,
             name: cleanProfileName,
+            // Il trigger handle_new_user registra l'accettazione con l'ora del server
+            // solo se la versione coincide con app_settings.legal_version.
+            legal_accepted: 'true',
+            legal_version: LEGAL_VERSION,
+            legal_platform: Platform.OS,
+            legal_app_version: Constants.expoConfig?.version ?? '',
           },
         }),
       });
@@ -243,15 +252,8 @@ export default function RegisterScreen() {
           return;
         }
 
-        // La spunta su Termini e Privacy prima non veniva salvata da nessuna parte.
-        try {
-          await supabase
-            .from('profiles')
-            .update({ terms_accepted_at: new Date().toISOString() })
-            .eq('id', newUserId);
-        } catch {
-          // Non bloccare la registrazione se questo salvataggio non riesce.
-        }
+        // Accettazione di Termini e presa visione privacy: salvate dal trigger handle_new_user
+        // (tabella legal_acceptances, con data, ora e versione).
 
         setMessageTitle('Registrazione avvenuta con successo');
         setMessageText('Il tuo account è stato creato. Ora completa il profilo.');
@@ -343,21 +345,28 @@ export default function RegisterScreen() {
             <Pressable
               style={styles.termsRow}
               onPress={() => setAcceptedTerms((value) => !value)}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: acceptedTerms }}
+              accessibilityLabel={LEGAL_ACCEPTANCE_LABEL}
             >
               <View style={[styles.checkbox, acceptedTerms && styles.checkboxSelected]}>
                 <Text style={styles.checkboxText}>{acceptedTerms ? '✓' : ''}</Text>
               </View>
               <Text style={styles.termsText}>
-                Accetto i Termini e dichiaro di aver letto l’informativa privacy. Bajuju applica tolleranza zero verso contenuti offensivi, molestie e utenti abusivi.
+                {LEGAL_ACCEPTANCE_LABEL}
               </Text>
             </Pressable>
 
+            <Text style={styles.termsNote}>
+              Bajuju applica tolleranza zero verso contenuti offensivi, molestie e utenti abusivi.
+            </Text>
+
             <View style={styles.termsLinks}>
               <Pressable onPress={() => router.push('/rules')}>
-                <Text style={styles.termsLinkText}>Leggi Termini e Regole</Text>
+                <Text style={styles.termsLinkText}>Leggi i Termini</Text>
               </Pressable>
               <Pressable onPress={() => router.push('/privacy')}>
-                <Text style={styles.termsLinkText}>Leggi Privacy</Text>
+                <Text style={styles.termsLinkText}>Leggi l’informativa privacy</Text>
               </Pressable>
             </View>
 
@@ -541,6 +550,13 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: 'FredokaBold',
     lineHeight: 19,
+  },
+  termsNote: {
+    color: '#8D5E77',
+    fontSize: 12,
+    fontFamily: 'FredokaRegular',
+    lineHeight: 17,
+    marginBottom: 10,
   },
   termsLinks: {
     flexDirection: 'row',

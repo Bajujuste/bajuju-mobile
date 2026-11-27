@@ -2073,7 +2073,7 @@ export default function ExperienceDetailScreen() {
 
                     {!canUseAlbum ? (
                       <Text style={styles.albumHint}>
-                        La galleria si sblocca per organizzatore e partecipanti.
+                        La galleria è visibile soltanto a organizzatore e partecipanti.
                       </Text>
                     ) : userAlbumLimitReached ? (
                       <Text style={styles.albumHint}>
@@ -2085,7 +2085,7 @@ export default function ExperienceDetailScreen() {
                       </Text>
                     ) : null}
 
-                    {albumPhotos.length === 0 ? (
+                    {!canUseAlbum ? null : albumPhotos.length === 0 ? (
                       <Text style={styles.emptySmallText}>
                         Nessuna foto ancora. Le foto dei partecipanti appariranno qui.
                       </Text>

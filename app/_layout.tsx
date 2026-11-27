@@ -10,6 +10,7 @@ import 'react-native-reanimated';
 
 import { AdminPrivateChatEntry } from '../src/components/admin/AdminPrivateChatEntry';
 import { OtaUpdatingNotice } from '../src/components/app/OtaUpdatingNotice';
+import { LegalAcceptanceGate } from '../src/components/app/LegalAcceptanceGate';
 import { SuspendedAccountGate } from '../src/components/app/SuspendedAccountGate';
 import { supabase } from '../src/lib/supabase';
 import { useAppUpdatePrompt } from '../src/utils/appUpdatePrompt';
@@ -237,6 +238,7 @@ export default function RootLayout() {
         </Stack>
         <AdminPrivateChatEntry />
         <SuspendedAccountGate />
+        <LegalAcceptanceGate />
         <OtaUpdatingNotice />
       </SafeAreaView>
       <StatusBar style="dark" backgroundColor="#FFF9FC" />

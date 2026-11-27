@@ -1,0 +1,348 @@
+{
+  "version": "2026-11-27",
+  "versionLabel": "27 novembre 2026",
+  "controller": {
+    "name": "Stefano Viola",
+    "vat": "10222100967",
+    "city": "Caprino Bergamasco (BG)",
+    "privacyEmail": "privacy@bajuju.it",
+    "generalEmail": "info@bajuju.it",
+    "pec": "stefanoviolamilano@pec.it"
+  },
+  "acceptanceLabel": "Accetto i Termini e dichiaro di aver letto l’informativa privacy",
+  "updateSummary": [
+    "Descriviamo in modo preciso gruppi, bacheche, commenti, like, sondaggi, approvazioni ed espulsioni.",
+    "Indichiamo chi può vedere ogni dato, comprese le pagine web degli eventi e le immagini accessibili tramite link.",
+    "Spieghiamo come salviamo la posizione per le notifiche entro 25 km, per Flash e per «Vediamoci in cammino».",
+    "Gli eventi pubblici degli utenti possono essere promossi sui profili social di Bajuju: puoi opporti scrivendo a privacy@bajuju.it.",
+    "Elenchiamo i fornitori utilizzati e i tempi di conservazione effettivi, senza promettere cancellazioni automatiche che non avvengono.",
+    "Le foto della galleria di un evento sono ora visibili soltanto a organizzatore e partecipanti, e la partecipazione a un evento non equivale al consenso a essere fotografati."
+  ],
+  "privacy": {
+    "title": "Informativa privacy di Bajuju",
+    "subtitle": "Informativa sul trattamento dei dati personali ai sensi degli articoli 13 e 14 del Regolamento (UE) 2016/679 (GDPR)",
+    "sections": [
+      {
+        "title": "1. Titolare del trattamento e contatti",
+        "blocks": [
+          "Il titolare del trattamento è Stefano Viola, P.IVA 10222100967, con sede a Caprino Bergamasco (BG), PEC stefanoviolamilano@pec.it, che gestisce l’app Bajuju e il sito www.bajuju.it.",
+          "Per richieste sulla privacy e per esercitare i tuoi diritti scrivi a privacy@bajuju.it. Per assistenza generale puoi scrivere a info@bajuju.it o usare la chat «Chiedi a Bajuju» nell’app. Non è stato nominato un responsabile della protezione dei dati (DPO)."
+        ]
+      },
+      {
+        "title": "2. A cosa si applica",
+        "blocks": [
+          "Questa informativa riguarda l’app Bajuju per iPhone e Android, il sito www.bajuju.it e le pagine web che mostrano singoli eventi e gruppi. Bajuju è riservato a persone che hanno compiuto 18 anni."
+        ]
+      },
+      {
+        "title": "3. Quali dati trattiamo",
+        "blocks": [
+          "In base alle funzioni che usi trattiamo:",
+          [
+            "Account: email, password (conservata in forma cifrata dal fornitore di autenticazione), identificativo dell’account, data di registrazione e di accesso, stato dell’account (attivo, sospeso, bloccato) e la registrazione della tua accettazione dei Termini e della presa visione di questa informativa, con data, ora e versione dei testi.",
+            "Profilo: nome utente, foto profilo, età espressa in anni, comune e genere (uomo, donna o non binario) sono richiesti per completare il profilo. Sono facoltativi provincia o zona, descrizione, interessi, cose che non ti piacciono e la scelta di ricevere richieste di contatto diretto.",
+            "Eventi e Flash: eventi che crei (titolo, descrizione, categoria, comune, luogo e indirizzo di ritrovo con le relative coordinate, data e ora, numero di posti, limiti di età, eventuale approvazione dei partecipanti, foto di copertina), iscrizioni, richieste di partecipazione e relative decisioni, liste d’attesa, rinunce, promemoria, organizzatori che segui. Per Flash: disponibilità indicate, tipo di attività, durata e posizione approssimata.",
+            "Gruppi: gruppi che crei (nome, descrizione, comune, categoria, colori, copertina, logo, limiti di età, eventuale approvazione delle iscrizioni), iscrizioni, ruolo di proprietario, amministratore o membro, richieste di ingresso e decisioni, espulsioni, eventi collegati al gruppo, messaggi della chat di gruppo, post e foto della bacheca, post fissati, commenti, like, sondaggi e voti.",
+            "Comunicazioni: messaggi e foto nelle chat degli eventi e dei gruppi, reazioni ai messaggi, conversazioni con lo staff nella chat «Chiedi a Bajuju», inviti e richieste di contatto diretto, compreso il numero di telefono se scegli di condividerlo.",
+            "Posizione: le coordinate descritte nella sezione 8, solo se concedi il permesso di posizione del dispositivo.",
+            "Locali e sconti: per chi registra un’attività, nome, categoria, descrizione, indirizzo, coordinate, foto, telefono, WhatsApp, sito web, profili social e stato della richiesta; per gli sconti, testo dell’offerta, foto e indirizzo.",
+            "Sicurezza e moderazione: segnalazioni inviate e ricevute, blocchi tra utenti, liste personali di utenti da non mostrare, sospensioni, blocchi ed espulsioni dai gruppi; per gli account bloccati dalla piattaforma, l’email, per impedire nuove registrazioni abusive.",
+            "Notifiche: token di notifica del dispositivo, piattaforma, nome del dispositivo, versione dell’app, preferenze di notifica e registro delle notifiche inviate (titolo, testo ed esito).",
+            "Statistiche e diagnostica: eventi di utilizzo dell’app (ad esempio apertura della home o della ricerca, apertura di una notifica, creazione di un evento) ed errori tecnici, associati al tuo account e alla piattaforma; conteggi delle visite al sito, dei passaggi di registrazione e dei clic verso gli store, raccolti con un identificativo casuale di sessione non collegato all’account e con la provenienza generica (Instagram, Facebook, altro sito o accesso diretto).",
+            "Dati tecnici: indirizzo IP, tipo di dispositivo e di browser e log registrati dai nostri fornitori per far funzionare e proteggere il servizio."
+          ]
+        ]
+      },
+      {
+        "title": "4. Dati particolari",
+        "blocks": [
+          "Bajuju non chiede dati relativi a salute, religione, opinioni politiche, orientamento sessuale, origine etnica, appartenenza sindacale, dati genetici o biometrici. Ti chiediamo di non inserirli nel profilo, negli eventi, nei gruppi o nelle chat. Il genere richiesto nel profilo non riguarda l’orientamento sessuale."
+        ]
+      },
+      {
+        "title": "5. Perché trattiamo i dati e su quale base giuridica",
+        "blocks": [
+          [
+            "Creare e gestire l’account e il profilo, permetterti di creare e cercare eventi, Flash e gruppi, iscriverti, chattare, pubblicare in bacheca e ricevere le notifiche richieste: esecuzione del contratto di servizio che accetti con i Termini (art. 6.1.b GDPR).",
+            "Verificare l’età minima e i limiti di età fissati per eventi e gruppi: esecuzione del contratto e legittimo interesse alla sicurezza della community (art. 6.1.f).",
+            "Moderazione, gestione delle segnalazioni, prevenzione di abusi, spam e truffe, conservazione dei blocchi e delle espulsioni: legittimo interesse alla sicurezza degli utenti e del servizio e adempimento degli obblighi previsti per le piattaforme online.",
+            "Statistiche interne e diagnostica per capire quali funzioni sono usate e correggere gli errori: legittimo interesse a migliorare il servizio. Queste informazioni non sono usate per pubblicità, profilazione commerciale o vendita a terzi.",
+            "Promozione degli eventi pubblici sui profili social di Bajuju (sezione 9): legittimo interesse a far conoscere il servizio e gli eventi agli interessati.",
+            "Rispondere alle richieste di assistenza e inviare comunicazioni di servizio (conferma dell’account, recupero password, avvisi su modifiche dei testi): esecuzione del contratto.",
+            "Adempiere a obblighi di legge, rispondere alle autorità e difendere diritti in sede giudiziaria o stragiudiziale: obbligo legale e legittimo interesse."
+          ],
+          "Bajuju non invia newsletter o email promozionali agli utenti e non vende dati personali."
+        ]
+      },
+      {
+        "title": "6. Dati obbligatori e facoltativi",
+        "blocks": [
+          "Email, password e nome utente sono necessari per creare l’account, e l’accettazione dei Termini è necessaria per usare il servizio. Foto profilo, età, comune e genere sono necessari per completare il profilo e usare le funzioni principali. Senza questi dati non puoi usare Bajuju. Gli altri dati sono facoltativi: se non li fornisci alcune funzioni non sono disponibili, ad esempio le notifiche geografiche senza posizione."
+        ]
+      },
+      {
+        "title": "7. Chi può vedere i tuoi dati",
+        "blocks": [
+          [
+            "Altri utenti registrati: nome utente, foto, età, genere, comune, descrizione, interessi e eventi che organizzi; eventi pubblicati e relativi partecipanti; disponibilità Flash attive; schede di locali e sconti; gruppi attivi. Se tu e un altro utente vi bloccate, i vostri profili e contenuti non vengono mostrati l’uno all’altro.",
+            "Chiunque, anche senza account, tramite link: la pagina web di un evento mostra titolo, descrizione, comune e provincia, data, ora e foto di copertina, ma non il nome dell’organizzatore né i partecipanti; la pagina web di un gruppo ne mostra nome, descrizione, comune, categoria e copertina.",
+            "Chat e galleria di un evento: organizzatore e partecipanti. La galleria accetta fino a 15 foto, al massimo 3 per persona.",
+            "Gruppi: la chat è visibile ai membri; la bacheca, con post, commenti e like, è visibile a tutti gli utenti registrati se l’iscrizione al gruppo è libera e soltanto ai membri se l’iscrizione richiede approvazione. Proprietario e amministratori del gruppo vedono le richieste di ingresso e gestiscono membri, espulsioni e contenuti.",
+            "Richieste di contatto diretto: mittente e destinatario. Il numero di telefono che scegli di condividere diventa visibile al destinatario.",
+            "Staff di Bajuju: gli amministratori della piattaforma hanno accesso tecnico a tutti i dati del servizio, comprese chat, bacheche e contenuti dei gruppi, e li consultano solo per assistenza, moderazione, sicurezza e manutenzione.",
+            "Immagini: foto profilo, foto degli eventi, delle chat e dei gruppi sono archiviate con un indirizzo web non indicizzato. Nell’app sono mostrate solo alle persone indicate sopra, ma chi possiede l’indirizzo diretto di un’immagine può aprirla anche fuori dall’app."
+          ]
+        ]
+      },
+      {
+        "title": "8. Posizione e notifiche geografiche",
+        "blocks": [
+          "La posizione viene letta solo se concedi il permesso nelle impostazioni del dispositivo, e solo mentre usi l’app.",
+          [
+            "Distanze, mappa ed eventi vicini: la posizione è usata sul dispositivo per calcolare distanze e mostrare la mappa.",
+            "Notifiche di nuovi eventi: salviamo nel database le coordinate del dispositivo, così come le fornisce il telefono, insieme alla data dell’ultimo aggiornamento. Le usiamo per avvisarti dei nuovi eventi entro 25 km. Restano salvate finché non vengono aggiornate o finché non elimini l’account. Revocare il permesso impedisce nuovi aggiornamenti ma non cancella le coordinate già salvate: puoi chiederne la cancellazione a privacy@bajuju.it. Se la posizione non è disponibile, per le notifiche può essere usato il comune del profilo.",
+            "Flash: quando ti rendi disponibile salviamo una posizione arrotondata, con una precisione di circa 500 metri, visibile agli altri utenti registrati fino alla scadenza che scegli.",
+            "«Vediamoci in cammino»: durante un evento che lo prevede, la posizione che decidi di condividere è visibile agli altri partecipanti. Viene cancellata quando smetti di condividerla o quando l’organizzatore chiude la gita, e in ogni caso le posizioni più vecchie di un giorno vengono eliminate automaticamente ogni notte."
+          ]
+        ]
+      },
+      {
+        "title": "9. Promozione degli eventi sui social di Bajuju",
+        "blocks": [
+          "Gli eventi futuri pubblicati dagli utenti possono essere promossi sulle pagine Facebook e Instagram di Bajuju. Il post può contenere titolo, nome utente dell’organizzatore, comune e luogo, data, ora, descrizione e il link alla pagina dell’evento, su una grafica di Bajuju. Non usiamo la foto profilo né le foto caricate dagli utenti.",
+          "I post sono preparati con strumenti automatici, programmati tramite Metricool e pubblicati su Facebook e Instagram (Meta), dove restano visibili pubblicamente e possono essere condivisi da altri. Puoi opporti in qualsiasi momento scrivendo a privacy@bajuju.it: escluderemo i tuoi eventi dalle promozioni future e rimuoveremo i post già pubblicati dai profili di Bajuju."
+        ]
+      },
+      {
+        "title": "10. Fornitori che trattano i dati",
+        "blocks": [
+          "Per far funzionare Bajuju ci avvaliamo di fornitori che agiscono come responsabili del trattamento o, per i propri servizi, come titolari autonomi:",
+          [
+            "Supabase: database, autenticazione, archivio delle immagini e funzioni server, con server nell’Unione europea (Irlanda).",
+            "Netlify: hosting del sito www.bajuju.it e delle pagine web di eventi e gruppi.",
+            "Expo (650 Industries): distribuzione degli aggiornamenti dell’app e invio delle notifiche push, che vengono consegnate tramite i servizi di Apple e Google.",
+            "Google: mappe nell’app Android, ricerca degli indirizzi tramite Google Places (attraverso il nostro server), caratteri tipografici del sito (Google Fonts) e posta elettronica usata per la corrispondenza.",
+            "OpenStreetMap Foundation (servizio Nominatim): conversione dei nomi dei luoghi in coordinate in alcune schermate della mappa e di Flash; riceve il testo cercato e l’indirizzo IP del dispositivo.",
+            "Apple e Google: distribuzione dell’app tramite App Store e Google Play e, su iPhone, visualizzazione delle mappe.",
+            "Meta (Facebook e Instagram), Metricool e GitHub: pubblicazione, programmazione e archiviazione dei contenuti social descritti nella sezione 9.",
+            "Anthropic (Claude): assistente di intelligenza artificiale usato dal titolare per gestire alcune attività del servizio, come preparare le promozioni social degli eventi; riceve solo i dati necessari all’attività richiesta.",
+            "OpenAI: usato soltanto dallo staff per preparare gli eventi proposti direttamente da Bajuju a partire da testi inseriti dallo staff; non riceve i dati del tuo account.",
+            "Aruba: casella di posta elettronica di Bajuju."
+          ]
+        ]
+      },
+      {
+        "title": "11. Trasferimenti fuori dallo Spazio economico europeo",
+        "blocks": [
+          "Alcuni fornitori, tra cui Netlify, Expo, Google, Apple, Meta, GitHub, Anthropic e OpenAI, hanno sede o server negli Stati Uniti. In questi casi i trasferimenti avvengono sulla base del Data Privacy Framework UE-USA, quando il fornitore vi aderisce, o delle clausole contrattuali standard approvate dalla Commissione europea."
+        ]
+      },
+      {
+        "title": "12. Per quanto tempo conserviamo i dati",
+        "blocks": [
+          "Bajuju non cancella automaticamente gli account inattivi. In concreto:",
+          [
+            "Account, profilo e accettazioni dei Termini: finché l’account resta attivo.",
+            "Eventi, chat e gallerie degli eventi: restano archiviati anche dopo la data dell’evento o la sua cancellazione, finché l’organizzatore non elimina il proprio account. Non esiste una cancellazione automatica dopo un periodo prestabilito.",
+            "Messaggi che elimini: il testo viene sostituito con «Messaggio eliminato» e la foto non è più mostrata; restano autore, data e ora. Il file della foto può restare nell’archivio fino all’eliminazione del tuo account.",
+            "Gruppi: i post eliminati dalla bacheca vengono nascosti, ma il loro contenuto resta archiviato finché non viene eliminato il gruppo o l’account dell’autore. I commenti eliminati e i like rimossi vengono cancellati subito. Se esci o vieni espulso da un gruppo, i tuoi messaggi e post restano nel gruppo; l’espulsione resta registrata per impedire il rientro.",
+            "Posizione per le notifiche, disponibilità Flash e posizioni di «Vediamoci in cammino»: come descritto nella sezione 8. Le disponibilità Flash scadute restano archiviate fino all’eliminazione dell’account.",
+            "Statistiche di utilizzo collegate all’account: fino all’eliminazione dell’account. I conteggi anonimi del sito e della registrazione non sono collegati all’account e vengono conservati per le statistiche interne.",
+            "Segnalazioni, blocchi e misure di moderazione: per il tempo necessario a gestire il caso, prevenire abusi e difendere i diritti degli utenti e di Bajuju.",
+            "Log tecnici e copie di sicurezza: secondo i tempi di conservazione e di rotazione dei backup dei fornitori."
+          ]
+        ]
+      },
+      {
+        "title": "13. Eliminazione dell’account",
+        "blocks": [
+          "Puoi eliminare l’account dal tuo profilo nell’app. L’eliminazione è immediata e definitiva: vengono cancellati account, profilo e foto profilo, eventi che hai creato con le relative chat, gallerie e iscrizioni, partecipazioni, messaggi, post, commenti, like e voti nei gruppi, conversazioni con lo staff, richieste di contatto, disponibilità Flash, posizioni salvate, token e preferenze di notifica, statistiche di utilizzo collegate all’account e le immagini che hai caricato.",
+          "I gruppi di cui sei proprietario non vengono cancellati: passano a Bajuju insieme ai contenuti degli altri membri, così che la community del gruppo non perda i propri dati. Restano inoltre, senza collegamento al tuo account, il registro tecnico delle notifiche inviate, le segnalazioni che altri utenti hanno fatto nei tuoi confronti e, per gli account bloccati dalla piattaforma, l’email necessaria a impedire nuove registrazioni. Le copie nei backup dei fornitori vengono eliminate secondo i loro cicli di rotazione.",
+          "In alternativa puoi chiedere l’eliminazione scrivendo a privacy@bajuju.it dall’indirizzo email dell’account: risponderemo entro un mese."
+        ]
+      },
+      {
+        "title": "14. I tuoi diritti",
+        "blocks": [
+          "Puoi chiedere accesso ai tuoi dati, rettifica, cancellazione, limitazione del trattamento e portabilità, e puoi opporti ai trattamenti basati sul legittimo interesse, in particolare alle statistiche interne e alla promozione social dei tuoi eventi. Puoi correggere gran parte dei dati direttamente dal profilo e revocare i permessi di posizione e notifiche dalle impostazioni del dispositivo.",
+          "Scrivi a privacy@bajuju.it: rispondiamo entro un mese, prorogabile nei casi previsti dalla legge. Hai anche il diritto di presentare reclamo al Garante per la protezione dei dati personali (www.garanteprivacy.it)."
+        ]
+      },
+      {
+        "title": "15. Minori",
+        "blocks": [
+          "Bajuju è riservato a persone che hanno almeno 18 anni. Se scopriamo che un account appartiene a un minore lo sospendiamo o lo eliminiamo. Se ritieni che un minore stia usando Bajuju, scrivi a privacy@bajuju.it."
+        ]
+      },
+      {
+        "title": "16. Sito, cookie e memoria del dispositivo",
+        "blocks": [
+          "Il sito www.bajuju.it non usa cookie pubblicitari o di profilazione e non usa strumenti di tracciamento di terze parti come Google Analytics o Meta Pixel. Per contare le visite usa un identificativo casuale che resta nella pagina aperta e non viene salvato sul dispositivo. Il sito carica i caratteri tipografici da Google Fonts: per questo il tuo browser comunica a Google il proprio indirizzo IP.",
+          "L’app salva sul dispositivo la sessione di accesso e alcune preferenze tecniche necessarie al funzionamento."
+        ]
+      },
+      {
+        "title": "17. Sicurezza",
+        "blocks": [
+          "Usiamo autenticazione, regole di accesso al database per ogni tipo di dato, accessi amministrativi limitati e le misure di sicurezza dei fornitori. Nessun sistema è sicuro al cento per cento: usa una password che non usi altrove e segnalaci subito accessi sospetti. In caso di violazione dei dati che comporti rischi per gli utenti, informeremo il Garante e, quando necessario, le persone interessate."
+        ]
+      },
+      {
+        "title": "18. Modifiche e versione",
+        "blocks": [
+          "Possiamo aggiornare questa informativa quando cambiano il servizio, i fornitori o la normativa. Ogni versione riporta la data di aggiornamento. Ti avvisiamo delle modifiche rilevanti nell’app e, quando cambiano anche i Termini, ti chiediamo una nuova accettazione.",
+          "Versione 2026-11-27, in vigore dal 27 novembre 2026."
+        ]
+      }
+    ]
+  },
+  "terms": {
+    "title": "Termini e regole di Bajuju",
+    "subtitle": "Condizioni di utilizzo dell’app Bajuju e del sito www.bajuju.it",
+    "sections": [
+      {
+        "title": "1. Chi gestisce Bajuju",
+        "blocks": [
+          "Bajuju è gestito da Stefano Viola, P.IVA 10222100967, Caprino Bergamasco (BG), PEC stefanoviolamilano@pec.it. Contatti: info@bajuju.it per assistenza e segnalazioni, privacy@bajuju.it per la privacy, oppure la chat «Chiedi a Bajuju» nell’app."
+        ]
+      },
+      {
+        "title": "2. Il servizio",
+        "blocks": [
+          "Bajuju è una piattaforma gratuita per proporre e trovare esperienze ed eventi dal vivo, attività last minute (Flash), gruppi, locali e sconti, e per comunicare con le altre persone tramite chat e bacheche. Non sono previsti abbonamenti né pagamenti a Bajuju. Accettando questi Termini concludi con il gestore un contratto di servizio gratuito."
+        ]
+      },
+      {
+        "title": "3. Requisiti e account",
+        "blocks": [
+          [
+            "Puoi usare Bajuju solo se hai almeno 18 anni.",
+            "Per usare il servizio devi completare il profilo con foto, età, comune e genere. I dati devono essere veri, in particolare l’età, che determina l’accesso agli eventi e ai gruppi con limiti di età.",
+            "La foto profilo non deve violare i diritti di altre persone. Non creare profili falsi e non usare più account per aggirare blocchi o limiti.",
+            "Custodisci le credenziali: sei responsabile delle attività svolte con il tuo account."
+          ]
+        ]
+      },
+      {
+        "title": "4. Regole della community",
+        "blocks": [
+          [
+            "Rispetta sempre le altre persone.",
+            "Non pubblicare contenuti offensivi, falsi, pericolosi, discriminatori, sessualmente espliciti o contrari alla legge.",
+            "Proponi e partecipa solo a esperienze reali e lecite.",
+            "Bajuju applica tolleranza zero verso molestie, minacce, discriminazioni, spam, truffe e utenti abusivi.",
+            "Bajuju non è un’app di incontri: non usare il servizio per proposte di natura sessuale o insistenti.",
+            "Segnala contenuti, messaggi o profili sospetti con i pulsanti «Segnala» presenti nell’app.",
+            "Puoi bloccare un utente: da quel momento non vedrete più i rispettivi profili e contenuti. Puoi anche nascondere alcuni utenti con la tua lista personale.",
+            "Non pubblicare dati personali di altre persone senza il loro permesso."
+          ]
+        ]
+      },
+      {
+        "title": "5. Eventi ed esperienze",
+        "blocks": [
+          "Salvo diversa indicazione espressa, le esperienze sono proposte e svolte autonomamente dagli utenti e non sono organizzate, gestite o supervisionate da Bajuju. Chi propone una pizzata, una camminata, un aperitivo, una gita o un’altra esperienza agisce a titolo personale e informale: la pubblicazione non lo rende un organizzatore professionale, una guida, un accompagnatore, un istruttore o un garante della sicurezza degli altri partecipanti.",
+          [
+            "Chi organizza deve descrivere l’esperienza in modo veritiero, indicando luogo, orari, eventuali costi, requisiti e difficoltà, e non deve nascondere pericoli rilevanti di cui è a conoscenza.",
+            "Chi organizza può fissare limiti di età e richiedere l’approvazione dei partecipanti: in questo caso decide chi accettare. Quando i posti sono esauriti può esserci una lista d’attesa.",
+            "Chi organizza deve comunicare cambiamenti e cancellazioni il prima possibile tramite l’app.",
+            "Chi partecipa deve leggere le informazioni prima di iscriversi, iscriversi solo se intende partecipare e annullare l’iscrizione appena sa di non poter andare.",
+            "Gli eventi pubblici possono essere visualizzati tramite link anche da chi non ha l’app e possono essere promossi sui profili social di Bajuju, come indicato nell’informativa privacy."
+          ]
+        ]
+      },
+      {
+        "title": "6. Flash",
+        "blocks": [
+          "Flash serve per attività last minute con una scadenza. Quando ti rendi disponibile, gli altri utenti registrati vedono la tua disponibilità e la tua posizione approssimata fino alla scadenza scelta. Usa Flash solo per proposte reali."
+        ]
+      },
+      {
+        "title": "7. Gruppi",
+        "blocks": [
+          [
+            "Chi crea un gruppo ne è il proprietario unico. Il proprietario può nominare amministratori e togliere loro il ruolo; un amministratore non può rimuovere altri amministratori.",
+            "I nuovi gruppi possono essere verificati da Bajuju prima della pubblicazione.",
+            "Proprietario e amministratori possono approvare o rifiutare le richieste di ingresso, fissare limiti di età, rimuovere ed espellere membri, fissare o eliminare post, eliminare commenti, creare sondaggi e modificare descrizione, colori, copertina e logo. Chi viene espulso non può rientrare nel gruppo.",
+            "La bacheca è visibile a tutti gli utenti registrati se l’iscrizione è libera e solo ai membri se l’iscrizione richiede approvazione. La chat del gruppo è visibile ai membri.",
+            "Proprietario e amministratori devono esercitare questi poteri nel rispetto delle presenti regole. Gli abusi possono essere segnalati a Bajuju, che può intervenire sui contenuti, sui ruoli o sospendere il gruppo.",
+            "Se il proprietario elimina il proprio account, il gruppo passa a Bajuju."
+          ]
+        ]
+      },
+      {
+        "title": "8. Chat, bacheche, commenti e like",
+        "blocks": [
+          "I messaggi, i post, i commenti e i like sono visibili alle persone che possono accedere alla chat o alla bacheca in cui li pubblichi. Puoi eliminare i tuoi messaggi e i tuoi commenti. Lo staff di Bajuju può accedere ai contenuti per assistenza, moderazione e sicurezza."
+        ]
+      },
+      {
+        "title": "9. Foto e immagini",
+        "blocks": [
+          [
+            "Partecipare a un’esperienza non significa acconsentire a essere fotografati o alla pubblicazione della propria immagine. Prima di fotografare altre persone e caricare le loro immagini chiedi il loro permesso e rispetta la loro volontà.",
+            "Le foto della galleria di un evento sono mostrate soltanto all’organizzatore e ai partecipanti. Ogni evento accetta fino a 15 foto, al massimo 3 per persona.",
+            "Le immagini sono raggiungibili da chi ne possiede l’indirizzo diretto: non caricare immagini che non vuoi rendere accessibili in questo modo.",
+            "È vietato usare o diffondere fuori da Bajuju le foto di altre persone senza il loro consenso.",
+            "Puoi chiedere la rimozione di un’immagine che ti ritrae con il pulsante «Segnala» o scrivendo a privacy@bajuju.it."
+          ]
+        ]
+      },
+      {
+        "title": "10. Locali e sconti",
+        "blocks": [
+          "Chi registra un’attività dichiara di essere autorizzato a rappresentarla e a pubblicarne dati, foto e contatti. Le schede e gli sconti vengono pubblicati dopo l’approvazione di Bajuju. Gli sconti sono offerti dal locale, alle condizioni, per la durata e nei limiti di disponibilità indicati nell’offerta: Bajuju non è parte del rapporto tra cliente e locale e non garantisce l’offerta. Per usare uno sconto mostri tu l’offerta al locale: Bajuju non comunica al locale i dati del tuo profilo."
+        ]
+      },
+      {
+        "title": "11. Costi delle attività",
+        "blocks": [
+          "Usare Bajuju è gratuito. Pasti, biglietti, trasporti e altre attività possono avere costi indicati da chi li propone. Prima di pagare verifica destinatario, prezzo e condizioni di annullamento o rimborso. Quando un’iniziativa è proposta direttamente da Bajuju, l’app lo indica."
+        ]
+      },
+      {
+        "title": "12. I tuoi contenuti",
+        "blocks": [
+          "Pubblica soltanto testi, foto e altri materiali che hai il diritto di usare. Conservi i diritti sui tuoi contenuti e autorizzi Bajuju, gratuitamente e per la durata della loro pubblicazione, a ospitarli e mostrarli per fornire le funzioni nelle quali li hai inseriti, e a promuovere i tuoi eventi pubblici sui propri canali come descritto nell’informativa privacy. Questa autorizzazione non permette di usare le tue foto in campagne pubblicitarie."
+        ]
+      },
+      {
+        "title": "13. Moderazione e reclami",
+        "blocks": [
+          "Bajuju esamina le segnalazioni e può rimuovere contenuti, limitare funzioni, sospendere o bloccare account ed espellere utenti in caso di violazione di questi Termini o della legge, in proporzione alla gravità. Quando adottiamo un provvedimento ti indichiamo, nei casi previsti dalla legge, il motivo. Puoi contestarlo o chiedere chiarimenti scrivendo a info@bajuju.it o tramite la chat «Chiedi a Bajuju»."
+        ]
+      },
+      {
+        "title": "14. Partecipazione responsabile e responsabilità",
+        "blocks": [
+          [
+            "Ogni persona decide liberamente se partecipare e deve valutare luogo, percorso, difficoltà, condizioni ambientali, attrezzatura, propria preparazione e condizioni fisiche.",
+            "Ogni partecipante è responsabile del proprio comportamento, delle proprie decisioni, della propria salute, dei propri beni e dei mezzi utilizzati, e degli eventuali danni che causa direttamente a persone, animali, cose o luoghi.",
+            "Nei limiti consentiti dalla legge, Bajuju e chi propone l’esperienza non rispondono di cadute, malori, infortuni accidentali, smarrimenti, comportamenti imprudenti, azioni di terzi, condizioni meteorologiche o altri rischi ordinari dell’attività non causati direttamente da una loro condotta.",
+            "Restano ferme le responsabilità che la legge non permette di escludere o limitare, comprese quelle per dolo o colpa grave, e i diritti che la legge riconosce ai consumatori."
+          ]
+        ]
+      },
+      {
+        "title": "15. Eliminazione dell’account",
+        "blocks": [
+          "Puoi eliminare l’account in qualsiasi momento dal tuo profilo. Gli effetti dell’eliminazione sono descritti nell’informativa privacy."
+        ]
+      },
+      {
+        "title": "16. Modifiche ai Termini",
+        "blocks": [
+          "Possiamo modificare questi Termini quando cambiano il servizio o la normativa. Ti avvisiamo nell’app delle modifiche rilevanti e, quando necessario, ti chiediamo una nuova accettazione prima di continuare a usare Bajuju. Se non accetti le modifiche puoi eliminare l’account."
+        ]
+      },
+      {
+        "title": "17. Legge applicabile",
+        "blocks": [
+          "Questi Termini sono regolati dalla legge italiana. Se sei un consumatore restano salvi i diritti e il foro che la legge ti riconosce.",
+          "Versione 2026-11-27, in vigore dal 27 novembre 2026."
+        ]
+      }
+    ]
+  }
+}

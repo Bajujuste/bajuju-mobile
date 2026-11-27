@@ -99,6 +99,23 @@ Deno.serve(async (request) => {
     }
   }
 
+  // File caricati dall'account (foto profilo, foto chat ed eventi, immagini dei post):
+  // vanno elencati prima della cancellazione, perché dopo l'utente non esiste più.
+  // Copertine e loghi dei gruppi che passano a Bajuju e foto degli sconti restano.
+  const storageObjects = await adminClient.rpc('bajuju_account_storage_objects', {
+    p_user_id: requestedUserId,
+  });
+  const objectsByBucket = new Map<string, string[]>();
+  if (storageObjects.error) {
+    console.error('Elenco file account non riuscito:', storageObjects.error.message);
+  } else {
+    for (const row of (storageObjects.data ?? []) as Array<{ bucket_id: string; name: string }>) {
+      const list = objectsByBucket.get(row.bucket_id) ?? [];
+      list.push(row.name);
+      objectsByBucket.set(row.bucket_id, list);
+    }
+  }
+
   const { error: deleteError } = await adminClient.auth.admin.deleteUser(
     requestedUserId,
     false
@@ -113,8 +130,31 @@ Deno.serve(async (request) => {
     );
   }
 
+  // Statistiche di utilizzo collegate all'account (la tabella non ha vincolo verso auth.users).
+  const analyticsDelete = await adminClient
+    .from('app_analytics_events')
+    .delete()
+    .eq('user_id', requestedUserId);
+  if (analyticsDelete.error) {
+    console.error('Eliminazione statistiche account non riuscita:', analyticsDelete.error.message);
+  }
+
+  let removedFiles = 0;
+  for (const [bucket, names] of objectsByBucket) {
+    for (let index = 0; index < names.length; index += 100) {
+      const chunk = names.slice(index, index + 100);
+      const removal = await adminClient.storage.from(bucket).remove(chunk);
+      if (removal.error) {
+        console.error(`Eliminazione file ${bucket} non riuscita:`, removal.error.message);
+      } else {
+        removedFiles += removal.data?.length ?? 0;
+      }
+    }
+  }
+
   return jsonResponse({
     ok: true,
+    removed_files: removedFiles,
     message: 'Account eliminato definitivamente.',
   });
 });

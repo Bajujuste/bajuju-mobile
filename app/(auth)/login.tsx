@@ -14,6 +14,8 @@ import {
 import * as SecureStore from 'expo-secure-store';
 
 import { supabase } from '../../src/lib/supabase';
+import { acceptCurrentLegalTexts } from '../../src/lib/legalAcceptance';
+import { LEGAL_ACCEPTANCE_LABEL } from '../../src/legal/legalContent';
 import { hasCompleteRequiredProfile } from '../../src/utils/profileCompletion';
 import { KeyboardAwareScrollView } from '../../src/components/KeyboardAwareScrollView';
 import { BajujuBackButton } from '../../src/components/navigation/BajujuBackButton';
@@ -90,7 +92,7 @@ export default function LoginScreen() {
 
     if (!acceptedTerms) {
       setMessageTitle('Accettazione richiesta');
-      setMessageText('Per accedere devi accettare Termini, Privacy e le regole di tolleranza zero contro abusi e contenuti offensivi.');
+      setMessageText('Per accedere devi accettare i Termini e dichiarare di aver letto l’informativa privacy.');
       return;
     }
 
@@ -131,6 +133,14 @@ export default function LoginScreen() {
       }
 
       await updateSavedLogin(cleanEmail);
+
+      // La spunta è un'accettazione esplicita della versione in vigore: viene registrata
+      // con data, ora e versione. Se non riesce, la chiederà di nuovo LegalAcceptanceGate.
+      try {
+        await acceptCurrentLegalTexts();
+      } catch {
+        console.log('Registrazione accettazione Termini non riuscita al login.');
+      }
 
       const loggedUserId = result.data.user?.id || result.data.session?.user?.id;
       let profile: Record<string, unknown> | null = null;
@@ -249,21 +259,28 @@ export default function LoginScreen() {
             <Pressable
               style={styles.termsRow}
               onPress={() => setAcceptedTerms((value) => !value)}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: acceptedTerms }}
+              accessibilityLabel={LEGAL_ACCEPTANCE_LABEL}
             >
               <View style={[styles.checkbox, acceptedTerms && styles.checkboxSelected]}>
                 <Text style={styles.checkboxText}>{acceptedTerms ? '✓' : ''}</Text>
               </View>
               <Text style={styles.termsText}>
-                Accetto i Termini e la Privacy. Bajuju applica tolleranza zero verso contenuti offensivi, molestie e utenti abusivi.
+                {LEGAL_ACCEPTANCE_LABEL}
               </Text>
             </Pressable>
 
+            <Text style={styles.termsNote}>
+              Bajuju applica tolleranza zero verso contenuti offensivi, molestie e utenti abusivi.
+            </Text>
+
             <View style={styles.termsLinks}>
               <Pressable onPress={() => router.push('/rules')}>
-                <Text style={styles.termsLinkText}>Leggi Termini e Regole</Text>
+                <Text style={styles.termsLinkText}>Leggi i Termini</Text>
               </Pressable>
               <Pressable onPress={() => router.push('/privacy')}>
-                <Text style={styles.termsLinkText}>Leggi Privacy</Text>
+                <Text style={styles.termsLinkText}>Leggi l’informativa privacy</Text>
               </Pressable>
             </View>
 
@@ -467,6 +484,13 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 19,
     fontFamily: 'FredokaBold',
+  },
+  termsNote: {
+    color: '#8D5E77',
+    fontSize: 12,
+    fontFamily: 'FredokaRegular',
+    lineHeight: 17,
+    marginBottom: 10,
   },
   termsLinks: {
     flexDirection: 'row',

@@ -25,6 +25,8 @@ import {
 import { BajujuRoundIconButton } from '../navigation/BajujuBackButton';
 import { LOCATION_COLOR } from '../../lib/bajujuLocations';
 import { EventCardImage } from '../events/EventCardImage';
+import { PendingRequestsBadge } from '../common/PendingRequestsBadge';
+import { useMyPendingJoinRequests } from '../../hooks/useMyPendingJoinRequests';
 import { PROMO_GOLD, PROMO_LABEL } from '../../lib/promotedEvents';
 
 const bajujuLogo = require('../../../assets/brand/bajuju-logo.png');
@@ -107,6 +109,7 @@ export function BajujuHomeView({
   onShare,
 }: BajujuHomeViewProps) {
   const insets = useSafeAreaInsets();
+  const pendingRequests = useMyPendingJoinRequests();
 
   const unreadTotal = notificationCounts.requests + notificationCounts.chat + notificationCounts.other;
   // Eventi premium (promozionali, cornice dorata): sezione a parte sotto "Eventi vicino a te".
@@ -122,6 +125,7 @@ export function BajujuHomeView({
         {event.photoUrl ? <EventCardImage uri={event.photoUrl} style={styles.eventImage} resizeMode="cover" /> : <View style={styles.eventPlaceholder}><BajujuIcon name="pin" size={30} color={COLORS.pink} /></View>}
         <Text style={[styles.imageChip, styles.categoryChip]} numberOfLines={1}>{getExperienceCategoryIcon(event.category)} {normalizeExperienceCategory(event.category)}</Text>
         {event.byLocation ? <Text style={[styles.imageChip, styles.locationChip]}>🏠 Del locale</Text> : null}
+        <PendingRequestsBadge count={pendingRequests.activities[event.id]} style={styles.pendingBadge} />
         {Number.isFinite(event.distanceKm) ? <Text style={[styles.imageChip, styles.distanceChip]}>{event.distanceKm < 1 ? `${Math.round(event.distanceKm * 1000)} m` : `${event.distanceKm.toFixed(1).replace('.', ',')} km`}</Text> : null}
       </View>
       {event.promoted ? <Text style={styles.promoBand} numberOfLines={1}>{PROMO_LABEL}</Text> : null}
@@ -497,6 +501,7 @@ const styles = StyleSheet.create({
   eventPlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   imageChip: { position: 'absolute', overflow: 'hidden', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, fontFamily: 'FredokaSemiBold', fontSize: 11 },
   categoryChip: { top: 6, left: 6, maxWidth: '60%', backgroundColor: COLORS.white, color: '#4B0C2D' },
+  pendingBadge: { bottom: 6, right: 6 },
   distanceChip: { top: 6, right: 6, backgroundColor: 'rgba(75, 12, 45, 0.82)', color: COLORS.white },
   locationChip: { bottom: 6, left: 6, backgroundColor: LOCATION_COLOR, color: COLORS.white, fontSize: 11 },
   eventBody: { paddingHorizontal: 10, paddingTop: 7, paddingBottom: 8, gap: 4 },

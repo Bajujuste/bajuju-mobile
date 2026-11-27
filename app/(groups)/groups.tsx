@@ -20,6 +20,8 @@ import { BajujuGroupCard, loadBajujuGroups } from '../../src/lib/bajujuGroups';
 import { supabase } from '../../src/lib/supabase';
 import { BAJUJU_COLORS, BAJUJU_FONTS } from '../../src/theme/bajujuTheme';
 import { KeyboardAwareScrollView } from '../../src/components/KeyboardAwareScrollView';
+import { PendingRequestsBadge } from '../../src/components/common/PendingRequestsBadge';
+import { useMyPendingJoinRequests } from '../../src/hooks/useMyPendingJoinRequests';
 
 type GroupFilter = 'all' | 'joined' | 'owner';
 
@@ -39,6 +41,7 @@ type GroupRequestRow = {
 
 export default function GroupsScreen() {
   const [groups, setGroups] = useState<BajujuGroupCard[]>([]);
+  const pendingRequests = useMyPendingJoinRequests();
   const [groupRequests, setGroupRequests] = useState<GroupRequestRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
@@ -251,7 +254,7 @@ export default function GroupsScreen() {
               ) : (
                 <ScrollView key={filter} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.cardsRow}>
                   {visibleGroups.map((group) => (
-                    <GroupCard key={`${filter}-${group.id}`} group={group} owned={group.ownerId === userId} width={cardWidth} onPress={() => openGroup(group.id)} />
+                    <GroupCard key={`${filter}-${group.id}`} group={group} owned={group.ownerId === userId} pendingCount={group.ownerId === userId ? pendingRequests.groups[group.id] : 0} width={cardWidth} onPress={() => openGroup(group.id)} />
                   ))}
                 </ScrollView>
               )}
@@ -285,7 +288,7 @@ function formatDistance(distanceKm: number | null) {
   return distanceKm < 1 ? '< 1 km' : `${Math.round(distanceKm)} km`;
 }
 
-function GroupCard({ group, owned, width, onPress }: { group: BajujuGroupCard; owned: boolean; width: number; onPress: () => void }) {
+function GroupCard({ group, owned, pendingCount, width, onPress }: { group: BajujuGroupCard; owned: boolean; pendingCount?: number; width: number; onPress: () => void }) {
   const distance = formatDistance(group.distanceKm);
   const place = group.city || group.province;
 
@@ -309,6 +312,7 @@ function GroupCard({ group, owned, width, onPress }: { group: BajujuGroupCard; o
         ) : group.joinedByMe ? (
           <Text style={[styles.imageChip, styles.joinedChip]}>Sei iscritto</Text>
         ) : null}
+        <PendingRequestsBadge count={pendingCount} style={styles.pendingBadge} />
       </View>
       <View style={styles.cardBody}>
         <Text style={styles.cardTitle} numberOfLines={2}>{group.name}</Text>
@@ -391,6 +395,7 @@ const styles = StyleSheet.create({
   imagePlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   imageChip: { position: 'absolute', overflow: 'hidden', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, fontFamily: BAJUJU_FONTS.semiBold, fontSize: 13 },
   categoryChip: { top: 10, left: 10, maxWidth: '62%', backgroundColor: '#FFFFFF', color: '#4B0C2D' },
+  pendingBadge: { bottom: 10, right: 10 },
   distanceChip: { top: 10, right: 10, backgroundColor: 'rgba(75, 12, 45, 0.82)', color: '#FFFFFF' },
   ownerChip: { backgroundColor: BAJUJU_COLORS.plum },
   joinedChip: { bottom: 10, left: 10, backgroundColor: BAJUJU_COLORS.pink, color: '#FFFFFF', fontFamily: 'FredokaRegular', fontSize: 12 },

@@ -24,6 +24,8 @@ import { geocodeProfilePlace, getUsableDevicePosition, toUsableCoordinates } fro
 import { experienceDateLabel } from '../../src/utils/experienceDateLabel';
 import { loadEventOrganizerNames } from '../../src/lib/eventCards';
 import { EventCardImage } from '../../src/components/events/EventCardImage';
+import { PendingRequestsBadge } from '../../src/components/common/PendingRequestsBadge';
+import { useMyPendingJoinRequests } from '../../src/hooks/useMyPendingJoinRequests';
 import { loadPromotedEventIds, PROMO_GOLD, PROMO_LABEL } from '../../src/lib/promotedEvents';
 
 const bajujuLogo = require('../../assets/brand/bajuju-logo.png');
@@ -111,6 +113,7 @@ function participantsLabel(current: number, max: number) {
 
 export default function AllEventsScreen() {
   const [activities, setActivities] = useState<ActivityRow[]>([]);
+  const pendingRequests = useMyPendingJoinRequests();
   const [participantCounts, setParticipantCounts] = useState<Record<string, number>>({});
   const [organizerNames, setOrganizerNames] = useState<Record<string, string>>({});
   const [coordinates, setCoordinates] = useState<Coordinates | null>(null);
@@ -389,7 +392,10 @@ export default function AllEventsScreen() {
               style={({ pressed }) => [styles.eventRow, item.promoted && styles.promoRow, pressed && styles.pressed]}
               onPress={() => router.push({ pathname: '/experience-detail' as any, params: { id } })}
             >
-              <EventCardImage uri={String(item.photo_url || '').trim()} fallback={bajujuLogo} style={styles.thumb} resizeMode="cover" />
+              <View>
+                <EventCardImage uri={String(item.photo_url || '').trim()} fallback={bajujuLogo} style={styles.thumb} resizeMode="cover" />
+                <PendingRequestsBadge count={pendingRequests.activities[id]} style={styles.pendingBadge} />
+              </View>
               <View style={styles.eventBody}>
                 {item.promoted ? <Text style={styles.promoLabel} numberOfLines={1}>{PROMO_LABEL}</Text> : null}
                 <Text style={styles.eventCategory} numberOfLines={1}>
@@ -439,6 +445,7 @@ const styles = StyleSheet.create({
   eventRow: { flexDirection: 'row', gap: 12, padding: 10, borderRadius: 20, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: LINE },
   promoRow: { borderWidth: 3, borderColor: PROMO_GOLD, backgroundColor: '#FFFBEF' },
   promoLabel: { alignSelf: 'flex-start', marginBottom: 2, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, overflow: 'hidden', backgroundColor: PROMO_GOLD, color: '#FFFFFF', fontFamily: 'FredokaBold', fontSize: 12 },
+  pendingBadge: { top: -6, right: -6 },
   thumb: { width: 96, height: 96, borderRadius: 14, backgroundColor: '#FFF0F7' },
   eventBody: { flex: 1, justifyContent: 'center', gap: 2 },
   eventCategory: { color: '#C2287A', fontFamily: 'FredokaSemiBold', fontSize: 12 },

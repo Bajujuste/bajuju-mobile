@@ -35,7 +35,7 @@ const PRIVACY_SECTIONS = [
   },
   {
     "title": "8. Natura del conferimento dei dati",
-    "body": "Alcuni dati sono necessari per usare Bajuju, ad esempio email, dati tecnici di accesso, nickname e informazioni minime per il funzionamento del profilo e delle attività.\n\nAltri dati sono facoltativi, come foto profilo, descrizione personale, genere, interessi, preferenze e contenuti aggiuntivi.\n\nIl mancato conferimento dei dati necessari può impedire la registrazione, l’accesso o l’utilizzo di alcune funzioni. Il mancato conferimento dei dati facoltativi non impedisce l’uso del servizio, ma può limitarne alcune funzionalità o la completezza del profilo."
+    "body": "Alcuni dati sono necessari per usare Bajuju, ad esempio email, dati tecnici di accesso, nickname e informazioni minime per il funzionamento del profilo e delle attività.\n\nLa foto profilo, l’età precisa e il comune e la provincia sono richiesti per completare il profilo e utilizzare il servizio. L’età è utilizzata anche per verificare i requisiti di accesso alle attività e ai gruppi. Descrizione personale, genere, interessi e contenuti aggiuntivi sono facoltativi.\n\nIl mancato conferimento dei dati necessari può impedire la registrazione, l’accesso o l’utilizzo di alcune funzioni. Il mancato conferimento dei dati facoltativi non impedisce l’uso del servizio, ma può limitarne alcune funzionalità o la completezza del profilo."
   },
   {
     "title": "9. Profilo pubblico e visibilità dei dati",
@@ -109,6 +109,10 @@ const PRIVACY_SECTIONS = [
     "title": "26. Contatti",
     "body": "Per richieste privacy, esercizio dei diritti, segnalazioni relative ai dati personali o informazioni è possibile scrivere a: privacy@bajuju.it."
   }
+,{"title":"27. Gruppi, bacheche e comunicazioni","body":"Trattiamo dati relativi a gruppi creati, adesioni, richieste di ingresso, ruoli di proprietario e amministratore, esclusioni, immagini di copertina e loghi, messaggi, post, commenti e like. Il trattamento serve a fornire le funzioni richieste e, per blocchi e segnalazioni, a proteggere la community. Le informazioni sono visibili ai destinatari previsti dalle singole funzioni; i responsabili del gruppo possono gestire richieste e membri. Le comunicazioni con Bajuju Admin sono accessibili agli incaricati dell’assistenza. Le informazioni necessarie alla moderazione possono essere esaminate da soggetti autorizzati."},
+{"title":"28. Posizione e notifiche geografiche","body":"Con l’autorizzazione alla posizione del dispositivo, Bajuju può acquisire le coordinate per calcolare distanze, mostrare attività vicine e aggiornare la posizione utilizzata per le notifiche. Per queste ultime vengono salvate nel database le coordinate associate all’account e la data di aggiornamento, utilizzate per selezionare eventi entro il raggio previsto dal servizio, fino a 25 km. Il comune del profilo può essere usato come riferimento quando la posizione non è disponibile. Puoi revocare il permesso nelle impostazioni del dispositivo e disattivare le notifiche nelle impostazioni previste. La revoca del permesso impedisce nuove acquisizioni ma non comporta automaticamente la cancellazione delle coordinate già salvate; puoi richiederla al titolare."},
+{"title":"29. Statistiche e diagnostica","body":"Per valutare funzionamento e utilizzo del servizio, Bajuju registra eventi di utilizzo ed errori tecnici che possono essere associati all’identificativo dell’account e alla piattaforma utilizzata. Sono inoltre raccolti conteggi dei passaggi di registrazione tramite un identificativo temporaneo di sessione. Queste attività sono distinte dalla pubblicità e dalla profilazione commerciale. Le basi giuridiche sono valutate in relazione alla finalità: necessità di fornire il servizio per la diagnostica indispensabile, legittimo interesse per le analisi interne proporzionate e consenso quando richiesto per strumenti facoltativi. Puoi esercitare il diritto di opposizione nei casi previsti."},
+{"title":"30. Attività locali, sconti e fornitori mobile","body":"Chi registra un’attività può pubblicare nome, descrizione, fotografie, indirizzo, coordinate, contatti e collegamenti social, oltre alle condizioni di eventuali sconti. Questi dati sono usati per mostrare la scheda e gestirne l’approvazione. Inserisci soltanto dati che sei autorizzato a pubblicare. L’utilizzo di un’offerta non autorizza di per sé l’invio dei dati del profilo al partner. I fornitori tecnici comprendono anche i servizi Expo per distribuzione e notifiche, i servizi di consegna push di Apple e Google e i servizi cartografici e di ricerca indirizzi utilizzati dalle relative funzioni."}
 ];
 
 export default function PrivacyScreen() {
@@ -123,7 +127,7 @@ export default function PrivacyScreen() {
         <Text style={styles.kicker}>Bajuju</Text>
         <Text style={styles.title}>Privacy Policy Bajuju</Text>
         <Text style={styles.subtitle}>Informativa sul trattamento dei dati personali ai sensi del Regolamento UE 2016/679</Text>
-        <Text style={styles.updated}>Ultimo aggiornamento: 16 giugno 2026</Text>
+        <Text style={styles.updated}>Ultimo aggiornamento: 27 novembre 2026</Text>
 
         {PRIVACY_SECTIONS.map((section) => (
           <View key={section.title} style={styles.section}>

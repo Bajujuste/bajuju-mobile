@@ -669,6 +669,33 @@ export default function ExperienceDetailScreen() {
     loadExperience();
   }, [loadExperience]);
 
+  // Quando si torna su questa pagina (es. dopo "Modifica evento") ricarica in silenzio
+  // titolo, descrizione e dati dell'evento, senza rotella di caricamento.
+  const detailFocusedOnceRef = useRef(false);
+  useFocusEffect(
+    useCallback(() => {
+      if (!detailFocusedOnceRef.current) {
+        detailFocusedOnceRef.current = true;
+        return;
+      }
+      if (!experienceId) return;
+      let cancelled = false;
+      void (async () => {
+        const refreshed = await supabase
+          .from('activities')
+          .select('*')
+          .eq('id', experienceId)
+          .maybeSingle();
+        if (!cancelled && !refreshed.error && refreshed.data) {
+          setExperience(refreshed.data as ActivityRow);
+        }
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }, [experienceId])
+  );
+
   useEffect(() => {
     if (requestedSection === 'requests' && joinRequests.length > 0) {
       setRequestsOpen(true);

@@ -217,6 +217,12 @@ export function useAndroidKeyboardPad() {
   keyboardHeightRef.current = keyboardHeight;
 
   useLiveKeyboardHeight(setKeyboardHeight);
+  // Se Reanimated resta bloccato a tastiera aperta, la chiusura vista da React Native azzera lo spazio.
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    const sub = Keyboard.addListener('keyboardDidHide', () => setKeyboardHeight(0));
+    return () => sub.remove();
+  }, []);
 
   const onLayout = useCallback((event: LayoutChangeEvent) => {
     const height = Math.round(event.nativeEvent.layout.height);

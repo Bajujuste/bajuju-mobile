@@ -9,6 +9,7 @@ import { useBajujuPhotoPicker } from '../../src/components/useBajujuPhotoPicker'
 import {
   Alert,
   Image,
+  Keyboard,
   Modal,
   Platform,
   Pressable,
@@ -304,6 +305,20 @@ export default function ExperienceDetailScreen() {
     (current, previous) => {
       if (current >= 0 && current !== previous) runOnJS(setAndroidKeyboardHeight)(current);
     },
+  );
+  // L'altezza letta da Reanimated a volte resta "bloccata" a tastiera aperta anche dopo che si è chiusa
+  // (es. tornando da Modifica evento, dove la tastiera era aperta): la pagina restava tagliata con un
+  // grande spazio vuoto sotto la chat. Quando React Native dice che la tastiera è chiusa, azzeriamo sempre.
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    const sub = Keyboard.addListener('keyboardDidHide', () => setAndroidKeyboardHeight(0));
+    return () => sub.remove();
+  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      // Al ritorno su questa pagina: se la tastiera non è aperta, niente spazio extra.
+      if (Platform.OS === 'android' && !Keyboard.isVisible()) setAndroidKeyboardHeight(0);
+    }, []),
   );
   const systemShrink = Math.max(0, fullScreenHeightRef.current - screenHeight);
   const androidKeyboardPad =

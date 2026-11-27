@@ -19,6 +19,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Spazio libero che lasciamo tra il campo attivo e la tastiera.
 const EXTRA_SPACE = 24;
+// Margine prudente in più sulla posizione della tastiera su Android (circa la barra dei tasti di sistema).
+const ANDROID_KEYBOARD_MARGIN = 48;
 
 function assignRef<T>(ref: ForwardedRef<T>, value: T | null) {
   if (typeof ref === 'function') ref(value);
@@ -101,7 +103,16 @@ function useKeyboardTop(onChange: (top: number | null) => void) {
     const candidates: number[] = [];
     if (eventTop.current != null) candidates.push(eventTop.current);
     if (liveHeight.current > 0) candidates.push(keyboardTopFromHeight(liveHeight.current, insetsRef.current));
-    onChangeRef.current(candidates.length ? Math.min(...candidates) : null);
+    if (!candidates.length) {
+      onChangeRef.current(null);
+      return;
+    }
+    // Android: su alcuni telefoni (es. quello di stefano, barra con 3 tasti) entrambe le stime
+    // risultano più basse della tastiera vera di circa l'altezza della barra dei tasti di sistema,
+    // e il campo restava coperto. Teniamo sempre questo margine in più: al massimo resta
+    // un po' di spazio sopra la tastiera, mai il campo coperto.
+    const androidMargin = Platform.OS === 'android' ? Math.max(insetsRef.current.bottom, ANDROID_KEYBOARD_MARGIN) : 0;
+    onChangeRef.current(Math.min(...candidates) - androidMargin);
   }, []);
 
   const onLiveHeight = useCallback(
@@ -188,6 +199,34 @@ export function useKeyboardOverlap(viewRef: { current: View | null }) {
   }, []);
 
   return overlap;
+}
+
+/**
+ * Android, schermate di chat con il campo fisso in fondo: spazio da lasciare sotto la schermata
+ * a tastiera aperta = altezza VERA della tastiera letta da Reanimated, meno quanto il sistema
+ * ha già rimpicciolito la schermata. Niente coordinate (cambiano da telefono a telefono):
+ * è lo stesso schema della chat della pagina evento.
+ * onLayout va messo sulla vista esterna della schermata (quella che riceve il paddingBottom).
+ * Su iOS restituisce sempre 0.
+ */
+export function useAndroidKeyboardPad() {
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [screenHeight, setScreenHeight] = useState(0);
+  const fullScreenHeight = useRef(0);
+  const keyboardHeightRef = useRef(0);
+  keyboardHeightRef.current = keyboardHeight;
+
+  useLiveKeyboardHeight(setKeyboardHeight);
+
+  const onLayout = useCallback((event: LayoutChangeEvent) => {
+    const height = Math.round(event.nativeEvent.layout.height);
+    if (keyboardHeightRef.current === 0) fullScreenHeight.current = Math.max(fullScreenHeight.current, height);
+    setScreenHeight(height);
+  }, []);
+
+  const systemShrink = Math.max(0, fullScreenHeight.current - screenHeight);
+  const pad = Platform.OS === 'android' && keyboardHeight > 0 ? Math.max(0, keyboardHeight - systemShrink) : 0;
+  return { pad, onLayout };
 }
 
 /**

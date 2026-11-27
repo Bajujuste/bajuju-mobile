@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -15,7 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../../src/lib/supabase';
 import { BAJUJU_COLORS, BAJUJU_FONTS, BAJUJU_SHADOW } from '../../src/theme/bajujuTheme';
 import { BajujuBackButton } from '../../src/components/navigation/BajujuBackButton';
-import { useKeyboardOverlap } from '../../src/components/KeyboardAwareScrollView';
+import { useAndroidKeyboardPad, useKeyboardOverlap } from '../../src/components/KeyboardAwareScrollView';
 import { useChatLiveRefresh } from '../../src/hooks/useChatLiveRefresh';
 import { useBajujuAdminIds } from '../../src/hooks/useBajujuAdminIds';
 import { BajujuLinkText } from '../../src/components/chat/BajujuLinkText';
@@ -49,7 +50,11 @@ export default function AdminPrivateChatScreen() {
   const insets = useSafeAreaInsets();
   const screenRef = useRef<View | null>(null);
   const messagesRef = useRef<ScrollView | null>(null);
-  const keyboardOverlap = useKeyboardOverlap(screenRef);
+  const measuredOverlap = useKeyboardOverlap(screenRef);
+  // Android: la tastiera copriva ancora il campo (calcolo per coordinate troppo corto su alcuni telefoni).
+  // Usiamo anche l'altezza vera della tastiera, come nella chat della pagina evento, e teniamo il valore più alto.
+  const androidKeyboard = useAndroidKeyboardPad();
+  const keyboardOverlap = Platform.OS === 'android' ? Math.max(measuredOverlap, androidKeyboard.pad) : measuredOverlap;
 
   useEffect(() => {
     // Con la tastiera aperta l'ultimo messaggio resta visibile sopra il campo.
@@ -319,7 +324,7 @@ export default function AdminPrivateChatScreen() {
   const adminViewingUser = isAdmin && targetUserId && targetUserId !== currentUserId;
 
   return (
-    <View ref={screenRef} style={[styles.screen, { paddingBottom: keyboardOverlap }]}>
+    <View ref={screenRef} onLayout={androidKeyboard.onLayout} style={[styles.screen, { paddingBottom: keyboardOverlap }]}>
       <View style={styles.header}>
         <BajujuBackButton onPress={() => router.back()} accessibilityLabel="Indietro" />
         <View style={styles.headerCopy}>

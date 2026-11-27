@@ -348,7 +348,7 @@ export default function RegisterScreen() {
                 <Text style={styles.checkboxText}>{acceptedTerms ? '✓' : ''}</Text>
               </View>
               <Text style={styles.termsText}>
-                Accetto i Termini e la Privacy. Bajuju applica tolleranza zero verso contenuti offensivi, molestie e utenti abusivi.
+                Accetto i Termini e dichiaro di aver letto l’informativa privacy. Bajuju applica tolleranza zero verso contenuti offensivi, molestie e utenti abusivi.
               </Text>
             </Pressable>
 

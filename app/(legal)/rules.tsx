@@ -24,7 +24,7 @@ export default function RulesScreen() {
         <Text style={styles.rule}>6. Segnala subito contenuti, messaggi o profili sospetti usando i pulsanti Segnala presenti nell’app.</Text>
         <Text style={styles.rule}>7. Blocca gli utenti con cui non vuoi più interagire usando il pulsante Blocca utente nel loro profilo.</Text>
         <Text style={styles.rule}>8. Le segnalazioni vengono esaminate e possono portare alla rimozione dei contenuti, alla sospensione o al blocco dell’account.</Text>
-        <Text style={styles.rule}>9. Partecipando a un’esperienza Bajuju accetti che durante l’evento possano essere scattate fotografie dai partecipanti.</Text>
+        <Text style={styles.rule}>9. La partecipazione a un’esperienza non costituisce un consenso generale a essere fotografati o alla pubblicazione della propria immagine. Prima di caricare immagini di altre persone occorre avere un titolo valido e rispettare la loro volontà e la normativa applicabile.</Text>
         <Text style={styles.rule}>10. Le foto possono essere caricate nella galleria dell’esperienza e sono visibili solo ai partecipanti della stessa esperienza.</Text>
         <Text style={styles.rule}>11. È vietato usare o diffondere le foto fuori da Bajuju senza il consenso delle persone ritratte.</Text>
 
@@ -39,7 +39,14 @@ export default function RulesScreen() {
         <Text style={styles.rule}>17. L’utente proponente deve comunque descrivere l’esperienza in modo veritiero e non deve nascondere consapevolmente difficoltà o pericoli rilevanti di cui sia a conoscenza.</Text>
         <Text style={styles.rule}>18. Restano ferme tutte le responsabilità che non possono essere escluse o limitate dalla legge, incluse quelle derivanti da dolo, colpa grave o altre condotte soggette a responsabilità inderogabile.</Text>
 
-        <Text style={styles.acceptanceNote}>Registrandoti e selezionando “Accetto”, dichiari di aver letto e accettato i presenti Termini e regole, oltre alla Privacy Policy di Bajuju.</Text>
+        <Text style={styles.rule}>{"Gruppi e contenuti: proprietari e amministratori possono gestire richieste di ingresso, ruoli, contenuti e membri tramite le funzioni disponibili. Le loro decisioni devono rispettare le regole della community; gli abusi possono essere segnalati a Bajuju. I requisiti di età si applicano secondo le modalità indicate nell’app."}</Text>
+        <Text style={styles.rule}>{"Eventi e partecipazione: leggi descrizione, luogo, orari, requisiti, costi e condizioni prima di iscriverti. Comunica tempestivamente una rinuncia. L’organizzatore deve comunicare cambiamenti e cancellazioni; eventuali richieste di conferma e conseguenze della mancata risposta devono essere esplicitate."}</Text>
+        <Text style={styles.rule}>{"Costi e promozioni: l’utilizzo di Bajuju è gratuito. Pasti, biglietti, trasporti e altre attività possono avere costi indicati dal soggetto che li offre. Prima di pagare verifica destinatario, prezzo e condizioni di annullamento o rimborso. Gli sconti dei partner sono soggetti alle condizioni, alla durata e alle disponibilità indicate nell’offerta. Quando un’iniziativa è offerta direttamente da Bajuju, ciò deve essere specificato."}</Text>
+        <Text style={styles.rule}>{"Diritti sui contenuti: pubblica soltanto materiali che puoi utilizzare legittimamente. Conservi i tuoi diritti e autorizzi Bajuju a ospitare e mostrare i contenuti per fornire le funzioni nelle quali li hai inseriti. Questo non costituisce un’autorizzazione generale a utilizzare immagini personali nelle campagne pubblicitarie esterne."}</Text>
+        <Text style={styles.rule}>{"Moderazione e assistenza: puoi contestare un provvedimento o segnalare problemi scrivendo a info@bajuju.it. Bajuju può rimuovere contenuti e limitare account per violazioni, fornendo le informazioni richieste dalla legge. Le limitazioni di responsabilità non escludono i diritti inderogabili degli utenti."}</Text>
+        <Text style={styles.rule}>{"Gestore e aggiornamenti: il servizio è gestito da Stefano Viola, Caprino Bergamasco; contatti info@bajuju.it e privacy@bajuju.it. Gli aggiornamenti rilevanti dei termini vengono comunicati agli utenti; quando necessario viene richiesta una nuova accettazione. Versione del testo: 27 novembre 2026."}</Text>
+
+        <Text style={styles.acceptanceNote}>Registrandoti e selezionando “Accetto”, dichiari di aver letto e accettato i presenti Termini e regole, e dichiari di aver letto l’informativa privacy di Bajuju.</Text>
 
         <TouchableOpacity style={styles.button} onPress={() => router.push('/profile')}>
           <Text style={styles.buttonText}>Torna al profilo</Text>

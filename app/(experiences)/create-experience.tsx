@@ -21,7 +21,8 @@ import { AddressAutocompleteField } from '../../src/components/AddressAutocomple
 import { BajujuBottomNav } from '../../src/components/navigation/BajujuBottomNav';
 import { BajujuActionBar, BajujuButton } from '../../src/components/BajujuActionBar';
 import { BajujuProfileButton } from '../../src/components/navigation/BajujuProfileButton';
-import { EXPERIENCE_CREATION_CATEGORIES } from '../../src/constants/experienceCategories';
+import { EXPERIENCE_CREATION_CATEGORIES, categoryAllowsWalkTogether } from '../../src/constants/experienceCategories';
+import { setWalkTogetherEnabled } from '../../src/lib/walkTogether';
 import {
   BajujuGroupCard,
   loadOwnedBajujuGroups,
@@ -50,6 +51,7 @@ function categoryToDatabaseValue(value: string) {
     case 'Cena': return 'cena';
     case 'Aperitivo': return 'aperitivo';
     case 'Camminata': return 'passeggiata';
+    case 'Trekking': return 'trekking';
     case 'Sport': return 'sport';
     case 'Cultura': return 'cultura';
     case 'Musica': return 'musica';
@@ -185,6 +187,7 @@ export default function CreateExperienceScreen() {
   const [minAge, setMinAge] = useState('18');
   const [maxAge, setMaxAge] = useState('80');
   const [budgetAmount, setBudgetAmount] = useState('');
+  const [walkTogether, setWalkTogether] = useState(false);
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   // Solo gli admin vedono anche il tasto "Crea evento premium".
@@ -231,6 +234,7 @@ export default function CreateExperienceScreen() {
   const formattedSelectedDate = isoDate ? `${day}/${month}/${year}` : 'Scegli';
   const formattedSelectedTime = cleanTime ? `${hour}:${minute}` : 'Scegli';
   const needsBudget = category === 'Gita';
+  const canWalkTogether = categoryAllowsWalkTogether(category);
   const cleanMaxParticipants = Number(maxParticipants || '0');
   const cleanBudgetAmount = budgetAmount ? Number(budgetAmount) : null;
   const maxParticipantsIsValid = Number.isInteger(cleanMaxParticipants) && cleanMaxParticipants >= 1 && cleanMaxParticipants <= 99;
@@ -429,6 +433,16 @@ export default function CreateExperienceScreen() {
       let photoUploadWarning = '';
       let groupNotificationWarning = '';
       let premiumWarning = '';
+      let walkWarning = '';
+
+      // "Vediamoci in cammino": l'organizzatore lo accende solo per questo evento.
+      if (canWalkTogether && walkTogether && result.data?.id) {
+        try {
+          await setWalkTogetherEnabled(String(result.data.id), true);
+        } catch (error: unknown) {
+          walkWarning = error instanceof Error ? error.message : 'Non sono riuscito ad attivarlo.';
+        }
+      }
 
       // Evento premium (solo admin): cornice d'oro, primo per tutti, numero iscritti nascosto.
       if (premium && result.data?.id) {
@@ -498,6 +512,7 @@ export default function CreateExperienceScreen() {
       setMinAge('18');
       setMaxAge('80');
       setBudgetAmount('');
+      setWalkTogether(false);
       setPhotoUri(null);
       setSelectedGroupIds([]);
       setSelectedLocation(null);
@@ -506,6 +521,7 @@ export default function CreateExperienceScreen() {
         photoUploadWarning ? `Foto: ${photoUploadWarning}` : '',
         groupNotificationWarning ? `Gruppi: ${groupNotificationWarning}` : '',
         premiumWarning ? `Premium: ${premiumWarning}` : '',
+        walkWarning ? `Vediamoci in cammino: ${walkWarning}` : '',
       ].filter(Boolean);
 
       Alert.alert(
@@ -611,6 +627,34 @@ export default function CreateExperienceScreen() {
               );
             })}
           </View>
+
+          {canWalkTogether ? (
+            <>
+              <Text style={styles.label}>Vediamoci in cammino</Text>
+              <View style={styles.segment}>
+                {[
+                  { value: false, label: 'No' },
+                  { value: true, label: 'Sì' },
+                ].map((option) => {
+                  const selected = walkTogether === option.value;
+                  return (
+                    <Pressable
+                      key={option.label}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected }}
+                      style={[styles.segmentButton, selected && styles.segmentButtonSelected]}
+                      onPress={() => setWalkTogether(option.value)}
+                    >
+                      <Text style={[styles.segmentText, selected && styles.segmentTextSelected]}>{option.label}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              <Text style={styles.helper}>
+                Il giorno dell’evento chi partecipa preme “Sono qui” e vede a che distanza sono gli altri. Funziona con l’app aperta.
+              </Text>
+            </>
+          ) : null}
 
           <Text style={styles.label}>Descrizione</Text>
           <TextInput

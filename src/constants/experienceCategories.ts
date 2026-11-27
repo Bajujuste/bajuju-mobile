@@ -3,6 +3,7 @@ export const EXPERIENCE_CATEGORIES = [
   'Cena',
   'Aperitivo',
   'Camminata',
+  'Trekking',
   'Sport',
   'Cultura',
   'Musica',
@@ -16,6 +17,7 @@ export const EXPERIENCE_CREATION_CATEGORIES = [
   'Cena',
   'Aperitivo',
   'Camminata',
+  'Trekking',
   'Sport',
   'Cultura',
   'Musica',
@@ -32,7 +34,8 @@ export function normalizeExperienceCategory(value: string | null | undefined) {
 
   if (clean.includes('cena')) return 'Cena';
   if (clean.includes('aperitivo')) return 'Aperitivo';
-  if (clean.includes('camminata') || clean.includes('trekking') || clean.includes('passeggiata')) return 'Camminata';
+  if (clean.includes('trekking') || clean.includes('escursion')) return 'Trekking';
+  if (clean.includes('camminata') || clean.includes('passeggiata')) return 'Camminata';
   if (clean.includes('sport') || clean.includes('calcetto') || clean.includes('tennis') || clean.includes('padel')) return 'Sport';
   if (clean.includes('cultura') || clean.includes('museo') || clean.includes('mostra')) return 'Cultura';
   if (clean.includes('musica') || clean.includes('concerto')) return 'Musica';
@@ -54,6 +57,8 @@ export function getExperienceCategoryIcon(value: string | null | undefined) {
       return '🍹';
     case 'Camminata':
       return '🥾';
+    case 'Trekking':
+      return '⛰️';
     case 'Sport':
       return '⚽';
     case 'Cultura':
@@ -69,4 +74,11 @@ export function getExperienceCategoryIcon(value: string | null | undefined) {
     default:
       return '✨';
   }
+}
+
+// "Vediamoci in cammino" (distanza tra i partecipanti) si può accendere solo per queste categorie.
+export const WALK_TOGETHER_CATEGORIES = ['Camminata', 'Trekking', 'Gita', 'Sport'];
+
+export function categoryAllowsWalkTogether(value: string | null | undefined) {
+  return WALK_TOGETHER_CATEGORIES.includes(normalizeExperienceCategory(value));
 }

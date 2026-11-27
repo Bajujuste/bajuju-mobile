@@ -31,7 +31,7 @@ import {
 } from '../../src/lib/bajujuLocations';
 import { shareBajujuExperience } from '../../src/utils/shareBajuju';
 import { addToGoogleCalendar } from '../../src/utils/googleCalendar';
-import { getExperienceCategoryIcon, normalizeExperienceCategory } from '@/constants/experienceCategories';
+import { categoryAllowsWalkTogether, getExperienceCategoryIcon, normalizeExperienceCategory } from '@/constants/experienceCategories';
 import { sendBajujuPushNotification } from '../../src/utils/bajujuNotifications';
 import { enableBajujuNotificationsFromPrompt, shouldAskBajujuNotificationsAfterJoin } from '../../src/utils/bajujuNotificationPrompt';
 import { BAJUJU_COLORS, BAJUJU_FONTS, BAJUJU_SHADOW } from '../../src/theme/bajujuTheme';
@@ -49,6 +49,7 @@ import { CHAT_PHOTO_PLACEHOLDER, chatPhotoCaption } from '../../src/lib/bajujuCh
 import { loadPromotedEventIds } from '../../src/lib/promotedEvents';
 import { useBajujuAuthorProfiles } from '../../src/hooks/useBajujuAuthorProfiles';
 import { BajujuCancelEventModal } from '../../src/components/experiences/BajujuCancelEventModal';
+import { BajujuWalkTogetherCard } from '../../src/components/experiences/BajujuWalkTogetherCard';
 import { BajujuRemoveParticipantModal } from '../../src/components/experiences/BajujuRemoveParticipantModal';
 import { ADMIN_AS_BAJUJU_HINT, sendChatAsBajuju } from '../../src/utils/sendChatAsBajuju';
 
@@ -1668,6 +1669,17 @@ export default function ExperienceDetailScreen() {
                     <Ionicons name="calendar-outline" size={18} color={BAJUJU_COLORS.pink} />
                     <Text style={styles.calendarButtonText}>Aggiungi a Google Calendar</Text>
                   </Pressable>
+                ) : null}
+
+                {currentUserId && experienceId && categoryAllowsWalkTogether(experience.category) ? (
+                  <BajujuWalkTogetherCard
+                    activityId={String(experienceId)}
+                    currentUserId={String(currentUserId)}
+                    getPerson={(userId) => ({
+                      name: authorName(profiles[userId]),
+                      photo: profilePhotoUrl(profiles[userId]),
+                    })}
+                  />
                 ) : null}
 
                 {eventLocation ? (
